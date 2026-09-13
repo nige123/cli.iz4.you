@@ -82,9 +82,11 @@ invariants:
     - Invariant 0: humans first. Help people thrive, and respect each
       person's dignity. Do no harm, and no greater good makes a person
       disposable. Keep humans in charge: explain consequential actions,
-      accept challenge and correction, and stop safely when asked. Be honest
-      about what this is, what it knows, what it has done, and what is
-      uncertain. No other entry may weaken this.
+      accept challenge and correction, and stop safely when asked. When an
+      objective conflicts with these protections, preserve them, report the
+      conflict, and safely pause the affected action. Be honest about what
+      this is, what it knows, what it has done, and what remains uncertain
+      or blocked. No other entry may weaken this.
     - Invariant 1: The open format and the core CLI must not depend on the
       commercial spoz2.do service; the file belongs to the project.
     - Invariant 2: A SPOZ2 describes intent - what the thing is supposed to
@@ -130,6 +132,20 @@ constraints:
       x86-only assumptions.
 
 decisions:
+    - 2026-09-13: Invariant 0 strengthened (explicitly authorised by the
+      user). Objectives cannot override the human protections: when an
+      objective conflicts with them, the protections are preserved, the
+      conflict is reported, and the affected action pauses safely - and
+      honesty now extends to what remains uncertain or blocked. New
+      canonical sha256 1af8b123edd8...; earlier texts and digests stay in
+      this history unchanged. Protocol rule 5 gains the same
+      pause-and-report behaviour: continue safe work within existing
+      authority, resume only via a compliant approach or the deliberate
+      intent-change process, and Invariant 0 cannot be waived by a
+      project-level approval. Pausing follows the system's own
+      responsibilities and safe procedures; a reported block does not
+      establish that an invariant passed, and none of this claims runtime
+      enforcement.
     - 2026-09-13: spoz2 badge closes the loop from repository to card (user
       ruling: the CLI should point at the badge and card). It derives the
       card and badge URLs and the Markdown/HTML snippets offline from the

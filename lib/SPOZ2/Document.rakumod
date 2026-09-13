@@ -21,13 +21,15 @@ constant INVARIANT-ZERO is export =
     "Invariant 0: humans first. Help people thrive, and respect each person's "
     ~ 'dignity. Do no harm, and no greater good makes a person disposable. Keep '
     ~ 'humans in charge: explain consequential actions, accept challenge and '
-    ~ 'correction, and stop safely when asked. Be honest about what this is, '
-    ~ 'what it knows, what it has done, and what is uncertain. No other entry '
-    ~ 'may weaken this.';
+    ~ 'correction, and stop safely when asked. When an objective conflicts with '
+    ~ 'these protections, preserve them, report the conflict, and safely pause '
+    ~ 'the affected action. Be honest about what this is, what it knows, what '
+    ~ 'it has done, and what remains uncertain or blocked. No other entry may '
+    ~ 'weaken this.';
 
 #| sha256 of the exact one-line UTF-8 canonical text, no trailing newline.
 constant INVARIANT-ZERO-DIGEST is export =
-    'b0c2482d4298e5bbbcb8de5b9da507a27668ed2fba28e46a414bafc1f4152360';
+    '1af8b123edd8b27afba34c2ee385bb649c6eaed25647e7240f9f26cd440472f3';
 
 #| The short teaching version, for pages and slides, never for files.
 constant INVARIANT-ZERO-SHORT is export =

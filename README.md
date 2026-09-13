@@ -102,7 +102,7 @@ behaviours:
       onto a continuation line.
 
 invariants:
-    - Invariant 0: humans first. This software exists to help humans ...
+    - Invariant 0: humans first. Help people thrive, and respect each ...
     - Invariant 1: only one active session may exist per user.
 
 constraints:
@@ -145,7 +145,7 @@ the words.
 Nothing in a SPOZ2 may weaken it. `spoz2 init` writes it, `spoz2 check`
 verifies the binding, and a passing check never means the software is safe.
 
-The full 62-word text and what comes with it:
+The full text and what comes with it:
 [docs/invariant-0.md](docs/invariant-0.md).
 
 ## Agents

@@ -30,8 +30,13 @@ constant AGENT-PROTOCOL is export = q:to/END/;
         waived: do not break an invariant because nobody mentioned it.
     4.  'direction' entries are future intent, not permission to implement
         unrequested work.
-    5.  If the requested task conflicts with a current invariant, explain
-        the conflict before implementing the conflicting change.
+    5.  If the requested task conflicts with a current invariant or
+        constraint, report the conflict and safely pause the affected
+        action.  Continue safe work within existing authority.  Resume
+        only after a compliant approach is established or the conflict
+        is resolved through the project's deliberate intent-change
+        process.  Invariant 0 cannot be waived by a project-level
+        approval.
     6.  When the user explicitly authorises changing an invariant, follow
         the project's deliberate intent-change process: record the change
         in the SPOZ2 (the edited entry plus a dated decision) before
