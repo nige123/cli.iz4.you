@@ -18,7 +18,7 @@ my $inherit = SPOZ2::Document.parse("SPOZ2 0.0\n\n$g\ninvariants:\n    - Somethi
 ok $inherit.ok, 'a file without the text has no errors';
 nok $inherit.warnings.grep(*.Str.contains('invariant zero')),
     'omission draws no warning: the obligation is inherited';
-like $inherit.invariant-zero-status, /'inherited from SPOZ2 0.0'/,
+like $inherit.invariant-zero-status, /'not repeated locally'/,
     'status reports the inherited binding';
 like $inherit.invariant-zero-status, /'still binding'/,
     'status says omission does not remove the obligation';
@@ -26,7 +26,7 @@ like $inherit.invariant-zero-status, /'still binding'/,
 # --- canonical-text verification -----------------------------------------
 my $match = SPOZ2::Document.parse("SPOZ2 0.0\n\n$g\ninvariants:\n    - " ~ INVARIANT-ZERO ~ "\n");
 nok $match.warnings, 'the canonical text repeated verbatim draws no warning';
-like $match.invariant-zero-status, /'matches the canonical SPOZ2 0.0 text'/,
+like $match.invariant-zero-status, /'matches the canonical text'/,
     'status reports a verified local match';
 ok INVARIANT-ZERO.starts-with('Invariant 0: humans first.'),
     'the canonical headline is HUMANS FIRST under the plain 0 designation';
@@ -51,9 +51,9 @@ $canon-file.spurt(INVARIANT-ZERO);
 is sha256-hex($canon-file), INVARIANT-ZERO-DIGEST,
     'the published digest matches the canonical text bytes';
 
-# --- unknown version: no false binding claim -----------------------------
-my $unknown = SPOZ2::Document.parse("SPOZ2 9.9\n\n$g\ninvariants:\n    - x\n");
-like $unknown.invariant-zero-status, /'not established'/,
-    'an unknown format version never claims a verified binding';
+# --- legacy versioned headers: read silently, binding unchanged ----------
+my $legacy-hdr = SPOZ2::Document.parse("SPOZ2 9.9\n\n$g\ninvariants:\n    - x\n");
+ok $legacy-hdr.ok && $legacy-hdr.invariant-zero-status.contains('still binding'),
+    'a legacy versioned header is read silently and Invariant 0 still binds';
 
 done-testing;

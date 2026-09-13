@@ -42,7 +42,7 @@ sub USAGE() {
       spoz2 version                      print the tool and format versions
       spoz2 agent [--json]               print the agent packet: adherence
                                            protocol, format version and digest,
-                                           inherited Invariant Zero, and the
+                                           inherited Invariant 0, and the
                                            specification itself
       spoz2 agent install [--claude] [--skill]
                                          add a managed section to AGENTS.md
@@ -133,7 +133,7 @@ multi MAIN('check', Str $file?) {
         my $doc  = check-doc($path);
         .say for $doc.report(:$name);
         say $doc.invariant-zero-status;
-        say 'checked: structure and the invariant-zero binding only; a '
+        say 'checked: structure and the Invariant 0 binding only; a '
           ~ 'passing check never means the software is safe, harmless, or '
           ~ 'that its claims are true';
         if $doc.ok { say "OK $name"; 0 } else { 1 }
@@ -168,7 +168,7 @@ multi MAIN('diff', *@args) {
 }
 
 multi MAIN('version') {
-    say "spoz2 {VERSION} (SPOZ2 format {FORMAT-VERSION})";
+    say "spoz2 {VERSION}";
 }
 
 multi MAIN('agent', Bool :$json = False, Str :$file) {
@@ -200,7 +200,7 @@ multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$
         else {
             if %s<spoz2><present> {
                 say "SPOZ2: {display-name($path)} - " ~ (%s<spoz2><valid>
-                    ?? "valid (SPOZ2 {%s<spoz2><format_version>})"
+                    ?? 'valid'
                     !! "INVALID ({%s<spoz2><errors>} errors - run 'spoz2 check')");
                 say %s<spoz2><binding>;
             }
@@ -208,7 +208,7 @@ multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$
             say integration-line($_, %s<integrations>{$_}) for 'AGENTS.md', 'CLAUDE.md', SKILL-PATH;
             say %s<note>;
         }
-        my $fail = !%s<spoz2><present> || !%s<spoz2><valid> || !%s<spoz2><binding_resolves>
+        my $fail = !%s<spoz2><present> || !%s<spoz2><valid>
                 || ?%s<integrations>.values.grep(* eq 'stale' | 'malformed');
         ($strict && $fail) ?? 1 !! 0;
     }

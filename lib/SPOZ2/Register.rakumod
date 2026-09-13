@@ -144,7 +144,7 @@ sub collect-report(IO::Path $spoz2, Str :$release, Str :$run-id --> Hash) is exp
     if $spoz2.f {
         %declaration<digest> = sha256-file($spoz2);
         my $doc = SPOZ2::Document.load($spoz2);
-        %declaration<grammar_version>  = "SPOZ2 {$doc.version}" with $doc.version;
+        %declaration<grammar_version> = $doc.version.defined ?? "SPOZ2 {$doc.version}" !! 'SPOZ2';
         %declaration<invariant_count> = $doc.section('invariants') ?? $doc.section('invariants').items.elems !! 0;
         %checks<syntax> = %( outcome => $doc.ok ?? 'passed' !! 'failed' );
     }

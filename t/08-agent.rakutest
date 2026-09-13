@@ -13,8 +13,8 @@ add-entry($sp, 'gist', 'An agent-adhering thing.');
 
 # ---- packet -----------------------------------------------------------
 my %p = agent-packet($sp);
-is %p<schema>, 'spoz2-agent-packet/1', 'packet schema is versioned';
-is %p<format_version>, FORMAT-VERSION, 'format version resolved from the file';
+is %p<schema>, 'spoz2-agent-packet/2', 'packet schema is versioned';
+nok %p<format_version>:exists, 'no format version: the format is unversioned';
 is %p<invariant_zero><text>, INVARIANT-ZERO, 'canonical Invariant Zero carried';
 is %p<invariant_zero><sha256>, INVARIANT-ZERO-DIGEST, 'canonical digest carried';
 ok %p<protocol>.contains('Read the root SPOZ2'), 'protocol included';
@@ -26,18 +26,18 @@ like packet-text(%p), /'proves neither'/, 'packet says what it cannot prove';
 
 # omitted local text: binding inherited, reported honestly
 my $inh = $dir.add('inherit.spoz2');
-$inh.spurt("SPOZ2 {FORMAT-VERSION}\n\ngist:\n    Inherits invariant zero.\n\ninvariants:\n    - Something else.\n");
-like agent-packet($inh)<invariant_zero><binding>, /'inherited'/,
-    'omitted Invariant Zero text reported as inherited, still binding';
+$inh.spurt("SPOZ2\n\ngist:\n    Inherits invariant zero.\n\ninvariants:\n    - Something else.\n");
+like agent-packet($inh)<invariant_zero><binding>, /'not repeated locally, still binding'/,
+    'omitted Invariant 0 text reported as inherited, still binding';
 
 # failures: never invent a valid packet
 my $bad = $dir.add('bad.spoz2');
-$bad.spurt("SPOZ2 {FORMAT-VERSION}\n\ngist:\n\n");
+$bad.spurt("SPOZ2\n\ngist:\n\n");
 throws-like { agent-packet($bad) }, X::SPOZ2, message => /'invalid SPOZ2'/, 'invalid spec refused';
 my $odd = $dir.add('odd.spoz2');
 $odd.spurt("SPOZ2 9.9\n\ngist:\n    hi\n");
-throws-like { agent-packet($odd) }, X::SPOZ2, message => /'unresolved Invariant Zero binding'/,
-    'unknown format version refused: binding unresolved';
+like agent-packet($odd)<invariant_zero><binding>, /'still binding'/,
+    'legacy versioned header read silently; Invariant 0 still binds';
 throws-like { agent-packet($dir.add('none.spoz2')) }, X::SPOZ2, message => /'no such file'/,
     'missing file refused';
 
@@ -92,8 +92,8 @@ is install-skill(:root($dir)), 'updated', 'stale skill regenerated';
 
 # ---- status -----------------------------------------------------------
 my %s = agent-status($sp, :root($dir));
-is %s<schema>, 'spoz2-agent-status/1', 'status schema is versioned';
-ok %s<spoz2><valid> && %s<spoz2><binding_resolves>, 'status: valid spec, binding resolves';
+is %s<schema>, 'spoz2-agent-status/2', 'status schema is versioned';
+ok %s<spoz2><valid> && %s<spoz2><binding>.contains('Invariant 0'), 'status: valid spec, binding reported';
 is %s<integrations><AGENTS.md>, 'current', 'status: AGENTS.md integration current';
 like %s<note>, /'never that an agent read'/, 'status wording claims nothing about agents';
 
@@ -102,7 +102,7 @@ my ($rc, $out, $err) = spoz2($dir, 'agent');
 is $rc, 0, 'spoz2 agent exits 0';
 like $out, /'SPOZ2 agent packet'/, 'prints the packet';
 ($rc, $out, $err) = spoz2($dir, 'agent', '--json');
-like $out, /'"schema":"spoz2-agent-packet/1"'/, '--json emits the versioned schema';
+like $out, /'"schema":"spoz2-agent-packet/2"'/, '--json emits the versioned schema';
 
 ($rc, $out, $err) = spoz2($dir, 'agent', 'status');
 is $rc, 0, 'status is informational: exit 0';

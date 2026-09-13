@@ -11,8 +11,8 @@ use SPOZ2::Document;
 #| Nothing here proves that an agent read anything or that software
 #| conforms - the wording keeps that distinction everywhere.
 
-constant PACKET-SCHEMA   is export = 'spoz2-agent-packet/1';
-constant STATUS-SCHEMA   is export = 'spoz2-agent-status/1';
+constant PACKET-SCHEMA   is export = 'spoz2-agent-packet/2';
+constant STATUS-SCHEMA   is export = 'spoz2-agent-status/2';
 constant SECTION-VERSION is export = 1;
 
 #| The canonical adherence protocol.  The single source: the packet, the
@@ -24,9 +24,8 @@ constant AGENT-PROTOCOL is export = q:to/END/;
     working in a repository that keeps one:
 
     1.  Read the root SPOZ2 before planning or changing anything.
-    2.  The canonical Invariant Zero of the file's declared format version
-        binds the project even when its prose is omitted from the file.
-        Treat it as the first invariant.
+    2.  The canonical Invariant 0 binds the project even when its prose
+        is omitted from the file.  Treat it as the first invariant.
     3.  Identify the invariants relevant to the task.  The others are not
         waived: do not break an invariant because nobody mentioned it.
     4.  'direction' entries are future intent, not permission to implement
@@ -77,15 +76,9 @@ sub agent-packet(IO::Path $spoz2 --> Hash) is export {
             ~ $doc.errors.map({ "{$spoz2}:{.line}: {.Str}" }).join("\n")
             ~ "\nfix it first (spoz2 check)");
     }
-    my $v = $doc.version;
-    agent-error("unresolved Invariant Zero binding: format version '{$v // 'none'}' "
-            ~ "is not bundled with this tool (it understands {@KNOWN-VERSIONS.join(', ')})")
-        unless $v.defined && $v (elem) @KNOWN-VERSIONS;
-
     %(
         schema         => PACKET-SCHEMA,
         file           => $spoz2.Str,
-        format_version => $v,
         sha256         => sha256-file($spoz2),
         invariant_zero => %(
             text    => INVARIANT-ZERO,
@@ -104,10 +97,9 @@ sub packet-text(%p --> Str) is export {
     join "\n",
         "SPOZ2 agent packet ({%p<schema>})",
         "file: {%p<file>}",
-        "format: SPOZ2 {%p<format_version>}",
         "sha256: {%p<sha256>}",
         "{%p<invariant_zero><binding>}",
-        "invariant zero (canonical text, sha256 {%p<invariant_zero><sha256>.substr(0, 12)}):",
+        "Invariant 0 (canonical text, sha256 {%p<invariant_zero><sha256>.substr(0, 12)}):",
         "    {%p<invariant_zero><text>}",
         "note: {%p<note>}",
         '',
@@ -140,9 +132,9 @@ sub managed-block(--> Str) is export {
 
     and follow the protocol it prints.  If the spoz2 CLI is unavailable,
     read the root SPOZ2 file directly and apply its obligations - and say
-    in your final report that CLI validation and inherited Invariant Zero
+    in your final report that CLI validation and inherited Invariant 0
     resolution were not performed; reading the file directly cannot verify
-    an Invariant Zero whose text is omitted.
+    an Invariant 0 whose text is omitted.
 
     This section can only encourage adherence in tools that load this
     file.  It is not evidence that any agent read the SPOZ2 or followed it.
@@ -219,14 +211,14 @@ sub skill-text(--> Str) is export {
     # SPOZ2 adherence
 
     Preferred: run `spoz2 agent` in the repository and follow the packet it
-    prints - it validates the file, resolves the inherited Invariant Zero
-    for its format version, and can emit `--json`.
+    prints - it validates the file, resolves the inherited Invariant 0,
+    and can emit `--json`.
 
     Without the CLI, the core workflow still works: read the root `SPOZ2`
     file directly (the nearest one walking upward), apply the protocol
     below, and say in your final report that CLI validation and inherited
-    Invariant Zero resolution were not performed - direct reading cannot
-    verify an Invariant Zero whose text is omitted from the file.
+    Invariant 0 resolution were not performed - direct reading cannot
+    verify an Invariant 0 whose text is omitted from the file.
 
     Project-specific invariants live in the project's SPOZ2 file, never in
     this skill.
@@ -269,19 +261,16 @@ sub agent-status(IO::Path $spoz2, IO::Path :$root! --> Hash) is export {
     my %spoz2;
     if $spoz2.defined && $spoz2.f {
         my $doc = SPOZ2::Document.load($spoz2);
-        my $v   = $doc.version;
         %spoz2 =
-            present          => True,
-            file             => $spoz2.Str,
-            valid            => $doc.ok,
-            errors           => +$doc.errors,
-            warnings         => +$doc.warnings,
-            format_version   => $v // '',
-            binding_resolves => ($v.defined && $v (elem) @KNOWN-VERSIONS),
-            binding          => $doc.invariant-zero-status;
+            present  => True,
+            file     => $spoz2.Str,
+            valid    => $doc.ok,
+            errors   => +$doc.errors,
+            warnings => +$doc.warnings,
+            binding  => $doc.invariant-zero-status;
     }
     else {
-        %spoz2 = present => False, valid => False, binding_resolves => False;
+        %spoz2 = present => False, valid => False;
     }
     %(
         schema       => STATUS-SCHEMA,

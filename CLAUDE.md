@@ -8,9 +8,9 @@ Before planning or changing anything here, run:
 
 and follow the protocol it prints.  If the spoz2 CLI is unavailable,
 read the root SPOZ2 file directly and apply its obligations - and say
-in your final report that CLI validation and inherited Invariant Zero
+in your final report that CLI validation and inherited Invariant 0
 resolution were not performed; reading the file directly cannot verify
-an Invariant Zero whose text is omitted.
+an Invariant 0 whose text is omitted.
 
 This section can only encourage adherence in tools that load this
 file.  It is not evidence that any agent read the SPOZ2 or followed it.

@@ -6,14 +6,14 @@ description: Use when working in a repository that keeps a SPOZ2 intent file - b
 # SPOZ2 adherence
 
 Preferred: run `spoz2 agent` in the repository and follow the packet it
-prints - it validates the file, resolves the inherited Invariant Zero
-for its format version, and can emit `--json`.
+prints - it validates the file, resolves the inherited Invariant 0,
+and can emit `--json`.
 
 Without the CLI, the core workflow still works: read the root `SPOZ2`
 file directly (the nearest one walking upward), apply the protocol
 below, and say in your final report that CLI validation and inherited
-Invariant Zero resolution were not performed - direct reading cannot
-verify an Invariant Zero whose text is omitted from the file.
+Invariant 0 resolution were not performed - direct reading cannot
+verify an Invariant 0 whose text is omitted from the file.
 
 Project-specific invariants live in the project's SPOZ2 file, never in
 this skill.
@@ -24,9 +24,8 @@ A SPOZ2 states what its project is supposed to do.  As a coding agent
 working in a repository that keeps one:
 
 1.  Read the root SPOZ2 before planning or changing anything.
-2.  The canonical Invariant Zero of the file's declared format version
-    binds the project even when its prose is omitted from the file.
-    Treat it as the first invariant.
+2.  The canonical Invariant 0 binds the project even when its prose
+    is omitted from the file.  Treat it as the first invariant.
 3.  Identify the invariants relevant to the task.  The others are not
     waived: do not break an invariant because nobody mentioned it.
 4.  'direction' entries are future intent, not permission to implement

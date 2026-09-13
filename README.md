@@ -91,7 +91,7 @@ whether the intent is any good. That part stays yours.
 about a project. A SPOZ2 says what the project is supposed to do.
 
 ```text
-SPOZ2 0.0
+SPOZ2
 
 gist:
     A small service that issues and verifies sign-in codes.
@@ -120,7 +120,7 @@ references:
 
 A few rules keep it readable by people and machines alike:
 
-- The first line names the format version. Today that is `SPOZ2 0.0`.
+- The first line is the word `SPOZ2`.
 - A section header sits at column 0 and ends in `:`. Everything under it is
   indented. `gist` is free text, the rest are `- ` entries, and a further
   indented line continues the entry above.
@@ -135,10 +135,10 @@ A few rules keep it readable by people and machines alike:
 `spoz2 add` inserts lines and leaves your formatting and comments alone. Your
 editor is still the main tool.
 
-## Invariant zero: humans first
+## Invariant 0: humans first
 
-Every SPOZ2 opens with the same first law, and it arrives with the format
-whether or not your file repeats the words.
+Every SPOZ2 opens with the same first law, whether or not your file repeats
+the words.
 
 > Help humans thrive. Keep humans in charge. Never fake it.
 
@@ -146,12 +146,12 @@ Nothing in a SPOZ2 may weaken it. `spoz2 init` writes it, `spoz2 check`
 verifies the binding, and a passing check never means the software is safe.
 
 The full 62-word text and what comes with it:
-[docs/invariant-zero.md](docs/invariant-zero.md).
+[docs/invariant-0.md](docs/invariant-0.md).
 
 ## Agents
 
 `spoz2 agent` prints a self-contained packet for any coding agent: the
-adherence protocol, the resolved path and digest, invariant zero, and your
+adherence protocol, the resolved path and digest, Invariant 0, and your
 specification. `spoz2 agent install` writes a short managed section into
 `AGENTS.md`, and `CLAUDE.md` with `--claude`, telling agents to read it before
 they plan or change anything. `--skill` adds a portable skill for places the

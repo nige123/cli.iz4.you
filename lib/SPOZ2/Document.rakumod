@@ -1,24 +1,22 @@
 unit class SPOZ2::Document;
 
-#| The SPOZ2 format version.  0.0 is IN DEVELOPMENT: there are no other
-#| users yet, so the numbering was retro-fitted to start here (user
-#| ruling, 2026-09-10) and the canonical text below may still change
-#| while 0.0 is being developed.  Version immutability discipline (a
-#| frozen text and digest per version, changes only via a new version
-#| with a public change record) begins with the first release.
-constant FORMAT-VERSION is export = '0.0';
-constant @KNOWN-VERSIONS is export = ('0.0',);
+#| The format is unversioned (user ruling, 2026-09-13: no 'SPOZ2 0.0' -
+#| it is just Invariant 0, everywhere).  The header is the bare word
+#| SPOZ2; legacy 'SPOZ2 <n>' headers are read silently.  The canonical
+#| Invariant 0 below is one current text, identified by its digest and
+#| evolving in Git like everything else; if release versioning is ever
+#| needed, that will be a fresh decision.
 
 #| Placeholder gist written by `spoz2 init`.  `check` treats it as empty.
 constant GIST-PLACEHOLDER is export = '<What is this thing supposed to do?>';
 
-#| Invariant zero: every conforming SPOZ2 incorporates the canonical
-#| invariant zero of its format version, whether or not it repeats the
-#| text locally (inheritance).  Omitting the text does not remove the
-#| obligation; no entry may weaken or override it.  `init` seeds it;
-#| `check` verifies the binding and any locally repeated text.  The
-#| digest identifies the adopted text, nothing more: stating a rule, or
-#| hashing it, does not make software obey it.
+#| Invariant 0: every conforming SPOZ2 incorporates the canonical
+#| Invariant 0, whether or not it repeats the text locally
+#| (inheritance).  Omitting the text does not remove the obligation; no
+#| entry may weaken or override it.  `init` seeds it; `check` verifies
+#| any locally repeated text.  The digest identifies the adopted text,
+#| nothing more: stating a rule, or hashing it, does not make software
+#| obey it.
 constant INVARIANT-ZERO is export =
     "Invariant 0: humans first. Help people thrive, and respect each person's "
     ~ 'dignity. Do no harm, and no greater good makes a person disposable. Keep '
@@ -35,9 +33,9 @@ constant INVARIANT-ZERO-DIGEST is export =
 constant INVARIANT-ZERO-SHORT is export =
     'Help humans thrive. Keep humans in charge. Never fake it.';
 
-#| The designations that identify invariant zero, however the rest is
-#| worded: 'Invariant 0:' now, plus the older 'Invariant 0.0:' and the
-#| frozen 'Invariant zero:' spellings still found in existing files.
+#| The designations that identify Invariant 0, however the rest is
+#| worded: 'Invariant 0:' now, plus the older 'Invariant 0.0:' and
+#| 'Invariant zero:' spellings still found in existing files.
 constant INVARIANT-ZERO-LEAD is export = 'Invariant 0:';
 constant INVARIANT-ZERO-LEAD-DOTTED is export = 'Invariant 0.0:';
 constant INVARIANT-ZERO-LEAD-LEGACY is export = 'Invariant zero:';
@@ -132,21 +130,19 @@ method errors   { @!problems.grep(!*.warning) }
 method warnings { @!problems.grep(*.warning) }
 method ok(--> Bool) { !self.errors }
 
-#| One line describing the invariant-zero binding this parse established.
+#| One line describing what this parse established about Invariant 0.
 #| `spoz2 check` prints it, so a successful check says what was verified
 #| and never implies more.
 method invariant-zero-status(--> Str) {
-    my $v = ($!version.defined && $!version (elem) @KNOWN-VERSIONS) ?? $!version !! Str;
-    return 'invariant zero: binding not established (unknown format version)' without $v;
     my $digest = INVARIANT-ZERO-DIGEST.substr(0, 12);
     my $inv    = self.section('invariants');
     my $zero   = $inv ?? $inv.items.first({ is-invariant-zero-text(.text) }) !! Nil;
     with $zero {
         return squish-ws(.text) eq squish-ws(INVARIANT-ZERO)
-            ?? "invariant zero: repeated locally, matches the canonical SPOZ2 $v text (sha256 $digest)"
-            !! "invariant zero: repeated locally but differs from the canonical SPOZ2 $v text (sha256 $digest binds regardless)";
+            ?? "Invariant 0: repeated locally, matches the canonical text (sha256 $digest)"
+            !! "Invariant 0: repeated locally but differs from the canonical text (sha256 $digest binds regardless)";
     }
-    "invariant zero: inherited from SPOZ2 $v (sha256 $digest); not repeated locally, still binding";
+    "Invariant 0: not repeated locally, still binding (canonical sha256 $digest)";
 }
 
 #| Problems sorted by line, formatted as "NAME:LINE: message".
@@ -172,11 +168,13 @@ method !parse-lines() {
 
         if !$header-seen {
             $header-seen = True;
-            if $line ~~ /^ 'SPOZ2' \s+ (\S+) $/ {
-                $!version = ~$0;
+            # Bare 'SPOZ2' is the header; a legacy trailing version is
+            # read silently and means nothing.
+            if $line ~~ /^ 'SPOZ2' [\s+ (\S+)]? $/ {
+                $!version = ~$0 with $0;
                 next;
             }
-            self!problem($n, "expected 'SPOZ2 {FORMAT-VERSION}' header on the first line");
+            self!problem($n, "expected 'SPOZ2' header on the first line");
             # fall through and treat this line normally
         }
 
@@ -237,17 +235,11 @@ method !parse-lines() {
     }
 
     unless $header-seen {
-        self!problem(1, "expected 'SPOZ2 {FORMAT-VERSION}' header (file is empty)");
+        self!problem(1, "expected 'SPOZ2' header (file is empty)");
     }
 }
 
 method !validate() {
-    with $!version {
-        if $_ !(elem) @KNOWN-VERSIONS {
-            self!problem(1, "unsupported SPOZ2 version '$_' (this tool understands {@KNOWN-VERSIONS.join(' and ')})", :warning);
-        }
-    }
-
     my @gists = self.sections-named('gist');
     if !@gists {
         self!problem(@!lines.elems max 1, "missing 'gist:' section");
@@ -268,26 +260,22 @@ method !validate() {
         self!problem($s.line, "unknown section '{$s.name}'", :warning);
     }
 
-    # Invariant zero binds through the format version: a file that omits
-    # the text is still bound by it (inheritance).  Warnings, never errors.
-    my $v     = ($!version.defined && $!version (elem) @KNOWN-VERSIONS) ?? $!version !! Str;
-    my $canon = $v.defined ?? INVARIANT-ZERO !! Str;
+    # Invariant 0 binds whether or not the file repeats it.  A repeated
+    # copy is verified; omission is legitimate.  Warnings, never errors.
     my $inv   = self.section('invariants');
     my $first = $inv ?? $inv.items.head !! Nil;
     my $zero  = $inv ?? $inv.items.first({ is-invariant-zero-text(.text) }) !! Nil;
     if $zero.defined {
         unless $first.defined && is-invariant-zero-text($first.text) {
             self!problem($zero.line,
-                "invariant zero ('humans come first') should be the first invariant", :warning);
+                "Invariant 0 ('humans first') should be the first invariant", :warning);
         }
-        if $canon.defined && squish-ws($zero.text) ne squish-ws($canon) {
+        if squish-ws($zero.text) ne squish-ws(INVARIANT-ZERO) {
             self!problem($zero.line,
-                "invariant zero text differs from the canonical SPOZ2 $v wording (the canonical text binds regardless)",
+                "Invariant 0 text differs from the canonical wording (the canonical text binds regardless)",
                 :warning);
         }
     }
-    # Omission is legitimate: the binding is inherited from the format
-    # version and reported by invariant-zero-status.
 
     # Numbered invariants are references; a duplicate number defeats the
     # reference, so it is an error.  Unnumbered entries stay valid.

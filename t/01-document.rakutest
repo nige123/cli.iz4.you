@@ -1,7 +1,7 @@
 use Test;
 use SPOZ2::Document;
 
-plan 33;
+plan 34;
 
 my $valid = q:to/END/;
     SPOZ2 0.0
@@ -58,8 +58,9 @@ like $nogist.report.join, /"missing 'gist:'"/, 'missing gist reported';
 like SPOZ2::Document.parse("gist:\n    hi\n").report[0], /^ 'SPOZ2:1: expected' /, 'missing header reported at line 1';
 like SPOZ2::Document.parse('').report.join, /'file is empty'/, 'empty file reported';
 my $ver = SPOZ2::Document.parse("SPOZ2 0.9\n\ngist:\n    hi\n");
-ok $ver.ok, 'unknown version is not an error';
-ok $ver.warnings».Str.grep(*.contains('unsupported SPOZ2 version')), 'unknown version warns';
+ok $ver.ok, 'a legacy versioned header is read silently';
+nok $ver.warnings».Str.grep(*.contains('version')), 'no version warnings: the format is unversioned';
+ok SPOZ2::Document.parse("SPOZ2\n\ngist:\n    hi\n").ok, 'the bare SPOZ2 header is the header';
 
 # malformed entries
 my $bad = SPOZ2::Document.parse("SPOZ2 0.0\n\ngist:\n    hi\n\ninvariants:\n    not an item\n    -\nstray\n");

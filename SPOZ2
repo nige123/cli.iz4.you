@@ -1,4 +1,4 @@
-SPOZ2 0.0
+SPOZ2
 
 # What is this project supposed to do?
 # Humans and AI tools should treat this file as the authoritative
@@ -47,8 +47,8 @@ behaviours:
       and pushing to the maintainer.
     - A coding agent can fetch everything it needs to follow a SPOZ2 in one
       offline command (spoz2 agent): the canonical adherence protocol, the
-      file's format version and byte digest, the inherited Invariant Zero,
-      and the specification itself, as delimited text or versioned --json.
+      file's byte digest, the inherited Invariant 0, and the specification
+      itself, as delimited text or versioned --json.
       spoz2 agent install writes short managed sections into AGENTS.md (and
       CLAUDE.md with --claude) and, with --skill, the portable skill - all
       generated from the one bundled protocol, never copying the project's
@@ -126,6 +126,15 @@ constraints:
       x86-only assumptions.
 
 decisions:
+    - 2026-09-13: There is no 'SPOZ2 0.0' (user ruling: just call it
+      Invariant 0, everywhere). The header is the bare word SPOZ2; the
+      format carries no version number, and the canonical Invariant 0 is
+      one current text identified by its digest, evolving in Git like
+      everything else. The tool reads legacy 'SPOZ2 <n>' headers silently
+      and writes the bare header; every message, document and page says
+      'Invariant 0', never 'invariant zero' or a format version. If
+      release versioning is ever needed, that is a fresh decision - today
+      it was complexity nobody used.
     - 2026-09-12: Invariant numbers are plain monotonic integers (user
       ruling: the dotted 0.0 just adds complexity). The foundation
       invariant is 'Invariant 0'; there is no dotted numbering and no

@@ -69,7 +69,7 @@ sub display-name(IO::Path $path, IO::Path :$cwd = $*CWD --> Str) is export {
 
 sub template(--> Str) is export {
     qq:to/END/;
-    SPOZ2 {FORMAT-VERSION}
+    SPOZ2
 
     # What is this project supposed to do?
     # Humans and AI tools should treat this file as the authoritative
@@ -115,11 +115,9 @@ sub agent-init-draft(IO::Path $dir = $*CWD, Str :$cmd = agent-cmd() --> Str) is 
         would be upset to see silently broken), each a self-contained '- '
         entry indented four spaces, wrapped at 80 columns.  Number the
         project's invariants so they can be referred to explicitly - begin
-        each entry 'Invariant 1:', 'Invariant 2:', and so on; Invariant 0
-        is the format's foundation and already present.  The scaffold's
-        invariants already begin with invariant 0.0 (humans first):
-        keep that entry verbatim and first, and add the project's own
-        invariants after it.  Add constraints
+        each entry 'Invariant 1:', 'Invariant 2:', and so on.  Keep the
+        scaffold's Invariant 0 entry (humans first) verbatim and first,
+        and add the project's own invariants after it.  Add constraints
         only where the evidence states a real limit; leave decisions,
         direction and references empty rather than guessing.  State intent,
         never implementation detail, and only what the evidence supports -
@@ -138,8 +136,8 @@ sub agent-init-draft(IO::Path $dir = $*CWD, Str :$cmd = agent-cmd() --> Str) is 
 
     # Tolerate fences and chatter: the file starts at its header line.
     my @lines = $reply.lines.grep({ !.starts-with('```') });
-    my $start = @lines.first(*.starts-with('SPOZ2 '), :k)
-        // die "no 'SPOZ2 {FORMAT-VERSION}' header in the agent reply";
+    my $start = @lines.first({ $_ eq 'SPOZ2' || .starts-with('SPOZ2 ') }, :k)
+        // die "no 'SPOZ2' header in the agent reply";
     my $text = @lines[$start .. *].join("\n") ~ "\n";
 
     my $doc = SPOZ2::Document.parse($text);
@@ -147,7 +145,7 @@ sub agent-init-draft(IO::Path $dir = $*CWD, Str :$cmd = agent-cmd() --> Str) is 
     die "draft has no invariants"
         unless $doc.section('invariants') && $doc.section('invariants').items;
 
-    # Invariant zero leads every SPOZ2; put it back if the agent dropped it.
+    # Invariant 0 leads every SPOZ2; put it back if the agent dropped it.
     my $inv = $doc.section('invariants');
     unless is-invariant-zero-text($inv.items.head.text) {
         my @out = $text.lines;

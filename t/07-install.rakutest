@@ -10,7 +10,7 @@ my $repo-root = $?FILE.IO.parent.parent.resolve;
 my ($rc, $out, $err) = spoz2(temp-dir, 'version');
 is $rc, 0, 'version exits 0';
 like $out, /^ 'spoz2 ' \d+ '.' \d+ '.' \d+ /, 'prints the tool version';
-like $out, /'SPOZ2 format ' \d+ '.' \d+/, 'names the format version';
+like $out, /^ 'spoz2 ' \d+ '.' \d+ '.' \d+ \s* $/, 'prints only the tool version: the format is unversioned';
 
 # the installer, run against this checkout, into an isolated prefix;
 # raku is already present here, so no runtime is ever fetched. The installer

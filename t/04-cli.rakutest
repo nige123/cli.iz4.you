@@ -30,7 +30,7 @@ is $out, "Added invariant.\n", 'add invariant output';
 ($rc, $out, $err) = spoz2($dir, 'show', 'invariant', '1');
 is ($rc, $out), (0, "Invariant 1: Always.\n"), 'show invariant N resolves the reference';
 ($rc, $out, $err) = spoz2($dir, 'check');
-ok $rc == 0 && $out.contains('invariant zero:') && $out.ends-with("OK SPOZ2\n"),
+ok $rc == 0 && $out.contains('Invariant 0:') && $out.ends-with("OK SPOZ2\n"),
     'check passes and reports the invariant-zero binding';
 
 # explicit .spoz2 file from a nested directory
@@ -39,7 +39,7 @@ $nested.mkdir;
 $nested.add('security.spoz2').spurt("SPOZ2 0.0\n\ngist:\n    Security intent.\n\ninvariants:\n    - Secrets never logged.\n");
 ($rc, $out, $err) = spoz2($nested, 'check', 'security.spoz2');
 is $rc, 0, 'explicit .spoz2 checked and passes';
-like $out, /'inherited from SPOZ2 0.0' .* 'OK security.spoz2'/,
+like $out, /'not repeated locally, still binding' .* 'OK security.spoz2'/,
     'omitted invariant zero is reported as inherited, and the file passes';
 ($rc, $out, $err) = spoz2($nested, 'show', 'security.spoz2', 'invariants');
 is $out, "- Secrets never logged.\n", 'show section of explicit .spoz2';
@@ -69,7 +69,7 @@ is ($rc, $out), (0, "Created SPOZ2 (3 invariants, agent-drafted)\nAGENTS.md: ins
     'agent init reports the draft (its invariants plus invariant zero)';
 like $err, /'review it'/, 'agent init asks for review';
 ($rc, $out, $err) = spoz2($drafted, 'check');
-ok $rc == 0 && $out.contains('invariant zero:') && $out.ends-with("OK SPOZ2\n"),
+ok $rc == 0 && $out.contains('Invariant 0:') && $out.ends-with("OK SPOZ2\n"),
     'agent-drafted SPOZ2 passes check and reports the binding';
 
 # a dead agent command falls back to the scaffold, loudly
@@ -86,7 +86,7 @@ my $nonsense = temp-dir;
 %*ENV<SPOZ2_AGENT_CMD> = 'echo not a spec';
 ($rc, $out, $err) = spoz2($nonsense, 'init');
 is ($rc, $out), (0, "Created SPOZ2\nAGENTS.md: installed\n"), 'nonsense reply falls back to the scaffold';
-like $err, /"no 'SPOZ2 0.0' header"/, 'the validation failure is reported';
+like $err, /"no 'SPOZ2' header"/, 'the validation failure is reported';
 
 # --/agent never runs the agent
 my $manual = temp-dir;
