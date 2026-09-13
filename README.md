@@ -184,6 +184,22 @@ and register writes the workflow too, so every push reports.
 Reports are advisory. A failed check is submitted honestly, a register error
 still exits 0, and `spoz2 report` does not belong in a required merge check.
 
+Once connected, `spoz2 badge` gives you the public card link and the
+paste-ready snippets for your README, derived offline from the stored
+connection:
+
+```text
+$ spoz2 badge
+card:  https://spoz2.do/p/AB12CD
+badge: https://spoz2.do/p/AB12CD/badge.svg
+
+Markdown (paste into README.md):
+[![SPOZ2](https://spoz2.do/p/AB12CD/badge.svg)](https://spoz2.do/p/AB12CD)
+```
+
+The badge is served live by the register and renders the card's current
+evidence, so embedding it claims nothing the card cannot back.
+
 ## Principles
 
 - The format and the tool are useful on their own, with no service attached.

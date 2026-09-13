@@ -44,7 +44,11 @@ behaviours:
       carries a real syntax check, and it hands the token to the GitHub CLI on
       standard input as the repository secret S2R_TOKEN. It never overwrites a
       different existing workflow without --force, and it leaves committing
-      and pushing to the maintainer.
+      and pushing to the maintainer. Once connected, spoz2 badge prints the
+      public card link and paste-ready Markdown and HTML badge snippets for a
+      README, derived offline from the stored connection; the badge is served
+      live by the register and renders the card's current evidence, so
+      embedding it claims nothing the card cannot back.
     - A coding agent can fetch everything it needs to follow a SPOZ2 in one
       offline command (spoz2 agent): the canonical adherence protocol, the
       file's byte digest, the inherited Invariant 0, and the specification
@@ -126,6 +130,12 @@ constraints:
       x86-only assumptions.
 
 decisions:
+    - 2026-09-13: spoz2 badge closes the loop from repository to card (user
+      ruling: the CLI should point at the badge and card). It derives the
+      card and badge URLs and the Markdown/HTML snippets offline from the
+      reports URL already stored in .spoz2-register - no new network path,
+      no account lookup - and its output states that the badge only renders
+      what the card's evidence backs.
     - 2026-09-13: There is no 'SPOZ2 0.0' (user ruling: just call it
       Invariant 0, everywhere). The header is the bare word SPOZ2; the
       format carries no version number, and the canonical Invariant 0 is

@@ -58,6 +58,27 @@ sub token-for(Str $url --> Str) is export {
     Str;
 }
 
+# --------------------------------------------------------------- badge
+
+#| The public card and badge addresses for a connected SPOZ2, derived
+#| offline from the stored reports URL - no account, no network.  The
+#| badge renders the card's evidence honestly; embedding it claims
+#| nothing the card cannot back.
+sub badge-info(IO::Path $spoz2 --> Hash) is export {
+    my $url = register-url($spoz2)
+        // register-error("not connected to a register; run 'spoz2 register' for the steps");
+    $url ~~ m{^ (\w+ '://' <-[/]>+) '/api/' .* '/projects/' (<-[/]>+) '/reports' $}
+        or register-error("cannot derive the card address from the stored reports URL ($url); "
+            ~ "reconnect with 'spoz2 register --url=...'");
+    my $card = "$0/p/$1";
+    %(
+        card     => $card,
+        badge    => "$card/badge.svg",
+        markdown => "[![SPOZ2]($card/badge.svg)]($card)",
+        html     => "<a href=\"$card\"><img src=\"$card/badge.svg\" alt=\"SPOZ2\"></a>",
+    );
+}
+
 # -------------------------------------------------------------- GitHub
 
 #| The workflow `spoz2 register --github` writes.  On every push it

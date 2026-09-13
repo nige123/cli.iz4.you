@@ -39,6 +39,8 @@ sub USAGE() {
       spoz2 report [--dry-run|--strict]  submit evidence (presence, digest,
                                            counts, check outcome - never the
                                            text); advisory: exit 0 unless --strict
+      spoz2 badge                        print the card link and the Markdown/
+                                           HTML badge snippets for the README
       spoz2 version                      print the tool and format versions
       spoz2 agent [--json]               print the agent packet: adherence
                                            protocol, format version and digest,
@@ -272,6 +274,24 @@ multi MAIN('register', Str :$url, Str :$token, Str :$file,
                 END
             }
         }
+        0;
+    }
+}
+
+multi MAIN('badge', Str :$file) {
+    attempt {
+        my %b = badge-info(resolve-target($file));
+        say "card:  {%b<card>}";
+        say "badge: {%b<badge>}";
+        say '';
+        say 'Markdown (paste into README.md):';
+        say %b<markdown>;
+        say '';
+        say 'HTML:';
+        say %b<html>;
+        say '';
+        say 'The badge is served live by the register and renders the card\'s';
+        say 'current evidence; embedding it claims nothing the card cannot back.';
         0;
     }
 }

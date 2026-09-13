@@ -5,7 +5,7 @@ use SPOZ2;
 use SPOZ2::Document;
 use SPOZ2::Register;
 
-plan 36;
+plan 43;
 
 # Everything here is offline: no test ever reaches a real register.
 %*ENV<XDG_CONFIG_HOME> = temp-dir.Str;
@@ -29,6 +29,22 @@ nok $dir.dir.first(*.basename eq 'tokens'), 'the token never lands in the projec
     temp %*ENV<SPOZ2_REGISTER_TOKEN> = 'env-wins';
     is token-for($reports-url), 'env-wins', 'environment token overrides the store';
 }
+
+# badge: card and snippets derived offline from the stored connection
+my %b = badge-info($path);
+is %b<card>, 'https://spoz2.do/p/p1', 'card URL derived from the reports URL';
+is %b<badge>, 'https://spoz2.do/p/p1/badge.svg', 'badge URL sits beside the card';
+is %b<markdown>, '[![SPOZ2](https://spoz2.do/p/p1/badge.svg)](https://spoz2.do/p/p1)',
+    'GitHub-ready Markdown snippet';
+like %b<html>, /'<a href="https://spoz2.do/p/p1">'/, 'HTML snippet links to the card';
+my $bare = temp-dir;
+init(:dir($bare));
+throws-like { badge-info($bare.add('SPOZ2')) }, X::SPOZ2, message => /'not connected'/,
+    'badge for an unconnected SPOZ2 points at the register steps';
+my ($brc, $bout, $berr) = spoz2($dir, 'badge');
+is $brc, 0, 'spoz2 badge exits 0 when connected';
+like $bout, /'[![SPOZ2](https://spoz2.do/p/p1/badge.svg)](https://spoz2.do/p/p1)'/,
+    'spoz2 badge prints the paste-ready snippet';
 
 # evidence collection mirrors the s2r-report contract
 if have-git() {
