@@ -1,30 +1,33 @@
-SPOZ2
+IZ4
 
 # What is this project supposed to do?
 # Humans and AI tools should treat this file as the authoritative
-# expression of intent.  Edit it directly or use `spoz2 add ...`.
+# expression of intent.  Edit it directly or use `iz4 add ...`.
 
 gist:
-    SPOZ2 makes explicit what something is supposed to do, in a form humans and
-    machines can understand and maintain as intent evolves. This project is the
-    open SPOZ2 file format and the spoz2 command-line tool for creating,
-    checking and maintaining SPOZ2 files beside source code.
+    IZ4 answers the question every codebase should answer: what is this
+    software FOR? IZ is Invariant Zero and iz4 reads 'is for' - an IZ4 file
+    states what something is supposed to do, in a form humans and machines
+    can understand and maintain as intent evolves, with Invariant 0 carried
+    in the name. This project is the open IZ4 file format and the iz4
+    command-line tool for creating, checking and maintaining IZ4 files
+    beside source code.
 
 behaviours:
-    - A project can declare its intent in a root file named SPOZ2, kept beside
+    - A project can declare its intent in a root file named IZ4, kept beside
       its source.
-    - Additional or standalone intent can be kept in .spoz2 documents using the
+    - Additional or standalone intent can be kept in .iz4 documents using the
       same format.
     - Humans can read and edit these files directly in any text editor.
-    - Software can validate their deterministic structure (spoz2 check) and
+    - Software can validate their deterministic structure (iz4 check) and
       report problems with file and line numbers.
-    - Entries can be added from the command line while working (spoz2 add),
+    - Entries can be added from the command line while working (iz4 add),
       without disturbing the rest of the file.
-    - From any subdirectory, the nearest SPOZ2 is found by walking upward (spoz2
+    - From any subdirectory, the nearest IZ4 is found by walking upward (iz4
       show, check, add, log, diff).
-    - Git preserves the evolution of intent alongside the implementation (spoz2
-      log, spoz2 diff).
-    - spoz2 init drafts the first specification from the codebase's own account
+    - Git preserves the evolution of intent alongside the implementation (iz4
+      log, iz4 diff).
+    - iz4 init drafts the first specification from the codebase's own account
       of itself (README, changelog, file layout): it hands the scaffold plus
       that evidence to a configurable agent command and validates the draft
       before writing it. Without a working agent, init falls back to the plain
@@ -33,46 +36,46 @@ behaviours:
       always, CLAUDE.md and the skill when the repository shows Claude use -
       with --/agents to opt out and --agents to force all three; trouble there
       is a warning, never a failed init, and init never prompts.
-    - A maintainer can make a SPOZ2 discoverable by connecting it to the SPOZ2
-      register and submitting evidence (spoz2 register, spoz2 report). Signing
-      up comes first, on the web (spoz2.do, email passcode); the CLI guides
+    - A maintainer can make a IZ4 discoverable by connecting it to the IZ4
+      register and submitting evidence (iz4 register, iz4 report). Signing
+      up comes first, on the web (iz4.you, email passcode); the CLI guides
       those steps, stores the connection, and submits evidence itself. A
       report carries presence, digest, counts and check outcomes - never the
-      text of the SPOZ2. With --github, spoz2 register also sets up GitHub
-      Actions: it writes a workflow that installs spoz2 (its runtime cached
-      between runs) and runs spoz2 report on every push, so CI evidence
+      text of the IZ4. With --github, iz4 register also sets up GitHub
+      Actions: it writes a workflow that installs iz4 (its runtime cached
+      between runs) and runs iz4 report on every push, so CI evidence
       carries a real syntax check, and it hands the token to the GitHub CLI on
       standard input as the repository secret S2R_TOKEN. It never overwrites a
       different existing workflow without --force, and it leaves committing
-      and pushing to the maintainer. Once connected, spoz2 badge prints the
+      and pushing to the maintainer. Once connected, iz4 badge prints the
       public card link and paste-ready Markdown and HTML badge snippets for a
       README, derived offline from the stored connection; the badge is served
       live by the register and renders the card's current evidence, so
       embedding it claims nothing the card cannot back.
-    - A coding agent can fetch everything it needs to follow a SPOZ2 in one
-      offline command (spoz2 agent): the canonical adherence protocol, the
+    - A coding agent can fetch everything it needs to follow a IZ4 in one
+      offline command (iz4 agent): the canonical adherence protocol, the
       file's byte digest, the inherited Invariant 0, and the specification
       itself, as delimited text or versioned --json.
-      spoz2 agent install writes short managed sections into AGENTS.md (and
+      iz4 agent install writes short managed sections into AGENTS.md (and
       CLAUDE.md with --claude) and, with --skill, the portable skill - all
       generated from the one bundled protocol, never copying the project's
       invariants, preserving surrounding content, idempotent, and refusing
-      malformed markers or symlinks that escape the repository. spoz2 agent
+      malformed markers or symlinks that escape the repository. iz4 agent
       status reports spec validity, binding resolution and integration
       state in wording that never claims an agent read anything or that
       software conforms; --strict turns it into a CI check.
     - Invariants carry stable, plain monotonic numbers ('Invariant 3: ...')
       so humans and agents can refer to them explicitly: Invariant 0 is the
-      foundation, project invariants start at 1, spoz2 add invariant numbers
+      foundation, project invariants start at 1, iz4 add invariant numbers
       new entries automatically (explicit numbers respected, duplicates
-      refused), spoz2 show invariant 3 resolves a reference, and spoz2 check
+      refused), iz4 show invariant 3 resolves a reference, and iz4 check
       treats a duplicate number as an error. Unnumbered files stay valid.
     - The CLI installs with one curl command: the installer fetches the code,
       fetches the runtime too when it is missing (into the user's home,
-      nothing system-wide), links spoz2 onto the PATH and verifies it runs.
+      nothing system-wide), links iz4 onto the PATH and verifies it runs.
       Nobody needs to know or care what language the tool is written in to
       install it.
-    - CI builds spoz2 as one standalone file for Linux x86_64, macOS (universal)
+    - CI builds iz4 as one standalone file for Linux x86_64, macOS (universal)
       and Windows x64 with a pinned, checksum-verified Raku++ release, proves
       each file runs alone, smoke-tests it, runs the full suite against it on
       Linux and macOS, and keeps the files as build artifacts. Nothing is
@@ -88,14 +91,14 @@ invariants:
       this is, what it knows, what it has done, and what remains uncertain
       or blocked. No other entry may weaken this.
     - Invariant 1: The open format and the core CLI must not depend on the
-      commercial spoz2.do service; the file belongs to the project.
-    - Invariant 2: A SPOZ2 describes intent - what the thing is supposed to
+      commercial iz4.you service; the file belongs to the project.
+    - Invariant 2: A IZ4 describes intent - what the thing is supposed to
       do - not merely its current implementation.
     - Invariant 3: External standards and policies are referenced, never
-      copied into a SPOZ2.
+      copied into a IZ4.
     - Invariant 4: Changing intent is allowed; its history matters and lives
       in Git, not in a separate versioning mechanism.
-    - Invariant 5: Deterministic validation (spoz2 check) must not pretend to
+    - Invariant 5: Deterministic validation (iz4 check) must not pretend to
       prove semantic quality; 'valid structure' is not 'good product
       thinking'.
     - Invariant 6: Humans and AI must be able to understand the format
@@ -103,9 +106,10 @@ invariants:
     - Invariant 7: The tool never silently overwrites or reformats a user's
       file: init refuses to overwrite, add inserts lines and keeps existing
       text and comments.
-    - Invariant 8: The root intent file is named SPOZ2 with no extension;
-      further documents use .spoz2; 'spoz2.do' is the product brand and
-      never a filename.
+    - Invariant 8: The root intent file is named IZ4 with no extension;
+      further documents use .iz4. Legacy IZ4 root files and .iz4
+      documents are read silently. 'iz4.you' is the product brand and never
+      a filename, as 'iz4.you' was before it.
 
 constraints:
     - Implemented in straightforward Raku using core modules only; the only
@@ -115,7 +119,7 @@ constraints:
     - The CLI itself works completely offline: no telemetry, database or cloud
       requirement, and no account needed for any core command. Exactly two
       explicit opt-ins may reach the network: the optional agent command
-      behind init, and the register commands (spoz2 register, spoz2 report) a
+      behind init, and the register commands (iz4 register, iz4 report) a
       maintainer invokes deliberately. Every other command never touches the
       network, and init still works (scaffold) without an agent.
     - Plain terminals and SSH: no TUI and no terminal-UI libraries; terse
@@ -132,6 +136,20 @@ constraints:
       x86-only assumptions.
 
 decisions:
+    - 2026-09-15: SPOZ2 is renamed IZ4 (user ruling, explicitly authorising
+      the rewrite of Invariant 8). The name answers the file's question -
+      what is this software FOR - and carries the foundation in it: IZ is
+      Invariant Zero, iz4 reads 'is for', and iz4.you is Invariant 0's
+      promise. The root intent file is IZ4, further documents use .iz4, the
+      command is iz4 (spoz2 kept as an alias), the brand domain is iz4.you
+      and spoz2.do will redirect permanently. Legacy keeps working, read
+      silently: SPOZ2 root files and headers, .spoz2 documents,
+      .spoz2-register connections, the old token store, SPOZ2_* environment
+      variables and SPOZ2-AGENT markers. Invariant 0's text and digest are
+      unchanged. The GitHub repository becomes cli.iz4.you (old URLs
+      redirect); the local checkout path move is deferred so running
+      sessions are not cut off; and iz4.you's DNS is not yet on the live
+      box, so printed iz4.you links go live when the user moves the records.
     - 2026-09-13: Invariant 0 strengthened (explicitly authorised by the
       user). Objectives cannot override the human protections: when an
       objective conflicts with them, the protections are preserved, the
@@ -324,14 +342,14 @@ decisions:
       check reports the difference.
 
 direction:
-    - Make a SPOZ2 directly useful to AI coding tools that simply read it;
+    - Make a IZ4 directly useful to AI coding tools that simply read it;
       later, possibly a command that prints a compact context block for them.
-    - The wider spoz2.com/spoz2.do vision (certification, commitments,
+    - The wider iz4.com/iz4.you vision (certification, commitments,
       standards intelligence) is out of scope for this CLI and must not leak
       into the open format. The register client commands are the one
       deliberate bridge; the format itself stays registry-free.
 
 references:
     - licence: Apache-2.0 (LICENSE file; also declared in META6.json)
-    - trademark: spoz2 (tm) is a trademark of Nige Ltd -
-      https://nigelhamilton.com/#spoz2
+    - trademark: iz4 (tm) is a trademark of Nige Ltd -
+      https://nigelhamilton.com/#iz4

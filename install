@@ -1,35 +1,35 @@
 #!/bin/sh
-# spoz2 installer:
+# iz4 installer:
 #
-#     curl -fsSL https://raw.githubusercontent.com/nige123/cli.spoz2.do/main/install | sh
+#     curl -fsSL https://raw.githubusercontent.com/nige123/cli.iz4.you/main/install | sh
 #
-# Fetches the spoz2 CLI into your home directory and puts `spoz2` on your
+# Fetches the iz4 CLI into your home directory and puts `iz4` on your
 # PATH. If the runtime it needs is missing, it fetches that too (via
 # rakubrew, also into your home - nothing system-wide, no sudo). Re-running
-# the installer updates spoz2.
+# the installer updates iz4.
 #
-# Overrides: SPOZ2_REPO (git URL), SPOZ2_HOME (checkout parent),
-# SPOZ2_BIN (launcher directory), SPOZ2_NO_RUNTIME=1 (never fetch a runtime).
+# Overrides: IZ4_REPO (git URL), IZ4_HOME (checkout parent),
+# IZ4_BIN (launcher directory), IZ4_NO_RUNTIME=1 (never fetch a runtime).
 set -eu
 
-REPO="${SPOZ2_REPO:-https://github.com/nige123/cli.spoz2.do}"
-DATA="${SPOZ2_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/spoz2}"
-BIN_DIR="${SPOZ2_BIN:-$HOME/.local/bin}"
+REPO="${IZ4_REPO:-https://github.com/nige123/cli.iz4.you}"
+DATA="${IZ4_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/iz4}"
+BIN_DIR="${IZ4_BIN:-$HOME/.local/bin}"
 CHECKOUT="$DATA/cli"
 RAKUBREW="$HOME/.rakubrew/bin/rakubrew"
 
 say()  { printf '%s\n' "$*"; }
-fail() { printf 'spoz2 install: %s\n' "$*" >&2; exit 1; }
+fail() { printf 'iz4 install: %s\n' "$*" >&2; exit 1; }
 
 command -v git  >/dev/null 2>&1 || fail "git is required (https://git-scm.com); install it and re-run"
 
-# -- the spoz2 code -----------------------------------------------------------
+# -- the iz4 code -----------------------------------------------------------
 if [ -d "$CHECKOUT/.git" ]; then
-    say "updating spoz2 in $CHECKOUT"
+    say "updating iz4 in $CHECKOUT"
     git -C "$CHECKOUT" pull --ff-only --quiet
 else
     mkdir -p "$DATA"
-    say "fetching spoz2 into $CHECKOUT"
+    say "fetching iz4 into $CHECKOUT"
     git clone --depth 1 --quiet "$REPO" "$CHECKOUT" 2>/dev/null \
         || git clone --depth 1 --quiet "$REPO" "$CHECKOUT"
 fi
@@ -38,9 +38,9 @@ fi
 RAKU="$(command -v raku 2>/dev/null || true)"
 [ -n "$RAKU" ] || [ ! -x "$HOME/.rakubrew/shims/raku" ] || RAKU="$HOME/.rakubrew/shims/raku"
 if [ -z "$RAKU" ]; then
-    [ "${SPOZ2_NO_RUNTIME:-}" != 1 ] \
+    [ "${IZ4_NO_RUNTIME:-}" != 1 ] \
         || fail "the runtime is missing; install Rakudo (https://rakudo.org) and re-run"
-    say "spoz2 needs its runtime; fetching it into $HOME/.rakubrew (one-off, a few minutes) ..."
+    say "iz4 needs its runtime; fetching it into $HOME/.rakubrew (one-off, a few minutes) ..."
     command -v curl >/dev/null 2>&1 \
         || fail "fetching the runtime needs curl; or install Rakudo yourself: https://rakudo.org"
     command -v perl >/dev/null 2>&1 \
@@ -66,23 +66,23 @@ fi
 
 # -- the command --------------------------------------------------------------
 mkdir -p "$BIN_DIR"
-rm -f "$BIN_DIR/spoz2"    # replace, never write through an existing symlink
-cat > "$BIN_DIR/spoz2" <<LAUNCH
+rm -f "$BIN_DIR/iz4"    # replace, never write through an existing symlink
+cat > "$BIN_DIR/iz4" <<LAUNCH
 #!/bin/sh
-# spoz2 launcher, written by the spoz2 installer; re-run the installer to update.
-exec "$RAKU" "$CHECKOUT/bin/spoz2" "\$@"
+# iz4 launcher, written by the iz4 installer; re-run the installer to update.
+exec "$RAKU" "$CHECKOUT/bin/iz4" "\$@"
 LAUNCH
-chmod +x "$BIN_DIR/spoz2"
+chmod +x "$BIN_DIR/iz4"
 
 say "checking the installation (the first run compiles; about half a minute) ..."
-"$BIN_DIR/spoz2" version >/dev/null 2>&1 \
-    || "$RAKU" -I "$CHECKOUT/lib" -c "$CHECKOUT/bin/spoz2" >/dev/null \
-    || fail "installed, but spoz2 does not run; please report this"
+"$BIN_DIR/iz4" version >/dev/null 2>&1 \
+    || "$RAKU" -I "$CHECKOUT/lib" -c "$CHECKOUT/bin/iz4" >/dev/null \
+    || fail "installed, but iz4 does not run; please report this"
 
-say "installed: $BIN_DIR/spoz2"
+say "installed: $BIN_DIR/iz4"
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;
     *) say "note: $BIN_DIR is not on your PATH. Add this line to your shell profile:"
        say "    export PATH=\"$BIN_DIR:\$PATH\"" ;;
 esac
-say "next: cd your-project && spoz2 init"
+say "next: cd your-project && iz4 init"

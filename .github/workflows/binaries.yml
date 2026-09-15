@@ -1,5 +1,5 @@
 # Copyright Nige Ltd. Author: Nigel Hamilton.
-# Standalone spoz2 binaries, built with Raku++ (https://github.com/ash/rakupp).
+# Standalone iz4 binaries, built with Raku++ (https://github.com/ash/rakupp).
 # Raku++ does not cross-compile, so each system builds its own file. Nothing
 # is published here: the files are kept as build artifacts.
 # --aot, not --bundle: Raku++ 3.26's bundle stub declares the module blob length
@@ -25,9 +25,9 @@ jobs:
           # and macOS 11 as the minimum, as the runtime itself was built for.
           # Windows: the MSVC archive, whose file needs only system DLLs. (MinGW:
           # a dynamic file needs MinGW DLLs, and a -static one crashes at start.)
-          - { os: ubuntu-24.04,   target: linux-x86_64,      archive: rakupp-linux-x86_64.tar.gz,    exe: spoz2,     cxx: 'c++ -static-libstdc++ -static-libgcc' }
-          - { os: macos-latest,   target: macos-universal,   archive: rakupp-macos-universal.tar.gz, exe: spoz2,     cxx: 'c++ -arch arm64 -arch x86_64 -mmacosx-version-min=11.0' }
-          - { os: windows-latest, target: windows-x64,       archive: rakupp-windows-x64.zip,        exe: spoz2.exe, cxx: '' }
+          - { os: ubuntu-24.04,   target: linux-x86_64,      archive: rakupp-linux-x86_64.tar.gz,    exe: iz4,     cxx: 'c++ -static-libstdc++ -static-libgcc' }
+          - { os: macos-latest,   target: macos-universal,   archive: rakupp-macos-universal.tar.gz, exe: iz4,     cxx: 'c++ -arch arm64 -arch x86_64 -mmacosx-version-min=11.0' }
+          - { os: windows-latest, target: windows-x64,       archive: rakupp-windows-x64.zip,        exe: iz4.exe, cxx: '' }
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -55,11 +55,11 @@ jobs:
           echo "RAKUPP=$RAKUPP" >> "$GITHUB_ENV"
           "$RAKUPP" -e 'say "Raku++ ", $*RAKU.compiler.version'
 
-      - name: compile spoz2 into one file
+      - name: compile iz4 into one file
         run: |
           mkdir -p dist
           if [ -n "${{ matrix.cxx }}" ]; then export CXX="${{ matrix.cxx }}"; fi
-          "$RAKUPP" -I lib --aot --standalone bin/spoz2 -o "dist/${{ matrix.exe }}"
+          "$RAKUPP" -I lib --aot --standalone bin/iz4 -o "dist/${{ matrix.exe }}"
           ls -l dist
           "$RAKUPP" --exe-info "dist/${{ matrix.exe }}"
 
@@ -112,7 +112,7 @@ jobs:
 
       - name: full test suite against the file
         if: runner.os != 'Windows'
-        run: SPOZ2_TEST_BIN="$PWD/dist/${{ matrix.exe }}" prove --ext .rakutest -e "$RAKUPP -Ilib" t/
+        run: IZ4_TEST_BIN="$PWD/dist/${{ matrix.exe }}" prove --ext .rakutest -e "$RAKUPP -Ilib" t/
 
       - name: checksum
         run: |
@@ -122,7 +122,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: spoz2-${{ matrix.target }}
+          name: iz4-${{ matrix.target }}
           path: dist/
 
   linux-portability:
@@ -133,15 +133,15 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: spoz2-linux-x86_64
+          name: iz4-linux-x86_64
       - name: run it in bare containers (no toolchain, nothing installed)
         run: |
-          chmod +x spoz2
+          chmod +x iz4
           # pull first, so docker's own progress lines never reach the result
           try() {
             docker pull -q "$1" >/dev/null || { echo "could not pull $1"; return 2; }
             local out rc
-            out=$(docker run --rm -v "$PWD:/w:ro" "$1" /w/spoz2 version 2>&1) && rc=0 || rc=$?
+            out=$(docker run --rm -v "$PWD:/w:ro" "$1" /w/iz4 version 2>&1) && rc=0 || rc=$?
             printf '%s\n' "$out" | head -1 | cut -c1-140 | tr '|' '/'
             return $rc
           }

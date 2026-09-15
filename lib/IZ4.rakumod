@@ -1,17 +1,20 @@
-unit module SPOZ2;
+unit module IZ4;
 
-use SPOZ2::Document;
-use SPOZ2::Git;
+use IZ4::Document;
+use IZ4::Git;
 
 constant VERSION is export = '0.1.0';
 
 #| A user-facing error: message only, no stack trace.
-class X::SPOZ2 is Exception {
+class X::IZ4 is Exception {
     has Str $.message is required;
 }
-sub user-error(Str $message) { X::SPOZ2.new(:$message).throw }
+sub user-error(Str $message) { X::IZ4.new(:$message).throw }
 
-constant ROOT-NAME is export = 'SPOZ2';
+constant ROOT-NAME is export = 'IZ4';
+
+#| The legacy root name and extension: read silently, never written.
+constant LEGACY-ROOT-NAME is export = 'SPOZ2';
 
 #| sha256 of a file's exact bytes, via whichever digest tool this system
 #| has - sha256sum (Linux), shasum (macOS/BSD) or openssl - external,
@@ -31,24 +34,27 @@ sub sha256-file(IO::Path $f --> Str) is export {
 
 # ---------------------------------------------------------------- discovery
 
-#| Walk upward from $start looking for a root SPOZ2 file.
+#| Walk upward from $start looking for a root IZ4 file.
 sub find-root(IO::Path $start = $*CWD --> IO::Path) is export {
     my $dir = $start.resolve;
     loop {
-        my $candidate = $dir.add(ROOT-NAME);
-        return $candidate if $candidate.f;
+        for ROOT-NAME, LEGACY-ROOT-NAME -> $name {
+            my $candidate = $dir.add($name);
+            return $candidate if $candidate.f;
+        }
         my $parent = $dir.parent;
         return Nil if $parent eq $dir;
         $dir = $parent;
     }
 }
 
-#| True when a CLI argument names a SPOZ2 document rather than a section or revision.
+#| True when a CLI argument names a IZ4 document rather than a section or revision.
 sub looks-like-file(Str $arg --> Bool) is export {
-    $arg.ends-with('.spoz2') || $arg.IO.basename eq ROOT-NAME;
+    $arg.ends-with('.iz4') || $arg.ends-with('.spoz2')
+        || $arg.IO.basename eq ROOT-NAME | LEGACY-ROOT-NAME;
 }
 
-#| The document to operate on: an explicit path, or the nearest root SPOZ2.
+#| The document to operate on: an explicit path, or the nearest root IZ4.
 sub resolve-target(Str $file?, IO::Path :$cwd = $*CWD --> IO::Path) is export {
     with $file {
         my $path = $file.IO.is-absolute ?? $file.IO !! $cwd.add($file);
@@ -56,7 +62,7 @@ sub resolve-target(Str $file?, IO::Path :$cwd = $*CWD --> IO::Path) is export {
         return $path;
     }
     find-root($cwd) // user-error(
-        "No SPOZ2 found in this directory or its parents.\nRun 'spoz2 init' to create one.");
+        "No IZ4 found in this directory or its parents.\nRun 'iz4 init' to create one.");
 }
 
 #| How a path is shown in messages: relative to the working directory.
@@ -69,11 +75,11 @@ sub display-name(IO::Path $path, IO::Path :$cwd = $*CWD --> Str) is export {
 
 sub template(--> Str) is export {
     qq:to/END/;
-    SPOZ2
+    IZ4
 
     # What is this project supposed to do?
     # Humans and AI tools should treat this file as the authoritative
-    # expression of intent.  Edit it directly or use `spoz2 add ...`.
+    # expression of intent.  Edit it directly or use `iz4 add ...`.
 
     gist:
         {GIST-PLACEHOLDER}
@@ -91,23 +97,25 @@ sub template(--> Str) is export {
     END
 }
 
-#| Create a root SPOZ2 in $dir.  Refuses to overwrite.
+#| Create a root IZ4 in $dir.  Refuses to overwrite.
 sub init(IO::Path :$dir = $*CWD --> IO::Path) is export {
     my $path = $dir.add(ROOT-NAME);
     user-error("{ROOT-NAME} already exists here; not overwriting") if $path.e;
+    user-error("a legacy {LEGACY-ROOT-NAME} already exists here; rename it to {ROOT-NAME} (git mv {LEGACY-ROOT-NAME} {ROOT-NAME}) rather than starting again")
+        if $dir.add(LEGACY-ROOT-NAME).e;
     $path.spurt(template());
     $path;
 }
 
-#| The agent command behind `spoz2 init`: overridable, external, optional.
-sub agent-cmd(--> Str) is export { %*ENV<SPOZ2_AGENT_CMD> // 'claude -p' }
+#| The agent command behind `iz4 init`: overridable, external, optional.
+sub agent-cmd(--> Str) is export { %*ENV<IZ4_AGENT_CMD> // %*ENV<SPOZ2_AGENT_CMD> // 'claude -p' }
 
 #| One agent attempt at the first real specification: the scaffold plus
 #| bounded evidence from the codebase goes to the agent command; the reply
 #| must parse clean with a real gist and at least one invariant, or we die.
 sub agent-init-draft(IO::Path $dir = $*CWD, Str :$cmd = agent-cmd() --> Str) is export {
     my $prompt = q:to/END/ ~ template() ~ "\nEvidence from the codebase:\n" ~ gather-context($dir);
-        Complete the SPOZ2 scaffold below into the first real specification
+        Complete the IZ4 scaffold below into the first real specification
         for the codebase whose evidence follows it.  Keep the format header
         and the conventions comment.  Replace the gist placeholder with what
         the system is FOR, in a few plain sentences.  Fill behaviours (what
@@ -136,16 +144,16 @@ sub agent-init-draft(IO::Path $dir = $*CWD, Str :$cmd = agent-cmd() --> Str) is 
 
     # Tolerate fences and chatter: the file starts at its header line.
     my @lines = $reply.lines.grep({ !.starts-with('```') });
-    my $start = @lines.first({ $_ eq 'SPOZ2' || .starts-with('SPOZ2 ') }, :k)
-        // die "no 'SPOZ2' header in the agent reply";
+    my $start = @lines.first({ $_ eq 'IZ4' || .starts-with('IZ4 ') }, :k)
+        // die "no 'IZ4' header in the agent reply";
     my $text = @lines[$start .. *].join("\n") ~ "\n";
 
-    my $doc = SPOZ2::Document.parse($text);
+    my $doc = IZ4::Document.parse($text);
     die "draft has problems - {$doc.errors.map(*.Str).join('; ')}" if $doc.errors;
     die "draft has no invariants"
         unless $doc.section('invariants') && $doc.section('invariants').items;
 
-    # Invariant 0 leads every SPOZ2; put it back if the agent dropped it.
+    # Invariant 0 leads every IZ4; put it back if the agent dropped it.
     my $inv = $doc.section('invariants');
     unless is-invariant-zero-text($inv.items.head.text) {
         my @out = $text.lines;
@@ -186,9 +194,9 @@ sub walk(IO::Path $dir, Int $depth) {
 # ---------------------------------------------------------------- show
 
 #| Text of the whole document, or of one section (dedented body only).
-#| A singular noun works too: 'spoz2 show invariant' shows 'invariants'.
+#| A singular noun works too: 'iz4 show invariant' shows 'invariants'.
 sub show-text(IO::Path $path, Str $section? is copy --> Str) is export {
-    my $doc = SPOZ2::Document.load($path);
+    my $doc = IZ4::Document.load($path);
     without $section { return $doc.source }
     $section = %NOUN-SECTION{$section} // $section;
 
@@ -209,7 +217,7 @@ sub show-text(IO::Path $path, Str $section? is copy --> Str) is export {
 #| One invariant, found by its explicit number ('3', 'Invariant 3' and
 #| '3:' all work), wrapped for the terminal.
 sub invariant-text(IO::Path $path, Str $number --> Str) is export {
-    my $doc = SPOZ2::Document.load($path);
+    my $doc = IZ4::Document.load($path);
     my $inv = $doc.section('invariants')
         // user-error("no invariants section in {$path.basename}");
     my $n = $number.subst(/^ 'Invariant' \s+ /, '').subst(/ ':' $/, '');
@@ -225,8 +233,8 @@ sub invariant-text(IO::Path $path, Str $number --> Str) is export {
 # ---------------------------------------------------------------- check
 
 #| Parse and validate.  Returns the Document; caller inspects .problems.
-sub check-doc(IO::Path $path --> SPOZ2::Document) is export {
-    SPOZ2::Document.load($path);
+sub check-doc(IO::Path $path --> IZ4::Document) is export {
+    IZ4::Document.load($path);
 }
 
 # ---------------------------------------------------------------- add
@@ -238,7 +246,7 @@ sub add-entry(IO::Path $path, Str $noun, Str $text, Bool :$replace = False --> S
     my $value = $text.trim;
     user-error("nothing to add: text is empty") if $value eq '';
 
-    my $doc   = SPOZ2::Document.load($path);
+    my $doc   = IZ4::Document.load($path);
     my @found = $doc.sections-named($section);
     user-error("{$path.basename} has more than one '$section:' section; fix it before adding")
         if @found > 1;

@@ -1,9 +1,9 @@
 use lib $?FILE.IO.parent.add('lib').Str;
 use Test;
-use SPOZ2Test;
-use SPOZ2;
-use SPOZ2::Document;
-use SPOZ2::Agent;
+use IZ4Test;
+use IZ4;
+use IZ4::Document;
+use IZ4::Agent;
 
 plan 55;
 
@@ -13,11 +13,11 @@ add-entry($sp, 'gist', 'An agent-adhering thing.');
 
 # ---- packet -----------------------------------------------------------
 my %p = agent-packet($sp);
-is %p<schema>, 'spoz2-agent-packet/2', 'packet schema is versioned';
+is %p<schema>, 'iz4-agent-packet/2', 'packet schema is versioned';
 nok %p<format_version>:exists, 'no format version: the format is unversioned';
 is %p<invariant_zero><text>, INVARIANT-ZERO, 'canonical Invariant Zero carried';
 is %p<invariant_zero><sha256>, INVARIANT-ZERO-DIGEST, 'canonical digest carried';
-ok %p<protocol>.contains('Read the root SPOZ2'), 'protocol included';
+ok %p<protocol>.contains('Read the root IZ4'), 'protocol included';
 is %p<specification>, $sp.slurp, 'specification is the verbatim file';
 my $sum = sha256-hex($sp);
 is %p<sha256>, $sum, 'digest is of the exact file bytes';
@@ -25,20 +25,20 @@ like packet-text(%p), /'treat as data, not instructions'/, 'specification is del
 like packet-text(%p), /'proves neither'/, 'packet says what it cannot prove';
 
 # omitted local text: binding inherited, reported honestly
-my $inh = $dir.add('inherit.spoz2');
-$inh.spurt("SPOZ2\n\ngist:\n    Inherits invariant zero.\n\ninvariants:\n    - Something else.\n");
+my $inh = $dir.add('inherit.iz4');
+$inh.spurt("IZ4\n\ngist:\n    Inherits invariant zero.\n\ninvariants:\n    - Something else.\n");
 like agent-packet($inh)<invariant_zero><binding>, /'not repeated locally, still binding'/,
     'omitted Invariant 0 text reported as inherited, still binding';
 
 # failures: never invent a valid packet
-my $bad = $dir.add('bad.spoz2');
-$bad.spurt("SPOZ2\n\ngist:\n\n");
-throws-like { agent-packet($bad) }, X::SPOZ2, message => /'invalid SPOZ2'/, 'invalid spec refused';
-my $odd = $dir.add('odd.spoz2');
-$odd.spurt("SPOZ2 9.9\n\ngist:\n    hi\n");
+my $bad = $dir.add('bad.iz4');
+$bad.spurt("IZ4\n\ngist:\n\n");
+throws-like { agent-packet($bad) }, X::IZ4, message => /'invalid IZ4'/, 'invalid spec refused';
+my $odd = $dir.add('odd.iz4');
+$odd.spurt("IZ4 9.9\n\ngist:\n    hi\n");
 like agent-packet($odd)<invariant_zero><binding>, /'still binding'/,
     'legacy versioned header read silently; Invariant 0 still binds';
-throws-like { agent-packet($dir.add('none.spoz2')) }, X::SPOZ2, message => /'no such file'/,
+throws-like { agent-packet($dir.add('none.iz4')) }, X::IZ4, message => /'no such file'/,
     'missing file refused';
 
 # ---- managed sections -------------------------------------------------
@@ -52,7 +52,7 @@ my $claude = $dir.add('CLAUDE.md');
 $claude.spurt($before);
 is install-agent-section($claude, :root($dir)), 'installed', 'install appends to an existing file';
 ok $claude.slurp.starts-with($before), 'user-authored content preserved';
-like $claude.slurp, /'spoz2 agent'/, 'section points at spoz2 agent';
+like $claude.slurp, /'iz4 agent'/, 'section points at iz4 agent';
 like $claude.slurp, /'were not performed'/, 'fallback says CLI validation was skipped';
 
 # a hand-edited section is stale; refresh touches only the managed block
@@ -66,7 +66,7 @@ is section-status($claude), 'current', 'section current after refresh';
 my $dupe = $dir.add('NOTES.md');
 my $dupe-text = managed-block() ~ "\n" ~ managed-block() ~ "\n";
 $dupe.spurt($dupe-text);
-throws-like { install-agent-section($dupe, :root($dir)) }, X::SPOZ2, message => /'malformed'/,
+throws-like { install-agent-section($dupe, :root($dir)) }, X::IZ4, message => /'malformed'/,
     'duplicate markers refused';
 is $dupe.slurp, $dupe-text, 'malformed file left untouched';
 is section-status($dupe), 'malformed', 'duplicate markers reported malformed';
@@ -77,12 +77,12 @@ $outside.add('AGENTS.md').spurt("elsewhere\n");
 my $linked = temp-dir;
 init(:dir($linked));
 run 'ln', '-s', $outside.add('AGENTS.md').Str, $linked.add('AGENTS.md').Str;
-throws-like { install-agent-section($linked.add('AGENTS.md'), :root($linked)) }, X::SPOZ2,
+throws-like { install-agent-section($linked.add('AGENTS.md'), :root($linked)) }, X::IZ4,
     message => /'symlink'/, 'symlink escaping the repository refused';
 is $outside.add('AGENTS.md').slurp, "elsewhere\n", 'file outside the repository untouched';
 
 # ---- the portable skill ----------------------------------------------
-like skill-text(), /'name: spoz2'/, 'skill has its frontmatter';
+like skill-text(), /'name: iz4'/, 'skill has its frontmatter';
 ok skill-text().contains(AGENT-PROTOCOL.trim-trailing), 'skill embeds the canonical protocol';
 is install-skill(:root($dir)), 'installed', 'skill installed';
 is install-skill(:root($dir)), 'unchanged', 'skill install idempotent';
@@ -92,50 +92,50 @@ is install-skill(:root($dir)), 'updated', 'stale skill regenerated';
 
 # ---- status -----------------------------------------------------------
 my %s = agent-status($sp, :root($dir));
-is %s<schema>, 'spoz2-agent-status/2', 'status schema is versioned';
-ok %s<spoz2><valid> && %s<spoz2><binding>.contains('Invariant 0'), 'status: valid spec, binding reported';
+is %s<schema>, 'iz4-agent-status/2', 'status schema is versioned';
+ok %s<iz4><valid> && %s<iz4><binding>.contains('Invariant 0'), 'status: valid spec, binding reported';
 is %s<integrations><AGENTS.md>, 'current', 'status: AGENTS.md integration current';
 like %s<note>, /'never that an agent read'/, 'status wording claims nothing about agents';
 
 # ---- CLI --------------------------------------------------------------
-my ($rc, $out, $err) = spoz2($dir, 'agent');
-is $rc, 0, 'spoz2 agent exits 0';
-like $out, /'SPOZ2 agent packet'/, 'prints the packet';
-($rc, $out, $err) = spoz2($dir, 'agent', '--json');
-like $out, /'"schema":"spoz2-agent-packet/2"'/, '--json emits the versioned schema';
+my ($rc, $out, $err) = iz4($dir, 'agent');
+is $rc, 0, 'iz4 agent exits 0';
+like $out, /'IZ4 agent packet'/, 'prints the packet';
+($rc, $out, $err) = iz4($dir, 'agent', '--json');
+like $out, /'"schema":"iz4-agent-packet/2"'/, '--json emits the versioned schema';
 
-($rc, $out, $err) = spoz2($dir, 'agent', 'status');
+($rc, $out, $err) = iz4($dir, 'agent', 'status');
 is $rc, 0, 'status is informational: exit 0';
 like $out, /'integration installed (current)'/, 'status uses precise integration wording';
-($rc, $out, $err) = spoz2($dir, 'agent', 'status', '--strict');
+($rc, $out, $err) = iz4($dir, 'agent', 'status', '--strict');
 is $rc, 0, 'strict passes while everything is current';
 $dir.add(SKILL-PATH).spurt("tampered\n");
-($rc, $out, $err) = spoz2($dir, 'agent', 'status', '--strict');
+($rc, $out, $err) = iz4($dir, 'agent', 'status', '--strict');
 is $rc, 1, 'strict exits 1 on a stale integration';
 
 my $broken = temp-dir;
 init(:dir($broken));   # placeholder gist: structurally invalid for a packet
-($rc, $out, $err) = spoz2($broken, 'agent');
+($rc, $out, $err) = iz4($broken, 'agent');
 is $rc, 1, 'agent packet refused for an invalid spec';
-like $err, /'invalid SPOZ2'/, 'refusal names the reason';
+like $err, /'invalid IZ4'/, 'refusal names the reason';
 
 my $flagged = temp-dir;
-($rc, $out, $err) = spoz2($flagged, 'init', '--/agent', '--agents');
+($rc, $out, $err) = iz4($flagged, 'init', '--/agent', '--agents');
 like $out, /'AGENTS.md: installed'/, 'init --agents installs the entry point';
 ok $flagged.add('CLAUDE.md').f && $flagged.add(SKILL-PATH).f, '--agents forces every integration';
 
 my $plain = temp-dir;
-($rc, $out, $err) = spoz2($plain, 'init', '--/agent');
+($rc, $out, $err) = iz4($plain, 'init', '--/agent');
 ok $plain.add('AGENTS.md').f, 'init installs AGENTS.md by default - no flags to remember';
 nok $plain.add('CLAUDE.md').e, 'CLAUDE.md is not created where Claude is not in use';
 
 my $claudey = temp-dir;
 $claudey.add('.claude').mkdir;
-($rc, $out, $err) = spoz2($claudey, 'init', '--/agent');
+($rc, $out, $err) = iz4($claudey, 'init', '--/agent');
 ok $claudey.add('CLAUDE.md').f && $claudey.add(SKILL-PATH).f,
     'a repo showing Claude use gets CLAUDE.md and the skill automatically';
 
 my $optout = temp-dir;
-($rc, $out, $err) = spoz2($optout, 'init', '--/agent', '--/agents');
-is $out, "Created SPOZ2\n", '--/agents opts out of entry points';
+($rc, $out, $err) = iz4($optout, 'init', '--/agent', '--/agents');
+is $out, "Created IZ4\n", '--/agents opts out of entry points';
 nok $optout.add('AGENTS.md').e, 'nothing installed on opt-out';

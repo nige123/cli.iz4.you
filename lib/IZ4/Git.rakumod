@@ -1,4 +1,4 @@
-unit module SPOZ2::Git;
+unit module IZ4::Git;
 
 #| Run git in the directory of $file.  Returns (exit-code, stdout, stderr).
 #| If git cannot be run at all, exit-code is 127 and stderr explains why.

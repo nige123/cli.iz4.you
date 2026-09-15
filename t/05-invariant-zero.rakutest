@@ -6,15 +6,15 @@
 use Test;
 use lib 'lib';
 use lib $?FILE.IO.parent.add('lib').Str;
-use SPOZ2::Document;
-use SPOZ2Test;
+use IZ4::Document;
+use IZ4Test;
 
 plan 13;
 
 my $g = "gist:\n    hi\n";
 
 # --- inheritance: omitting the text removes nothing ----------------------
-my $inherit = SPOZ2::Document.parse("SPOZ2 0.0\n\n$g\ninvariants:\n    - Something project-specific.\n");
+my $inherit = IZ4::Document.parse("IZ4 0.0\n\n$g\ninvariants:\n    - Something project-specific.\n");
 ok $inherit.ok, 'a file without the text has no errors';
 nok $inherit.warnings.grep(*.Str.contains('invariant zero')),
     'omission draws no warning: the obligation is inherited';
@@ -24,24 +24,24 @@ like $inherit.invariant-zero-status, /'still binding'/,
     'status says omission does not remove the obligation';
 
 # --- canonical-text verification -----------------------------------------
-my $match = SPOZ2::Document.parse("SPOZ2 0.0\n\n$g\ninvariants:\n    - " ~ INVARIANT-ZERO ~ "\n");
+my $match = IZ4::Document.parse("IZ4 0.0\n\n$g\ninvariants:\n    - " ~ INVARIANT-ZERO ~ "\n");
 nok $match.warnings, 'the canonical text repeated verbatim draws no warning';
 like $match.invariant-zero-status, /'matches the canonical text'/,
     'status reports a verified local match';
 ok INVARIANT-ZERO.starts-with('Invariant 0: humans first.'),
     'the canonical headline is HUMANS FIRST under the plain 0 designation';
 
-my $drift = SPOZ2::Document.parse("SPOZ2 0.0\n\n$g\ninvariants:\n    - Invariant 0: humans first. But reworded weakly.\n");
+my $drift = IZ4::Document.parse("IZ4 0.0\n\n$g\ninvariants:\n    - Invariant 0: humans first. But reworded weakly.\n");
 ok $drift.warnings.grep(*.Str.contains('differs from the canonical')),
     'a reworded invariant zero is flagged as differing from canonical';
 like $drift.invariant-zero-status, /'binds regardless'/,
     'status says the canonical text binds despite local drift';
 
 # older designations are still recognised as invariant zero (and flagged)
-my $legacy = SPOZ2::Document.parse("SPOZ2 0.0\n\n$g\ninvariants:\n    - Invariant zero: humans come first. Old spelling.\n");
+my $legacy = IZ4::Document.parse("IZ4 0.0\n\n$g\ninvariants:\n    - Invariant zero: humans come first. Old spelling.\n");
 ok $legacy.warnings.grep(*.Str.contains('differs from the canonical')),
     'the frozen Invariant zero designation is recognised and flagged';
-my $dotted = SPOZ2::Document.parse("SPOZ2 0.0\n\n$g\ninvariants:\n    - Invariant 0.0: humans first. Dotted era.\n");
+my $dotted = IZ4::Document.parse("IZ4 0.0\n\n$g\ninvariants:\n    - Invariant 0.0: humans first. Dotted era.\n");
 ok $dotted.warnings.grep(*.Str.contains('differs from the canonical')),
     'the dotted Invariant 0.0 designation is recognised and flagged';
 
@@ -52,7 +52,7 @@ is sha256-hex($canon-file), INVARIANT-ZERO-DIGEST,
     'the published digest matches the canonical text bytes';
 
 # --- legacy versioned headers: read silently, binding unchanged ----------
-my $legacy-hdr = SPOZ2::Document.parse("SPOZ2 9.9\n\n$g\ninvariants:\n    - x\n");
+my $legacy-hdr = IZ4::Document.parse("IZ4 9.9\n\n$g\ninvariants:\n    - x\n");
 ok $legacy-hdr.ok && $legacy-hdr.invariant-zero-status.contains('still binding'),
     'a legacy versioned header is read silently and Invariant 0 still binds';
 

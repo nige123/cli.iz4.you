@@ -1,8 +1,8 @@
-unit module SPOZ2Test;
+unit module IZ4Test;
 
 #| A fresh temporary directory; removed at process exit.
 sub temp-dir(--> IO::Path) is export {
-    my $dir = $*TMPDIR.add("spoz2-test-{$*PID}-{(^1_000_000).pick}");
+    my $dir = $*TMPDIR.add("iz4-test-{$*PID}-{(^1_000_000).pick}");
     $dir.mkdir;
     END rm-rf($dir);
     $dir;
@@ -19,14 +19,14 @@ sub rm-rf(IO::Path $path) is export {
     }
 }
 
-#| Run bin/spoz2 in $cwd; returns (exit-code, stdout, stderr).
-sub spoz2(IO::Path $cwd, *@args) is export {
+#| Run bin/iz4 in $cwd; returns (exit-code, stdout, stderr).
+sub iz4(IO::Path $cwd, *@args) is export {
     my $root = $?FILE.IO.resolve.parent(3);
-    # SPOZ2_TEST_BIN points the suite at a compiled spoz2 (a Raku++ binary),
+    # IZ4_TEST_BIN points the suite at a compiled iz4 (a Raku++ binary),
     # so CI tests the executable it ships, not the source it came from.
-    my @cmd = %*ENV<SPOZ2_TEST_BIN>
-        ?? (%*ENV<SPOZ2_TEST_BIN>,)
-        !! ($*EXECUTABLE, '-I', $root.add('lib').Str, $root.add('bin/spoz2').Str);
+    my @cmd = %*ENV<IZ4_TEST_BIN>
+        ?? (%*ENV<IZ4_TEST_BIN>,)
+        !! ($*EXECUTABLE, '-I', $root.add('lib').Str, $root.add('bin/iz4').Str);
     my $proc = run |@cmd, |@args, :cwd($cwd.Str), :out, :err;
     my $out = $proc.out.slurp(:close);
     my $err = $proc.err.slurp(:close);

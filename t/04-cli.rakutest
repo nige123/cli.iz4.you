@@ -1,48 +1,48 @@
 use lib $?FILE.IO.parent.add('lib').Str;
 use Test;
-use SPOZ2Test;
+use IZ4Test;
 
 plan 24;
 
 # Never let a test reach a real agent.
-%*ENV<SPOZ2_AGENT_CMD> = 'false';
+%*ENV<IZ4_AGENT_CMD> = 'false';
 
 my $dir = temp-dir;
 
-my ($rc, $out, $err) = spoz2($dir, 'check');
-is $rc, 1, 'check without SPOZ2 exits 1';
-is $err, "No SPOZ2 found in this directory or its parents.\nRun 'spoz2 init' to create one.\n", 'actionable message';
+my ($rc, $out, $err) = iz4($dir, 'check');
+is $rc, 1, 'check without IZ4 exits 1';
+is $err, "No IZ4 found in this directory or its parents.\nRun 'iz4 init' to create one.\n", 'actionable message';
 
-($rc, $out, $err) = spoz2($dir, 'init', '--/agent');
-is ($rc, $out), (0, "Created SPOZ2\nAGENTS.md: installed\n"), 'init output';
-($rc, $out, $err) = spoz2($dir, 'init', '--/agent');
+($rc, $out, $err) = iz4($dir, 'init', '--/agent');
+is ($rc, $out), (0, "Created IZ4\nAGENTS.md: installed\n"), 'init output';
+($rc, $out, $err) = iz4($dir, 'init', '--/agent');
 is $rc, 1, 'second init fails';
 like $err, /'already exists'/, 'second init explains';
 
-($rc, $out, $err) = spoz2($dir, 'check');
+($rc, $out, $err) = iz4($dir, 'check');
 is $rc, 1, 'placeholder gist fails check';
-like $out, /^ 'SPOZ2:' \d+ ': gist is still the placeholder' /, 'check reports line';
+like $out, /^ 'IZ4:' \d+ ': gist is still the placeholder' /, 'check reports line';
 
-($rc, $out, $err) = spoz2($dir, 'add', 'gist', 'A CLI test.');
+($rc, $out, $err) = iz4($dir, 'add', 'gist', 'A CLI test.');
 is $out, "Set gist.\n", 'add gist output';
-($rc, $out, $err) = spoz2($dir, 'add', 'invariant', 'Always.');
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Always.');
 is $out, "Added invariant.\n", 'add invariant output';
-($rc, $out, $err) = spoz2($dir, 'show', 'invariant', '1');
+($rc, $out, $err) = iz4($dir, 'show', 'invariant', '1');
 is ($rc, $out), (0, "Invariant 1: Always.\n"), 'show invariant N resolves the reference';
-($rc, $out, $err) = spoz2($dir, 'check');
-ok $rc == 0 && $out.contains('Invariant 0:') && $out.ends-with("OK SPOZ2\n"),
+($rc, $out, $err) = iz4($dir, 'check');
+ok $rc == 0 && $out.contains('Invariant 0:') && $out.ends-with("OK IZ4\n"),
     'check passes and reports the invariant-zero binding';
 
-# explicit .spoz2 file from a nested directory
+# explicit .iz4 file from a nested directory
 my $nested = $dir.add('docs');
 $nested.mkdir;
-$nested.add('security.spoz2').spurt("SPOZ2 0.0\n\ngist:\n    Security intent.\n\ninvariants:\n    - Secrets never logged.\n");
-($rc, $out, $err) = spoz2($nested, 'check', 'security.spoz2');
-is $rc, 0, 'explicit .spoz2 checked and passes';
-like $out, /'not repeated locally, still binding' .* 'OK security.spoz2'/,
+$nested.add('security.iz4').spurt("IZ4 0.0\n\ngist:\n    Security intent.\n\ninvariants:\n    - Secrets never logged.\n");
+($rc, $out, $err) = iz4($nested, 'check', 'security.iz4');
+is $rc, 0, 'explicit .iz4 checked and passes';
+like $out, /'not repeated locally, still binding' .* 'OK security.iz4'/,
     'omitted invariant zero is reported as inherited, and the file passes';
-($rc, $out, $err) = spoz2($nested, 'show', 'security.spoz2', 'invariants');
-is $out, "- Secrets never logged.\n", 'show section of explicit .spoz2';
+($rc, $out, $err) = iz4($nested, 'show', 'security.iz4', 'invariants');
+is $out, "- Secrets never logged.\n", 'show section of explicit .iz4';
 
 # agent-assisted init: a good draft lands, validated
 my $drafted = temp-dir;
@@ -50,7 +50,7 @@ my $reply = $drafted.add('reply.txt');
 $reply.spurt(qq:to/END/);
     Here is the completed file:
     ```
-    SPOZ2 0.0
+    IZ4 0.0
 
     gist:
         A fake project, distilled by a fake agent.
@@ -63,34 +63,34 @@ $reply.spurt(qq:to/END/);
         - The other thing holds.
     ```
     END
-%*ENV<SPOZ2_AGENT_CMD> = "cat {$reply}";
-($rc, $out, $err) = spoz2($drafted, 'init');
-is ($rc, $out), (0, "Created SPOZ2 (3 invariants, agent-drafted)\nAGENTS.md: installed\n"),
+%*ENV<IZ4_AGENT_CMD> = "cat {$reply}";
+($rc, $out, $err) = iz4($drafted, 'init');
+is ($rc, $out), (0, "Created IZ4 (3 invariants, agent-drafted)\nAGENTS.md: installed\n"),
     'agent init reports the draft (its invariants plus invariant zero)';
 like $err, /'review it'/, 'agent init asks for review';
-($rc, $out, $err) = spoz2($drafted, 'check');
-ok $rc == 0 && $out.contains('Invariant 0:') && $out.ends-with("OK SPOZ2\n"),
-    'agent-drafted SPOZ2 passes check and reports the binding';
+($rc, $out, $err) = iz4($drafted, 'check');
+ok $rc == 0 && $out.contains('Invariant 0:') && $out.ends-with("OK IZ4\n"),
+    'agent-drafted IZ4 passes check and reports the binding';
 
 # a dead agent command falls back to the scaffold, loudly
 my $fallback = temp-dir;
-%*ENV<SPOZ2_AGENT_CMD> = 'false';
-($rc, $out, $err) = spoz2($fallback, 'init');
-is ($rc, $out), (0, "Created SPOZ2\nAGENTS.md: installed\n"), 'fallback still creates the scaffold';
+%*ENV<IZ4_AGENT_CMD> = 'false';
+($rc, $out, $err) = iz4($fallback, 'init');
+is ($rc, $out), (0, "Created IZ4\nAGENTS.md: installed\n"), 'fallback still creates the scaffold';
 like $err, /'attempt 1 failed' .* 'attempt 2 failed' .* 'falling back to the plain scaffold'/,
     'fallback is loud after two attempts';
-like $fallback.add('SPOZ2').slurp, /'<What is this thing supposed to do?>'/, 'fallback wrote the scaffold';
+like $fallback.add('IZ4').slurp, /'<What is this thing supposed to do?>'/, 'fallback wrote the scaffold';
 
 # a nonsense reply fails validation and also falls back
 my $nonsense = temp-dir;
-%*ENV<SPOZ2_AGENT_CMD> = 'echo not a spec';
-($rc, $out, $err) = spoz2($nonsense, 'init');
-is ($rc, $out), (0, "Created SPOZ2\nAGENTS.md: installed\n"), 'nonsense reply falls back to the scaffold';
-like $err, /"no 'SPOZ2' header"/, 'the validation failure is reported';
+%*ENV<IZ4_AGENT_CMD> = 'echo not a spec';
+($rc, $out, $err) = iz4($nonsense, 'init');
+is ($rc, $out), (0, "Created IZ4\nAGENTS.md: installed\n"), 'nonsense reply falls back to the scaffold';
+like $err, /"no 'IZ4' header"/, 'the validation failure is reported';
 
 # --/agent never runs the agent
 my $manual = temp-dir;
-%*ENV<SPOZ2_AGENT_CMD> = 'echo SHOULD-NOT-RUN';
-($rc, $out, $err) = spoz2($manual, 'init', '--/agent');
-is ($rc, $out), (0, "Created SPOZ2\nAGENTS.md: installed\n"), '--/agent writes the scaffold';
+%*ENV<IZ4_AGENT_CMD> = 'echo SHOULD-NOT-RUN';
+($rc, $out, $err) = iz4($manual, 'init', '--/agent');
+is ($rc, $out), (0, "Created IZ4\nAGENTS.md: installed\n"), '--/agent writes the scaffold';
 unlike $err, /'asking agent'/, '--/agent does not consult the agent';

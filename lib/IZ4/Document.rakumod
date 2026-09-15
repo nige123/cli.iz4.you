@@ -1,16 +1,16 @@
-unit class SPOZ2::Document;
+unit class IZ4::Document;
 
-#| The format is unversioned (user ruling, 2026-09-13: no 'SPOZ2 0.0' -
+#| The format is unversioned (user ruling, 2026-09-13: no 'IZ4 0.0' -
 #| it is just Invariant 0, everywhere).  The header is the bare word
-#| SPOZ2; legacy 'SPOZ2 <n>' headers are read silently.  The canonical
+#| IZ4; legacy 'IZ4 <n>' headers are read silently.  The canonical
 #| Invariant 0 below is one current text, identified by its digest and
 #| evolving in Git like everything else; if release versioning is ever
 #| needed, that will be a fresh decision.
 
-#| Placeholder gist written by `spoz2 init`.  `check` treats it as empty.
+#| Placeholder gist written by `iz4 init`.  `check` treats it as empty.
 constant GIST-PLACEHOLDER is export = '<What is this thing supposed to do?>';
 
-#| Invariant 0: every conforming SPOZ2 incorporates the canonical
+#| Invariant 0: every conforming IZ4 incorporates the canonical
 #| Invariant 0, whether or not it repeats the text locally
 #| (inheritance).  Omitting the text does not remove the obligation; no
 #| entry may weaken or override it.  `init` seeds it; `check` verifies
@@ -67,7 +67,7 @@ constant %SECTION-KIND is export =
 
 constant @KNOWN-SECTIONS is export = <gist behaviours invariants constraints decisions direction references>;
 
-#| Singular nouns accepted by `spoz2 add`, mapped to their section.
+#| Singular nouns accepted by `iz4 add`, mapped to their section.
 constant %NOUN-SECTION is export =
     gist       => 'gist',
     behaviour  => 'behaviours',
@@ -115,11 +115,11 @@ has Section  @.sections;
 has Problem  @.problems;
 has Str      @.lines;                     # raw source lines, 1-based via [line-1]
 
-method load(IO::Path() $path --> SPOZ2::Document) {
+method load(IO::Path() $path --> IZ4::Document) {
     self.parse($path.slurp, :$path);
 }
 
-method parse(Str $source, IO::Path :$path --> SPOZ2::Document) {
+method parse(Str $source, IO::Path :$path --> IZ4::Document) {
     my $doc = self.bless(:$source, :$path);
     $doc!parse-lines;
     $doc!validate;
@@ -133,7 +133,7 @@ method warnings { @!problems.grep(*.warning) }
 method ok(--> Bool) { !self.errors }
 
 #| One line describing what this parse established about Invariant 0.
-#| `spoz2 check` prints it, so a successful check says what was verified
+#| `iz4 check` prints it, so a successful check says what was verified
 #| and never implies more.
 method invariant-zero-status(--> Str) {
     my $digest = INVARIANT-ZERO-DIGEST.substr(0, 12);
@@ -148,7 +148,7 @@ method invariant-zero-status(--> Str) {
 }
 
 #| Problems sorted by line, formatted as "NAME:LINE: message".
-method report(Str :$name = ($!path ?? $!path.Str !! 'SPOZ2')) {
+method report(Str :$name = ($!path ?? $!path.Str !! 'IZ4')) {
     @!problems.sort(*.line).map({ "$name:{.line}: {.Str}" });
 }
 
@@ -170,13 +170,13 @@ method !parse-lines() {
 
         if !$header-seen {
             $header-seen = True;
-            # Bare 'SPOZ2' is the header; a legacy trailing version is
-            # read silently and means nothing.
-            if $line ~~ /^ 'SPOZ2' [\s+ (\S+)]? $/ {
+            # Bare 'IZ4' is the header; the legacy 'SPOZ2' word and a
+            # legacy trailing version are read silently and mean nothing.
+            if $line ~~ /^ ['IZ4' | 'SPOZ2'] [\s+ (\S+)]? $/ {
                 $!version = ~$0 with $0;
                 next;
             }
-            self!problem($n, "expected 'SPOZ2' header on the first line");
+            self!problem($n, "expected 'IZ4' header on the first line");
             # fall through and treat this line normally
         }
 
@@ -192,8 +192,8 @@ method !parse-lines() {
         }
 
         if $line ~~ /^ \S/ {
-            if $line ~~ /^ 'SPOZ2' \s/ {
-                self!problem($n, "unexpected second 'SPOZ2' header");
+            if $line ~~ /^ 'IZ4' \s/ {
+                self!problem($n, "unexpected second 'IZ4' header");
             }
             else {
                 self!problem($n, "unexpected text at column 0: '{$line.substr(0, 40)}' (section headers look like 'name:'; entries are indented)");
@@ -237,7 +237,7 @@ method !parse-lines() {
     }
 
     unless $header-seen {
-        self!problem(1, "expected 'SPOZ2' header (file is empty)");
+        self!problem(1, "expected 'IZ4' header (file is empty)");
     }
 }
 
@@ -253,7 +253,7 @@ method !validate() {
             self!problem($gist.line, "gist is empty");
         }
         elsif $text eq GIST-PLACEHOLDER {
-            self!problem($gist.line, "gist is still the placeholder from 'spoz2 init'");
+            self!problem($gist.line, "gist is still the placeholder from 'iz4 init'");
         }
     }
 

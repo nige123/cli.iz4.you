@@ -1,33 +1,35 @@
-unit module SPOZ2::Register;
+unit module IZ4::Register;
 
-use SPOZ2;
-use SPOZ2::Document;
-use SPOZ2::Git;
+use IZ4;
+use IZ4::Document;
+use IZ4::Git;
 
-#| Client for the SPOZ2 register (spoz2.do): the two commands
-#| behind it (spoz2 register, spoz2 report) are the CLI's only network
+#| Client for the IZ4 register (iz4.you): the two commands
+#| behind it (iz4 register, iz4 report) are the CLI's only network
 #| opt-ins besides the agent behind init.  A report follows the register's
 #| s2r-report contract and carries presence, digest, counts and check
-#| outcomes - never the text of the SPOZ2.
+#| outcomes - never the text of the IZ4.
 
-constant REGISTER-START  is export = 'https://spoz2.do/start';
+constant REGISTER-START  is export = 'https://iz4.you/start';
 constant REPORT-SCHEMA   is export = 's2r-report/1';
 
 # ---------------------------------------------------------- connection
 
-#| The file beside a SPOZ2 naming where it reports to.  Holds the reports
+#| The file beside a IZ4 naming where it reports to.  Holds the reports
 #| URL only - never the token, which stays outside the repository.
-sub register-file(IO::Path $spoz2 --> IO::Path) is export {
-    $spoz2.parent.add('.spoz2-register');
+sub register-file(IO::Path $iz4 --> IO::Path) is export {
+    $iz4.parent.add('.iz4-register');
 }
 
-sub register-url(IO::Path $spoz2 --> Str) is export {
-    my $f = register-file($spoz2);
-    $f.f ?? $f.slurp.trim !! Str;
+sub register-url(IO::Path $iz4 --> Str) is export {
+    for register-file($iz4), $iz4.parent.add('.spoz2-register') -> $f {
+        return $f.slurp.trim if $f.f;    # legacy connection files still work
+    }
+    Str;
 }
 
-sub save-register-url(IO::Path $spoz2, Str $url --> IO::Path) is export {
-    my $f = register-file($spoz2);
+sub save-register-url(IO::Path $iz4, Str $url --> IO::Path) is export {
+    my $f = register-file($iz4);
     $f.spurt($url.trim ~ "\n");
     $f;
 }
@@ -36,7 +38,7 @@ sub save-register-url(IO::Path $spoz2, Str $url --> IO::Path) is export {
 #| one "URL<TAB>token" per line, mode 0600.
 sub token-store(--> IO::Path) is export {
     my $base = %*ENV<XDG_CONFIG_HOME> ?? %*ENV<XDG_CONFIG_HOME>.IO !! $*HOME.add('.config');
-    $base.add('spoz2').add('tokens');
+    $base.add('iz4').add('tokens');
 }
 
 sub save-token(Str $url, Str $token) is export {
@@ -51,43 +53,44 @@ sub save-token(Str $url, Str $token) is export {
 
 #| The token for a reports URL: environment first (CI), then the store.
 sub token-for(Str $url --> Str) is export {
-    with %*ENV<SPOZ2_REGISTER_TOKEN> // %*ENV<S2R_TOKEN> { return .Str }
-    my $store = token-store();
-    return Str unless $store.f;
-    with $store.lines.first({ .split("\t")[0] eq $url }) { return .split("\t")[1].Str }
+    with %*ENV<IZ4_REGISTER_TOKEN> // %*ENV<SPOZ2_REGISTER_TOKEN> // %*ENV<S2R_TOKEN> { return .Str }
+    for token-store(), token-store().parent.parent.add('spoz2').add('tokens') -> $store {
+        next unless $store.f;    # the legacy spoz2 store is still honoured
+        with $store.lines.first({ .split("\t")[0] eq $url }) { return .split("\t")[1].Str }
+    }
     Str;
 }
 
 # --------------------------------------------------------------- badge
 
-#| The public card and badge addresses for a connected SPOZ2, derived
+#| The public card and badge addresses for a connected IZ4, derived
 #| offline from the stored reports URL - no account, no network.  The
 #| badge renders the card's evidence honestly; embedding it claims
 #| nothing the card cannot back.
-sub badge-info(IO::Path $spoz2 --> Hash) is export {
-    my $url = register-url($spoz2)
-        // register-error("not connected to a register; run 'spoz2 register' for the steps");
+sub badge-info(IO::Path $iz4 --> Hash) is export {
+    my $url = register-url($iz4)
+        // register-error("not connected to a register; run 'iz4 register' for the steps");
     $url ~~ m{^ (\w+ '://' <-[/]>+) '/api/' .* '/projects/' (<-[/]>+) '/reports' $}
         or register-error("cannot derive the card address from the stored reports URL ($url); "
-            ~ "reconnect with 'spoz2 register --url=...'");
+            ~ "reconnect with 'iz4 register --url=...'");
     my $card = "$0/p/$1";
     %(
         card     => $card,
         badge    => "$card/badge.svg",
-        markdown => "[![SPOZ2]($card/badge.svg)]($card)",
-        html     => "<a href=\"$card\"><img src=\"$card/badge.svg\" alt=\"SPOZ2\"></a>",
+        markdown => "[![IZ4]($card/badge.svg)]($card)",
+        html     => "<a href=\"$card\"><img src=\"$card/badge.svg\" alt=\"IZ4\"></a>",
     );
 }
 
 # -------------------------------------------------------------- GitHub
 
-#| The workflow `spoz2 register --github` writes.  On every push it
-#| installs spoz2 (its runtime cached between runs) and runs spoz2 report,
+#| The workflow `iz4 register --github` writes.  On every push it
+#| installs iz4 (its runtime cached between runs) and runs iz4 report,
 #| so CI evidence carries a real syntax check.  It runs on GitHub's
 #| machine, whatever system the maintainer develops on.
 sub github-workflow(--> Str) is export {
     q:to/YAML/;
-    name: spoz2
+    name: iz4
     on: [push]
     jobs:
       report:
@@ -99,31 +102,31 @@ sub github-workflow(--> Str) is export {
             with:
               path: |
                 ~/.rakubrew
-                ~/.local/share/spoz2
-              key: spoz2-runtime-${{ runner.os }}
-          - run: curl -fsSL https://raw.githubusercontent.com/nige123/cli.spoz2.do/main/install | sh
-          - run: ~/.local/bin/spoz2 report --release "$GITHUB_REF_NAME" --run-id "$GITHUB_RUN_ID"
+                ~/.local/share/iz4
+              key: iz4-runtime-${{ runner.os }}
+          - run: curl -fsSL https://raw.githubusercontent.com/nige123/cli.iz4.you/main/install | sh
+          - run: ~/.local/bin/iz4 report --release "$GITHUB_REF_NAME" --run-id "$GITHUB_RUN_ID"
             env:
               S2R_TOKEN: ${{ secrets.S2R_TOKEN }}
     YAML
 }
 
-sub repo-root(IO::Path $spoz2 --> IO::Path) {
-    my ($rc, $out, $) = git($spoz2, 'rev-parse', '--show-toplevel');
-    register-error('not in a Git repository; --github sets up the repository the SPOZ2 lives in')
+sub repo-root(IO::Path $iz4 --> IO::Path) {
+    my ($rc, $out, $) = git($iz4, 'rev-parse', '--show-toplevel');
+    register-error('not in a Git repository; --github sets up the repository the IZ4 lives in')
         unless $rc == 0 && $out.trim;
     $out.trim.IO;
 }
 
-#| Write .github/workflows/spoz2.yml at the repository root.  Never
+#| Write .github/workflows/iz4.yml at the repository root.  Never
 #| overwrites a different file unless forced.  Returns 'written' or
 #| 'unchanged'.
-sub install-github-workflow(IO::Path $spoz2, Bool :$force = False --> Str) is export {
-    my $wf  = repo-root($spoz2).add('.github').add('workflows').add('spoz2.yml');
+sub install-github-workflow(IO::Path $iz4, Bool :$force = False --> Str) is export {
+    my $wf  = repo-root($iz4).add('.github').add('workflows').add('iz4.yml');
     my $txt = github-workflow();
     if $wf.f {
         return 'unchanged' if $wf.slurp eq $txt;
-        register-error('.github/workflows/spoz2.yml already exists and differs; remove it, or pass --force to replace it')
+        register-error('.github/workflows/iz4.yml already exists and differs; remove it, or pass --force to replace it')
             unless $force;
     }
     $wf.parent.mkdir;
@@ -134,8 +137,8 @@ sub install-github-workflow(IO::Path $spoz2, Bool :$force = False --> Str) is ex
 #| Store the token as the repository secret S2R_TOKEN with the GitHub CLI,
 #| handed over on standard input so it never shows in a process listing.
 #| Returns 'set', 'no-gh', or the GitHub CLI's error.
-sub set-github-secret(IO::Path $spoz2, Str $token --> Str) is export {
-    my $root  = repo-root($spoz2);
+sub set-github-secret(IO::Path $iz4, Str $token --> Str) is export {
+    my $root  = repo-root($iz4);
     my $probe = try run 'gh', '--version', :out, :err;
     return 'no-gh' without $probe;
     $probe.out.slurp(:close);
@@ -151,21 +154,21 @@ sub set-github-secret(IO::Path $spoz2, Str $token --> Str) is export {
 
 # ------------------------------------------------------------ evidence
 
-sub register-error(Str $message) { X::SPOZ2.new(:$message).throw }
+sub register-error(Str $message) { X::IZ4.new(:$message).throw }
 
-#| Evidence about one SPOZ2, mirroring the register's s2r-report contract.
-sub collect-report(IO::Path $spoz2, Str :$release, Str :$run-id --> Hash) is export {
-    my ($rc, $out, $) = git($spoz2, 'rev-parse', 'HEAD');
+#| Evidence about one IZ4, mirroring the register's s2r-report contract.
+sub collect-report(IO::Path $iz4, Str :$release, Str :$run-id --> Hash) is export {
+    my ($rc, $out, $) = git($iz4, 'rev-parse', 'HEAD');
     my $revision = $out.trim;
     register-error('not in a Git repository; evidence must bind to an exact revision')
         unless $rc == 0 && $revision ~~ /^ <[0..9 a..f]> ** 40 $/;
 
-    my %declaration = present => $spoz2.f;
+    my %declaration = present => $iz4.f;
     my %checks;
-    if $spoz2.f {
-        %declaration<digest> = sha256-file($spoz2);
-        my $doc = SPOZ2::Document.load($spoz2);
-        %declaration<grammar_version> = $doc.version.defined ?? "SPOZ2 {$doc.version}" !! 'SPOZ2';
+    if $iz4.f {
+        %declaration<digest> = sha256-file($iz4);
+        my $doc = IZ4::Document.load($iz4);
+        %declaration<grammar_version> = $doc.version.defined ?? "IZ4 {$doc.version}" !! 'IZ4';
         %declaration<invariant_count> = $doc.section('invariants') ?? $doc.section('invariants').items.elems !! 0;
         %checks<syntax> = %( outcome => $doc.ok ?? 'passed' !! 'failed' );
     }
@@ -176,7 +179,7 @@ sub collect-report(IO::Path $spoz2, Str :$release, Str :$run-id --> Hash) is exp
         revision       => $revision,
         declaration    => %declaration,
         checks         => %checks,
-        tool           => "spoz2/{VERSION}",
+        tool           => "iz4/{VERSION}",
         observed_at    => DateTime.now.utc.truncated-to('second').Str;
     %report<release_label> = $_ with $release;
     %report<run_id>        = $_ with $run-id;
@@ -210,7 +213,7 @@ sub json-str(Str $s --> Str) {
 #| status 0 means curl was missing or the register was unreachable.  The
 #| token travels in a 0600 header file, not on the command line.
 sub submit-report(Str $url, Str $token, Str $body --> List) is export {
-    my $dir = $*TMPDIR.add("spoz2-{$*PID}-{(^1_000_000).pick}");
+    my $dir = $*TMPDIR.add("iz4-{$*PID}-{(^1_000_000).pick}");
     $dir.mkdir;
     $dir.chmod(0o700);
     my $hdr = $dir.add('auth');

@@ -1,8 +1,8 @@
 # Invariant 0: humans first
 
-Every SPOZ2 document carries Invariant 0, whether or not the file repeats
+Every IZ4 document carries Invariant 0, whether or not the file repeats
 the text. Leaving the text out does not remove the obligation, and nothing
-in a SPOZ2 may weaken it.
+in a IZ4 may weaken it.
 
 The short version, the one worth remembering:
 
@@ -61,7 +61,7 @@ block is honesty, not evidence: it does not establish that an invariant
 passed. The foundation grants no additional authority, and a local or
 project-level approval cannot waive its human protections.
 
-**Honesty in checking.** `spoz2 init` writes the canonical text. `spoz2 check`
+**Honesty in checking.** `iz4 init` writes the canonical text. `iz4 check`
 compares any repeated text with the canonical
 wording, and reports the conflicts it can see. It describes what it verified.
 It never implies the software has been proven harmless.

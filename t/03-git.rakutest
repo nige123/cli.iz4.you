@@ -1,15 +1,15 @@
 use lib $?FILE.IO.parent.add('lib').Str;
 use Test;
-use SPOZ2Test;
-use SPOZ2;
-use SPOZ2::Git;
+use IZ4Test;
+use IZ4;
+use IZ4::Git;
 
 plan 7;
 
 # outside Git: degrade gracefully
 my $dir = temp-dir;
 my $path = init(:$dir);
-is log-text($path), "No Git history available for SPOZ2\n", 'log outside Git';
+is log-text($path), "No Git history available for IZ4\n", 'log outside Git';
 my ($rc, $out, $err) = diff-result($path);
 is $rc, 127, 'diff outside Git returns no-git code';
 like $err, /'No Git history'/, 'diff outside Git explains';
@@ -27,10 +27,10 @@ g('config', 'user.email', 'test@example.com');
 g('config', 'user.name', 'Test');
 my $file = init(:dir($repo));
 add-entry($file, 'gist', 'Git test.');
-is log-text($file), "No Git history available for SPOZ2\n", 'untracked file has no history';
-g('add', 'SPOZ2');
-g('commit', '-q', '-m', 'Add initial SPOZ2');
-like log-text($file), /^ \d**4 '-' \d\d '-' \d\d '  ' <xdigit>+ '  Add initial SPOZ2' \n $/, 'log shows concise history';
+is log-text($file), "No Git history available for IZ4\n", 'untracked file has no history';
+g('add', 'IZ4');
+g('commit', '-q', '-m', 'Add initial IZ4');
+like log-text($file), /^ \d**4 '-' \d\d '-' \d\d '  ' <xdigit>+ '  Add initial IZ4' \n $/, 'log shows concise history';
 add-entry($file, 'invariant', 'Always true.');
 ($rc, $out, $err) = diff-result($file);
 ok $rc == 0 && $out.contains('+    - Invariant 1: Always true.'), 'diff shows working-tree change';

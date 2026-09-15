@@ -1,24 +1,24 @@
 use lib $?FILE.IO.parent.add('lib').Str;
 use Test;
-use SPOZ2Test;
-use SPOZ2;
-use SPOZ2::Document;
-use SPOZ2::Register;
+use IZ4Test;
+use IZ4;
+use IZ4::Document;
+use IZ4::Register;
 
 plan 43;
 
 # Everything here is offline: no test ever reaches a real register.
 %*ENV<XDG_CONFIG_HOME> = temp-dir.Str;
-%*ENV<SPOZ2_REGISTER_TOKEN>:delete;
+%*ENV<IZ4_REGISTER_TOKEN>:delete;
 %*ENV<S2R_TOKEN>:delete;
 
-# connection: the reports URL beside the SPOZ2, the token outside the repo
+# connection: the reports URL beside the IZ4, the token outside the repo
 my $dir  = temp-dir;
 my $path = init(:$dir);
-my $reports-url = 'https://spoz2.do/api/v1/projects/p1/reports';
+my $reports-url = 'https://iz4.you/api/v1/projects/p1/reports';
 nok register-url($path).defined, 'no register URL until saved';
 my $cfg = save-register-url($path, $reports-url);
-is $cfg.basename, '.spoz2-register', 'URL lives beside the SPOZ2';
+is $cfg.basename, '.iz4-register', 'URL lives beside the IZ4';
 is register-url($path), $reports-url, 'URL round-trips';
 nok token-for($reports-url).defined, 'no token until saved';
 save-token($reports-url, 'secret-token');
@@ -26,25 +26,25 @@ is token-for($reports-url), 'secret-token', 'token round-trips from the store';
 ok token-store().Str.starts-with(%*ENV<XDG_CONFIG_HOME>), 'token store honours XDG_CONFIG_HOME';
 nok $dir.dir.first(*.basename eq 'tokens'), 'the token never lands in the project';
 {
-    temp %*ENV<SPOZ2_REGISTER_TOKEN> = 'env-wins';
+    temp %*ENV<IZ4_REGISTER_TOKEN> = 'env-wins';
     is token-for($reports-url), 'env-wins', 'environment token overrides the store';
 }
 
 # badge: card and snippets derived offline from the stored connection
 my %b = badge-info($path);
-is %b<card>, 'https://spoz2.do/p/p1', 'card URL derived from the reports URL';
-is %b<badge>, 'https://spoz2.do/p/p1/badge.svg', 'badge URL sits beside the card';
-is %b<markdown>, '[![SPOZ2](https://spoz2.do/p/p1/badge.svg)](https://spoz2.do/p/p1)',
+is %b<card>, 'https://iz4.you/p/p1', 'card URL derived from the reports URL';
+is %b<badge>, 'https://iz4.you/p/p1/badge.svg', 'badge URL sits beside the card';
+is %b<markdown>, '[![IZ4](https://iz4.you/p/p1/badge.svg)](https://iz4.you/p/p1)',
     'GitHub-ready Markdown snippet';
-like %b<html>, /'<a href="https://spoz2.do/p/p1">'/, 'HTML snippet links to the card';
+like %b<html>, /'<a href="https://iz4.you/p/p1">'/, 'HTML snippet links to the card';
 my $bare = temp-dir;
 init(:dir($bare));
-throws-like { badge-info($bare.add('SPOZ2')) }, X::SPOZ2, message => /'not connected'/,
-    'badge for an unconnected SPOZ2 points at the register steps';
-my ($brc, $bout, $berr) = spoz2($dir, 'badge');
-is $brc, 0, 'spoz2 badge exits 0 when connected';
-like $bout, /'[![SPOZ2](https://spoz2.do/p/p1/badge.svg)](https://spoz2.do/p/p1)'/,
-    'spoz2 badge prints the paste-ready snippet';
+throws-like { badge-info($bare.add('IZ4')) }, X::IZ4, message => /'not connected'/,
+    'badge for an unconnected IZ4 points at the register steps';
+my ($brc, $bout, $berr) = iz4($dir, 'badge');
+is $brc, 0, 'iz4 badge exits 0 when connected';
+like $bout, /'[![IZ4](https://iz4.you/p/p1/badge.svg)](https://iz4.you/p/p1)'/,
+    'iz4 badge prints the paste-ready snippet';
 
 # evidence collection mirrors the s2r-report contract
 if have-git() {
@@ -63,7 +63,7 @@ if have-git() {
     ok %r<declaration><present>, 'declaration present';
     is %r<declaration><invariant_count>, 1, 'invariant count comes from the parser';
     ok %r<declaration><digest> ~~ /^ <[0..9a..f]> ** 64 $/, 'digest is a sha256';
-    is %r<checks><syntax><outcome>, 'passed', 'syntax outcome from spoz2 itself';
+    is %r<checks><syntax><outcome>, 'passed', 'syntax outcome from iz4 itself';
     is %r<release_label>, 'v1', 'release label carried';
 
     my $j = json-encode(%r);
@@ -71,7 +71,7 @@ if have-git() {
     unlike $j, /'humans first'/, 'the report never carries invariant text';
 
     # CLI: --dry-run prints the report and sends nothing
-    my ($rc, $out, $err) = spoz2($repo, 'report', '--dry-run');
+    my ($rc, $out, $err) = iz4($repo, 'report', '--dry-run');
     is $rc, 0, 'report --dry-run exits 0';
     like $out, /'"revision":"' <[0..9a..f]> ** 40 '"'/, 'dry run prints the payload';
 }
@@ -96,23 +96,23 @@ if have-git() {
         SH
     $gh.chmod(0o755);
     temp %*ENV<PATH> = "{$bin}:{%*ENV<PATH>}";
-    my ($rc, $out, $err) = spoz2($repo, 'register',
-        '--url=https://spoz2.do/api/v1/projects/p9/reports', '--token=tok-123', '--github');
+    my ($rc, $out, $err) = iz4($repo, 'register',
+        '--url=https://iz4.you/api/v1/projects/p9/reports', '--token=tok-123', '--github');
     is $rc, 0, 'register --url --token --github exits 0';
-    my $wf = $repo.add('.github').add('workflows').add('spoz2.yml');
-    ok $wf.f, 'writes .github/workflows/spoz2.yml';
-    like $wf.slurp, /'spoz2 report'/, 'the workflow runs spoz2 report';
+    my $wf = $repo.add('.github').add('workflows').add('iz4.yml');
+    ok $wf.f, 'writes .github/workflows/iz4.yml';
+    like $wf.slurp, /'iz4 report'/, 'the workflow runs iz4 report';
     like $wf.slurp, /'secrets.S2R_TOKEN'/, 'and reads the token from the repository secret';
     like $wf.slurp, /'actions/cache'/, 'the runtime is cached between runs';
     is $bin.add('gh.stdin').slurp.trim, 'tok-123', 'the token reaches gh on standard input';
     like $bin.add('gh.args').slurp, /'secret set S2R_TOKEN'/, 'as the repository secret S2R_TOKEN';
     nok $bin.add('gh.args').slurp.contains('tok-123'), 'never on the command line';
     nok $wf.slurp.contains('tok-123'), 'the token never lands in the repository';
-    ($rc, $out, $err) = spoz2($repo, 'register', '--github');
+    ($rc, $out, $err) = iz4($repo, 'register', '--github');
     is $rc, 0, 'running --github again is harmless';
     like $out, /'already set up'/, 'and says so';
     $wf.spurt("name: mine\n");
-    ($rc, $out, $err) = spoz2($repo, 'register', '--github');
+    ($rc, $out, $err) = iz4($repo, 'register', '--github');
     is $rc, 1, 'a different existing workflow is never overwritten';
     like $err, /'--force'/, 'the error says how to replace it';
     is $wf.slurp, "name: mine\n", 'and the file is untouched';
@@ -121,15 +121,15 @@ else {
     skip 'no git available', 14;
 }
 
-# CLI: an unconnected SPOZ2 is guided through signing up first
+# CLI: an unconnected IZ4 is guided through signing up first
 my $fresh = temp-dir;
 init(:dir($fresh));
-my ($rc, $out, $err) = spoz2($fresh, 'register');
-like $out, /'Sign up first' .* 'https://spoz2.do/start'/, 'register guides sign-up first, on spoz2.do';
+my ($rc, $out, $err) = iz4($fresh, 'register');
+like $out, /'Sign up first' .* 'https://iz4.you/start'/, 'register guides sign-up first, on iz4.you';
 
 # CLI: report outside Git is a hard, plain error
 my $nogit = temp-dir;
 init(:dir($nogit));
-($rc, $out, $err) = spoz2($nogit, 'report', '--dry-run');
+($rc, $out, $err) = iz4($nogit, 'report', '--dry-run');
 is $rc, 1, 'report outside Git exits 1';
 like $err, /'not in a Git repository'/, 'and says why';
