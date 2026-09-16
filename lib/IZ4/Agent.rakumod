@@ -293,13 +293,32 @@ sub agent-status(IO::Path $iz4, IO::Path :$root! --> Hash) is export {
     );
 }
 
-#| One human line per integration, worded so it claims nothing more.
+#| The integrations a repository is expected to carry: AGENTS.md always;
+#| CLAUDE.md and the skill where the repository shows Claude use (the
+#| rule 'iz4 init' applies), or where the file is already there.
+sub expected-integrations(IO::Path :$root! --> List) is export {
+    my $claudeish = $root.add('CLAUDE.md').e || $root.add('.claude').d;
+    my $skillish  = $root.add('.claude').d  || $root.add(SKILL-PATH).e;
+    ('AGENTS.md', |($claudeish ?? 'CLAUDE.md' !! Empty), |($skillish ?? SKILL-PATH !! Empty));
+}
+
+#| The command that installs or refreshes one integration.
+sub install-hint(Str $name --> Str) is export {
+    given $name {
+        when 'CLAUDE.md' { "run 'iz4 agent install --claude'" }
+        when SKILL-PATH  { "run 'iz4 agent install --skill'" }
+        default          { "run 'iz4 agent install'" }
+    }
+}
+
+#| One human line per integration, worded so it claims nothing more;
+#| anything short of current says how to remedy it.
 sub integration-line(Str $name, Str $status --> Str) is export {
     given $status {
         when 'current'   { "$name: integration installed (current)" }
-        when 'stale'     { "$name: integration installed but stale - run 'iz4 agent install' to refresh" }
-        when 'malformed' { "$name: managed section malformed - fix the markers by hand" }
-        when 'absent'    { "$name: file present, no managed section - run 'iz4 agent install'" }
-        default          { "$name: no integration (file not present)" }
+        when 'stale'     { "$name: integration installed but stale - {install-hint($name)} to refresh" }
+        when 'malformed' { "$name: managed section malformed - fix the markers by hand, or remove them and {install-hint($name)}" }
+        when 'absent'    { "$name: file present, no managed section - {install-hint($name)}" }
+        default          { "$name: no file - {install-hint($name)}" }
     }
 }

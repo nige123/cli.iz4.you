@@ -20,7 +20,14 @@ behaviours:
       same format.
     - Humans can read and edit these files directly in any text editor.
     - Software can validate their deterministic structure (iz4 check) and
-      report problems with file and line numbers.
+      report problems with file and line numbers. check then prints a
+      checklist, one line per fact with a tick for what is true and a cross
+      for what is missing, each cross carrying its remedy: the structure,
+      the Invariant 0 text, invariant numbering and, for a root IZ4, the
+      repository's agent entry points (AGENTS.md always; CLAUDE.md and the
+      skill where the repository shows Claude use) carrying a current managed
+      section. Crosses are file state, not failure: only structural errors
+      set the exit code.
     - Entries can be added from the command line while working (iz4 add),
       without disturbing the rest of the file.
     - From any subdirectory, the nearest IZ4 is found by walking upward (iz4
@@ -64,12 +71,15 @@ behaviours:
       status reports spec validity, binding resolution and integration
       state in wording that never claims an agent read anything or that
       software conforms; --strict turns it into a CI check.
-    - Invariants carry stable, plain monotonic numbers ('Invariant 3: ...')
-      so humans and agents can refer to them explicitly: Invariant 0 is the
-      foundation, project invariants start at 1, iz4 add invariant numbers
-      new entries automatically (explicit numbers respected, duplicates
-      refused), iz4 show invariant 3 resolves a reference, and iz4 check
-      treats a duplicate number as an error. Unnumbered files stay valid.
+    - Every invariant carries a stable, plain monotonic number ('Invariant
+      3: ...') so humans and agents can refer to it unambiguously: Invariant
+      0 is the foundation and project invariants start at 1. iz4 add
+      invariant numbers new entries automatically (explicit numbers
+      respected, duplicates refused), iz4 number assigns the next free
+      numbers to any unnumbered invariants in file order without touching
+      existing ones, iz4 show invariant 3 resolves a reference, and iz4 init
+      numbers its agent draft before writing it. iz4 check reports each
+      unnumbered invariant as a warning and a duplicate number as an error.
     - The CLI installs with one curl command: the installer fetches the code,
       fetches the runtime too when it is missing (into the user's home,
       nothing system-wide), links iz4 onto the PATH and verifies it runs.
@@ -110,6 +120,10 @@ invariants:
       further documents use .iz4. Legacy IZ4 root files and .iz4
       documents are read silently. 'iz4.you' is the product brand and never
       a filename, as 'iz4.you' was before it.
+    - Invariant 9: Every invariant in a IZ4 is numbered, Invariant 0 first
+      and the project's own from 1, and a number once assigned is never
+      reassigned or reused, so 'Invariant N' names one entry of that file
+      unambiguously wherever it is cited.
 
 constraints:
     - Implemented in straightforward Raku using core modules only; the only
@@ -136,6 +150,34 @@ constraints:
       x86-only assumptions.
 
 decisions:
+    - 2026-09-16: iz4 check reports whether the agent entry points are set
+      up, as a checklist (user ruling: ticks against what is true, a cross
+      where something is missing, and how to remedy it). Until now only
+      iz4 agent status looked at AGENTS.md, CLAUDE.md and the skill, and
+      only one repository in this estate had them installed, so the file
+      everyone runs on every IZ4 now shows them too, reusing the same
+      file-state checks and the same claim-nothing wording. A cross never
+      changes the exit code: Invariant 5 keeps check structural and the
+      321 deploy gate keys off that code, so a repository without
+      AGENTS.md is told how to fix it, not blocked. The glyphs are one
+      character per line, coloured only on a terminal (never under
+      NO_COLOR or a pipe), which stays inside the plain-terminal
+      constraint.
+    - 2026-09-16: Every invariant is numbered, starting at Invariant 0 (user
+      ruling: so each can be referred to unambiguously elsewhere), recorded
+      as Invariant 9. Until now numbering was optional and only iz4 add
+      applied it, which left 23 of the 24 IZ4 files in this estate with
+      numbered additions sitting after unnumbered originals - exactly the
+      ambiguity the numbers exist to remove. Numbering is now the rule:
+      check warns for each unnumbered invariant (a warning, not an error,
+      so existing files stay green and deploys are not blocked while the
+      estate catches up); the new iz4 number command assigns the next free
+      numbers in file order and never renumbers an existing entry, because
+      numbers are references and Invariant 7 forbids silent rewrites - it
+      is an explicit command that changes only the first line of each entry
+      it numbers; add points out unnumbered neighbours after adding; and
+      init numbers an agent draft before writing it, since a fresh draft is
+      not yet anyone's file.
     - 2026-09-15: SPOZ2 is renamed IZ4 (user ruling, explicitly authorising
       the rewrite of Invariant 8). The name answers the file's question -
       what is this software FOR - and carries the foundation in it: IZ is

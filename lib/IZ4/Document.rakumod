@@ -132,6 +132,14 @@ method errors   { @!problems.grep(!*.warning) }
 method warnings { @!problems.grep(*.warning) }
 method ok(--> Bool) { !self.errors }
 
+#| True when the file repeats Invariant 0 and the text matches the canonical
+#| wording; false when it is missing or has drifted (it binds either way).
+method invariant-zero-matches(--> Bool) {
+    my $inv  = self.section('invariants');
+    my $zero = $inv ?? $inv.items.first({ is-invariant-zero-text(.text) }) !! Nil;
+    $zero.defined && squish-ws($zero.text) eq squish-ws(INVARIANT-ZERO);
+}
+
 #| One line describing what this parse established about Invariant 0.
 #| `iz4 check` prints it, so a successful check says what was verified
 #| and never implies more.
@@ -280,7 +288,9 @@ method !validate() {
     }
 
     # Numbered invariants are references; a duplicate number defeats the
-    # reference, so it is an error.  Unnumbered entries stay valid.
+    # reference, so it is an error.  Every invariant should carry a number
+    # (Invariant 9); an unnumbered one is a warning, never an error, so
+    # files written before the rule stay valid while they catch up.
     if $inv.defined {
         my %first-line;
         for $inv.items -> $item {
@@ -291,7 +301,19 @@ method !validate() {
             }
             else { %first-line{$n} = $item.line }
         }
+        for self.unnumbered-invariants -> $item {
+            self!problem($item.line,
+                "unnumbered invariant ('iz4 number' gives every invariant a number)", :warning);
+        }
     }
+}
+
+#| Invariant entries that carry no number, in file order.  Invariant 0's
+#| older spellings ('Invariant 0.0:', 'Invariant zero:') count as
+#| numbered: they name the foundation.
+method unnumbered-invariants(--> List) {
+    my $inv = self.section('invariants') // return ();
+    $inv.items.grep({ !is-invariant-zero-text(.text) && !invariant-number(.text).defined }).List;
 }
 
 #| Whitespace-insensitive comparison for canonical text (entries are

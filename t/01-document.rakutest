@@ -1,7 +1,7 @@
 use Test;
 use IZ4::Document;
 
-plan 34;
+plan 38;
 
 my $valid = q:to/END/;
     IZ4 0.0
@@ -89,3 +89,11 @@ my $dupnum = IZ4::Document.parse("IZ4 0.0\n\ngist:\n    hi\n\ninvariants:\n    -
 nok $dupnum.ok, 'duplicate invariant number is an error';
 like $dupnum.errors[0].Str, /"duplicate invariant number '3'" .* 'first used at line 7'/,
     'duplicate number reported with both lines';
+
+# every invariant is numbered (Invariant 9): an unnumbered one is a warning
+my $unnum = IZ4::Document.parse("IZ4\n\ngist:\n    hi\n\ninvariants:\n    - Invariant 0: humans first.\n    - No number.\n    - Invariant zero: legacy spelling.\n    - Invariant 2: b.\n");
+ok $unnum.ok, 'an unnumbered invariant is still a valid file';
+my @nw = $unnum.warnings.grep(*.message.contains('unnumbered'));
+is @nw».line, (8,), 'one warning for the one unnumbered invariant (legacy Invariant 0 spellings count as numbered)';
+like @nw[0].Str, /'unnumbered invariant' .* "'iz4 number'"/, 'the warning points at iz4 number';
+is $unnum.unnumbered-invariants».text, ('No number.',), 'unnumbered-invariants lists them in order';

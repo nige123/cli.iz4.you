@@ -155,12 +155,14 @@ sub agent-init-draft(IO::Path $dir = $*CWD, Str :$cmd = agent-cmd() --> Str) is 
 
     # Invariant 0 leads every IZ4; put it back if the agent dropped it.
     my $inv = $doc.section('invariants');
+    my @out = $text.lines;
     unless is-invariant-zero-text($inv.items.head.text) {
-        my @out = $text.lines;
         @out.splice($inv.line, 0, entry-lines('invariants', INVARIANT-ZERO, $inv.indent // INDENT));
-        $text = @out.join("\n") ~ "\n";
     }
-    $text;
+    # Every invariant is numbered (Invariant 9).  A draft is not yet
+    # anyone's file, so numbering it here is not a rewrite.
+    number-lines(@out);
+    @out.join("\n") ~ "\n";
 }
 
 #| Bounded evidence for the distilling agent: the codebase's own account
@@ -300,6 +302,38 @@ sub add-entry(IO::Path $path, Str $noun, Str $text, Bool :$replace = False --> S
 
     $path.spurt(@lines.join("\n") ~ "\n");
     $section;
+}
+
+# ---------------------------------------------------------------- number
+
+#| Give every unnumbered invariant in $path the next free number, in
+#| file order.  Existing numbers are references and are never changed;
+#| only the first line of each entry numbered is touched, so the user's
+#| wrapping and comments stay as they were.  Returns (line, number)
+#| pairs, empty when there was nothing to do.
+sub number-invariants(IO::Path $path --> List) is export {
+    my @lines = IZ4::Document.load($path).lines;
+    my @done  = number-lines(@lines);
+    $path.spurt(@lines.join("\n") ~ "\n") if @done;
+    @done;
+}
+
+#| The same, on a whole IZ4 held as @lines, changed in place.  Numbers
+#| continue after the highest one in use (as 'add' does), so a number
+#| is never reused even when an earlier one has gone.
+sub number-lines(@lines --> List) is export {
+    my $doc  = IZ4::Document.parse(@lines.join("\n") ~ "\n");
+    my @todo = $doc.unnumbered-invariants;
+    return () unless @todo;
+    my %used = $doc.section('invariants').items.map({ invariant-number(.text) }).grep(*.defined).map({ $_ => True });
+    my $next = 1 + (0, |%used.keys.map(*.Int)).max;
+    my @done;
+    for @todo -> $item {
+        my $i = $item.line - 1;
+        @lines[$i] = @lines[$i].subst(/^ (\s* '-') \s*/, { "$0 Invariant $next: " });
+        @done.push: ($item.line, $next++);
+    }
+    @done;
 }
 
 #| Lines to insert for one entry, wrapped to WRAP-WIDTH (the parser joins

@@ -29,6 +29,9 @@ sub USAGE() {
                                            gist behaviour invariant constraint decision
                                            direction reference
                                            (gist needs --replace once set)
+      iz4 number [FILE]                give every unnumbered invariant the
+                                           next free number, in file order;
+                                           existing numbers are never changed
       iz4 log [FILE]                   Git history of the IZ4
       iz4 diff [FILE] [REV [REV]]      Git diff of the IZ4
       iz4 register [--url=U --token=T] connect this IZ4 to the IZ4 register
@@ -135,18 +138,81 @@ multi MAIN('check', Str $file?) {
         my $name = display-name($path);
         my $doc  = check-doc($path);
         .say for $doc.report(:$name);
-        say $doc.invariant-zero-status;
-        say 'checked: structure and the Invariant 0 binding only; a '
-          ~ 'passing check never means the software is safe, harmless, or '
-          ~ 'that its claims are true';
-        if $doc.ok { say "OK $name"; 0 } else { 1 }
+
+        # A checklist: one line per fact, a tick for what is true, a cross
+        # with its remedy for what is missing.  File state only; a cross
+        # never sets the exit code - that stays structural.
+        my @rows;
+        my $errors = +$doc.errors;
+        my $warns  = +$doc.warnings;
+        @rows.push: ($errors == 0,
+            $errors == 0
+                ?? "structure: valid" ~ ($warns ?? " ($warns warning{$warns == 1 ?? '' !! 's'} above)" !! '')
+                !! "structure: $errors error{$errors == 1 ?? '' !! 's'} above - fix each line listed");
+        my $zero-ok = $doc.invariant-zero-matches;
+        @rows.push: ($zero-ok, $doc.invariant-zero-status
+            ~ ($zero-ok ?? '' !! " - paste the canonical text ('iz4 agent' prints it) as the first invariant"));
+        my $inv = $doc.section('invariants');
+        my $n   = $inv ?? $inv.items.elems !! 0;
+        my $un  = +$doc.unnumbered-invariants;
+        @rows.push: ($un == 0,
+            $un == 0 ?? "invariants: all $n numbered"
+                     !! "invariants: $un of $n unnumbered - run 'iz4 number'");
+        if $path.basename eq ROOT-NAME | LEGACY-ROOT-NAME {
+            my $root = $path.parent;
+            my %s    = agent-status($path, :$root);
+            for expected-integrations(:$root) -> $i {
+                my $status = %s<integrations>{$i};
+                @rows.push: ($status eq 'current', integration-line($i, $status));
+            }
+        }
+        say tick(.[0]) ~ ' ' ~ .[1] for @rows;
+
+        say 'checked: file state only - structure, the Invariant 0 text, '
+          ~ 'numbering and the agent entry points; a passing check never '
+          ~ 'means the software is safe, harmless, or that its claims are true';
+        my $crosses = @rows.grep({ !.[0] }).elems;
+        if $doc.ok {
+            say "OK $name" ~ ($crosses ?? " ($crosses to remedy above)" !! '');
+            0;
+        }
+        else { 1 }
     }
+}
+
+#| A tick or a cross: one plain character, green or red only on a
+#| terminal that has not asked for no colour.
+sub tick(Bool $ok --> Str) {
+    my $glyph = $ok ?? '✓' !! '✗';
+    return $glyph if %*ENV<NO_COLOR> || !$*OUT.t;
+    ($ok ?? "\e[32m" !! "\e[31m") ~ $glyph ~ "\e[0m";
 }
 
 multi MAIN('add', Str $kind, Str $text, Str :$file, Bool :$replace = False) {
     attempt {
-        my $section = add-entry(resolve-target($file), $kind, $text, :$replace);
+        my $path    = resolve-target($file);
+        my $section = add-entry($path, $kind, $text, :$replace);
         say $kind eq 'gist' ?? 'Set gist.' !! "Added $kind.";
+        if $section eq 'invariants' && check-doc($path).unnumbered-invariants -> @rest {
+            note "note: {+@rest} other invariant{+@rest == 1 ?? ' is' !! 's are'} unnumbered in {display-name($path)}; 'iz4 number' fixes that";
+        }
+        0;
+    }
+}
+
+multi MAIN('number', Str $file?) {
+    attempt {
+        my $path = resolve-target($file);
+        my $name = display-name($path);
+        my @done = number-invariants($path);
+        if @done {
+            my ($from, $to) = @done[0][1], @done[*-1][1];
+            say "Numbered {+@done} invariant{+@done == 1 ?? '' !! 's'} in $name ("
+              ~ ($from == $to ?? "Invariant $from" !! "Invariant $from to Invariant $to") ~ ')';
+        }
+        else {
+            say "$name: every invariant is already numbered";
+        }
         0;
     }
 }

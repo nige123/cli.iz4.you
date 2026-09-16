@@ -69,9 +69,11 @@ it back to you.
 iz4 init [--/agent]              write a IZ4 here, drafted by an agent (never overwrites)
 iz4 show [FILE] [SECTION]        print the file, or one section
 iz4 show invariant N             print invariant number N
-iz4 check [FILE]                 validate the structure; exit 1 on errors
+iz4 check [FILE]                 validate the structure and tick off what is
+                                   in place; exit 1 on errors
 iz4 add KIND TEXT                add a gist, behaviour, invariant, constraint,
                                    decision, direction or reference
+iz4 number [FILE]                number every unnumbered invariant
 iz4 log [FILE]                   the Git history of your intent
 iz4 diff [FILE] [REV [REV]]      what changed, working tree by default
 iz4 agent [install|status]       hand the specification to a coding agent
@@ -81,8 +83,12 @@ iz4 register / iz4 report      connect to the register and submit evidence
 Without a `FILE`, iz4 uses the nearest `IZ4` above you, so it works from
 deep inside `src/`.
 
-`iz4 check` proves the file parses and is well formed. It cannot tell you
-whether the intent is any good. That part stays yours.
+`iz4 check` proves the file parses and is well formed, then prints a
+checklist: a tick for each thing that is true (the structure, the Invariant 0
+text, invariant numbering, and the agent entry points AGENTS.md, CLAUDE.md and
+the skill where a repository uses them) and a cross, with the command that
+fixes it, for each thing missing. Only structural errors fail the check. It
+cannot tell you whether the intent is any good. That part stays yours.
 
 ## The file
 
@@ -125,8 +131,10 @@ A few rules keep it readable by people and machines alike:
   indented. `gist` is free text, the rest are `- ` entries, and a further
   indented line continues the entry above.
 - Lines starting with `#` are comments, for humans.
-- Invariants carry stable numbers, so you can point at `Invariant 3` and be
-  understood. `iz4 add invariant` numbers them for you.
+- Every invariant carries a number, from `Invariant 0` up, so you can point
+  at `Invariant 3` and be understood. `iz4 add invariant` numbers new ones,
+  `iz4 number` numbers any that are missing one, and a number, once given, is
+  never changed or reused. `iz4 check` warns about an unnumbered invariant.
 - `decisions` records a choice and why. `direction` is where you are heading,
   kept apart from what the software already does. A reference points at a
   standard, it never copies one in.

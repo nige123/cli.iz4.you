@@ -2,7 +2,7 @@ use lib $?FILE.IO.parent.add('lib').Str;
 use Test;
 use IZ4Test;
 
-plan 24;
+plan 38;
 
 # Never let a test reach a real agent.
 %*ENV<IZ4_AGENT_CMD> = 'false';
@@ -32,6 +32,24 @@ is ($rc, $out), (0, "Invariant 1: Always.\n"), 'show invariant N resolves the re
 ($rc, $out, $err) = iz4($dir, 'check');
 ok $rc == 0 && $out.contains('Invariant 0:') && $out.ends-with("OK IZ4\n"),
     'check passes and reports the invariant-zero binding';
+like $out, /'✓ structure: valid' \n '✓ Invariant 0: repeated locally' .* \n '✓ invariants: all 2 numbered' \n '✓ AGENTS.md: integration installed (current)' \n/,
+    'check is a checklist with ticks for what is true';
+
+# a root IZ4 in a repository with no agent entry points: crosses, each with its remedy
+my $bare = temp-dir;
+$bare.add('IZ4').spurt("IZ4\n\ngist:\n    Bare.\n\ninvariants:\n    - Nothing is set up.\n");
+($rc, $out, $err) = iz4($bare, 'check');
+is $rc, 0, 'crosses never change the exit code';
+like $out, /'✗ Invariant 0: not repeated locally, still binding' .* "'iz4 agent'" .* 'first invariant' \n
+            '✗ invariants: 1 of 1 unnumbered - run' .* "'iz4 number'" \n
+            "✗ AGENTS.md: no file - run 'iz4 agent install'" \n/, 'each cross says how to remedy it';
+unlike $out, /'CLAUDE.md' | 'SKILL.md'/, 'CLAUDE.md and the skill are not expected without signs of Claude use';
+ok $out.ends-with("OK IZ4 (3 to remedy above)\n"), 'the summary counts what is left to remedy';
+($rc, $out, $err) = iz4($bare, 'agent', 'install');
+($rc, $out, $err) = iz4($bare, 'number');
+($rc, $out, $err) = iz4($bare, 'check');
+like $out, /'✓ invariants: all 1 numbered' \n '✓ AGENTS.md: integration installed (current)' \n/, 'remedies turn crosses into ticks';
+ok $out.ends-with("OK IZ4 (1 to remedy above)\n"), 'only the missing Invariant 0 text is left';
 
 # explicit .iz4 file from a nested directory
 my $nested = $dir.add('docs');
@@ -41,8 +59,20 @@ $nested.add('security.iz4').spurt("IZ4 0.0\n\ngist:\n    Security intent.\n\ninv
 is $rc, 0, 'explicit .iz4 checked and passes';
 like $out, /'not repeated locally, still binding' .* 'OK security.iz4'/,
     'omitted invariant zero is reported as inherited, and the file passes';
+unlike $out, /'AGENTS.md'/, 'agent entry points are only checked for a root IZ4';
 ($rc, $out, $err) = iz4($nested, 'show', 'security.iz4', 'invariants');
 is $out, "- Secrets never logged.\n", 'show section of explicit .iz4';
+($rc, $out, $err) = iz4($nested, 'check', 'security.iz4');
+like $out, /'security.iz4:7: warning: unnumbered invariant'/, 'check warns about an unnumbered invariant';
+($rc, $out, $err) = iz4($nested, 'add', 'invariant', 'Second.', '--file=security.iz4');
+is ($rc, $out), (0, "Added invariant.\n"), 'add still adds beside unnumbered invariants';
+like $err, /^ 'note: 1 other invariant is unnumbered in security.iz4' .* "'iz4 number'"/, 'add points out the unnumbered neighbour';
+($rc, $out, $err) = iz4($nested, 'number', 'security.iz4');
+is ($rc, $out), (0, "Numbered 1 invariant in security.iz4 (Invariant 2)\n"), 'number reports what it wrote';
+($rc, $out, $err) = iz4($nested, 'number', 'security.iz4');
+is ($rc, $out), (0, "security.iz4: every invariant is already numbered\n"), 'number is a no-op the second time';
+($rc, $out, $err) = iz4($nested, 'show', 'invariant', '2', '--file=security.iz4');
+is $out, "Invariant 2: Secrets never logged.\n", 'the numbered invariant resolves';
 
 # agent-assisted init: a good draft lands, validated
 my $drafted = temp-dir;

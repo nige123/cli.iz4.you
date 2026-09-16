@@ -4,7 +4,7 @@ use IZ4Test;
 use IZ4;
 use IZ4::Document;
 
-plan 43;
+plan 51;
 
 my $dir = temp-dir;
 
@@ -136,3 +136,37 @@ my $draft-doc = IZ4::Document.parse($draft);
 is $draft-doc.section('invariants').items.elems, 3, 'draft keeps its invariants and gains invariant zero';
 is $draft-doc.section('invariants').items[0].text, INVARIANT-ZERO,
     'invariant zero is restored first when the agent drops it';
+is $draft-doc.section('invariants').items[1..2]».text,
+    ('Invariant 1: The thing never breaks.', 'Invariant 2: The other thing holds.'),
+    'the draft is numbered before it is written';
+
+# number: every unnumbered invariant gets the next free number, in file
+# order; existing numbers, wrapping and comments are left alone
+my $num-dir = temp-dir;
+my $num = $num-dir.add('IZ4');
+$num.spurt(qq:to/END/);
+    IZ4
+
+    gist:
+        Numbering.
+
+    invariants:
+        - {INVARIANT-ZERO}
+    # a comment stays
+        - First rule, wrapped onto
+          a second line.
+        - Invariant 3: Chosen early.
+        - Second rule.
+    END
+is number-invariants($num), ((9, 4), (12, 5)), 'number reports the lines and numbers written';
+is check-doc($num).section('invariants').items».text,
+    (INVARIANT-ZERO, 'Invariant 4: First rule, wrapped onto a second line.',
+     'Invariant 3: Chosen early.', 'Invariant 5: Second rule.'),
+    'numbers continue after the highest in use and existing numbers are untouched';
+like $num.slurp, /"# a comment stays\n    - Invariant 4: First rule, wrapped onto\n      a second line.\n"/,
+    'only the first line of each numbered entry changes';
+is number-invariants($num), (), 'a second run has nothing to do';
+ok check-doc($num).ok && !check-doc($num).warnings, 'a numbered file checks clean';
+my @lines = "IZ4", "", "gist:", "    g", "", "invariants:", "    - Loose.";
+is number-lines(@lines), ((7, 1),), 'number-lines works on lines in place';
+is @lines[6], '    - Invariant 1: Loose.', 'the line is rewritten in place';
