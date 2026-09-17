@@ -1,68 +1,76 @@
 #!/usr/bin/env raku
-# iz4 — maintain the IZ4 (what this project is supposed to do) beside your source.
+# iz4 — IZ4 means Is For: what your software is for, who it is for, and the few
+# invariants that must remain true to keep serving them.
 
 use lib $*PROGRAM.resolve.parent(2).add('lib').Str;   # run from a checkout without installing
 use IZ4;
 use IZ4::Document;
 use IZ4::Register;
 use IZ4::Agent;
+use IZ4::Coach;
 
 my %*SUB-MAIN-OPTS = :named-anywhere;
 $*OUT.out-buffer = False;   # a closed pipe fails at the write, leaving nothing to flush at exit
 
 sub USAGE() {
     print q:to/END/;
+    IZ4 means Is For.  An IZ4 says what your software is for, who it is
+    for, and the handful of things that must remain true for it to keep
+    serving them.  It is deliberately small: never a specification.
+
     Usage:
-      iz4 init                         set up everything: an agent command
-                                           (IZ4_AGENT_CMD, default 'claude -p')
-                                           drafts the IZ4 from the codebase's
-                                           own account of itself, and the agent
-                                           entry points it detects are installed
-                                           automatically
-                                           (--/agent: write the plain scaffold;
-                                            --/agents: skip the entry points;
-                                            --agents: install all of them)
-      iz4 show [FILE] [SECTION]        print the IZ4, or one section
-      iz4 show invariant N             print the invariant numbered N
-      iz4 check [FILE]                 validate structure (exit 1 on errors)
-      iz4 add KIND TEXT [--file=FILE]  add an entry; KIND is one of
-                                           gist behaviour invariant constraint decision
-                                           direction reference
-                                           (gist needs --replace once set)
-      iz4 number [FILE]                give every unnumbered invariant the
-                                           next free number, in file order;
-                                           existing numbers are never changed
+      iz4 init                         ask what this software is for and who
+                                           it is for, write the IZ4, and offer
+                                           to find a first invariant
+                                           (scripts: --for-what=... --for-who=...;
+                                            --/agents: skip AGENTS.md and friends)
+      iz4 add                          find an invariant, coached: one useful
+                                           question at a time, and a BECAUSE
+      iz4 add invariant TEXT --because=WHY
+                                         the fast path, for when you already
+                                           know (--number=N to choose one;
+                                           --force past a challenge)
+      iz4 add for-what TEXT            set IS FOR WHAT (--replace once set)
+      iz4 add for-who TEXT             set IS FOR WHO  (--replace once set)
+      iz4 suggest                      ask an agent (IZ4_AGENT_CMD, default
+                                           'claude -p') for a few candidate
+                                           invariants, then review them
+      iz4 invariants [FILE]            the effective invariants: the inherited
+                                           0-4 and this project's own
+      iz4 show [FILE] [PART]           print the IZ4, or for-what, for-who or
+                                           invariants
+      iz4 show invariant N             print invariant N (0-4 are inherited)
+      iz4 check [FILE]                 tick what is true, cross what needs a
+                                           remedy; exit 1 only on errors
+      iz4 number [FILE]                number any unnumbered invariant from 5
+      iz4 migrate [FILE]               convert a legacy IZ4 (gist:, invariants:
+                                           ...) to IS FOR / INVARIANT / BECAUSE,
+                                           keeping everything else in a
+                                           companion file (--for-who=...,
+                                           --keep=PATH, --dry-run)
       iz4 log [FILE]                   Git history of the IZ4
       iz4 diff [FILE] [REV [REV]]      Git diff of the IZ4
-      iz4 register [--url=U --token=T] connect this IZ4 to the IZ4 register
-                     [--github [--force]]  so it is discoverable (sign up first:
-                                           iz4.you); --github also sets up
-                                           GitHub Actions; no options shows
-                                           the connection status or the steps
-      iz4 report [--dry-run|--strict]  submit evidence (presence, digest,
-                                           counts, check outcome - never the
-                                           text); advisory: exit 0 unless --strict
-      iz4 badge                        print the card link and the Markdown/
-                                           HTML badge snippets for the README
-      iz4 version                      print the tool and format versions
-      iz4 agent [--json]               print the agent packet: adherence
-                                           protocol, format version and digest,
-                                           inherited Invariant 0, and the
-                                           specification itself
+      iz4 agent [--json]               print the agent packet: the protocol
+                                           and the effective invariants
       iz4 agent install [--claude] [--skill]
                                          add a managed section to AGENTS.md
                                            (--claude: CLAUDE.md too; --skill:
-                                           the portable skill) pointing agents
-                                           at 'iz4 agent'
+                                           the portable skill)
       iz4 agent status [--json] [--strict]
-                                         report spec validity, binding and
-                                           integration state; informational
-                                           exit 0, or exit 1 with --strict on
-                                           invalid/unresolved/stale
+                                         report spec validity and integration
+                                           state (--strict for CI)
+      iz4 register [--url=U --token=T] connect this IZ4 to the IZ4 register
+                     [--github [--force]]  (sign up first: iz4.you)
+      iz4 report [--dry-run|--strict]  submit evidence (never the text)
+      iz4 badge                        print the card link and badge snippets
+      iz4 version                      print the tool version
 
-    FILE is an explicit .iz4 document; otherwise the nearest IZ4 in this
-    directory or its parents is used.
+    The golden test for an invariant: if the whole application were
+    rewritten tomorrow, would we regret not telling the people and agents
+    rebuilding it this?
+
     END
+    print EXAMPLES;
 }
 
 # Run a command body; user errors become one-line messages and exit 1.
@@ -76,34 +84,75 @@ sub attempt(&body) {
     }
 }
 
-multi MAIN('init', Bool :$agent = True, Bool :$agents) {
+# ------------------------------------------------------------ conversation
+
+#| Coaching needs a person: a terminal on both ends, or IZ4_INTERACTIVE=1
+#| (tests script the answers).  Scripts and CI never get a question.
+sub interactive(--> Bool) {
+    with %*ENV<IZ4_INTERACTIVE> { return $_ ne '0' && $_ ne '' }
+    $*IN.t && $*OUT.t;
+}
+
+sub ask(Str $prompt --> Str) {
+    print $prompt;
+    my $line = $*IN.get;
+    print "\n" unless $*IN.t;     # keep scripted transcripts readable
+    $line // Str;                 # end of input: no answer
+}
+
+sub tell(Str $line) { say $line }
+
+sub ask-required(Str $prompt, Str $what --> Str) {
+    for ^3 {
+        my $answer = (ask($prompt) // user-error("$what: no answer")).trim;
+        return $answer if $answer ne '';
+        say 'One plain sentence is plenty.';
+    }
+    user-error("$what: no answer");
+}
+
+#| Coach one invariant into $path.  Always exit 0: deciding not to add
+#| something is a good outcome, not an error.
+sub coach-into(IO::Path $path, Str :$candidate, Str :$suggested-because --> Int) {
+    my $doc = check-doc($path);
+    my %r = coach-invariant(
+        :&ask, :&tell, :$candidate, :$suggested-because,
+        for-what => $doc.for-what, for-who => $doc.for-who,
+        number => $doc.next-number);
+    given %r<outcome> {
+        when 'add' {
+            my $n = add-invariant($path, %r<text>, :because(%r<because>));
+            say "Added INVARIANT $n to {display-name($path)}.";
+        }
+        when 'skipped' { say 'Nothing added.' }
+    }
+    0;
+}
+
+# ------------------------------------------------------------ init
+
+multi MAIN('init', Str :$for-what, Str :$for-who, Bool :$agent, Bool :$agents) {
     attempt {
         user-error("IZ4 already exists here; not overwriting") if $*CWD.add('IZ4').e;
-        user-error("a legacy SPOZ2 already exists here; rename it to IZ4 (git mv SPOZ2 IZ4)") if $*CWD.add('SPOZ2').e;
-        my $text;
-        if $agent {
-            for 1, 2 -> $attempt {
-                $text = try agent-init-draft($*CWD);
-                last with $text;
-                note "agent draft attempt $attempt failed: {$!.message.lines.head}";
-            }
-            note "falling back to the plain scaffold - distill it by hand, or delete IZ4 and rerun iz4 init"
-                without $text;
+        user-error("a legacy SPOZ2 already exists here; rename it to IZ4 (git mv SPOZ2 IZ4) and run 'iz4 migrate'")
+            if $*CWD.add('SPOZ2').e;
+        note "init no longer drafts a specification from the repository; after init, 'iz4 suggest' proposes a few candidate invariants"
+            if $agent === True;
+        my $talk = interactive();
+        my $what = $for-what;
+        my $who  = $for-who;
+        if !$talk && (!$what.defined || !$who.defined) {
+            user-error("iz4 init needs two answers: what this software is for, and who it is for.\n"
+                ~ "On a terminal it asks; in a script pass --for-what=... --for-who=...");
         }
-        with $text {
-            my $path = $*CWD.add('IZ4');
-            $path.spurt($text);
-            my $invariants = check-doc($path).section('invariants').items.elems;
-            say "Created {$path.basename} ($invariants invariants, agent-drafted)";
-            note "review it - the draft states intent, and only the maintainer knows intent.";
-        }
-        else {
-            my $path = init();
-            say "Created {$path.basename}";
-        }
+        $what //= ask-required("What is this software for?\n> ", 'what it is for');
+        $who  //= ask-required("Who is it for?\n> ", 'who it is for');
+        my $path = init(:for-what($what), :for-who($who));
+        say "Created {$path.basename}.";
+
         # Agent entry points install themselves - don't make the user think.
-        # Default: AGENTS.md always, CLAUDE.md and the skill when the repo
-        # shows Claude use. --agents forces all three; --/agents skips.
+        # AGENTS.md always; CLAUDE.md and the skill where the repository
+        # shows Claude use.  --agents forces all three; --/agents skips.
         if $agents !=== False {
             CATCH { when X::IZ4 { note "agent entry points not installed: {.message}" } }
             my $root      = $*CWD;
@@ -112,6 +161,84 @@ multi MAIN('init', Bool :$agent = True, Bool :$agents) {
             say "$_: {install-agent-section($root.add($_), :$root)}" for @sections;
             say "{SKILL-PATH}: {install-skill(:$root)}" if $agents === True || $root.add('.claude').d;
         }
+
+        say '';
+        say "Every IZ4 inherits invariants 0-4 ('iz4 invariants' shows them).";
+        say 'Your project-specific invariants begin at 5.';
+        if $talk {
+            say '';
+            return coach-into($path) if yes-no(ask('Add an invariant now? [Y/n] '), :default);
+        }
+        0;
+    }
+}
+
+# ------------------------------------------------------------ add
+
+multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Int :$number,
+           Bool :$replace = False, Bool :$force = False) {
+    attempt {
+        my $path = resolve-target($file);
+        my $k = ($kind // 'invariant').lc;
+        given $k {
+            when 'invariant' | 'invariants' {
+                if interactive() && !$because.defined && !$number.defined {
+                    return coach-into($path, :candidate($text));
+                }
+                user-error("iz4 add coaches you on a terminal; in a script use:\n"
+                    ~ "  iz4 add invariant 'what must remain true' --because='why it must survive'")
+                    without $text;
+                fast-add($path, $text, :$because, :$number, :$force);
+            }
+            when 'for-what' | 'what' | 'is-for-what' | 'gist' {
+                user-error('iz4 add for-what needs the answer: what is this software for?') without $text;
+                set-is-for($path, 'IS FOR WHAT', $text, :$replace);
+                say 'Set IS FOR WHAT.';
+            }
+            when 'for-who' | 'who' | 'is-for-who' {
+                user-error('iz4 add for-who needs the answer: who is this software for?') without $text;
+                set-is-for($path, 'IS FOR WHO', $text, :$replace);
+                say 'Set IS FOR WHO.';
+            }
+            default {
+                my $singular = $k.subst(/ 's' $/, '');
+                with %ELSEWHERE-FOR{$singular} { user-error($_) }
+                user-error("unknown kind '$kind'; IZ4 holds invariant, for-what and for-who");
+            }
+        }
+        0;
+    }
+}
+
+#| The fast path: no questions, but the same challenges as the coach, as
+#| a refusal the person can overrule with --force.  They decide.
+sub fast-add(IO::Path $path, Str $text, Str :$because, Int :$number, Bool :$force) {
+    unless $force {
+        my %a = assess-candidate($text.subst(/:i^ 'invariant' \s+ \d+ \s* <[:.\-]>? \s+/, ''));
+        my $why = do given %a<kind> {
+            when 'implementation' { "that sounds like an implementation choice ({%a<signal>}), not an invariant. If it were replaced tomorrow, could the software still serve the same people and purpose? If so, record it in an ADR or developer docs instead." }
+            when 'mechanism'      { "{%a<signal>} sounds like how it is done today. What must remain true if it is replaced? Add that instead." }
+            when 'requirement'    { "that reads like a requirement or setting ({%a<signal>}), not enduring intent. Pin it with a test, or say what would let people down if it changed." }
+            when 'task'           { "that reads like work to do. Track it in your issues; IZ4 records what must stay true." }
+            default               { Str }
+        }
+        user-error("not added: $why\n(--force adds it anyway, if you have judged that it must remain true)") with $why;
+        if ($because // '').trim && assess-because($text, $because) eq 'circular' {
+            user-error("not added: the BECAUSE restates the invariant. Who would be harmed, surprised or let down if it stopped being true, and why?\n(--force adds it anyway)");
+        }
+    }
+    my $n = add-invariant($path, $text, :$because, :$number);
+    say "Added INVARIANT $n.";
+    note "note: no BECAUSE - say why it must survive, so nobody removes it by accident (--because=...)"
+        unless ($because // '').trim;
+}
+
+# ------------------------------------------------------------ read
+
+multi MAIN('invariants', Str $file?) {
+    attempt {
+        my $path = resolve-target($file);
+        print effective-text(check-doc($path), :name(display-name($path)));
         0;
     }
 }
@@ -125,12 +252,14 @@ multi MAIN('show', 'invariant', Str $number, Str :$file) {
 
 multi MAIN('show', Str $a?, Str $b?) {
     attempt {
-        my ($file, $section) = $a.defined && looks-like-file($a) ?? ($a, $b) !! (Str, $a);
+        my ($file, $part) = $a.defined && looks-like-file($a) ?? ($a, $b) !! (Str, $a);
         user-error("too many arguments") if $b.defined && !$file.defined;
-        print show-text(resolve-target($file), $section);
+        print show-text(resolve-target($file), $part);
         0;
     }
 }
+
+# ------------------------------------------------------------ check
 
 multi MAIN('check', Str $file?) {
     attempt {
@@ -139,39 +268,69 @@ multi MAIN('check', Str $file?) {
         my $doc  = check-doc($path);
         .say for $doc.report(:$name);
 
-        # A checklist: one line per fact, a tick for what is true, a cross
-        # with its remedy for what is missing.  File state only; a cross
-        # never sets the exit code - that stays structural.
+        # A checklist of file facts: a tick for what is true, a cross with
+        # its remedy for what is not.  Whether the software keeps its
+        # invariants is never a tick: a checker cannot know, so it says so.
         my @rows;
         my $errors = +$doc.errors;
         my $warns  = +$doc.warnings;
-        @rows.push: ($errors == 0,
+        @rows.push: ($errors == 0 ?? '✓' !! '✗',
             $errors == 0
                 ?? "structure: valid" ~ ($warns ?? " ($warns warning{$warns == 1 ?? '' !! 's'} above)" !! '')
                 !! "structure: $errors error{$errors == 1 ?? '' !! 's'} above - fix each line listed");
-        my $zero-ok = $doc.invariant-zero-matches;
-        @rows.push: ($zero-ok, $doc.invariant-zero-status
-            ~ ($zero-ok ?? '' !! " - paste the canonical text ('iz4 agent' prints it) as the first invariant"));
-        my $inv = $doc.section('invariants');
-        my $n   = $inv ?? $inv.items.elems !! 0;
-        my $un  = +$doc.unnumbered-invariants;
-        @rows.push: ($un == 0,
-            $un == 0 ?? "invariants: all $n numbered"
-                     !! "invariants: $un of $n unnumbered - run 'iz4 number'");
+        if $doc.is-legacy {
+            @rows.push: ('✗', "format: legacy - 'iz4 migrate' converts it to IS FOR WHAT, IS FOR WHO, INVARIANT and BECAUSE");
+        }
+        @rows.push: $doc.for-what.defined
+            ?? ('✓', "IS FOR WHAT: {short($doc.for-what)}")
+            !! ('✗', "IS FOR WHAT: missing - what is this software for? ('iz4 add for-what ...')");
+        @rows.push: $doc.for-who.defined
+            ?? ('✓', "IS FOR WHO: {short($doc.for-who)}")
+            !! ('✗', "IS FOR WHO: missing - who is this software for? "
+                ~ ($doc.is-legacy ?? "('iz4 migrate' asks)" !! "('iz4 add for-who ...')"));
+        @rows.push: $doc.foundation-intact
+            ?? ('✓', $doc.foundation-status)
+            !! ('✗', $doc.foundation-status ~ " - 'iz4 migrate' removes the reworded copy and keeps its words aside");
+
+        my $count = $doc.invariants.elems;
+        my @collide = $doc.reserved-collisions».number.sort;
+        my $unnum   = +$doc.unnumbered-invariants;
+        if @collide {
+            @rows.push: ('✗', "invariants: {@collide.join(', ')} use numbers reserved for the foundation (0-4) - 'iz4 migrate' renumbers from 5");
+        }
+        elsif $unnum {
+            @rows.push: ('✗', "invariants: $unnum of $count unnumbered - run 'iz4 number'");
+        }
+        elsif $count {
+            @rows.push: ('✓', "invariants: $count of your own, numbered from 5");
+        }
+        else {
+            @rows.push: ('✓', "invariants: none of your own yet, which is a fine start ('iz4 add' helps you find one)");
+        }
+        if !$doc.is-legacy && $count {
+            my @bare = $doc.unexplained-invariants.map({ .number // 'unnumbered' });
+            @rows.push: @bare
+                ?? ('✗', "BECAUSE: missing for Invariant {@bare.join(', ')} - write under each why it must survive")
+                !! ('✓', 'BECAUSE: every invariant says why it must survive');
+        }
+
         if $path.basename eq ROOT-NAME | LEGACY-ROOT-NAME {
             my $root = $path.parent;
             my %s    = agent-status($path, :$root);
             for expected-integrations(:$root) -> $i {
                 my $status = %s<integrations>{$i};
-                @rows.push: ($status eq 'current', integration-line($i, $status));
+                @rows.push: ($status eq 'current' ?? '✓' !! '✗', integration-line($i, $status));
             }
         }
-        say tick(.[0]) ~ ' ' ~ .[1] for @rows;
 
-        say 'checked: file state only - structure, the Invariant 0 text, '
-          ~ 'numbering and the agent entry points; a passing check never '
-          ~ 'means the software is safe, harmless, or that its claims are true';
-        my $crosses = @rows.grep({ !.[0] }).elems;
+        my $top = $count ?? ($doc.invariants.map(*.number).grep(*.defined).max max 4) !! 4;
+        @rows.push: ('?', "the software keeps Invariants 0-$top: uncertain - a checker cannot verify "
+            ~ "natural-language invariants; review consequential changes against 'iz4 invariants'");
+
+        say mark(.[0]) ~ ' ' ~ .[1] for @rows;
+        say 'checked: file facts only; a passing check never means the software is safe, '
+          ~ 'harmless, or keeps its invariants';
+        my $crosses = @rows.grep({ .[0] eq '✗' }).elems;
         if $doc.ok {
             say "OK $name" ~ ($crosses ?? " ($crosses to remedy above)" !! '');
             0;
@@ -180,25 +339,17 @@ multi MAIN('check', Str $file?) {
     }
 }
 
-#| A tick or a cross: one plain character, green or red only on a
-#| terminal that has not asked for no colour.
-sub tick(Bool $ok --> Str) {
-    my $glyph = $ok ?? '✓' !! '✗';
+sub short(Str $s --> Str) { $s.chars > 60 ?? $s.substr(0, 57).trim-trailing ~ '...' !! $s }
+
+#| One plain glyph: green tick, red cross, yellow question; coloured only
+#| on a terminal that has not asked for no colour.
+sub mark(Str $glyph --> Str) {
     return $glyph if %*ENV<NO_COLOR> || !$*OUT.t;
-    ($ok ?? "\e[32m" !! "\e[31m") ~ $glyph ~ "\e[0m";
+    my $colour = do given $glyph { when '✓' { 32 }; when '✗' { 31 }; default { 33 } };
+    "\e[{$colour}m$glyph\e[0m";
 }
 
-multi MAIN('add', Str $kind, Str $text, Str :$file, Bool :$replace = False) {
-    attempt {
-        my $path    = resolve-target($file);
-        my $section = add-entry($path, $kind, $text, :$replace);
-        say $kind eq 'gist' ?? 'Set gist.' !! "Added $kind.";
-        if $section eq 'invariants' && check-doc($path).unnumbered-invariants -> @rest {
-            note "note: {+@rest} other invariant{+@rest == 1 ?? ' is' !! 's are'} unnumbered in {display-name($path)}; 'iz4 number' fixes that";
-        }
-        0;
-    }
-}
+# ------------------------------------------------------------ number / migrate
 
 multi MAIN('number', Str $file?) {
     attempt {
@@ -212,6 +363,101 @@ multi MAIN('number', Str $file?) {
         }
         else {
             say "$name: every invariant is already numbered";
+        }
+        0;
+    }
+}
+
+multi MAIN('migrate', Str $file?, Str :$for-who, Str :$keep, Bool :$dry-run = False) {
+    attempt {
+        my $path = resolve-target($file);
+        my $name = display-name($path);
+        my $doc  = check-doc($path);
+        user-error("$name is already in the current format") unless $doc.is-legacy;
+        my $who = $for-who;
+        without $who {
+            user-error("the current format asks who the software is for; pass --for-who=...")
+                unless interactive();
+            say "IS FOR WHAT (from the gist): {short($doc.for-what // '')}";
+            $who = ask-required("Who is it for?\n> ", 'who it is for');
+        }
+        my %m = migrate-text($path, :for-who($who));
+        my $companion = $keep.defined
+            ?? ($keep.IO.is-absolute ?? $keep.IO !! $*CWD.add($keep))
+            !! $path.parent.add($path.basename ~ '.legacy.md');
+        my @moves = %m<mapping>.grep({ .[0].defined && .[0] != .[1] }).map({ "{.[0]} -> {.[1]}" });
+
+        if $dry-run {
+            print %m<text>;
+            say "--- the rest would be kept in {display-name($companion)}";
+            say "--- invariants renumbered: {@moves.join(', ')}" if @moves;
+            return 0;
+        }
+        user-error("{display-name($companion)} already exists; pass --keep=PATH to choose another file")
+            if $companion.e;
+        $companion.parent.mkdir;
+        $companion.spurt(%m<companion> ~ "\n");
+        $path.spurt(%m<text>);
+        say "Migrated $name to the Is For format.";
+        say "Invariants renumbered, because 0-4 are now inherited: {@moves.join(', ')}" if @moves;
+        say "Everything else it held is in {display-name($companion)}, word for word.";
+        say "Next: read each invariant and ask whether you would regret not telling the people";
+        say "rebuilding the software. Keep those, give each a BECAUSE, and move the rest out.";
+        0;
+    }
+}
+
+# ------------------------------------------------------------ suggest
+
+multi MAIN('suggest', Str :$file) {
+    attempt {
+        my $path = try resolve-target($file);
+        my $dir  = $path.defined ?? $path.parent !! $*CWD;
+        my $reply = try agent-suggest($dir, current => ($path.defined ?? $path.slurp !! ''));
+        user-error("agent suggestion failed: {$!.message.lines.head}; nothing was added") without $reply;
+        my %s = %$reply;
+
+        my ($strong, $possible) = %s<found><strong possible>;
+        my $left = %s<implementation> + %s<not-iz4>;
+        say 'Analysed repository.';
+        say "I found $strong strong candidate invariant{$strong == 1 ?? '' !! 's'} and $possible "
+          ~ "thing{$possible == 1 ?? '' !! 's'} that may depend on product intent.";
+        if $strong > %s<strong> || $possible > %s<possible> {
+            say "Showing the strongest {+%s<strong>} and {+%s<possible>}: fewer, stronger invariants beat apparent completeness.";
+        }
+        say "Left out $left as implementation or not IZ4 (for example: {%s<implementation>[0]<text> // %s<not-iz4>[0]<text>})." if $left;
+        unless %s<strong> || %s<possible> {
+            say "Nothing stood out as enduring intent. That is a fine answer; 'iz4 add' when something does.";
+            return 0;
+        }
+
+        if !$path.defined || !interactive() {
+            for %s<strong>.list -> %c {
+                say "\nStrong candidate: {%c<text>}";
+                say "  BECAUSE: {%c<because>}" if %c<because>;
+            }
+            for %s<possible>.list -> %c {
+                say "\nPossible, needs your intent: {%c<text>}";
+                say "  Only you can say: {%c<question>}" if %c<question>;
+            }
+            say '';
+            say $path.defined
+                ?? "Nothing was added. Review them on a terminal with 'iz4 suggest', or add one with 'iz4 add'."
+                !! "Nothing was added. Run 'iz4 init' first, then 'iz4 suggest' again.";
+            return 0;
+        }
+
+        say "Let's review the strongest one first.";
+        my @queue = |%s<strong>.map({ %( |$_, kind => 'strong' ) }),
+                    |%s<possible>.map({ %( |$_, kind => 'possible' ) });
+        for @queue -> %c {
+            say '';
+            say %c<kind> eq 'strong' ?? "Candidate: {%c<text>}" !! "Possible: {%c<text>}";
+            say "Only you can say: {%c<question>}" if %c<question>;
+            my $answer = (ask('Consider it? [Y/n/q] ') // 'q').trim.lc;
+            last if $answer.starts-with('q');
+            next if $answer.starts-with('n');
+            coach-into($path, :candidate(%c<text>), :suggested-because(%c<because>));
         }
         0;
     }
@@ -336,8 +582,9 @@ multi MAIN('register', Str :$url, Str :$token, Str :$file,
                   4. Submit evidence: iz4 report
 
                 A report carries presence, digest, counts and check outcomes -
-                never the text of your IZ4. Only register and report talk to
-                the network; every other iz4 command stays offline.
+                never the text of your IZ4. Only register and report, and the
+                agent behind suggest, reach the network; every other iz4
+                command stays offline.
                 END
             }
         }

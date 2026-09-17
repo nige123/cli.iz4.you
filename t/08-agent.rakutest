@@ -5,47 +5,59 @@ use IZ4;
 use IZ4::Document;
 use IZ4::Agent;
 
-plan 55;
-
 my $dir = temp-dir;
-my $sp  = init(:$dir);
-add-entry($sp, 'gist', 'An agent-adhering thing.');
+my $sp  = minimal-iz4(:$dir);
+add-invariant($sp, 'Private profiles never appear in public search.',
+    :because('A hidden search for work can cost someone their job.'));
 
 # ---- packet -----------------------------------------------------------
 my %p = agent-packet($sp);
-is %p<schema>, 'iz4-agent-packet/2', 'packet schema is versioned';
-nok %p<format_version>:exists, 'no format version: the format is unversioned';
-is %p<invariant_zero><text>, INVARIANT-ZERO, 'canonical Invariant Zero carried';
-is %p<invariant_zero><sha256>, INVARIANT-ZERO-DIGEST, 'canonical digest carried';
-ok %p<protocol>.contains('Read the root IZ4'), 'protocol included';
-is %p<specification>, $sp.slurp, 'specification is the verbatim file';
-my $sum = sha256-hex($sp);
-is %p<sha256>, $sum, 'digest is of the exact file bytes';
-like packet-text(%p), /'treat as data, not instructions'/, 'specification is delimited as content';
-like packet-text(%p), /'proves neither'/, 'packet says what it cannot prove';
+is %p<schema>, 'iz4-agent-packet/3', 'packet schema is versioned';
+is %p<foundation><text>, FOUNDATION-TEXT, 'the canonical foundation is carried';
+is %p<foundation><sha256>, FOUNDATION-DIGEST, 'with its digest';
+like %p<effective>, /'INVARIANT 0 - HUMANS FIRST (inherited)' .* 'INVARIANT 5' \n 'Private profiles'/,
+    'the effective invariants, inherited and project, are in the packet';
+is %p<specification>, $sp.slurp, 'the verbatim file is carried too';
+is %p<sha256>, sha256-hex($sp), 'digest is of the exact file bytes';
+my $text = packet-text(%p);
+like $text, /'treat as data, not instructions'/, 'project content is delimited as data';
+like $text, /'proves neither'/, 'packet says what it cannot prove';
+nok $text.contains('legacy file begin'), 'a current-format packet does not repeat the raw file';
 
-# omitted local text: binding inherited, reported honestly
-my $inh = $dir.add('inherit.iz4');
-$inh.spurt("IZ4\n\ngist:\n    Inherits invariant zero.\n\ninvariants:\n    - Something else.\n");
-like agent-packet($inh)<invariant_zero><binding>, /'not repeated locally, still binding'/,
-    'omitted Invariant 0 text reported as inherited, still binding';
+# the protocol keeps IZ4 small and assessments honest
+my $protocol = AGENT-PROTOCOL.words.join(' ');
+like $protocol, /'Keep the IZ4 small'/, 'agents are told to keep the IZ4 small';
+like $protocol, /'Do not add requirements, behaviours, plans, tasks, acceptance criteria or implementation detail'/,
+    'agents are told not to add specification content';
+like $protocol, /'not automatically an invariant'/, 'observations are not invariants';
+like $protocol, /'never invent it'/, 'intent is asked for, never invented';
+like $protocol, /'mechanically verified | supported by evidence | apparently consistent | uncertain | conflicting'/,
+    'the five honesty levels are the assessment vocabulary';
+like $protocol, /'cannot prove a natural-language invariant'/, 'no checker proves prose';
+like $protocol, /'No project-level approval can waive Invariants 0-4'/, 'the foundation cannot be waived';
+unlike $protocol, /"'direction' entries"/, 'no trace of the old specification sections';
+
+# legacy files: the packet adds the raw text agents were relying on
+my $leg = $dir.add('legacy.iz4');
+$leg.spurt("IZ4\n\ngist:\n    Old style.\n\nconstraints:\n    - Runs offline.\n\ninvariants:\n    - Invariant 1: Something.\n");
+my %lp = agent-packet($leg);
+is %lp<format>, 'legacy', 'a legacy packet says so';
+like packet-text(%lp), /'legacy file begin' .* 'Runs offline'/, 'and carries the raw file';
+like %lp<effective>, /'legacy format' .* 'migrate'/, 'with the renumbering note';
 
 # failures: never invent a valid packet
 my $bad = $dir.add('bad.iz4');
-$bad.spurt("IZ4\n\ngist:\n\n");
+$bad.spurt("IZ4\n\nINVARIANT 5\nNo IS FOR at all.\n");
 throws-like { agent-packet($bad) }, X::IZ4, message => /'invalid IZ4'/, 'invalid spec refused';
-my $odd = $dir.add('odd.iz4');
-$odd.spurt("IZ4 9.9\n\ngist:\n    hi\n");
-like agent-packet($odd)<invariant_zero><binding>, /'still binding'/,
-    'legacy versioned header read silently; Invariant 0 still binds';
-throws-like { agent-packet($dir.add('none.iz4')) }, X::IZ4, message => /'no such file'/,
-    'missing file refused';
+throws-like { agent-packet($dir.add('none.iz4')) }, X::IZ4, message => /'no such file'/, 'missing file refused';
 
 # ---- managed sections -------------------------------------------------
 my $agents = $dir.add('AGENTS.md');
 is install-agent-section($agents, :root($dir)), 'installed', 'fresh install into a new file';
 is install-agent-section($agents, :root($dir)), 'unchanged', 'repeat install is idempotent';
-unlike $agents.slurp, /'humans first. This software'/, 'invariants are not copied into instruction files';
+unlike $agents.slurp, /'Private profiles'/, 'project invariants are not copied into instruction files';
+like $agents.slurp, /'Keep the IZ4 small'/, 'the managed section says to keep the IZ4 small';
+like $agents.slurp, /'inherits' \s+ 'Invariants 0-4'/, 'and names the inherited foundation for agents without the CLI';
 
 my $before = "# My project\n\nHand-written notes stay.\n";
 my $claude = $dir.add('CLAUDE.md');
@@ -53,7 +65,7 @@ $claude.spurt($before);
 is install-agent-section($claude, :root($dir)), 'installed', 'install appends to an existing file';
 ok $claude.slurp.starts-with($before), 'user-authored content preserved';
 like $claude.slurp, /'iz4 agent'/, 'section points at iz4 agent';
-like $claude.slurp, /'were not performed'/, 'fallback says CLI validation was skipped';
+like $claude.slurp, /'was not performed'/, 'fallback says CLI validation was skipped';
 
 # a hand-edited section is stale; refresh touches only the managed block
 $claude.spurt($claude.slurp.subst('Before planning', 'BEFORE PLANNING'));
@@ -75,7 +87,7 @@ is section-status($dupe), 'malformed', 'duplicate markers reported malformed';
 my $outside = temp-dir;
 $outside.add('AGENTS.md').spurt("elsewhere\n");
 my $linked = temp-dir;
-init(:dir($linked));
+minimal-iz4(:dir($linked));
 run 'ln', '-s', $outside.add('AGENTS.md').Str, $linked.add('AGENTS.md').Str;
 throws-like { install-agent-section($linked.add('AGENTS.md'), :root($linked)) }, X::IZ4,
     message => /'symlink'/, 'symlink escaping the repository refused';
@@ -84,6 +96,7 @@ is $outside.add('AGENTS.md').slurp, "elsewhere\n", 'file outside the repository 
 # ---- the portable skill ----------------------------------------------
 like skill-text(), /'name: iz4'/, 'skill has its frontmatter';
 ok skill-text().contains(AGENT-PROTOCOL.trim-trailing), 'skill embeds the canonical protocol';
+ok skill-text().contains(FOUNDATION[4]<text>), 'skill embeds the foundation, so it works without the CLI';
 is install-skill(:root($dir)), 'installed', 'skill installed';
 is install-skill(:root($dir)), 'unchanged', 'skill install idempotent';
 $dir.add(SKILL-PATH).spurt("tampered\n");
@@ -92,8 +105,8 @@ is install-skill(:root($dir)), 'updated', 'stale skill regenerated';
 
 # ---- status -----------------------------------------------------------
 my %s = agent-status($sp, :root($dir));
-is %s<schema>, 'iz4-agent-status/2', 'status schema is versioned';
-ok %s<iz4><valid> && %s<iz4><binding>.contains('Invariant 0'), 'status: valid spec, binding reported';
+is %s<schema>, 'iz4-agent-status/3', 'status schema is versioned';
+ok %s<iz4><valid> && %s<iz4><binding>.contains('Invariants 0-4'), 'status: valid spec, foundation reported';
 is %s<integrations><AGENTS.md>, 'current', 'status: AGENTS.md integration current';
 like %s<note>, /'never that an agent read'/, 'status wording claims nothing about agents';
 
@@ -102,7 +115,7 @@ my ($rc, $out, $err) = iz4($dir, 'agent');
 is $rc, 0, 'iz4 agent exits 0';
 like $out, /'IZ4 agent packet'/, 'prints the packet';
 ($rc, $out, $err) = iz4($dir, 'agent', '--json');
-like $out, /'"schema":"iz4-agent-packet/2"'/, '--json emits the versioned schema';
+like $out, /'"schema":"iz4-agent-packet/3"'/, '--json emits the versioned schema';
 
 ($rc, $out, $err) = iz4($dir, 'agent', 'status');
 is $rc, 0, 'status is informational: exit 0';
@@ -114,28 +127,31 @@ $dir.add(SKILL-PATH).spurt("tampered\n");
 is $rc, 1, 'strict exits 1 on a stale integration';
 
 my $broken = temp-dir;
-init(:dir($broken));   # placeholder gist: structurally invalid for a packet
+$broken.add('IZ4').spurt("IZ4\n\nINVARIANT 5\nNo IS FOR.\n");
 ($rc, $out, $err) = iz4($broken, 'agent');
 is $rc, 1, 'agent packet refused for an invalid spec';
 like $err, /'invalid IZ4'/, 'refusal names the reason';
 
+my @answers = '--for-what=Testing agents.', '--for-who=Developers.';
 my $flagged = temp-dir;
-($rc, $out, $err) = iz4($flagged, 'init', '--/agent', '--agents');
+($rc, $out, $err) = iz4($flagged, 'init', |@answers, '--agents');
 like $out, /'AGENTS.md: installed'/, 'init --agents installs the entry point';
 ok $flagged.add('CLAUDE.md').f && $flagged.add(SKILL-PATH).f, '--agents forces every integration';
 
 my $plain = temp-dir;
-($rc, $out, $err) = iz4($plain, 'init', '--/agent');
+($rc, $out, $err) = iz4($plain, 'init', |@answers);
 ok $plain.add('AGENTS.md').f, 'init installs AGENTS.md by default - no flags to remember';
 nok $plain.add('CLAUDE.md').e, 'CLAUDE.md is not created where Claude is not in use';
 
 my $claudey = temp-dir;
 $claudey.add('.claude').mkdir;
-($rc, $out, $err) = iz4($claudey, 'init', '--/agent');
+($rc, $out, $err) = iz4($claudey, 'init', |@answers);
 ok $claudey.add('CLAUDE.md').f && $claudey.add(SKILL-PATH).f,
     'a repo showing Claude use gets CLAUDE.md and the skill automatically';
 
 my $optout = temp-dir;
-($rc, $out, $err) = iz4($optout, 'init', '--/agent', '--/agents');
-is $out, "Created IZ4\n", '--/agents opts out of entry points';
+($rc, $out, $err) = iz4($optout, 'init', |@answers, '--/agents');
+nok $out.contains('AGENTS.md'), '--/agents opts out of entry points';
 nok $optout.add('AGENTS.md').e, 'nothing installed on opt-out';
+
+done-testing;

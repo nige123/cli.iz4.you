@@ -2,7 +2,7 @@ use lib $?FILE.IO.parent.add('lib').Str;
 use Test;
 use IZ4Test;
 
-plan 10;
+plan 13;
 
 my $repo-root = $?FILE.IO.parent.parent.resolve;
 
@@ -44,6 +44,18 @@ if have-git() && have-raku() {
     $p2.err.slurp(:close);
     is $p2.exitcode, 0, 're-running the installer updates cleanly';
 
+    # a symlinked checkout is a developer's own: left alone, never pulled over
+    my $cli = $fake.add('share/cli');
+    run 'rm', '-rf', $cli.Str;
+    run 'ln', '-s', $repo-root.Str, $cli.Str;
+    my $p4 = run 'sh', $repo-root.add('install').Str, :out, :err, :env(%env);
+    my $o4 = $p4.out.slurp(:close);
+    $p4.err.slurp(:close);
+    is $p4.exitcode, 0, 'installer accepts a symlinked checkout';
+    like $o4, /'running iz4 from your checkout at ' $($repo-root.Str) .* 'not pulling'/,
+        'installer says it is running the developer checkout';
+    ok $cli.l && $cli.resolve eq $repo-root, 'the symlink is left in place';
+
     # an existing symlink at the launcher path is replaced, never written
     # through (writing through would clobber the file it points at)
     my $pointee = $fake.add('pointee');
@@ -57,5 +69,5 @@ if have-git() && have-raku() {
     is $pointee.slurp, "do not clobber\n", 'the symlink target was not written through';
 }
 else {
-    skip 'needs git and a Rakudo runtime', 7;
+    skip 'needs git and a Rakudo runtime', 10;
 }

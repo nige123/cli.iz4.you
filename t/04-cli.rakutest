@@ -2,125 +2,141 @@ use lib $?FILE.IO.parent.add('lib').Str;
 use Test;
 use IZ4Test;
 
-plan 38;
-
 # Never let a test reach a real agent.
 %*ENV<IZ4_AGENT_CMD> = 'false';
+%*ENV<IZ4_INTERACTIVE>:delete;
 
 my $dir = temp-dir;
-
 my ($rc, $out, $err) = iz4($dir, 'check');
 is $rc, 1, 'check without IZ4 exits 1';
 is $err, "No IZ4 found in this directory or its parents.\nRun 'iz4 init' to create one.\n", 'actionable message';
 
-($rc, $out, $err) = iz4($dir, 'init', '--/agent');
-is ($rc, $out), (0, "Created IZ4\nAGENTS.md: installed\n"), 'init output';
-($rc, $out, $err) = iz4($dir, 'init', '--/agent');
+# ---- init is coached: two questions, then an offer --------------------------
+($rc, $out, $err) = iz4-talk($dir, "Helping people find work they love to do.\nPeople looking for work.\nn\n", 'init');
+is $rc, 0, 'coached init exits 0';
+like $out, /'What is this software for?' .* 'Who is it for?' .* 'Created IZ4.'/, 'init asks what and who';
+like $out, /'inherits invariants 0-4' .* 'begin at 5'/, 'init teaches inheritance';
+like $out, /'Add an invariant now? [Y/n]'/, 'and offers to add one';
+unlike $out, /:i 'behaviour' | 'requirement' | 'constraint'/, 'without asking for a specification';
+my $iz4 = $dir.add('IZ4').slurp;
+like $iz4, /'IS FOR WHAT' \n 'Helping people find work they love to do.' \n\n 'IS FOR WHO' \n 'People looking for work.'/,
+    'the two answers are the file';
+nok $iz4.contains('INVARIANT'), 'declining the offer leaves a valid two-question IZ4';
+($rc, $out, $err) = iz4($dir, 'init', '--for-what=x', '--for-who=y');
 is $rc, 1, 'second init fails';
-like $err, /'already exists'/, 'second init explains';
+like $err, /'already exists'/, 'and explains';
 
+# init straight into a first invariant
+my $first = temp-dir;
+($rc, $out, $err) = iz4-talk($first,
+    "Sign-in codes.\nPeople signing in.\ny\nA code works once and only once.\ny\nA code that works twice lets someone else sign in as you.\ny\n",
+    'init', '--/agents');
+like $out, /'Added INVARIANT 5'/, 'init can go straight on to a coached first invariant';
+
+# scripts and CI are never asked anything
+my $script = temp-dir;
+($rc, $out, $err) = iz4($script, 'init');
+is $rc, 1, 'non-interactive init without answers does not guess';
+like $err, /'--for-what' .* '--for-who'/, 'and says how to answer from a script';
+nok $script.add('IZ4').e, 'and writes nothing';
+($rc, $out, $err) = iz4($script, 'init', '--for-what=A CI smoke test.', '--for-who=Maintainers.');
+is $rc, 0, 'init from a script with both answers';
+unlike $out, /'[Y/n]'/, 'asks nothing';
+($rc, $out, $err) = iz4($script, 'add');
+is $rc, 1, 'coached add needs a person';
+like $err, /'iz4 add invariant'/, 'and shows the fast path instead';
+
+# ---- check: ticks, crosses with remedies, and honest uncertainty -----------------
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Private profiles never appear in public search.',
+    '--because=A hidden search for work can cost someone their current job.');
+is ($rc, $out), (0, "Added INVARIANT 5.\n"), 'fast path add';
 ($rc, $out, $err) = iz4($dir, 'check');
-is $rc, 1, 'placeholder gist fails check';
-like $out, /^ 'IZ4:' \d+ ': gist is still the placeholder' /, 'check reports line';
+is $rc, 0, 'check passes';
+like $out, /'✓ structure: valid' \n
+            '✓ IS FOR WHAT: Helping people find work they love to do.' \n
+            '✓ IS FOR WHO: People looking for work.' \n
+            '✓ Invariants 0-4: inherited' .* \n
+            '✓ invariants: 1 of your own, numbered from 5' \n
+            '✓ BECAUSE: every invariant says why it must survive' \n/, 'ticks for what is true';
+like $out, /'? the software keeps Invariants 0-5: uncertain'/, 'conformance is uncertain, never a tick';
+unlike $out, /'✓' <-[\n]>* 'keeps Invariants'/, 'no green tick for something a checker cannot know';
+ok $out.ends-with("OK IZ4\n"), 'and the summary has nothing to remedy';
 
-($rc, $out, $err) = iz4($dir, 'add', 'gist', 'A CLI test.');
-is $out, "Set gist.\n", 'add gist output';
-($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Always.');
-is $out, "Added invariant.\n", 'add invariant output';
-($rc, $out, $err) = iz4($dir, 'show', 'invariant', '1');
-is ($rc, $out), (0, "Invariant 1: Always.\n"), 'show invariant N resolves the reference';
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Employers cannot contact someone first.');
 ($rc, $out, $err) = iz4($dir, 'check');
-ok $rc == 0 && $out.contains('Invariant 0:') && $out.ends-with("OK IZ4\n"),
-    'check passes and reports the invariant-zero binding';
-like $out, /'✓ structure: valid' \n '✓ Invariant 0: repeated locally' .* \n '✓ invariants: all 2 numbered' \n '✓ AGENTS.md: integration installed (current)' \n/,
-    'check is a checklist with ticks for what is true';
+like $out, /'✗ BECAUSE: missing for Invariant 6 - write under each why it must survive'/, 'a missing BECAUSE is a cross with a remedy';
+ok $out.ends-with("OK IZ4 (1 to remedy above)\n"), 'crosses are counted, and never fail the check';
 
-# a root IZ4 in a repository with no agent entry points: crosses, each with its remedy
-my $bare = temp-dir;
-$bare.add('IZ4').spurt("IZ4\n\ngist:\n    Bare.\n\ninvariants:\n    - Nothing is set up.\n");
-($rc, $out, $err) = iz4($bare, 'check');
-is $rc, 0, 'crosses never change the exit code';
-like $out, /'✗ Invariant 0: not repeated locally, still binding' .* "'iz4 agent'" .* 'first invariant' \n
-            '✗ invariants: 1 of 1 unnumbered - run' .* "'iz4 number'" \n
-            "✗ AGENTS.md: no file - run 'iz4 agent install'" \n/, 'each cross says how to remedy it';
-unlike $out, /'CLAUDE.md' | 'SKILL.md'/, 'CLAUDE.md and the skill are not expected without signs of Claude use';
-ok $out.ends-with("OK IZ4 (3 to remedy above)\n"), 'the summary counts what is left to remedy';
-($rc, $out, $err) = iz4($bare, 'agent', 'install');
-($rc, $out, $err) = iz4($bare, 'number');
-($rc, $out, $err) = iz4($bare, 'check');
-like $out, /'✓ invariants: all 1 numbered' \n '✓ AGENTS.md: integration installed (current)' \n/, 'remedies turn crosses into ticks';
-ok $out.ends-with("OK IZ4 (1 to remedy above)\n"), 'only the missing Invariant 0 text is left';
+# ---- the effective invariant set -------------------------------------------------
+($rc, $out, $err) = iz4($dir, 'invariants');
+is $rc, 0, 'iz4 invariants exits 0';
+like $out, /'INVARIANT 0 - HUMANS FIRST (inherited)' .* 'INVARIANT 4 - THE FOUNDATION HOLDS (inherited)' .* 'INVARIANT 5' \n 'Private profiles'/,
+    'it shows the inherited 0-4 and the project invariants together';
+($rc, $out, $err) = iz4($dir, 'show', 'invariant', '2');
+like $out, /'HUMAN AGENCY'/, 'show invariant 2 is the inherited foundation';
+($rc, $out, $err) = iz4($dir, 'show', 'invariant', '5');
+like $out, /^ 'INVARIANT 5' \n .* 'BECAUSE'/, 'show invariant 5 is the project invariant with its reason';
+($rc, $out, $err) = iz4($dir, 'show', 'for-who');
+is $out, "People looking for work.\n", 'show for-who';
 
-# explicit .iz4 file from a nested directory
+# ---- old kinds are redirected, not stored -------------------------------------
+for <behaviour constraint decision> -> $kind {
+    ($rc, $out, $err) = iz4($dir, 'add', $kind, 'Something.');
+    ok $rc == 1 && $err.contains('IZ4 does not record'), "add $kind says where that belongs instead";
+}
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Sneaky.', '--number=3', '--force');
+ok $rc == 1 && $err.contains('reserved'), 'not even --force can take a number in 0-4';
+
+# ---- legacy files: still read, clearly flagged, migrated on request ---------------
+my $legacy = temp-dir;
+$legacy.add('IZ4').spurt("IZ4\n\ngist:\n    Security intent.\n\nconstraints:\n    - Runs offline.\n\ninvariants:\n    - Invariant 1: Secrets never logged.\n");
+($rc, $out, $err) = iz4($legacy, 'check');
+is $rc, 0, 'a legacy file still passes check';
+like $out, /"✗ format: legacy - 'iz4 migrate'"/, 'and is flagged for migration';
+like $out, /'✗ invariants: 1 use numbers reserved for the foundation'/, 'including its reserved-number collision';
+($rc, $out, $err) = iz4($legacy, 'migrate');
+is $rc, 1, 'migrate from a script needs --for-who';
+($rc, $out, $err) = iz4($legacy, 'migrate', '--for-who=The people whose secrets these are.', '--dry-run');
+ok $rc == 0 && $out.contains('INVARIANT 5'), 'dry run shows the result';
+nok $legacy.add('IZ4.legacy.md').e, 'and writes nothing';
+($rc, $out, $err) = iz4($legacy, 'migrate', '--for-who=The people whose secrets these are.');
+like $out, /'1 -> 5'/, 'migrate reports the renumbering';
+ok $legacy.add('IZ4.legacy.md').slurp.contains('Runs offline.'), 'and keeps what it removed in the companion';
+($rc, $out, $err) = iz4($legacy, 'check');
+unlike $out, /'legacy'/, 'the migrated file is current';
+($rc, $out, $err) = iz4($legacy, 'migrate', '--for-who=x');
+is $rc, 1, 'migrating twice is refused';
+
+# ---- explicit .iz4 documents ------------------------------------------------------
 my $nested = $dir.add('docs');
 $nested.mkdir;
-$nested.add('security.iz4').spurt("IZ4 0.0\n\ngist:\n    Security intent.\n\ninvariants:\n    - Secrets never logged.\n");
+$nested.add('security.iz4').spurt("IZ4\n\nIS FOR WHAT\nKeeping secrets.\n\nIS FOR WHO\nEveryone with an account.\n\nINVARIANT\nSecrets are never logged.\n");
 ($rc, $out, $err) = iz4($nested, 'check', 'security.iz4');
-is $rc, 0, 'explicit .iz4 checked and passes';
-like $out, /'not repeated locally, still binding' .* 'OK security.iz4'/,
-    'omitted invariant zero is reported as inherited, and the file passes';
+is $rc, 0, 'explicit .iz4 checked';
+like $out, /"security.iz4:9: warning: unnumbered INVARIANT"/, 'with the unnumbered warning';
 unlike $out, /'AGENTS.md'/, 'agent entry points are only checked for a root IZ4';
-($rc, $out, $err) = iz4($nested, 'show', 'security.iz4', 'invariants');
-is $out, "- Secrets never logged.\n", 'show section of explicit .iz4';
-($rc, $out, $err) = iz4($nested, 'check', 'security.iz4');
-like $out, /'security.iz4:7: warning: unnumbered invariant'/, 'check warns about an unnumbered invariant';
-($rc, $out, $err) = iz4($nested, 'add', 'invariant', 'Second.', '--file=security.iz4');
-is ($rc, $out), (0, "Added invariant.\n"), 'add still adds beside unnumbered invariants';
-like $err, /^ 'note: 1 other invariant is unnumbered in security.iz4' .* "'iz4 number'"/, 'add points out the unnumbered neighbour';
 ($rc, $out, $err) = iz4($nested, 'number', 'security.iz4');
-is ($rc, $out), (0, "Numbered 1 invariant in security.iz4 (Invariant 2)\n"), 'number reports what it wrote';
-($rc, $out, $err) = iz4($nested, 'number', 'security.iz4');
-is ($rc, $out), (0, "security.iz4: every invariant is already numbered\n"), 'number is a no-op the second time';
-($rc, $out, $err) = iz4($nested, 'show', 'invariant', '2', '--file=security.iz4');
-is $out, "Invariant 2: Secrets never logged.\n", 'the numbered invariant resolves';
+is ($rc, $out), (0, "Numbered 1 invariant in security.iz4 (Invariant 5)\n"), 'number starts at 5';
 
-# agent-assisted init: a good draft lands, validated
-my $drafted = temp-dir;
-my $reply = $drafted.add('reply.txt');
-$reply.spurt(qq:to/END/);
-    Here is the completed file:
-    ```
-    IZ4 0.0
-
-    gist:
-        A fake project, distilled by a fake agent.
-
-    behaviours:
-        - Someone can do the thing.
-
-    invariants:
-        - The thing never breaks.
-        - The other thing holds.
-    ```
-    END
+# ---- suggest: few candidates, nothing added without a person ---------------------
+my $sug = temp-dir;
+$sug.add('IZ4').spurt("IZ4\n\nIS FOR WHAT\nJobs.\n\nIS FOR WHO\nJob seekers.\n");
+my $reply = $sug.add('reply.txt');
+$reply.spurt((1..47).map({ "STRONG | Behaviour $_ is kept. | because $_ | t/$_.t" }).join("\n")
+    ~ "\nPOSSIBLE | Applications are never shared. | Is sharing with partners acceptable?\nIMPLEMENTATION | Uses Mojolicious | README\n");
 %*ENV<IZ4_AGENT_CMD> = "cat {$reply}";
-($rc, $out, $err) = iz4($drafted, 'init');
-is ($rc, $out), (0, "Created IZ4 (3 invariants, agent-drafted)\nAGENTS.md: installed\n"),
-    'agent init reports the draft (its invariants plus invariant zero)';
-like $err, /'review it'/, 'agent init asks for review';
-($rc, $out, $err) = iz4($drafted, 'check');
-ok $rc == 0 && $out.contains('Invariant 0:') && $out.ends-with("OK IZ4\n"),
-    'agent-drafted IZ4 passes check and reports the binding';
-
-# a dead agent command falls back to the scaffold, loudly
-my $fallback = temp-dir;
+($rc, $out, $err) = iz4($sug, 'suggest');
+is $rc, 0, 'suggest exits 0';
+like $out, /'I found 47 strong candidate invariants and 1 thing that may depend on product intent'/, 'it says what it found';
+like $out, /'Showing the strongest 5'/, 'but does not dump 47 candidates on a person';
+is $out.comb('Strong candidate:').elems, 5, 'only five are shown';
+like $out, /'Only you can say: Is sharing with partners acceptable?'/, 'possible ones carry the question for the owner';
+like $out, /'Nothing was added'/, 'and nothing is added without a person';
+nok $sug.add('IZ4').slurp.contains('INVARIANT'), 'the file is unchanged';
+($rc, $out, $err) = iz4-talk($sug, "q\n", 'suggest');
+like $out, /"Let's review the strongest one first"/, 'on a terminal it reviews one at a time, strongest first';
 %*ENV<IZ4_AGENT_CMD> = 'false';
-($rc, $out, $err) = iz4($fallback, 'init');
-is ($rc, $out), (0, "Created IZ4\nAGENTS.md: installed\n"), 'fallback still creates the scaffold';
-like $err, /'attempt 1 failed' .* 'attempt 2 failed' .* 'falling back to the plain scaffold'/,
-    'fallback is loud after two attempts';
-like $fallback.add('IZ4').slurp, /'<What is this thing supposed to do?>'/, 'fallback wrote the scaffold';
+($rc, $out, $err) = iz4($sug, 'suggest');
+ok $rc == 1 && $err.contains('nothing was added'), 'a failing agent adds nothing and says so';
 
-# a nonsense reply fails validation and also falls back
-my $nonsense = temp-dir;
-%*ENV<IZ4_AGENT_CMD> = 'echo not a spec';
-($rc, $out, $err) = iz4($nonsense, 'init');
-is ($rc, $out), (0, "Created IZ4\nAGENTS.md: installed\n"), 'nonsense reply falls back to the scaffold';
-like $err, /"no 'IZ4' header"/, 'the validation failure is reported';
-
-# --/agent never runs the agent
-my $manual = temp-dir;
-%*ENV<IZ4_AGENT_CMD> = 'echo SHOULD-NOT-RUN';
-($rc, $out, $err) = iz4($manual, 'init', '--/agent');
-is ($rc, $out), (0, "Created IZ4\nAGENTS.md: installed\n"), '--/agent writes the scaffold';
-unlike $err, /'asking agent'/, '--/agent does not consult the agent';
+done-testing;

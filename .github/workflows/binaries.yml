@@ -102,9 +102,11 @@ jobs:
           bin="$PWD/dist/${{ matrix.exe }}"
           repo=$(mktemp -d) && cd "$repo"
           git init -q && git config user.name CI && git config user.email ci@example.com
-          "$bin" init --/agent --/agents
-          "$bin" add gist --replace 'A CI smoke-test project.'
+          "$bin" init --for-what='A CI smoke-test project.' --for-who='The maintainers.' --/agents
+          "$bin" add invariant 'A release binary runs on its own.' --because='People install it without a runtime.'
           "$bin" check
+          "$bin" invariants | grep -q 'INVARIANT 5'
+          "$bin" show invariant 4 | grep -q 'THE FOUNDATION HOLDS'
           git add -A && git commit -qm smoke
           "$bin" report --dry-run | grep -q '"outcome":"passed"'
           "$bin" agent install

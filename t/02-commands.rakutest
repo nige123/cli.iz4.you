@@ -4,169 +4,160 @@ use IZ4Test;
 use IZ4;
 use IZ4::Document;
 
-plan 51;
-
 my $dir = temp-dir;
 
-# init
-my $path = init(:$dir);
-ok $path.f, 'init creates IZ4';
-is $path.basename, 'IZ4', 'root file is named IZ4';
-ok $path.slurp.starts-with("IZ4\n"), 'file starts with the bare IZ4 header';
-throws-like { init(:$dir) }, X::IZ4, message => /'already exists'/, 'init refuses to overwrite';
-nok check-doc($path).ok, 'freshly initialised IZ4 does not pass check (placeholder gist)';
-is check-doc($path).section('invariants').items[0].text, INVARIANT-ZERO,
-    'init seeds invariant zero as the first invariant';
-
-# add
-is add-entry($path, 'gist', 'A test project.'), 'gist', 'add gist on placeholder';
-throws-like { add-entry($path, 'gist', 'Other.') }, X::IZ4, message => /'--replace'/,
-    'replacing gist needs --replace';
-add-entry($path, 'gist', 'Replaced gist.', :replace);
-is check-doc($path).section('gist').text, 'Replaced gist.', 'gist replaced deliberately';
-
-add-entry($path, 'invariant', 'Only one active session may exist per user.');
-add-entry($path, 'invariant', 'Second invariant.');
-add-entry($path, 'behaviour', 'A user can request a sign-in code by email.');
-add-entry($path, 'constraint', 'Must work without client-side JavaScript.');
-add-entry($path, 'reference', 'eu-cra: Article 13');
+# ---- init: the two answers, nothing else -----------------------------------
+my $path = init(:$dir, :for-what('Helping people find work they love to do.'), :for-who('People looking for work.'));
+ok $path.f && $path.basename eq 'IZ4', 'init creates IZ4';
+ok $path.slurp.starts-with("IZ4\n"), 'with the bare IZ4 header';
 my $doc = check-doc($path);
-ok $doc.ok, 'document valid after adds';
-is $doc.section('invariants').items».text,
-    (INVARIANT-ZERO, 'Invariant 1: Only one active session may exist per user.',
-     'Invariant 2: Second invariant.'),
-    'add invariant numbers entries and appends after the seeded invariant zero';
-is $doc.section('behaviours').items».text, ('A user can request a sign-in code by email.',), 'add behaviour works';
-is $doc.section('constraints').items».text, ('Must work without client-side JavaScript.',), 'add constraint works';
-is $doc.section('references').items».text, ('eu-cra: Article 13',), 'add reference works';
-throws-like { add-entry($path, 'thing', 'x') }, X::IZ4, message => /'unknown kind'/, 'unknown kind rejected';
-add-entry($path, 'decision', 'Raku, because it is quick to change.');
-add-entry($path, 'direction', 'A context command for AI tools.');
-is check-doc($path).section('decisions').items».text, ('Raku, because it is quick to change.',), 'add decision works';
-is check-doc($path).section('direction').items».text, ('A context command for AI tools.',), 'add direction works';
+ok $doc.ok && !$doc.warnings, 'a freshly initialised IZ4 is valid';
+nok $doc.invariants, 'and demands no invariants';
+ok $path.slurp.lines.elems < 12, 'and is tiny: no template to fill in';
+like $path.slurp, /'inherits Invariants 0-4'/, 'it tells a reader that 0-4 are inherited';
+nok $path.slurp ~~ /:i 'behaviour' | 'constraint' | 'decision' | 'gist'/, 'and has no specification sections';
+throws-like { init(:$dir, :for-what('x'), :for-who('y')) }, X::IZ4, message => /'already exists'/, 'init never overwrites';
+throws-like { init(:dir(temp-dir), :for-what(''), :for-who('y')) }, X::IZ4, message => /'for'/, 'init needs a real answer';
 
-# long entries are wrapped losslessly
+# ---- IS FOR ------------------------------------------------------------------
+throws-like { set-is-for($path, 'IS FOR WHO', 'Someone else.') }, X::IZ4, message => /'--replace'/,
+    'replacing an answer is deliberate';
+set-is-for($path, 'IS FOR WHO', 'People looking for work, and the employers hiring them.', :replace);
+is check-doc($path).for-who, 'People looking for work, and the employers hiring them.', 'IS FOR WHO replaced';
+my $nowho = temp-dir.add('IZ4');
+$nowho.spurt("IZ4\n\nIS FOR WHAT\nSomething.\n");
+set-is-for($nowho, 'IS FOR WHO', 'Somebody.');
+ok check-doc($nowho).ok, 'a missing IS FOR WHO is inserted after IS FOR WHAT';
+
+# ---- add: numbering from 5, BECAUSE beside it, nothing else touched --------
+my $before = $path.slurp;
+is add-invariant($path, 'People control whether their profile is visible.',
+    :because('Looking for work should not mean surrendering privacy.')), 5, 'the first project invariant is 5';
+ok $path.slurp.starts-with($before.trim-trailing), 'adding never rewrites what was there';
+is add-invariant($path, 'Employers cannot contact someone until that person initiates contact.'), 6, 'then 6';
+is add-invariant($path, 'Invariant 9: A chosen number.'), 9, "an explicit 'Invariant 9:' is respected";
+is add-invariant($path, 'After nine.'), 10, 'numbering continues after the highest';
+throws-like { add-invariant($path, 'Clash.', :number(9)) }, X::IZ4, message => /'already used'/, 'a used number is refused';
+throws-like { add-invariant($path, '   ') }, X::IZ4, message => /'empty'/, 'an empty invariant is refused';
+$doc = check-doc($path);
+ok $doc.ok, 'the file stays valid';
+is $doc.invariant(5).because, 'Looking for work should not mean surrendering privacy.', 'BECAUSE written beneath its invariant';
+nok $doc.invariant(6).because.defined, 'an invariant may be added without one';
 my $long = ('word' xx 40).join(' ');
-add-entry($path, 'constraint', $long);
-ok $path.slurp.lines.grep(*.chars > 80) == 0, 'add wraps entries at 80 columns';
-is check-doc($path).section('constraints').items[*-1].text, $long, 'wrapped entry reads back unchanged';
+add-invariant($path, $long, :because($long));
+ok $path.slurp.lines.grep(*.chars > 80) == 0, 'text is wrapped at 80 columns';
+is check-doc($path).invariant(11).text, $long, 'and reads back unchanged';
 
-# digests are portable: sha256-file must give the exact digest whichever
-# tool the platform has (sha256sum, shasum or openssl)
-my $digest-probe = $dir.add('digest.txt');
-$digest-probe.spurt("iz4\n");
-is sha256-file($digest-probe), '17d3f49c9ea9709daed96db895e9966341a3757250437bc4067cab48eeea6450',
-    'sha256-file yields the known digest on this platform';
-throws-like { add-entry($path, 'invariant', '  ') }, X::IZ4, message => /'empty'/, 'empty text rejected';
+# old specification kinds have somewhere else to go
+for <behaviour constraint decision direction reference requirement task> -> $kind {
+    ok %ELSEWHERE-FOR{$kind}.defined, "adding a $kind is redirected, not accepted";
+}
 
-# add to a file whose section is missing appends a new section
-my $mini = $dir.add('mini.iz4');
-$mini.spurt("IZ4 0.0\n\ngist:\n    Mini.\n");
-add-entry($mini, 'constraint', 'Added to missing section.');
-is check-doc($mini).section('constraints').items[0].text, 'Added to missing section.', 'missing section is created';
-add-entry($mini, 'behaviour', 'Goes before constraints.');
-is $mini.slurp, "IZ4 0.0\n\ngist:\n    Mini.\n\nbehaviours:\n    - Goes before constraints.\n\nconstraints:\n    - Added to missing section.\n",
-    'missing section is created in canonical order';
+# ---- show and the effective invariant set ------------------------------------
+is show-text($path, 'for-what'), "Helping people find work they love to do.\n", 'show for-what';
+like show-text($path, 'invariants'), /^ 'INVARIANT 5' \n .* 'BECAUSE' /, 'show invariants lists the project ones';
+unlike show-text($path, 'invariants'), /'HUMANS FIRST'/, 'without the inherited ones';
+my $effective = effective-text(check-doc($path));
+like $effective, /'IS FOR WHAT' .* 'IS FOR WHO' .* 'INVARIANT 0 - HUMANS FIRST (inherited)' .* 'INVARIANT 4 - THE FOUNDATION HOLDS (inherited)' .* 'INVARIANT 5' /,
+    'the effective set is IS FOR, then 0-4 inherited, then 5 and up';
+like invariant-text($path, 'Invariant 5'), /'INVARIANT 5' \n 'People control'/, "show invariant accepts 'Invariant 5'";
+throws-like { invariant-text($path, '42') }, X::IZ4, message => /'0-4 are inherited'/, 'an unknown number explains what exists';
+is show-text($path), $path.slurp, 'show prints the whole file';
 
-# show
-is show-text($path, 'gist'), "Replaced gist.\n", 'show gist';
-my $inv-shown = show-text($path, 'invariants');
-ok $inv-shown.starts-with('- Invariant 0: humans first'), 'shown invariants lead with invariant zero';
-like $inv-shown, /'- Invariant 1: Only one active session may exist per user.' \n '- Invariant 2: Second invariant.'/, 'show list section';
-is show-text($path), $path.slurp, 'show whole document';
-is show-text($path, 'invariant'), show-text($path, 'invariants'), 'singular section noun works';
+# ---- number -------------------------------------------------------------------
+my $num = temp-dir.add('IZ4');
+$num.spurt("IZ4\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n\nINVARIANT\nFirst.\n\nBECAUSE\nWhy one.\n\nINVARIANT 7\nChosen.\n\nINVARIANT\nSecond.\n");
+is number-invariants($num), ((9, 8), (18, 9)), 'unnumbered invariants get the next free numbers from 5, in file order';
+is check-doc($num).invariants».number, (8, 7, 9), 'existing numbers are never changed';
+like $num.slurp, /'INVARIANT 8' \n 'First.' \n\n 'BECAUSE' \n 'Why one.'/, 'only the header line changes';
+is number-invariants($num), (), 'a second run has nothing to do';
+my $fresh = temp-dir.add('IZ4');
+$fresh.spurt("IZ4\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n\nINVARIANT\nOnly.\n");
+is number-invariants($fresh), ((9, 5),), 'with nothing numbered, numbering starts at 5';
 
-# numbered invariants are explicit references
-add-entry($path, 'invariant', 'Invariant 9: Chosen number.');
-is check-doc($path).section('invariants').items[*-1].text, 'Invariant 9: Chosen number.',
-    'an explicit number is respected';
-add-entry($path, 'invariant', 'After nine.');
-is check-doc($path).section('invariants').items[*-1].text, 'Invariant 10: After nine.',
-    'auto-numbering continues after the highest explicit number';
-throws-like { add-entry($path, 'invariant', 'Invariant 9: Clash.') }, X::IZ4,
-    message => /"'9' is already used"/, 'a duplicate explicit number is refused';
-is invariant-text($path, '2'), "Invariant 2: Second invariant.\n", 'invariant-text resolves a number';
-throws-like { invariant-text($path, '77') }, X::IZ4,
-    message => /'numbered invariants here'/, 'unknown number lists what exists';
-
-# discovery
-my $nested = $dir.add('src/foo/bar');
-$nested.mkdir;
-# resolved on both sides: macOS temp dirs sit behind a /var -> /private/var symlink
-is find-root($nested).resolve.Str, $path.resolve.Str, 'upward lookup from nested directory';
-is resolve-target(Str, :cwd($nested)).resolve.Str, $path.resolve.Str, 'resolve-target uses nearest IZ4';
-my $lonely = temp-dir;
-throws-like { resolve-target(Str, :cwd($lonely)) }, X::IZ4,
-    message => /'No IZ4 found' .* "iz4 init"/, 'no IZ4 gives actionable error';
-
-# agent-assisted init drafting: the reply is validated, or we die
-my $agent-dir = temp-dir;
-throws-like { agent-init-draft($agent-dir, :cmd('false')) }, X::AdHoc,
-    message => /'agent command failed'/, 'failing agent command dies';
-throws-like { agent-init-draft($agent-dir, :cmd('echo just chatter')) }, X::AdHoc,
-    message => /"no 'IZ4' header"/, 'reply without a header dies';
-
-my $placeholder = $agent-dir.add('placeholder.txt');
-$placeholder.spurt(template());
-throws-like { agent-init-draft($agent-dir, :cmd("cat {$placeholder}")) }, X::AdHoc,
-    message => /'draft has problems'/, 'reply still holding the placeholder gist dies';
-
-my $gutless = $agent-dir.add('gutless.txt');
-$gutless.spurt("IZ4 0.0\n\ngist:\n    A gist with nothing behind it.\n");
-throws-like { agent-init-draft($agent-dir, :cmd("cat {$gutless}")) }, X::AdHoc,
-    message => /'draft has no invariants'/, 'reply without invariants dies';
-
-my $good = $agent-dir.add('good.txt');
-$good.spurt(qq:to/END/);
-    Here is the completed file:
-    ```
-    IZ4 0.0
-
-    gist:
-        A fake project, distilled by a fake agent.
-
-    invariants:
-        - The thing never breaks.
-        - The other thing holds.
-    ```
-    END
-my $draft = agent-init-draft($agent-dir, :cmd("cat {$good}"));
-ok $draft.starts-with("IZ4 0.0\n"), 'chatter and fences are stripped from the reply';
-my $draft-doc = IZ4::Document.parse($draft);
-is $draft-doc.section('invariants').items.elems, 3, 'draft keeps its invariants and gains invariant zero';
-is $draft-doc.section('invariants').items[0].text, INVARIANT-ZERO,
-    'invariant zero is restored first when the agent drops it';
-is $draft-doc.section('invariants').items[1..2]».text,
-    ('Invariant 1: The thing never breaks.', 'Invariant 2: The other thing holds.'),
-    'the draft is numbered before it is written';
-
-# number: every unnumbered invariant gets the next free number, in file
-# order; existing numbers, wrapping and comments are left alone
-my $num-dir = temp-dir;
-my $num = $num-dir.add('IZ4');
-$num.spurt(qq:to/END/);
+# ---- migrate: legacy to Is For, nothing silently lost -------------------------
+my $old = temp-dir.add('IZ4');
+$old.spurt(q:to/END/);
     IZ4
 
+    # a comment someone wrote
     gist:
-        Numbering.
+        A job board.
+
+    behaviours:
+        - Search shows 20 results.
 
     invariants:
-        - {INVARIANT-ZERO}
-    # a comment stays
-        - First rule, wrapped onto
-          a second line.
-        - Invariant 3: Chosen early.
-        - Second rule.
+        - Invariant 0: humans first. Help people thrive, and respect each person's dignity. Do no harm, and no greater good makes a person disposable. Keep humans in charge: explain consequential actions, accept challenge and correction, and stop safely when asked. When an objective conflicts with these protections, preserve them, report the conflict, and safely pause the affected action. Be honest about what this is, what it knows, what it has done, and what remains uncertain or blocked. No other entry may weaken this.
+        - Invariant 1: Private profiles never appear in public search.
+        - Invariant 3: Employers cannot message first. Because: people should not get another inbox.
+        - Unnumbered promise.
+
+    constraints:
+        - Written in Perl.
+
+    decisions:
+        - 2026-01-01: chose Postgres.
     END
-is number-invariants($num), ((9, 4), (12, 5)), 'number reports the lines and numbers written';
-is check-doc($num).section('invariants').items».text,
-    (INVARIANT-ZERO, 'Invariant 4: First rule, wrapped onto a second line.',
-     'Invariant 3: Chosen early.', 'Invariant 5: Second rule.'),
-    'numbers continue after the highest in use and existing numbers are untouched';
-like $num.slurp, /"# a comment stays\n    - Invariant 4: First rule, wrapped onto\n      a second line.\n"/,
-    'only the first line of each numbered entry changes';
-is number-invariants($num), (), 'a second run has nothing to do';
-ok check-doc($num).ok && !check-doc($num).warnings, 'a numbered file checks clean';
-my @lines = "IZ4", "", "gist:", "    g", "", "invariants:", "    - Loose.";
-is number-lines(@lines), ((7, 1),), 'number-lines works on lines in place';
-is @lines[6], '    - Invariant 1: Loose.', 'the line is rewritten in place';
+throws-like { migrate-text($old, :for-who('')) }, X::IZ4, message => /'who'/, 'migrate needs to know who it is for';
+my %m = migrate-text($old, :for-who('People looking for work.'));
+my $new = IZ4::Document.parse(%m<text>);
+ok $new.ok && !$new.warnings, 'the migrated file is a clean current-format IZ4';
+is $new.for-what, 'A job board.', 'the gist becomes IS FOR WHAT';
+is $new.for-who, 'People looking for work.', 'IS FOR WHO is the answer given';
+is $new.invariants».number, (5, 7, 8), 'project numbers move out of 0-4, keeping order and gaps';
+is-deeply %m<mapping>.map({ (.[0] // 'none', .[1]) }).List, ((1, 5), (3, 7), ('none', 8)), 'the mapping is returned so it can be reported';
+ok %m<renumbered>, 'and renumbering is flagged';
+is $new.invariant(7).because, 'people should not get another inbox.', "a legacy 'Because:' becomes BECAUSE";
+nok %m<text>.contains('humans first'), 'the earlier Invariant 0 text is not copied: 0-4 are inherited';
+for 'Search shows 20 results.', 'Written in Perl.', 'chose Postgres.', 'a comment someone wrote', 'A job board.' -> $words {
+    ok %m<companion>.contains($words), "the companion keeps '$words' word for word";
+}
+like %m<companion>, /'| 1 | 5 |'/, 'the companion records the number mapping';
+throws-like { migrate-text($path, :for-who('x')) }, X::IZ4, message => /'already in the current format'/,
+    'a current file is not migrated again';
+
+my $clean = temp-dir.add('IZ4');
+$clean.spurt("IZ4\n\ngist:\n    x\n\ninvariants:\n    - Invariant 5: Already fine.\n    - Invariant 6: Also fine.\n");
+my %c = migrate-text($clean, :for-who('y'));
+nok %c<renumbered>, 'numbers already clear of 0-4 are kept';
+is IZ4::Document.parse(%c<text>).invariants».number, (5, 6), 'unchanged';
+
+# ---- suggest: the prompt keeps IZ4 small; the parser caps a flood -----------
+my $prompt = suggest-prompt(current => '', evidence => 'README: a job board').words.join(' ');
+like $prompt, /'Try to make it small'/, 'the agent is told to make IZ4 small, not complete';
+like $prompt, /'not automatically an invariant'/, 'observed behaviour is not an invariant';
+like $prompt, /'Tests passing today do not prove'/, 'passing tests prove nothing';
+like $prompt, /:i 'framework' .* 'do not normally belong'/, 'framework choices do not belong';
+like $prompt, /'Never invent intent'/, 'the owner is asked instead of intent being invented';
+like $prompt, /'at most 3 STRONG'/, 'strong candidates are capped in the prompt';
+like $prompt, /'STRONG' .* 'POSSIBLE' .* 'IMPLEMENTATION' .* 'NOT IZ4'/, 'the four confidence classes are asked for';
+like $prompt, /'rewritten tomorrow'/, 'the golden test is in the prompt';
+
+my $flood = (1..47).map({ "STRONG | Behaviour $_ holds. | because $_ | t/$_.t" }).join("\n")
+    ~ "\n- POSSIBLE | Applications are never shared. | Is sharing with partners ever acceptable?"
+    ~ "\nIMPLEMENTATION | Uses Mojolicious | README"
+    ~ "\nNOT-IZ4 | Search shows 20 results | tests"
+    ~ "\nSome chatter the model added.";
+my %s = parse-suggestions($flood);
+is %s<found><strong>, 47, 'the parser counts everything the agent proposed';
+is %s<strong>.elems, 5, 'but a flood is capped before it reaches a person';
+is %s<possible>[0]<question>, 'Is sharing with partners ever acceptable?', 'possible candidates keep the question for the owner';
+is %s<implementation>.elems + %s<not-iz4>.elems, 2, 'implementation and not-IZ4 items are recognised';
+is %s<strong>[0]<because>, '1', "a leading 'because' is stripped from the suggested BECAUSE";
+
+my $agent-dir = temp-dir;
+throws-like { agent-suggest($agent-dir, :cmd('false')) }, X::AdHoc, message => /'agent command failed'/,
+    'a failing agent is an error, never an invented answer';
+my $empty = agent-suggest($agent-dir, :cmd('echo nothing useful'));
+is $empty<found><strong> + $empty<found><possible>, 0, 'a reply with nothing usable is an honest nothing';
+
+# ---- portability ---------------------------------------------------------------
+my $probe = $dir.add('digest.txt');
+$probe.spurt("iz4\n");
+is sha256-file($probe), '17d3f49c9ea9709daed96db895e9966341a3757250437bc4067cab48eeea6450',
+    'sha256-file yields the known digest on this platform';
+throws-like { resolve-target(Str, cwd => temp-dir) }, X::IZ4,
+    message => /'No IZ4 found' .* "iz4 init"/, 'no IZ4 gives an actionable error';
+
+done-testing;

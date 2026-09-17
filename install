@@ -10,6 +10,8 @@
 #
 # Overrides: IZ4_REPO (git URL), IZ4_HOME (checkout parent),
 # IZ4_BIN (launcher directory), IZ4_NO_RUNTIME=1 (never fetch a runtime).
+# Working on iz4 itself: symlink $IZ4_HOME/cli (default
+# ~/.local/share/iz4/cli) to your checkout and the launcher runs that.
 set -eu
 
 REPO="${IZ4_REPO:-https://github.com/nige123/cli.iz4.you}"
@@ -24,7 +26,11 @@ fail() { printf 'iz4 install: %s\n' "$*" >&2; exit 1; }
 command -v git  >/dev/null 2>&1 || fail "git is required (https://git-scm.com); install it and re-run"
 
 # -- the iz4 code -----------------------------------------------------------
-if [ -d "$CHECKOUT/.git" ]; then
+# A symlink here is a developer's own checkout: the launcher runs it as it
+# is, uncommitted edits included, and the installer never pulls over it.
+if [ -L "$CHECKOUT" ]; then
+    say "running iz4 from your checkout at $(readlink "$CHECKOUT") (symlink; not pulling)"
+elif [ -d "$CHECKOUT/.git" ]; then
     say "updating iz4 in $CHECKOUT"
     git -C "$CHECKOUT" pull --ff-only --quiet
 else

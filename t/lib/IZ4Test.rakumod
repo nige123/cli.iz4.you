@@ -33,6 +33,32 @@ sub iz4(IO::Path $cwd, *@args) is export {
     $proc.exitcode, $out, $err;
 }
 
+#| Run bin/iz4 in $cwd with $input on standard input, as a person would
+#| answer its questions (IZ4_INTERACTIVE=1 turns coaching on without a
+#| terminal).  Returns (exit-code, stdout, stderr).
+sub iz4-talk(IO::Path $cwd, Str $input, *@args) is export {
+    my $root = $?FILE.IO.resolve.parent(3);
+    my @cmd = %*ENV<IZ4_TEST_BIN>
+        ?? (%*ENV<IZ4_TEST_BIN>,)
+        !! ($*EXECUTABLE, '-I', $root.add('lib').Str, $root.add('bin/iz4').Str);
+    my %env = %*ENV;
+    %env<IZ4_INTERACTIVE> = '1';
+    my $proc = run |@cmd, |@args, :cwd($cwd.Str), :in, :out, :err, :%env;
+    $proc.in.print($input);
+    $proc.in.close;
+    my $out = $proc.out.slurp(:close);
+    my $err = $proc.err.slurp(:close);
+    $proc.exitcode, $out, $err;
+}
+
+#| A minimal current-format IZ4 in a fresh directory.
+sub minimal-iz4(IO::Path :$dir = temp-dir(), Str :$extra = '' --> IO::Path) is export {
+    my $path = $dir.add('IZ4');
+    $path.spurt("IZ4\n\nIS FOR WHAT\nHelping people find work they love to do.\n\n"
+        ~ "IS FOR WHO\nPeople looking for work.\n$extra");
+    $path;
+}
+
 #| An independent system digest for cross-checking sha256-file, using
 #| whichever tool this platform has.
 sub sha256-hex(IO::Path $f --> Str) is export {

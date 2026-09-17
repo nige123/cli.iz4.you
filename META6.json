@@ -1,7 +1,7 @@
 {
     "name": "IZ4",
-    "description": "iz4: maintain a IZ4 (what this project is supposed to do) beside your source",
-    "version": "0.1.0",
+    "description": "iz4: IZ4 means Is For - find the few invariants your software must never accidentally lose",
+    "version": "0.2.0",
     "auth": "iz4.you",
     "license": "Apache-2.0",
     "perl": "6.d",
@@ -10,7 +10,8 @@
         "IZ4::Document": "lib/IZ4/Document.rakumod",
         "IZ4::Git": "lib/IZ4/Git.rakumod",
         "IZ4::Register": "lib/IZ4/Register.rakumod",
-        "IZ4::Agent": "lib/IZ4/Agent.rakumod"
+        "IZ4::Agent": "lib/IZ4/Agent.rakumod",
+        "IZ4::Coach": "lib/IZ4/Coach.rakumod"
     },
     "depends": [],
     "test-depends": [],

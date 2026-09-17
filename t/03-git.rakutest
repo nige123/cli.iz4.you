@@ -8,7 +8,7 @@ plan 7;
 
 # outside Git: degrade gracefully
 my $dir = temp-dir;
-my $path = init(:$dir);
+my $path = minimal-iz4(:$dir);
 is log-text($path), "No Git history available for IZ4\n", 'log outside Git';
 my ($rc, $out, $err) = diff-result($path);
 is $rc, 127, 'diff outside Git returns no-git code';
@@ -25,15 +25,14 @@ sub g(*@a) { run 'git', '-C', $repo.Str, |@a, :out, :err }
 g('init', '-q', '.');
 g('config', 'user.email', 'test@example.com');
 g('config', 'user.name', 'Test');
-my $file = init(:dir($repo));
-add-entry($file, 'gist', 'Git test.');
+my $file = minimal-iz4(:dir($repo));
 is log-text($file), "No Git history available for IZ4\n", 'untracked file has no history';
 g('add', 'IZ4');
 g('commit', '-q', '-m', 'Add initial IZ4');
 like log-text($file), /^ \d**4 '-' \d\d '-' \d\d '  ' <xdigit>+ '  Add initial IZ4' \n $/, 'log shows concise history';
-add-entry($file, 'invariant', 'Always true.');
+add-invariant($file, 'Always true.', :because('People rely on it.'));
 ($rc, $out, $err) = diff-result($file);
-ok $rc == 0 && $out.contains('+    - Invariant 1: Always true.'), 'diff shows working-tree change';
+ok $rc == 0 && $out.contains('+INVARIANT 5'), 'diff shows working-tree change';
 g('commit', '-q', '-am', 'Add invariant');
 ($rc, $out, $err) = diff-result($file, 'HEAD~1', 'HEAD');
-ok $rc == 0 && $out.contains('+    - Invariant 1: Always true.'), 'diff between revisions';
+ok $rc == 0 && $out.contains('+INVARIANT 5'), 'diff between revisions';

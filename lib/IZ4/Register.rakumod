@@ -6,7 +6,7 @@ use IZ4::Git;
 
 #| Client for the IZ4 register (iz4.you): the two commands
 #| behind it (iz4 register, iz4 report) are the CLI's only network
-#| opt-ins besides the agent behind init.  A report follows the register's
+#| opt-ins besides the agent behind suggest.  A report follows the register's
 #| s2r-report contract and carries presence, digest, counts and check
 #| outcomes - never the text of the IZ4.
 
@@ -168,8 +168,10 @@ sub collect-report(IO::Path $iz4, Str :$release, Str :$run-id --> Hash) is expor
     if $iz4.f {
         %declaration<digest> = sha256-file($iz4);
         my $doc = IZ4::Document.load($iz4);
-        %declaration<grammar_version> = $doc.version.defined ?? "IZ4 {$doc.version}" !! 'IZ4';
-        %declaration<invariant_count> = $doc.section('invariants') ?? $doc.section('invariants').items.elems !! 0;
+        # the grammar label names the dialect; the count is the project's
+        # own invariants in the file (the inherited 0-4 are never counted)
+        %declaration<grammar_version> = $doc.is-legacy ?? 'IZ4 legacy' !! 'IZ4';
+        %declaration<invariant_count> = $doc.invariants.elems;
         %checks<syntax> = %( outcome => $doc.ok ?? 'passed' !! 'failed' );
     }
 

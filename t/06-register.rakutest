@@ -5,7 +5,7 @@ use IZ4;
 use IZ4::Document;
 use IZ4::Register;
 
-plan 43;
+plan 44;
 
 # Everything here is offline: no test ever reaches a real register.
 %*ENV<XDG_CONFIG_HOME> = temp-dir.Str;
@@ -14,7 +14,7 @@ plan 43;
 
 # connection: the reports URL beside the IZ4, the token outside the repo
 my $dir  = temp-dir;
-my $path = init(:$dir);
+my $path = minimal-iz4(:$dir);
 my $reports-url = 'https://iz4.you/api/v1/projects/p1/reports';
 nok register-url($path).defined, 'no register URL until saved';
 my $cfg = save-register-url($path, $reports-url);
@@ -38,7 +38,7 @@ is %b<markdown>, '[![IZ4](https://iz4.you/p/p1/badge.svg)](https://iz4.you/p/p1)
     'GitHub-ready Markdown snippet';
 like %b<html>, /'<a href="https://iz4.you/p/p1">'/, 'HTML snippet links to the card';
 my $bare = temp-dir;
-init(:dir($bare));
+minimal-iz4(:dir($bare));
 throws-like { badge-info($bare.add('IZ4')) }, X::IZ4, message => /'not connected'/,
     'badge for an unconnected IZ4 points at the register steps';
 my ($brc, $bout, $berr) = iz4($dir, 'badge');
@@ -52,8 +52,8 @@ if have-git() {
     run 'git', '-C', $repo.Str, 'init', '-q';
     run 'git', '-C', $repo.Str, 'config', 'user.email', 't@test';
     run 'git', '-C', $repo.Str, 'config', 'user.name', 'Test';
-    my $sp = init(:dir($repo));
-    add-entry($sp, 'gist', 'A registered thing.');
+    my $sp = minimal-iz4(:dir($repo));
+    add-invariant($sp, 'Registered things stay registered.', :because('People find them there.'));
     run 'git', '-C', $repo.Str, 'add', '-A';
     run 'git', '-C', $repo.Str, 'commit', '-qm', 'x';
 
@@ -61,14 +61,15 @@ if have-git() {
     is %r<schema_version>, 's2r-report/1', 'report declares its schema';
     ok %r<revision> ~~ /^ <[0..9a..f]> ** 40 $/, 'revision is the exact commit';
     ok %r<declaration><present>, 'declaration present';
-    is %r<declaration><invariant_count>, 1, 'invariant count comes from the parser';
+    is %r<declaration><invariant_count>, 1, "the count is the project's own invariants, never the inherited 0-4";
+    is %r<declaration><grammar_version>, 'IZ4', 'the grammar label names the current format';
     ok %r<declaration><digest> ~~ /^ <[0..9a..f]> ** 64 $/, 'digest is a sha256';
     is %r<checks><syntax><outcome>, 'passed', 'syntax outcome from iz4 itself';
     is %r<release_label>, 'v1', 'release label carried';
 
     my $j = json-encode(%r);
     like $j, /'"schema_version":"s2r-report/1"'/, 'encodes as JSON';
-    unlike $j, /'humans first'/, 'the report never carries invariant text';
+    unlike $j, /'Registered things'/, 'the report never carries invariant text';
 
     # CLI: --dry-run prints the report and sends nothing
     my ($rc, $out, $err) = iz4($repo, 'report', '--dry-run');
@@ -76,7 +77,7 @@ if have-git() {
     like $out, /'"revision":"' <[0..9a..f]> ** 40 '"'/, 'dry run prints the payload';
 }
 else {
-    skip 'no git available', 11;
+    skip 'no git available', 12;
 }
 
 # CLI: --github writes the workflow and hands the token to gh on stdin
@@ -85,7 +86,7 @@ if have-git() {
     run 'git', '-C', $repo.Str, 'init', '-q';
     run 'git', '-C', $repo.Str, 'config', 'user.email', 't@test';
     run 'git', '-C', $repo.Str, 'config', 'user.name', 'Test';
-    init(:dir($repo));
+    minimal-iz4(:dir($repo));
     my $bin = temp-dir;
     my $gh  = $bin.add('gh');
     $gh.spurt: qq:to/SH/;
@@ -123,13 +124,13 @@ else {
 
 # CLI: an unconnected IZ4 is guided through signing up first
 my $fresh = temp-dir;
-init(:dir($fresh));
+minimal-iz4(:dir($fresh));
 my ($rc, $out, $err) = iz4($fresh, 'register');
 like $out, /'Sign up first' .* 'https://iz4.you/start'/, 'register guides sign-up first, on iz4.you';
 
 # CLI: report outside Git is a hard, plain error
 my $nogit = temp-dir;
-init(:dir($nogit));
+minimal-iz4(:dir($nogit));
 ($rc, $out, $err) = iz4($nogit, 'report', '--dry-run');
 is $rc, 1, 'report outside Git exits 1';
 like $err, /'not in a Git repository'/, 'and says why';

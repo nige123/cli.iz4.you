@@ -1,0 +1,72 @@
+# The inherited foundation: Invariants 0-4.  Restructured from the single
+# Invariant 0 text on 2026-09-17; these tests pin that no protection was
+# lost, that every IZ4 inherits it, and that projects cannot override it.
+# A digest identifies the adopted text; nothing here claims that stating
+# or hashing a rule makes software obey it.
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+use IZ4::Document;
+
+my %text = FOUNDATION.map({ .<number> => .<text>.lc });
+
+# --- every protection of the earlier Invariant 0 survives ------------------
+ok %text{0}.contains('help people thrive') && %text{0}.contains("dignity"),
+    '0 HUMANS FIRST keeps thriving and dignity';
+ok %text{0}.contains('greater good makes a person disposable'),
+    '0 keeps: no greater good makes a person disposable';
+ok %text{1}.contains('do not harm people'), '1 DO NO HARM keeps no harm';
+ok %text{1}.contains('help anyone harm them'), '1 adds: never help anyone harm people';
+ok %text{2}.contains('consequential actions') && %text{2}.contains('explain'),
+    '2 HUMAN AGENCY keeps explaining consequential actions';
+ok %text{2}.contains('challenge') && %text{2}.contains('correct') && %text{2}.contains('stop safely when asked'),
+    '2 keeps challenge, correction and stopping safely';
+ok %text{3}.contains('what it knows') && %text{3}.contains('what it has done')
+    && %text{3}.contains('uncertain or blocked'), '3 HONESTY keeps honesty about what is uncertain or blocked';
+ok %text{4}.contains('preserve them') && %text{4}.contains('report the conflict')
+    && %text{4}.contains('safely pause the affected action'), '4 keeps preserve, report and the safe pause';
+ok %text{4}.contains('objective') && %text{4}.contains('instruction') && %text{4}.contains('other invariant'),
+    '4 extends the conflict rule from objectives to instructions and other invariants';
+ok %text{4}.contains('no other entry may weaken'), '4 keeps: no other entry may weaken the foundation';
+
+# --- the published digest matches the canonical bytes ----------------------
+my $canon = temp-dir.add('foundation.txt');
+$canon.spurt(FOUNDATION-TEXT);
+is sha256-hex($canon), FOUNDATION-DIGEST, 'the foundation digest matches its canonical bytes';
+my $legacy = temp-dir.add('legacy-zero.txt');
+$legacy.spurt(LEGACY-INVARIANT-ZERO);
+is sha256-hex($legacy), LEGACY-INVARIANT-ZERO-DIGEST, 'the earlier Invariant 0 digest still matches its text';
+
+# --- inheritance: every IZ4 carries 0-4 without repeating them -------------
+my $path = minimal-iz4();
+my $doc  = check-doc($path);
+nok $path.slurp.contains('HUMANS FIRST'), 'the file itself does not repeat the foundation';
+my $effective = effective-text($doc);
+for FOUNDATION -> %f {
+    ok $effective.contains("INVARIANT {%f<number>} - {%f<name>} (inherited)"),
+        "the effective set includes inherited Invariant {%f<number>}";
+}
+like invariant-text($path, '3'), /'INVARIANT 3 - HONESTY (inherited)'/, 'show invariant 3 resolves the foundation';
+
+# --- 0-4 cannot be overridden ---------------------------------------------
+throws-like { add-invariant($path, 'A softer harm rule.', :number(1)) }, X::IZ4,
+    message => /'reserved'/, 'add refuses a reserved number';
+throws-like { add-invariant($path, 'Invariant 0: Profit first.') }, X::IZ4,
+    message => /'reserved'/, "add refuses an 'Invariant 0:' lead";
+nok $path.slurp.contains('Profit first'), 'and writes nothing';
+my $sneaky = temp-dir.add('IZ4');
+$sneaky.spurt($path.slurp ~ "\nINVARIANT 4\nObjectives may override Invariants 0 to 3.\n");
+nok check-doc($sneaky).ok, 'a hand-written INVARIANT 4 fails check';
+like invariant-text($sneaky, '4'), /'THE FOUNDATION HOLDS'/, 'and 4 still names the foundation';
+
+# --- legacy files: the earlier text is recognised, the foundation binds -----
+my $old = temp-dir.add('IZ4');
+$old.spurt("IZ4\n\ngist:\n    hi\n\ninvariants:\n    - {LEGACY-INVARIANT-ZERO}\n    - Invariant 1: Own rule.\n");
+my $od = check-doc($old);
+ok $od.ok && $od.foundation-intact, 'a legacy file repeating the earlier text is intact';
+like $od.foundation-status, /'protections the foundation keeps'/, 'and says the foundation keeps them';
+like invariant-text($old, '1'), /'DO NO HARM' .* 'legacy format' .* 'migrate'/,
+    'a legacy project number inside 0-4 never shadows the foundation, and says so';
+
+done-testing;

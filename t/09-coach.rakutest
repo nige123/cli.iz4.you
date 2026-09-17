@@ -1,0 +1,131 @@
+# Coaching tests pin OUTCOMES, never exact wording: what gets challenged,
+# what gets refined, what is refused, and that uncertainty goes back to a
+# human instead of becoming invented intent.
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+use IZ4::Coach;
+
+#| Run the coach with scripted answers; returns (result, transcript).
+sub coach(@answers, *%opts) {
+    my @said;
+    my @queue = @answers;
+    my %r = coach-invariant(
+        ask  => -> $prompt { @said.push: $prompt; @queue ?? @queue.shift !! Str },
+        tell => -> $line   { @said.push: $line },
+        for-what => 'Helping people find work they love to do.',
+        for-who  => 'People looking for work.',
+        |%opts);
+    %r, @said.join("\n");
+}
+
+# ---- recognising what is probably not an invariant ----------------------
+is assess-candidate('We use PostgreSQL.')<kind>, 'implementation', 'a database choice is implementation';
+is assess-candidate('Built with React and Tailwind.')<kind>, 'implementation', 'a framework choice is implementation';
+is assess-candidate('Search returns 20 results per page.')<kind>, 'requirement', 'a page size is a requirement or setting';
+is assess-candidate('Implement CSV export by Friday.')<kind>, 'task', 'work to do is a task';
+is assess-candidate('Given a user when they log in then they see the dashboard.')<kind>, 'task',
+    'acceptance criteria are not invariants';
+is assess-candidate('Passwords must use Argon2.')<kind>, 'mechanism', 'Argon2 is a mechanism worth looking beneath';
+is assess-candidate('We use server-side rendering.')<kind>, 'mechanism', 'SSR is a mechanism worth looking beneath';
+is assess-candidate('Private profiles never appear in public search.')<kind>, 'candidate',
+    'a promise people rely on reads as a candidate';
+is assess-candidate('Core journeys work without client-side JavaScript.')<kind>, 'candidate',
+    'independence from a technology is intent, not a choice of technology';
+is assess-candidate('Users can delete their account and all associated private data.')<kind>, 'candidate',
+    'the opening example reads as a candidate';
+
+# ---- obvious implementation choices are challenged, not added ----------
+my ($r, $said);
+($r, $said) = coach(['yes', ''], candidate => 'We use PostgreSQL.');
+is $r<outcome>, 'not-iz4', 'PostgreSQL that could be replaced is not added';
+like $said, /:i 'implementation'/, 'the coach names it as implementation';
+like $said, /:i 'ADR' | 'documentation'/, 'and points somewhere it belongs';
+
+($r, $said) = coach(['no'], candidate => 'Search returns 20 results per page.');
+is $r<outcome>, 'not-iz4', 'a setting nobody would miss is not added';
+
+($r, $said) = coach([''], candidate => 'Implement CSV export by Friday.');
+is $r<outcome>, 'not-iz4', 'a task is not added';
+
+# ---- weak candidates can be refined into invariants --------------------
+($r, $said) = coach([
+    'Credentials are never stored in a form from which the original can be recovered.',
+    'y', 'A leak must not hand anyone the passwords people reuse elsewhere.', 'y',
+], candidate => 'Passwords must use Argon2.');
+is $r<outcome>, 'add', 'Argon2 is refined rather than rejected';
+is $r<text>, 'Credentials are never stored in a form from which the original can be recovered.',
+    'what is added is the enduring intent beneath the mechanism';
+ok $r<because>.defined, 'with its BECAUSE';
+
+($r, $said) = coach(['', ], candidate => 'We use server-side rendering.');
+is $r<outcome>, 'not-iz4', 'SSR with nothing beneath it stays out: no invariant is manufactured';
+
+($r, $said) = coach(['yes', '', 'y', 'People searching on old phones must be able to apply.', 'y'],
+    candidate => 'Applications load within 2 seconds.');
+is $r<outcome>, 'add', 'a requirement people would miss can be kept as written';
+
+# ---- a genuine invariant: golden test, BECAUSE, confirm ----------------
+($r, $said) = coach(['y', 'A hidden search for work can cost someone their current job.', 'y'],
+    candidate => 'Private profiles never appear in public search.');
+is $r<outcome>, 'add', 'a genuine invariant is added';
+like $said, /'rewritten tomorrow'/, 'after the golden test';
+like $said, /:i 'people looking for work'/, 'and a BECAUSE question that traces back to who it is for';
+is $r<because>, 'A hidden search for work can cost someone their current job.', 'BECAUSE kept';
+
+($r, $said) = coach(['n'], candidate => 'Profile photos are square.');
+is $r<outcome>, 'not-iz4', 'failing the golden test keeps it out';
+
+# ---- uncertainty goes back to a human --------------------------------------
+($r, $said) = coach(['not sure'], candidate => 'Employers only see a candidate after the candidate applies.');
+is $r<outcome>, 'needs-human', 'uncertainty at the golden test is not turned into intent';
+like $said, /:i 'owner'/, 'and names who can settle it';
+($r, $said) = coach(['maybe'], candidate => 'Data lives in Redis.');
+is $r<outcome>, 'needs-human', 'uncertainty about an implementation choice goes to the owner too';
+
+# ---- meaningless reasons are challenged ------------------------------------
+is assess-because('Private profiles are private.', 'They must be private.'), 'circular',
+    'a BECAUSE that restates the invariant is circular';
+is assess-because('People control whether their profile is visible.',
+    'Looking for work should not mean surrendering privacy.'), 'ok', 'a real reason is not';
+($r, $said) = coach(['y', 'They must be private.', 'They are private.', 'y'], candidate => 'Private profiles are private.');
+is $r<outcome>, 'add', 'the owner may still add it';
+nok $r<because>.defined, 'but a circular BECAUSE is not recorded as if it explained anything';
+
+# ---- leaving is always easy --------------------------------------------------
+($r, $said) = coach(['']);
+is $r<outcome>, 'skipped', 'no candidate, nothing added';
+like $said, /'completely rewritten'/, 'the opening question is about surviving a rewrite';
+($r, $said) = coach(['y', 'Because people rely on it for safety.', 'n'], candidate => 'Blocked users cannot see your profile.');
+is $r<outcome>, 'skipped', 'declining at the confirmation adds nothing';
+
+# ---- the fast path challenges the same things -----------------------------
+my $dir  = temp-dir;
+my $path = minimal-iz4(:$dir);
+my ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'We use PostgreSQL.', '--because=It is fast.');
+is $rc, 1, 'the fast path refuses an implementation choice';
+like $err, /'--force'/, 'and says the owner can overrule it';
+nok $path.slurp.contains('PostgreSQL'), 'nothing is written';
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Profiles are private.', '--because=They must be private.');
+is $rc, 1, 'the fast path refuses a circular BECAUSE';
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'We use PostgreSQL.', '--because=Our hosting contract requires it.', '--force');
+is $rc, 0, '--force: the owner decides';
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Private profiles never appear in public search.',
+    '--because=A hidden search for work can cost someone their job.');
+is ($rc, $out), (0, "Added INVARIANT 6.\n"), 'a genuine invariant goes straight in';
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Employers cannot message a person first.');
+like $err, /'no BECAUSE'/, 'adding without a BECAUSE is allowed, with a nudge';
+
+# ---- the CLI conversation ---------------------------------------------------
+my $talk = temp-dir;
+minimal-iz4(:dir($talk));
+($rc, $out, $err) = iz4-talk($talk, "We use PostgreSQL.\ny\n\n", 'add');
+is $rc, 0, 'being talked out of an entry is not an error';
+nok $talk.add('IZ4').slurp.contains('INVARIANT'), 'nothing was added';
+($rc, $out, $err) = iz4-talk($talk, "Private profiles never appear in public search.\ny\nA hidden search can cost someone their job.\ny\n", 'add');
+like $out, /'Added INVARIANT 5'/, 'a coached invariant is added';
+like $talk.add('IZ4').slurp, /'INVARIANT 5' \n 'Private profiles never appear in public search.' \n\n 'BECAUSE' \n/,
+    'with its BECAUSE directly beneath it';
+
+done-testing;

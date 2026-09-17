@@ -1,99 +1,141 @@
+use lib $?FILE.IO.parent.add('lib').Str;
 use Test;
 use IZ4::Document;
 
-plan 38;
+# ---- the current format: IS FOR WHAT, IS FOR WHO, INVARIANT, BECAUSE ----
 
-my $valid = q:to/END/;
+my $job = q:to/END/;
+    IZ4
+
+    # comments are for humans
+    IS FOR WHAT
+    Helping people find work they love to do.
+
+    IS FOR WHO
+    People looking for work.
+
+    INVARIANT 5
+    People control whether their profile
+    is visible.
+
+    BECAUSE
+    Looking for work should not mean surrendering privacy.
+
+    INVARIANT 6
+    Employers cannot contact someone until that person initiates contact.
+
+    BECAUSE
+    Job seekers should not acquire another unsolicited inbox.
+    END
+
+my $doc = IZ4::Document.parse($job);
+ok $doc.ok, 'the example from the brief is a valid IZ4';
+nok $doc.warnings, 'and draws no warnings';
+is $doc.dialect, 'iz4', 'it is the current format';
+is $doc.for-what, 'Helping people find work they love to do.', 'IS FOR WHAT read';
+is $doc.for-who, 'People looking for work.', 'IS FOR WHO read';
+is $doc.invariants».number, (5, 6), 'project invariants begin at 5';
+is $doc.invariants[0].text, 'People control whether their profile is visible.',
+    'wrapped lines join into one invariant';
+is $doc.invariants[0].because, 'Looking for work should not mean surrendering privacy.',
+    'BECAUSE belongs to the invariant it follows';
+is $doc.invariants[1].because, 'Job seekers should not acquire another unsolicited inbox.',
+    'each BECAUSE attaches to its own invariant';
+is $doc.invariants[0].line, 10, 'invariant line tracked';
+
+# minimal files are valid: two answers are a real IZ4
+my $minimal = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nSign-in codes.\n\nIS FOR WHO\nPeople signing in.\n");
+ok $minimal.ok && !$minimal.warnings, 'a two-question IZ4 with no invariants is valid';
+nok $minimal.invariants, 'and has no project invariants of its own';
+
+# BECAUSE is optional at the grammar level
+my $bare = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nx y z\n\nIS FOR WHO\na b c\n\nINVARIANT 5\nSomething holds.\n");
+ok $bare.ok, 'an invariant without BECAUSE is still valid grammar';
+is $bare.unexplained-invariants».number, (5,), 'and is listed as unexplained';
+
+# ---- 0-4 are inherited and reserved ------------------------------------
+
+for 0..4 -> $n {
+    my $override = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n\nINVARIANT $n\nMy own version.\n");
+    nok $override.ok, "INVARIANT $n cannot be redefined by a project";
+}
+like IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n\nINVARIANT 2\nNope.\n").errors[0].Str,
+    /'reserved' .* 'inherited' .* 'begin at 5'/, 'the refusal explains inheritance';
+is FOUNDATION».<number>, (0, 1, 2, 3, 4), 'the foundation is exactly 0-4';
+is FOUNDATION».<name>, ('HUMANS FIRST', 'DO NO HARM', 'HUMAN AGENCY', 'HONESTY', 'THE FOUNDATION HOLDS'),
+    'with its five names';
+like $doc.foundation-status, /'Invariants 0-4: inherited'/, 'every file inherits them without repeating them';
+
+# ---- structural problems -------------------------------------------------
+
+my $dups = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n\nIS FOR WHO\nz\n\nINVARIANT 5\na\n\nINVARIANT 5\nb\n");
+like $dups.report.join("\n"), /'IZ4:9: duplicate IS FOR WHO (first at line 6)'/, 'duplicate IS FOR reported';
+like $dups.report.join("\n"), /'duplicate INVARIANT 5 (first at line 12)'/, 'duplicate number reported';
+
+my $orphan = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nx\n\nBECAUSE\nno invariant\n\nIS FOR WHO\ny\n");
+like $orphan.errors».Str.join, /'BECAUSE must directly follow the INVARIANT'/, 'a stray BECAUSE is an error';
+
+my $missing = IZ4::Document.parse("IZ4\n\nINVARIANT 5\nSomething.\n");
+like $missing.errors».Str.join("\n"), /'missing IS FOR WHAT' .* 'missing IS FOR WHO'/,
+    'both IS FOR answers are required';
+
+my $wordy = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n\nINVARIANT five\nx\n");
+like $wordy.errors[0].Str, /'whole number'/, 'INVARIANT needs a whole number';
+
+my $unnumbered = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n\nINVARIANT\nx y z\n");
+ok $unnumbered.ok && $unnumbered.warnings[0].Str.contains("'iz4 number'"),
+    'an unnumbered INVARIANT is a warning pointing at iz4 number';
+is $unnumbered.next-number, 5, 'the next free number is 5';
+
+# old concepts are kept as unknown blocks, and the warning says where they belong
+my $spec = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n\nBEHAVIOURS\nSearch shows 20 results.\n");
+ok $spec.ok, 'an unknown block is not an error, so the format can evolve';
+like $spec.warnings[0].Str, /"unknown block 'BEHAVIOURS'" .* 'README, ADRs, tests or issues'/,
+    'but the warning steers specification content elsewhere';
+
+like IZ4::Document.parse('').report.join, /'file is empty'/, 'empty file reported';
+like IZ4::Document.parse("IS FOR WHAT\nx\n").report[0], /'expected' .* 'IZ4'/, 'missing header reported';
+ok IZ4::Document.parse("SPOZ2\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n").ok, 'the old SPOZ2 header word is still read';
+
+# ---- the legacy format is still read ----------------------------------------
+
+my $legacy = q:to/END/;
     IZ4 0.0
 
-    # a comment
     gist:
         A small tool for testing.
-        Second line of gist.
 
     behaviours:
         - Does X.
-        - Does Y,
-          continued.
 
     invariants:
-        - X must always remain true.
-
-    constraints:
-
-    references:
-        - eu-cra: Article 13
+        - Invariant 0: humans first. Help people thrive, and respect each person's dignity. Do no harm, and no greater good makes a person disposable. Keep humans in charge: explain consequential actions, accept challenge and correction, and stop safely when asked. When an objective conflicts with these protections, preserve them, report the conflict, and safely pause the affected action. Be honest about what this is, what it knows, what it has done, and what remains uncertain or blocked. No other entry may weaken this.
+        - Invariant 1: X must always remain true.
+        - Invariant 7: Y holds. Because: people rely on Y.
+        - Unnumbered rule.
     END
 
-my $doc = IZ4::Document.parse($valid);
-ok $doc.ok, 'valid document has no errors';
-is $doc.version, '0.0', 'version parsed';
-is $doc.sections».name, <gist behaviours invariants constraints references>, 'sections in order';
-is $doc.section('gist').text, "A small tool for testing.\nSecond line of gist.", 'gist text';
-is $doc.section('behaviours').items».text, ('Does X.', 'Does Y, continued.'), 'items with continuation';
-is $doc.section('behaviours').items[1].line, 10, 'item line number';
-is $doc.section('references').items[0].text, 'eu-cra: Article 13', 'reference text';
-ok $doc.section('constraints').is-empty, 'empty section is allowed';
-is $doc.section('invariants').last-line, 14, 'last content line tracked';
-is $doc.section('invariants').indent, '    ', 'indent tracked';
+my $old = IZ4::Document.parse($legacy);
+ok $old.ok, 'a legacy file still parses without errors';
+is $old.dialect, 'legacy', 'and is recognised as legacy';
+like $old.warnings[0].Str, /'legacy format' .* "'iz4 migrate'"/, 'with one warning pointing at migrate';
+is $old.for-what, 'A small tool for testing.', 'the gist stands in for IS FOR WHAT';
+nok $old.for-who.defined, 'a legacy file has no IS FOR WHO';
+is $old.invariants».text, ('X must always remain true.', 'Y holds.', 'Unnumbered rule.'),
+    'the old Invariant 0 is not a project invariant; the rest are';
+is $old.invariants[1].because, 'people rely on Y.', "a legacy 'Because:' is read as BECAUSE";
+is $old.reserved-collisions».number, (1,), 'a legacy number inside 0-4 is found';
+ok $old.warnings».Str.grep(*.contains('now reserved for the inherited foundation')),
+    'and warned about, not refused: existing files keep working';
+ok $old.foundation-intact, 'the earlier canonical Invariant 0 text is recognised';
+is $old.next-number, 8, 'numbering continues after the highest number in use';
+is $old.section('behaviours').items[0].text, 'Does X.', 'legacy sections stay readable';
 
-# duplicate sections
-my $dup = IZ4::Document.parse("IZ4 0.0\n\ngist:\n    hi\n\ninvariants:\n\ninvariants:\n");
-nok $dup.ok, 'duplicate section fails';
-like $dup.report.join("\n"), /"IZ4:8: duplicate section 'invariants' (first defined at line 6)"/, 'duplicate reported with line';
+my $drift = IZ4::Document.parse("IZ4\n\ngist:\n    hi\n\ninvariants:\n    - Invariant 0: humans first. But reworded weakly.\n");
+nok $drift.foundation-intact, 'a reworded Invariant 0 in a legacy file is noticed';
+like $drift.foundation-status, /'binds regardless'/, 'and the foundation binds regardless';
 
-# gist problems
-my $empty = IZ4::Document.parse("IZ4 0.0\n\ngist:\n\nbehaviours:\n");
-nok $empty.ok, 'empty gist fails';
-like $empty.report.join("\n"), /'IZ4:3: gist is empty'/, 'empty gist reported';
-
-my $placeholder = IZ4::Document.parse("IZ4 0.0\n\ngist:\n    {GIST-PLACEHOLDER}\n");
-nok $placeholder.ok, 'placeholder gist fails';
-like $placeholder.report[0], /placeholder/, 'placeholder reported';
-
-my $nogist = IZ4::Document.parse("IZ4 0.0\n\nbehaviours:\n    - x\n");
-like $nogist.report.join, /"missing 'gist:'"/, 'missing gist reported';
-
-# header
-like IZ4::Document.parse("gist:\n    hi\n").report[0], /^ 'IZ4:1: expected' /, 'missing header reported at line 1';
-like IZ4::Document.parse('').report.join, /'file is empty'/, 'empty file reported';
-my $ver = IZ4::Document.parse("IZ4 0.9\n\ngist:\n    hi\n");
-ok $ver.ok, 'a legacy versioned header is read silently';
-nok $ver.warnings».Str.grep(*.contains('version')), 'no version warnings: the format is unversioned';
-ok IZ4::Document.parse("IZ4\n\ngist:\n    hi\n").ok, 'the bare IZ4 header is the header';
-
-# malformed entries
 my $bad = IZ4::Document.parse("IZ4 0.0\n\ngist:\n    hi\n\ninvariants:\n    not an item\n    -\nstray\n");
-is $bad.errors».line, (7, 8, 9), 'malformed lines reported with correct line numbers';
-like $bad.errors[0].Str, /"expected a '- ' entry"/, 'non-item in list section';
-like $bad.errors[1].Str, /'empty entry'/, 'empty item';
-like $bad.errors[2].Str, /'unexpected text at column 0'/, 'stray text';
+is $bad.errors».line, (7, 8, 9), 'legacy malformed lines are still reported by line';
 
-# unknown sections are preserved, with a warning
-my $unk = IZ4::Document.parse("IZ4 0.0\n\ngist:\n    hi\n\nrisks:\n    - We chose Raku.\n");
-ok $unk.ok && $unk.warnings».Str.grep(*.contains("unknown section 'risks'")) && $unk.section('risks').items[0].text eq 'We chose Raku.',
-    'unknown section kept, warned about, not an error';
-
-# invariant zero is inherited from the format version - omission is fine
-my $zeroless = IZ4::Document.parse("IZ4 0.0\n\ngist:\n    hi\n\ninvariants:\n    - Something else first.\n");
-ok $zeroless.ok, 'a file without invariant zero still has no errors';
-nok $zeroless.warnings.grep(*.Str.contains('invariant zero')),
-    'omission draws no warning: the binding is inherited';
-my $zeroed = IZ4::Document.parse("IZ4 0.0\n\ngist:\n    hi\n\ninvariants:\n    - " ~ INVARIANT-ZERO ~ "\n");
-nok $zeroed.warnings, 'the canonical text in first place is clean';
-
-# numbered invariants: numbers are references, duplicates defeat them
-is invariant-number('Invariant 3: no surprises.'), '3', 'invariant number extracted';
-nok invariant-number('No number here.').defined, 'unnumbered entry has no number';
-my $dupnum = IZ4::Document.parse("IZ4 0.0\n\ngist:\n    hi\n\ninvariants:\n    - Invariant 3: a.\n    - Invariant 3: b.\n");
-nok $dupnum.ok, 'duplicate invariant number is an error';
-like $dupnum.errors[0].Str, /"duplicate invariant number '3'" .* 'first used at line 7'/,
-    'duplicate number reported with both lines';
-
-# every invariant is numbered (Invariant 9): an unnumbered one is a warning
-my $unnum = IZ4::Document.parse("IZ4\n\ngist:\n    hi\n\ninvariants:\n    - Invariant 0: humans first.\n    - No number.\n    - Invariant zero: legacy spelling.\n    - Invariant 2: b.\n");
-ok $unnum.ok, 'an unnumbered invariant is still a valid file';
-my @nw = $unnum.warnings.grep(*.message.contains('unnumbered'));
-is @nw».line, (8,), 'one warning for the one unnumbered invariant (legacy Invariant 0 spellings count as numbered)';
-like @nw[0].Str, /'unnumbered invariant' .* "'iz4 number'"/, 'the warning points at iz4 number';
-is $unnum.unnumbered-invariants».text, ('No number.',), 'unnumbered-invariants lists them in order';
+done-testing;
