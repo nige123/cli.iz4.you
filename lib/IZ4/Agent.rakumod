@@ -229,7 +229,7 @@ constant SKILL-PATH is export = '.claude/skills/iz4/SKILL.md';
 #| validation, inherited-binding resolution and structured output.
 sub skill-text(--> Str) is export {
     my $foundation = "\n\n## The inherited foundation\n\n"
-        ~ FOUNDATION.map({ "- Invariant {.<number>} - {.<name>}: {.<text>}" }).join("\n") ~ "\n";
+        ~ FOUNDATION.map({ "- Invariant {.<number>} - {.<name>}: {.<text>}\n  BECAUSE: {.<because>}" }).join("\n") ~ "\n";
     q:to/HEAD/ ~ AGENT-PROTOCOL.trim-trailing ~ $foundation ~ q:to/TAIL/;
     ---
     name: iz4

@@ -177,7 +177,7 @@ sub effective-text(IZ4::Document $doc, Str :$name = 'IZ4' --> Str) is export {
     my @out;
     @out.push: "IS FOR WHAT\n" ~ wrap($doc.for-what // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
     @out.push: "IS FOR WHO\n"  ~ wrap($doc.for-who  // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
-    @out.append: FOUNDATION.map({ invariant-block(.<number>, .<name>, .<text>, :note<inherited>) });
+    @out.append: FOUNDATION.map({ invariant-block(.<number>, .<name>, .<text>, .<because>, :note<inherited>) });
     @out.push: project-invariants-text($doc);
     my $collisions = $doc.reserved-collisions;
     if $collisions {
@@ -197,7 +197,7 @@ sub invariant-text(IO::Path $path, Str $number --> Str) is export {
     my $n = +$raw;
     if $n < FIRST-PROJECT-NUMBER {
         my %f = FOUNDATION[$n];
-        my $text = invariant-block($n, %f<name>, %f<text>, :note<inherited>);
+        my $text = invariant-block($n, %f<name>, %f<text>, %f<because>, :note<inherited>);
         with $doc.invariant($n) {
             $text ~= "note: {$path.basename} also numbers one of its own invariants $n "
                 ~ "(legacy format); 'iz4 migrate' renumbers it from 5\n";
