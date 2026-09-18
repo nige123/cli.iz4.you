@@ -32,6 +32,11 @@ sub USAGE() {
                                            --force past a challenge)
       iz4 add for-what TEXT            set IS FOR WHAT (--replace once set)
       iz4 add for-who TEXT             set IS FOR WHO  (--replace once set)
+      iz4 because N WHY                say why invariant N must survive
+                                           (--replace once set)
+      iz4 because N --split            move the reason folded into invariant
+                                           N's own text under BECAUSE;
+                                           'iz4 because --split' does every one
       iz4 suggest                      ask an agent (IZ4_AGENT_CMD, default
                                            'claude -p') for a few candidate
                                            invariants, then review them
@@ -233,6 +238,44 @@ sub fast-add(IO::Path $path, Str $text, Str :$because, Int :$number, Bool :$forc
         unless ($because // '').trim;
 }
 
+# ------------------------------------------------------------ because
+
+multi MAIN('because', Str $number?, Str $text?, Str :$file, Bool :$replace = False, Bool :$split = False) {
+    attempt {
+        my $path = resolve-target($file);
+        my $name = display-name($path);
+        if $split {
+            my @which = $number.defined ?? (parse-number($number),) !! ();
+            my @done = @which ?? (split-because($path, @which[0]) andthen ((@which[0], $_),)) // () !! split-all-because($path);
+            if @done {
+                say "Invariant {.[0]}: moved under BECAUSE - {.[1]}" for @done;
+                say "Check each one: the words are yours, only moved.";
+            }
+            else {
+                say @which
+                    ?? "Invariant {@which[0]}: no reason found in its text; say it with 'iz4 because {@which[0]} WHY'"
+                    !! "$name: no invariant carries a reason in its own text";
+            }
+            return 0;
+        }
+        user-error("iz4 because needs an invariant number and the reason: iz4 because 5 'why it must survive'")
+            unless $number.defined && $text.defined;
+        my $n = parse-number($number);
+        if assess-because(check-doc($path).invariant($n).?text // '', $text) eq 'circular' && !$replace {
+            user-error("that restates the invariant. Who would be harmed, surprised or let down if it stopped being true, and why?\n(--replace sets it anyway)");
+        }
+        set-because($path, $n, $text, :$replace);
+        say "Set BECAUSE for Invariant $n.";
+        0;
+    }
+}
+
+sub parse-number(Str $s --> Int) {
+    my $raw = $s.subst(/:i^ 'invariant' \s+ /, '').subst(/ ':' $/, '');
+    user-error("'$s' is not an invariant number") unless $raw ~~ /^ \d+ $/;
+    +$raw;
+}
+
 # ------------------------------------------------------------ read
 
 multi MAIN('invariants', Str $file?) {
@@ -308,10 +351,14 @@ multi MAIN('check', Str $file?) {
             @rows.push: ('✓', "invariants: none of your own yet, which is a fine start ('iz4 add' helps you find one)");
         }
         if !$doc.is-legacy && $count {
-            my @bare = $doc.unexplained-invariants.map({ .number // 'unnumbered' });
-            @rows.push: @bare
-                ?? ('✗', "BECAUSE: missing for Invariant {@bare.join(', ')} - write under each why it must survive")
-                !! ('✓', 'BECAUSE: every invariant says why it must survive');
+            my @bare   = $doc.unexplained-invariants;
+            my @folded = @bare.grep({ split-reason(.text)[1].defined }).map({ .number // 'unnumbered' });
+            my @plain  = @bare.grep({ !split-reason(.text)[1].defined }).map({ .number // 'unnumbered' });
+            @rows.push: ('✗', "BECAUSE: Invariant {@folded.join(', ')} carr{@folded == 1 ?? 'ies' !! 'y'} the reason inside the invariant - 'iz4 because --split' moves it under BECAUSE")
+                if @folded;
+            @rows.push: ('✗', "BECAUSE: missing for Invariant {@plain.join(', ')} - write under each why it must survive ('iz4 because N WHY')")
+                if @plain;
+            @rows.push: ('✓', 'BECAUSE: every invariant says why it must survive') unless @bare;
         }
 
         if $path.basename eq ROOT-NAME | LEGACY-ROOT-NAME {
@@ -391,6 +438,7 @@ multi MAIN('migrate', Str $file?, Str :$for-who, Str :$keep, Bool :$dry-run = Fa
             print %m<text>;
             say "--- the rest would be kept in {display-name($companion)}";
             say "--- invariants renumbered: {@moves.join(', ')}" if @moves;
+            say "--- reasons moved under BECAUSE from Invariant {%m<split>.map(*.[0]).join(', ')}" if %m<split>;
             return 0;
         }
         user-error("{display-name($companion)} already exists; pass --keep=PATH to choose another file")
@@ -400,6 +448,7 @@ multi MAIN('migrate', Str $file?, Str :$for-who, Str :$keep, Bool :$dry-run = Fa
         $path.spurt(%m<text>);
         say "Migrated $name to the Is For format.";
         say "Invariants renumbered, because 0-4 are now inherited: {@moves.join(', ')}" if @moves;
+        say "Reasons moved under BECAUSE from the text of Invariant {%m<split>.map(*.[0]).join(', ')} - check them" if %m<split>;
         say "Everything else it held is in {display-name($companion)}, word for word.";
         say "Next: read each invariant and ask whether you would regret not telling the people";
         say "rebuilding the software. Keep those, give each a BECAUSE, and move the rest out.";

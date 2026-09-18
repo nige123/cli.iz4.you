@@ -67,6 +67,23 @@ ok $out.ends-with("OK IZ4\n"), 'and the summary has nothing to remedy';
 like $out, /'✗ BECAUSE: missing for Invariant 6 - write under each why it must survive'/, 'a missing BECAUSE is a cross with a remedy';
 ok $out.ends-with("OK IZ4 (1 to remedy above)\n"), 'crosses are counted, and never fail the check';
 
+# ---- because: check points at a folded reason, and the command moves it ---------
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'No price is sent unexplained. A confidently wrong price sells work at a loss.', '--force');
+($rc, $out, $err) = iz4($dir, 'check');
+like $out, /'✗ BECAUSE: Invariant 7 carries the reason inside the invariant' .* "'iz4 because --split'"/,
+    'check says when the reason is folded into the invariant';
+like $out, /'✗ BECAUSE: missing for Invariant 6'/, 'and separately which have none';
+($rc, $out, $err) = iz4($dir, 'because', '--split');
+like $out, /'Invariant 7: moved under BECAUSE - A confidently wrong price sells work at a loss.'/, 'because --split moves it';
+($rc, $out, $err) = iz4($dir, 'because', '6', 'Employers cannot contact first.');
+is $rc, 1, 'a circular reason is challenged';
+($rc, $out, $err) = iz4($dir, 'because', '6', 'Job seekers should not acquire another unsolicited inbox.');
+is ($rc, $out), (0, "Set BECAUSE for Invariant 6.\n"), 'because N WHY sets a reason';
+($rc, $out, $err) = iz4($dir, 'check');
+like $out, /'✓ BECAUSE: every invariant says why it must survive'/, 'and the checklist is clean';
+($rc, $out, $err) = iz4($dir, 'because', '2', 'Mine.');
+ok $rc == 1 && $err.contains('inherited'), 'the foundation reasons are canonical';
+
 # ---- the effective invariant set -------------------------------------------------
 ($rc, $out, $err) = iz4($dir, 'invariants');
 is $rc, 0, 'iz4 invariants exits 0';

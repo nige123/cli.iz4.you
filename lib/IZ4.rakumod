@@ -2,6 +2,7 @@ unit module IZ4;
 
 use IZ4::Document;
 use IZ4::Git;
+use IZ4::Coach;
 
 constant VERSION is export = '0.2.0';
 
@@ -320,6 +321,66 @@ sub add-invariant(IO::Path $path, Str $text, Str :$because, Int :$number --> Int
     $n;
 }
 
+# ---------------------------------------------------------------- because
+
+#| Set the BECAUSE of project invariant $n.  An existing one needs
+#| :replace.  Only the current format has a BECAUSE block; a legacy file
+#| is told to migrate.  Returns the number.
+sub set-because(IO::Path $path, Int $n, Str $text, Bool :$replace = False --> Int) is export {
+    my $reason = $text.trim;
+    user-error('nothing to set: the reason is empty') if $reason eq '';
+    my $doc = IZ4::Document.load($path);
+    user-error("{$path.basename} is in the legacy format; run 'iz4 migrate' first") if $doc.is-legacy;
+    my $inv = invariant-or-die($doc, $path, $n);
+    user-error("Invariant $n already has a BECAUSE; use --replace to replace it")
+        if ($inv.because // '').trim && !$replace;
+    rewrite-invariant($path, $doc, $inv, $inv.text, $reason);
+    $n;
+}
+
+#| Move the reason folded into invariant $n's own text under BECAUSE.
+#| Returns the reason moved, or Str when none was found.  The words are
+#| the owner's, only moved; nothing is added.
+sub split-because(IO::Path $path, Int $n --> Str) is export {
+    my $doc = IZ4::Document.load($path);
+    user-error("{$path.basename} is in the legacy format; run 'iz4 migrate' first") if $doc.is-legacy;
+    my $inv = invariant-or-die($doc, $path, $n);
+    user-error("Invariant $n already has a BECAUSE") if ($inv.because // '').trim;
+    my ($claim, $reason) = split-reason($inv.text);
+    return Str without $reason;
+    rewrite-invariant($path, $doc, $inv, $claim, $reason);
+    $reason;
+}
+
+#| Every invariant without a BECAUSE whose text holds one: split them all.
+#| Returns (number, reason) pairs.
+sub split-all-because(IO::Path $path --> List) is export {
+    my @done;
+    for IZ4::Document.load($path).unexplained-invariants.map(*.number).grep(*.defined) -> $n {
+        with split-because($path, $n) -> $reason { @done.push: ($n, $reason) }
+    }
+    @done;
+}
+
+sub invariant-or-die(IZ4::Document $doc, IO::Path $path, Int $n) {
+    user-error("Invariant $n is inherited; the foundation's reasons are canonical") if $n < FIRST-PROJECT-NUMBER;
+    $doc.invariant($n) // user-error("no invariant $n in {$path.basename}");
+}
+
+#| Replace one INVARIANT block (and its BECAUSE, if any) with new wrapped
+#| text and reason.  Everything outside the block is untouched.
+sub rewrite-invariant(IO::Path $path, IZ4::Document $doc, $inv, Str $claim, Str $reason) {
+    my @lines = $doc.lines;
+    my $from  = $inv.line - 1;
+    my $to    = ($inv.because-line.defined
+        ?? ($doc.blocks.first({ .kind eq 'BECAUSE' && .line == $inv.because-line }).last-line)
+        !! $inv.last-line) - 1;
+    my @new = "INVARIANT {$inv.number}", |wrap($claim, WRAP-WIDTH);
+    @new.append: '', 'BECAUSE', |wrap($reason, WRAP-WIDTH) if $reason.trim;
+    @lines.splice($from, $to - $from + 1, @new);
+    $path.spurt(@lines.join("\n") ~ "\n");
+}
+
 #| Lines for one legacy '- ' entry, wrapped to WRAP-WIDTH.
 sub legacy-entry-lines(Str $value, Str $indent) {
     my @out;
@@ -407,10 +468,18 @@ sub migrate-text(IO::Path $path, Str :$for-who! --> Hash) is export {
         @mapping.push: ($inv.number, $new);
         @placed.push: ($new, $inv);
     }
-    # written in number order, so the file reads 5, 6, 7 ...
+    # written in number order, so the file reads 5, 6, 7 ...  The old
+    # format had no BECAUSE, so authors folded the why into the entry;
+    # a reason the detector can see is moved under BECAUSE and reported.
+    my @split;
     for @placed.sort(*.[0]) -> ($new, $inv) {
-        @out.append: '', "INVARIANT $new", |wrap($inv.text, WRAP-WIDTH);
-        @out.append: '', 'BECAUSE', |wrap($inv.because, WRAP-WIDTH) if ($inv.because // '').trim;
+        my ($claim, $reason) = $inv.text, $inv.because;
+        unless ($reason // '').trim {
+            ($claim, $reason) = split-reason($inv.text);
+            @split.push: ($new, $reason) with $reason;
+        }
+        @out.append: '', "INVARIANT $new", |wrap($claim, WRAP-WIDTH);
+        @out.append: '', 'BECAUSE', |wrap($reason, WRAP-WIDTH) if ($reason // '').trim;
     }
     @mapping = @mapping.sort({ $_[0] // Inf });
     my $text = @out.join("\n") ~ "\n";
@@ -434,6 +503,12 @@ sub migrate-text(IO::Path $path, Str :$for-who! --> Hash) is export {
         @c.append: 'Numbered invariants kept their numbers'
             ~ (@mapping.grep({ !.[0].defined }) ?? '; unnumbered ones were numbered from ' ~ ($next - @mapping.grep({ !.[0].defined }).elems) !! '')
             ~ '.', '';
+    }
+    if @split {
+        @c.append: '## Reasons moved under BECAUSE', '',
+            'These invariants ended with a sentence that read as the reason, so it was',
+            'moved under BECAUSE. Check each: the words are unchanged, only moved.', '',
+            |@split.map({ "- Invariant {.[0]}: {.[1]}" }), '';
     }
     for $doc.sections -> $s {
         next if $s.name eq 'invariants';
@@ -460,7 +535,7 @@ sub migrate-text(IO::Path $path, Str :$for-who! --> Hash) is export {
     if @comments {
         @c.append: '## Comments', '', |@comments.map({ "    $_" }), '';
     }
-    %( :$text, companion => @c.join("\n"), :@mapping, renumbered => ?$shift );
+    %( :$text, companion => @c.join("\n"), :@mapping, :@split, renumbered => ?$shift );
 }
 
 # ---------------------------------------------------------------- suggest

@@ -133,6 +133,10 @@ Add it as INVARIANT 6? [Y/n]
 Added INVARIANT 6 to IZ4.
 ```
 
+Type the reason in the same breath, as in "…never appear in public search,
+because a hidden search can cost someone their job", and the coach splits it
+into the invariant and its BECAUSE for you.
+
 If there is nothing underneath, press enter and it stays out. Answer "not
 sure" and nothing is added either: that question belongs to the project owner,
 and the tool will not invent intent for them. A BECAUSE that only restates the
@@ -214,6 +218,9 @@ iz4 add                          find an invariant, coached
 iz4 add invariant TEXT --because=WHY
                                  the fast path (--number=N, --force)
 iz4 add for-what|for-who TEXT    set IS FOR WHAT or IS FOR WHO (--replace)
+iz4 because N WHY                say why invariant N must survive
+iz4 because [N] --split          move a reason folded into the invariant's
+                                   own text under BECAUSE
 iz4 suggest                      a few candidate invariants from an agent, reviewed
 iz4 invariants [FILE]            the effective invariants: inherited 0-4 plus yours
 iz4 show [FILE] [PART]           the file, or for-what, for-who or invariants
@@ -283,7 +290,9 @@ still work: every command reads them, and `iz4 check` passes them with a
 cross pointing at `iz4 migrate`. Migration asks who the software is for,
 turns the gist into `IS FOR WHAT`, keeps the invariants, and moves project
 numbers out of 0-4 by the same amount so their order survives, printing the
-mapping. Everything the new format does not hold goes into a companion
+mapping. The old format had no BECAUSE, so people folded the reason into the
+invariant's last sentence; where migrate can see that, it moves the sentence
+under BECAUSE, unchanged, and tells you which ones to check. Everything the new format does not hold goes into a companion
 `IZ4.legacy.md`, word for word, for you to move to where it belongs.
 
 ## The inherited foundation: Invariants 0-4

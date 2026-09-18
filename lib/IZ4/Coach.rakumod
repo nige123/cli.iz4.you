@@ -138,14 +138,80 @@ sub assess-because(Str $invariant, Str $because --> Str) is export {
     'ok';
 }
 
+# ------------------------------------------------------- reason splitting
+
+#| Words that mark a sentence as saying why, not what: consequences and
+#| stakes, the shapes a reason takes when it is folded into the invariant
+#| instead of standing under BECAUSE.  Words that rules use as often as
+#| reasons ("cannot", "nobody", "never", "fails") are left out on purpose,
+#| so a rule is not mistaken for its reason.
+my regex reason-cue {
+    :i <|w> [ <!after [merely | just | simply | only | not] \s+> because | 'so that' | 'is what makes' | 'must be able to' | would
+            | harm | 'at a loss' | matters | rely | relies | 'the point'
+            | 'the whole point' | 'the reason' | 'the worst' | 'at stake' ] <|w>
+}
+
+#| A connective that joins a rule to its reason inside one sentence:
+#| "X, because Y", "X so that Y", "X, so Y", "X, which is why Y".
+my regex connective {
+    [ \s* ',' \s* 'so' \s+ | \s* ',' \s* 'which is why' \s+
+    | ','? \s+ <!after [merely | just | simply | only | not] \s+> [ because | 'so that' ] \s+ ]
+}
+
+#| A sentence with any bracketed aside removed: an aside can hold an
+#| example or an incident ("... (it was dropped twice because ...)") that
+#| is not the invariant's reason.
+sub without-asides(Str $s --> Str) { $s.subst(/ \s* '(' <-[()]>* ')' /, '', :g) }
+
+#| Split $text into sentences, keeping each sentence's own end mark.
+sub sentences(Str $text --> List) is export {
+    $text.trim.split(/ <?after <[.!?]> > \s+ <?before <[A..Z "']> > /).grep(*.chars).List
+}
+
+#| The reason folded into a candidate, if there is one.  Returns
+#| (claim, reason); reason is Str (undefined) when nothing was found.
+#| Two shapes are recognised, looking only at the last sentence: a
+#| connective inside it ("X, because Y" / "X, so Y") splits it there; a
+#| closing sentence that reads as the stakes ("A confidently wrong price
+#| sells work at a loss.") moves whole.  Only a hint: what it finds is
+#| shown to the owner, never assumed.
+sub split-reason(Str $text --> List) is export {
+    my $t = $text.trim;
+    my @s = sentences($t);
+    my $last = @s[*-1];
+    my @head = @s[0 .. *-2];
+    my $bare = without-asides($last);
+    with $bare.match(/ ^ (.+?) <connective> (.+) $ /) -> $m {
+        my ($claim, $reason) = ~$m[0], ~$m[1];
+        $claim = $claim.trim.subst(/ <[,;:]> $ /, '').trim;
+        # "X, so Y; Z": Y is the reason, Z is another rule that stays
+        my $tail = '';
+        if $reason ~~ / ^ (.+?) ';' \s+ (.+) $ / {
+            ($reason, $tail) = ~$0, ~$1;
+            $tail = $tail.substr(0, 1).uc ~ $tail.substr(1);
+        }
+        if $claim.words >= 3 && $reason.words >= 3 {
+            $claim ~= '.' unless $claim ~~ / <[.!?]> $ /;
+            $reason = $reason.substr(0, 1).uc ~ $reason.substr(1);
+            $reason ~= '.' unless $reason ~~ / <[.!?]> $ /;
+            return ((|@head, $claim, |($tail ?? $tail !! Empty)).join(' '), $reason);
+        }
+    }
+    if @head && $bare ~~ &reason-cue && $last.words >= 4 {
+        return (@head.join(' '), $last);
+    }
+    ($t, Str);
+}
+
 # ------------------------------------------------------------- coaching
 
-#| An IS FOR answer, reshaped to sit inside a question: no closing full
-#| stop, and a lower-case first letter unless it starts an acronym.
+#| An IS FOR answer, reshaped to sit inside a question: its first
+#| sentence, without the full stop, and only when it is short enough to
+#| read as a phrase; otherwise empty, so the caller uses plain words.
 sub in-sentence(Str $s --> Str) {
-    my $t = ($s // '').trim.subst(/ <[.!]>+ $/, '');
-    return '' if $t eq '';
-    $t.chars > 1 && $t.substr(1, 1) ~~ /<:Lu>/ ?? $t !! $t.substr(0, 1).lc ~ $t.substr(1);
+    my $t = sentences($s // '').head // '';
+    $t = $t.trim.subst(/ <[.!]>+ $/, '');
+    $t.words <= 14 ?? $t !! '';
 }
 
 #| Parse a yes/no answer: True, False, or Bool (undefined) for 'not sure'.
@@ -172,7 +238,7 @@ sub coach-invariant(
     Str :$candidate is copy,
     Str :$for-what, Str :$for-who,
     Int :$number,
-    Str :$suggested-because,
+    Str :$suggested-because is copy,
     --> Hash
 ) is export {
     my $who  = in-sentence($for-who)  || 'the people this software is for';
@@ -183,6 +249,17 @@ sub coach-invariant(
         tell(OPENING);
         $candidate = answer('> ');
         return %( outcome => 'skipped' ) if $candidate eq '';
+    }
+
+    # a reason folded into the candidate is a good sign; take it out and
+    # offer it as the BECAUSE
+    {
+        my ($claim, $reason) = split-reason($candidate);
+        if $reason.defined {
+            tell("It sounds like the reason is in there too. Keeping the invariant as: $claim");
+            $candidate = $claim;
+            $suggested-because //= $reason;
+        }
     }
 
     my $settled = False;

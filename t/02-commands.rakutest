@@ -117,6 +117,30 @@ like %m<companion>, /'| 1 | 5 |'/, 'the companion records the number mapping';
 throws-like { migrate-text($path, :for-who('x')) }, X::IZ4, message => /'already in the current format'/,
     'a current file is not migrated again';
 
+# a reason folded into a legacy invariant is moved under BECAUSE, and reported
+my $folded = temp-dir.add('IZ4');
+$folded.spurt("IZ4\n\ngist:\n    Petals.\n\ninvariants:\n    - Invariant 5: No price Petals cannot explain. It never sends a price without the full calculation. A confidently wrong price quietly sells work at a loss.\n    - Invariant 6: A live shop price changes only by human decision. Petals never quietly lowers a price.\n");
+my %f = migrate-text($folded, :for-who('Makers.'));
+my $fd = IZ4::Document.parse(%f<text>);
+is $fd.invariant(5).because, 'A confidently wrong price quietly sells work at a loss.', 'migrate moves a folded reason under BECAUSE';
+is $fd.invariant(5).text, 'No price Petals cannot explain. It never sends a price without the full calculation.', 'and keeps the rest as the invariant';
+nok $fd.invariant(6).because.defined, 'an invariant whose last sentence is a rule is left whole';
+is %f<split>».[0], (5,), 'the split is reported';
+like %f<companion>, /'Reasons moved under BECAUSE' .* 'Invariant 5'/, 'and recorded in the companion for review';
+
+# because: set one, or move a folded one, only on the owner's words
+my $bp = minimal-iz4();
+add-invariant($bp, 'No price Petals cannot explain. A confidently wrong price sells work at a loss.');
+add-invariant($bp, 'Stock only goes up when a human has seen the goods.');
+is split-because($bp, 5), 'A confidently wrong price sells work at a loss.', 'split-because moves the reason';
+is check-doc($bp).invariant(5).text, 'No price Petals cannot explain.', 'leaving the invariant';
+nok split-because($bp, 6).defined, 'nothing to split returns nothing and changes nothing';
+is set-because($bp, 6, 'Believing in stock that is not there makes an order fail mid-make.'), 6, 'set-because writes a reason';
+throws-like { set-because($bp, 6, 'Other.') }, X::IZ4, message => /'--replace'/, 'replacing one is deliberate';
+throws-like { set-because($bp, 3, 'Mine.') }, X::IZ4, message => /'inherited'/, "the foundation's reasons cannot be set";
+ok check-doc($bp).ok && !check-doc($bp).unexplained-invariants, 'the file is valid with every reason in place';
+is split-all-because($bp), (), 'split-all finds nothing left to move';
+
 my $clean = temp-dir.add('IZ4');
 $clean.spurt("IZ4\n\ngist:\n    x\n\ninvariants:\n    - Invariant 5: Already fine.\n    - Invariant 6: Also fine.\n");
 my %c = migrate-text($clean, :for-who('y'));

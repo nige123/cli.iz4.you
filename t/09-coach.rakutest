@@ -100,6 +100,40 @@ like $said, /'completely rewritten'/, 'the opening question is about surviving a
 ($r, $said) = coach(['y', 'Because people rely on it for safety.', 'n'], candidate => 'Blocked users cannot see your profile.');
 is $r<outcome>, 'skipped', 'declining at the confirmation adds nothing';
 
+# ---- a reason folded into the candidate is found, never invented ----------
+is split-reason('Private profiles never appear in public search, because a hidden search can cost someone their job.'),
+    ('Private profiles never appear in public search.', 'A hidden search can cost someone their job.'),
+    "'X, because Y' splits into invariant and reason";
+is split-reason('Core journeys work without JavaScript so that people on old phones can apply.')[1],
+    'People on old phones can apply.', "'so that' splits too";
+is split-reason('No price Petals cannot explain. It never sends a price without the full calculation. A confidently wrong price quietly sells work at a loss.'),
+    ('No price Petals cannot explain. It never sends a price without the full calculation.',
+     'A confidently wrong price quietly sells work at a loss.'),
+    'a closing sentence that states the stakes is the reason';
+nok split-reason('A live shop price changes only by human decision. Petals proposes rises and never quietly lowers a price.')[1].defined,
+    'a closing sentence that is another rule is left alone';
+nok split-reason('Search returns 20 results per page.')[1].defined, 'one plain sentence has no reason to split';
+for 'A private FavSix cannot be copied, and a copy is never more visible than its source.',
+    "Nobody's Love2 is shown to a hiring side unless they opted in, and opting out takes effect at once.",
+    'If no command comes back, dosh fails loudly rather than guessing or running anything.',
+    'The worker relays the lifecycle honestly and stays a blind relay otherwise.' -> $rule {
+    nok split-reason("It holds. $rule")[1].defined, "a rule is not mistaken for a reason: '{$rule.substr(0, 40)}...'";
+}
+is split-reason('Costs are honest. Spending is capped per box, so a leaked QR code cannot run up an unlimited bill.'),
+    ('Costs are honest. Spending is capped per box.', 'A leaked QR code cannot run up an unlimited bill.'),
+    "'X, so Y' splits inside the last sentence, keeping the rule";
+nok split-reason('State is honest. wh.ax never reports anything as delivered merely because it was handed to a mailer.')[1].defined,
+    "'merely because' belongs to the rule, not a reason";
+nok split-reason('Route it right. The email must route as if that were the only address (an invoice was dropped twice because a colleague stood first).')[1].defined,
+    'a because inside a bracketed aside is not the reason';
+is split-reason('Nothing mutates before pre-flight passes, so a failed worker never leaves an orphan run; an Action runs only under the runtime.'),
+    ('Nothing mutates before pre-flight passes. An Action runs only under the runtime.', 'A failed worker never leaves an orphan run.'),
+    "'X, so Y; Z' keeps Z with the rule";
+($r, $said) = coach(['y', '', 'y'], candidate => 'Private profiles never appear in public search, because a hidden search can cost someone their job.');
+is $r<outcome>, 'add', 'a candidate with its reason folded in is added';
+is $r<text>, 'Private profiles never appear in public search.', 'as the invariant alone';
+is $r<because>, 'A hidden search can cost someone their job.', 'with the folded reason offered and taken as BECAUSE';
+
 # ---- the fast path challenges the same things -----------------------------
 my $dir  = temp-dir;
 my $path = minimal-iz4(:$dir);
