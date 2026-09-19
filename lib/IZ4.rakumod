@@ -114,8 +114,8 @@ sub init(IO::Path :$dir = $*CWD, Str :$for-what!, Str :$for-who! --> IO::Path) i
     user-error("{ROOT-NAME} already exists here; not overwriting") if $path.e;
     user-error("a legacy {LEGACY-ROOT-NAME} already exists here; rename it to {ROOT-NAME} (git mv {LEGACY-ROOT-NAME} {ROOT-NAME}) and run 'iz4 migrate'")
         if $dir.add(LEGACY-ROOT-NAME).e;
-    user-error('what is this software for? the answer cannot be empty') if $for-what.trim eq '';
-    user-error('who is this software for? the answer cannot be empty')  if $for-who.trim eq '';
+    user-error('what is this for? the answer cannot be empty') if $for-what.trim eq '';
+    user-error('who is this for? the answer cannot be empty')  if $for-who.trim eq '';
     $path.spurt(template(:$for-what, :$for-who));
     $path;
 }
@@ -448,7 +448,7 @@ sub migrate-text(IO::Path $path, Str :$for-who! --> Hash) is export {
     my $doc = IZ4::Document.load($path);
     user-error("{$path.basename} is already in the current format") unless $doc.is-legacy;
     user-error("fix the errors 'iz4 check' reports before migrating") if $doc.errors;
-    user-error('who is this software for? the answer cannot be empty') if $for-who.trim eq '';
+    user-error('who is this for? the answer cannot be empty') if $for-who.trim eq '';
     my $name = $path.basename;
 
     # Renumber once, only when a project number sits in 0-4: shift every
@@ -487,7 +487,7 @@ sub migrate-text(IO::Path $path, Str :$for-who! --> Hash) is export {
     # everything else, word for word
     my @c = "# $name before migration", '',
         "`iz4 migrate` converted $name to the Is For format on {Date.today}. The new",
-        'file keeps only what the software is for, who it is for, and the',
+        'file keeps only what the system is for, who it is for, and the',
         'invariants that must remain true. Everything else it held is kept here',
         'word for word, so nothing was lost. Move each part to wherever it now',
         'belongs - the README, an ADR, tests or issues - or delete what no',
@@ -547,9 +547,9 @@ sub agent-cmd(--> Str) is export { %*ENV<IZ4_AGENT_CMD> // %*ENV<SPOZ2_AGENT_CMD
 sub suggest-prompt(Str :$current = '', Str :$evidence = '' --> Str) is export {
     q:to/END/ ~ ($current.trim || '(none yet)') ~ "\n\nEvidence from the codebase:\n" ~ $evidence ~ "\n";
     You are helping a developer find the few enduring invariants of the
-    software in this repository, for its IZ4 file.
+    system in this repository, for its IZ4 file.
 
-    IZ4 means Is For.  An IZ4 answers three questions: what is this software
+    IZ4 means Is For.  An IZ4 answers three questions: what is this system
     for, who is it for, and what must remain true for it to keep serving
     them.  It is deliberately incomplete.
 
@@ -559,10 +559,10 @@ sub suggest-prompt(Str :$current = '', Str :$evidence = '' --> Str) is export {
     agency, honesty, the foundation holds).  Do not restate them; propose
     only this project's own invariants.
 
-    The golden test: if the whole application were rewritten tomorrow,
+    The golden test: if the whole system were rewritten tomorrow,
     would we regret not telling the people and agents rebuilding it this?
     If yes: does it describe enduring intent rather than today's
-    implementation?  If yes: how does it matter to what the software is
+    implementation?  If yes: how does it matter to what the system is
     for, who it is for, or the inherited foundation?  Only a meaningful
     answer to all three makes a strong candidate.
 

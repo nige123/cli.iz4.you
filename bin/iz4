@@ -14,12 +14,12 @@ $*OUT.out-buffer = False;   # a closed pipe fails at the write, leaving nothing 
 
 sub USAGE() {
     print q:to/END/;
-    IZ4 means Is For.  An IZ4 says what your software is for, who it is
+    IZ4 means Is For.  An IZ4 says what your system is for, who it is
     for, and the handful of things that must remain true for it to keep
     serving them.  It is deliberately small: never a specification.
 
     Usage:
-      iz4 init                         ask what this software is for and who
+      iz4 init                         ask what this is for and who
                                            it is for, write the IZ4, and offer
                                            to find a first invariant
                                            (scripts: --for-what=... --for-who=...;
@@ -70,7 +70,7 @@ sub USAGE() {
       iz4 badge                        print the card link and badge snippets
       iz4 version                      print the tool version
 
-    The golden test for an invariant: if the whole application were
+    The golden test for an invariant: if the whole system were
     rewritten tomorrow, would we regret not telling the people and agents
     rebuilding it this?
 
@@ -147,10 +147,10 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Bool :$agent, Bool :$agents) {
         my $what = $for-what;
         my $who  = $for-who;
         if !$talk && (!$what.defined || !$who.defined) {
-            user-error("iz4 init needs two answers: what this software is for, and who it is for.\n"
+            user-error("iz4 init needs two answers: what this is for, and who it is for.\n"
                 ~ "On a terminal it asks; in a script pass --for-what=... --for-who=...");
         }
-        $what //= ask-required("What is this software for?\n> ", 'what it is for');
+        $what //= ask-required("What is this for?\n> ", 'what it is for');
         $who  //= ask-required("Who is it for?\n> ", 'who it is for');
         my $path = init(:for-what($what), :for-who($who));
         say "Created {$path.basename}.";
@@ -196,12 +196,12 @@ multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Int :$numbe
                 fast-add($path, $text, :$because, :$number, :$force);
             }
             when 'for-what' | 'what' | 'is-for-what' | 'gist' {
-                user-error('iz4 add for-what needs the answer: what is this software for?') without $text;
+                user-error('iz4 add for-what needs the answer: what is this for?') without $text;
                 set-is-for($path, 'IS FOR WHAT', $text, :$replace);
                 say 'Set IS FOR WHAT.';
             }
             when 'for-who' | 'who' | 'is-for-who' {
-                user-error('iz4 add for-who needs the answer: who is this software for?') without $text;
+                user-error('iz4 add for-who needs the answer: who is this for?') without $text;
                 set-is-for($path, 'IS FOR WHO', $text, :$replace);
                 say 'Set IS FOR WHO.';
             }
@@ -221,7 +221,7 @@ sub fast-add(IO::Path $path, Str $text, Str :$because, Int :$number, Bool :$forc
     unless $force {
         my %a = assess-candidate($text.subst(/:i^ 'invariant' \s+ \d+ \s* <[:.\-]>? \s+/, ''));
         my $why = do given %a<kind> {
-            when 'implementation' { "that sounds like an implementation choice ({%a<signal>}), not an invariant. If it were replaced tomorrow, could the software still serve the same people and purpose? If so, record it in an ADR or developer docs instead." }
+            when 'implementation' { "that sounds like an implementation choice ({%a<signal>}), not an invariant. If it were replaced tomorrow, could it still serve the same people and purpose? If so, record it in an ADR or developer docs instead." }
             when 'mechanism'      { "{%a<signal>} sounds like how it is done today. What must remain true if it is replaced? Add that instead." }
             when 'requirement'    { "that reads like a requirement or setting ({%a<signal>}), not enduring intent. Pin it with a test, or say what would let people down if it changed." }
             when 'task'           { "that reads like work to do. Track it in your issues; IZ4 records what must stay true." }
@@ -326,10 +326,10 @@ multi MAIN('check', Str $file?) {
         }
         @rows.push: $doc.for-what.defined
             ?? ('✓', "IS FOR WHAT: {short($doc.for-what)}")
-            !! ('✗', "IS FOR WHAT: missing - what is this software for? ('iz4 add for-what ...')");
+            !! ('✗', "IS FOR WHAT: missing - what is this for? ('iz4 add for-what ...')");
         @rows.push: $doc.for-who.defined
             ?? ('✓', "IS FOR WHO: {short($doc.for-who)}")
-            !! ('✗', "IS FOR WHO: missing - who is this software for? "
+            !! ('✗', "IS FOR WHO: missing - who is this for? "
                 ~ ($doc.is-legacy ?? "('iz4 migrate' asks)" !! "('iz4 add for-who ...')"));
         @rows.push: $doc.foundation-intact
             ?? ('✓', $doc.foundation-status)
@@ -371,11 +371,11 @@ multi MAIN('check', Str $file?) {
         }
 
         my $top = $count ?? ($doc.invariants.map(*.number).grep(*.defined).max max 4) !! 4;
-        @rows.push: ('?', "the software keeps Invariants 0-$top: uncertain - a checker cannot verify "
+        @rows.push: ('?', "the system keeps Invariants 0-$top: uncertain - a checker cannot verify "
             ~ "natural-language invariants; review consequential changes against 'iz4 invariants'");
 
         say mark(.[0]) ~ ' ' ~ .[1] for @rows;
-        say 'checked: file facts only; a passing check never means the software is safe, '
+        say 'checked: file facts only; a passing check never means the system is safe, '
           ~ 'harmless, or keeps its invariants';
         my $crosses = @rows.grep({ .[0] eq '✗' }).elems;
         if $doc.ok {
@@ -423,7 +423,7 @@ multi MAIN('migrate', Str $file?, Str :$for-who, Str :$keep, Bool :$dry-run = Fa
         user-error("$name is already in the current format") unless $doc.is-legacy;
         my $who = $for-who;
         without $who {
-            user-error("the current format asks who the software is for; pass --for-who=...")
+            user-error("the current format asks who this is for; pass --for-who=...")
                 unless interactive();
             say "IS FOR WHAT (from the gist): {short($doc.for-what // '')}";
             $who = ask-required("Who is it for?\n> ", 'who it is for');
@@ -451,7 +451,7 @@ multi MAIN('migrate', Str $file?, Str :$for-who, Str :$keep, Bool :$dry-run = Fa
         say "Reasons moved under BECAUSE from the text of Invariant {%m<split>.map(*.[0]).join(', ')} - check them" if %m<split>;
         say "Everything else it held is in {display-name($companion)}, word for word.";
         say "Next: read each invariant and ask whether you would regret not telling the people";
-        say "rebuilding the software. Keep those, give each a BECAUSE, and move the rest out.";
+        say "rebuilding it. Keep those, give each a BECAUSE, and move the rest out.";
         0;
     }
 }

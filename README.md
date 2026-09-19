@@ -40,7 +40,8 @@ Job seekers should not acquire another unsolicited inbox.
 ```
 
 It is small enough that an agent can read all of it before every meaningful
-change. `iz4` is the command-line tool that helps you write it: it works
+change. And it need not sit beside software at all: a data room, an archive or
+any collection of files can say what it is for and what must stay true. `iz4` is the command-line tool that helps you write it: it works
 offline, needs no account, and everything it writes is plain text that
 belongs to your project.
 
@@ -81,7 +82,7 @@ Run the tests with `prove --ext .rakutest -e 'raku -Ilib' t/`.
 
 ```text
 $ iz4 init
-What is this software for?
+What is this for?
 > Helping people find work they love to do.
 Who is it for?
 > People looking for work.
@@ -107,10 +108,10 @@ probably isn't an invariant.
 
 ```text
 $ iz4 add
-What must remain true even if this software is completely rewritten?
+What must remain true even if this system is completely rewritten?
 > We use PostgreSQL.
 That sounds like an implementation choice rather than an invariant.
-If PostgreSQL were replaced tomorrow, could the software still serve the same people and purpose? [y/n] y
+If PostgreSQL were replaced tomorrow, could it still serve the same people and purpose? [y/n] y
 Then this probably doesn't belong in IZ4. Consider recording it in an ADR or developer documentation instead.
 Does it protect something that must stay true whatever replaces it? Say what, or press enter to leave it out.
 >
@@ -121,12 +122,12 @@ mechanism gets a chance to become what the mechanism protects:
 
 ```text
 $ iz4 add
-What must remain true even if this software is completely rewritten?
+What must remain true even if this system is completely rewritten?
 > Passwords must use Argon2.
 It sounds like Argon2 is how it is done today.
 What must remain true if Argon2 is replaced? (enter if nothing: then it stays out of IZ4)
 > Credentials are never stored in a form from which the original can be recovered.
-If the whole application were rewritten tomorrow, would we regret not telling the people and agents rebuilding it this? [y/n] y
+If the whole system were rewritten tomorrow, would we regret not telling the people and agents rebuilding it this? [y/n] y
 BECAUSE: why must this survive? How does it matter to people looking for work, or to helping people find work they love to do?
 > A leak must not hand anyone the passwords people reuse elsewhere.
 Add it as INVARIANT 6? [Y/n]
@@ -157,7 +158,7 @@ true. You decide; the tool only asks.
 
 ### The golden test
 
-> If the whole application were rewritten tomorrow, would we regret not
+> If the whole system were rewritten tomorrow, would we regret not
 > telling the people and agents rebuilding it this?
 
 If not, it probably doesn't belong in IZ4. If so: does it describe enduring
@@ -249,7 +250,7 @@ $ iz4 check
 ✓ invariants: 2 of your own, numbered from 5
 ✗ BECAUSE: missing for Invariant 6 - write under each why it must survive
 ✓ AGENTS.md: integration installed (current)
-? the software keeps Invariants 0-6: uncertain - a checker cannot verify
+? the system keeps Invariants 0-6: uncertain - a checker cannot verify
   natural-language invariants; review consequential changes against 'iz4 invariants'
 OK IZ4 (1 to remedy above)
 ```

@@ -15,12 +15,12 @@ use IZ4::Document;
 
 #| The golden test, the question at the heart of every coaching exchange.
 constant GOLDEN-TEST is export =
-    'If the whole application were rewritten tomorrow, would we regret not '
+    'If the whole system were rewritten tomorrow, would we regret not '
     ~ 'telling the people and agents rebuilding it this?';
 
 #| The opening question when there is no candidate yet.
 constant OPENING is export =
-    'What must remain true even if this software is completely rewritten?';
+    'What must remain true even if this system is completely rewritten?';
 
 # ------------------------------------------------------------ heuristics
 
@@ -241,8 +241,8 @@ sub coach-invariant(
     Str :$suggested-because is copy,
     --> Hash
 ) is export {
-    my $who  = in-sentence($for-who)  || 'the people this software is for';
-    my $what = in-sentence($for-what) || 'what this software is for';
+    my $who  = in-sentence($for-who)  || 'the people this is for';
+    my $what = in-sentence($for-what) || 'what this is for';
     my sub answer(Str $prompt --> Str) { (ask($prompt) // '').trim }
 
     without $candidate {
@@ -285,7 +285,7 @@ sub coach-invariant(
             when 'implementation' {
                 tell("That sounds like an implementation choice rather than an invariant.");
                 my $replaceable = yes-no(answer(
-                    "If {%a<signal>} were replaced tomorrow, could the software still serve "
+                    "If {%a<signal>} were replaced tomorrow, could it still serve "
                     ~ "the same people and purpose? [y/n] "));
                 without $replaceable {
                     tell("That depends on intent only the project owner can settle. Nothing added.");

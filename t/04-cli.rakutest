@@ -14,7 +14,7 @@ is $err, "No IZ4 found in this directory or its parents.\nRun 'iz4 init' to crea
 # ---- init is coached: two questions, then an offer --------------------------
 ($rc, $out, $err) = iz4-talk($dir, "Helping people find work they love to do.\nPeople looking for work.\nn\n", 'init');
 is $rc, 0, 'coached init exits 0';
-like $out, /'What is this software for?' .* 'Who is it for?' .* 'Created IZ4.'/, 'init asks what and who';
+like $out, /'What is this for?' .* 'Who is it for?' .* 'Created IZ4.'/, 'init asks what and who';
 like $out, /'inherits invariants 0-4' .* 'begin at 5'/, 'init teaches inheritance';
 like $out, /'Add an invariant now? [Y/n]'/, 'and offers to add one';
 unlike $out, /:i 'behaviour' | 'requirement' | 'constraint'/, 'without asking for a specification';
@@ -58,7 +58,7 @@ like $out, /'✓ structure: valid' \n
             '✓ Invariants 0-4: inherited' .* \n
             '✓ invariants: 1 of your own, numbered from 5' \n
             '✓ BECAUSE: every invariant says why it must survive' \n/, 'ticks for what is true';
-like $out, /'? the software keeps Invariants 0-5: uncertain'/, 'conformance is uncertain, never a tick';
+like $out, /'? the system keeps Invariants 0-5: uncertain'/, 'conformance is uncertain, never a tick';
 unlike $out, /'✓' <-[\n]>* 'keeps Invariants'/, 'no green tick for something a checker cannot know';
 ok $out.ends-with("OK IZ4\n"), 'and the summary has nothing to remedy';
 
