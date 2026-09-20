@@ -8,6 +8,7 @@ use IZ4::Document;
 use IZ4::Register;
 use IZ4::Agent;
 use IZ4::Coach;
+use IZ4::Review;
 
 my %*SUB-MAIN-OPTS = :named-anywhere;
 $*OUT.out-buffer = False;   # a closed pipe fails at the write, leaving nothing to flush at exit
@@ -37,6 +38,15 @@ sub USAGE() {
       iz4 because N --split            move the reason folded into invariant
                                            N's own text under BECAUSE;
                                            'iz4 because --split' does every one
+      iz4 review [RANGE] [--staged]    review a change against the invariants:
+                                           which ones it touches (offline), then
+                                           your agent's assessment and any
+                                           invariant the change reveals, for you
+                                           to approve (--offline: no agent;
+                                           --strict: exit 1 on a conflict;
+                                           --for-push: what is about to be pushed;
+                                           --install-hook [--force]: advisory
+                                           pre-push hook)
       iz4 suggest                      ask an agent (IZ4_AGENT_CMD, default
                                            'claude -p') for a few candidate
                                            invariants, then review them
@@ -453,6 +463,55 @@ multi MAIN('migrate', Str $file?, Str :$for-who, Str :$keep, Bool :$dry-run = Fa
         say "Next: read each invariant and ask whether you would regret not telling the people";
         say "rebuilding it. Keep those, give each a BECAUSE, and move the rest out.";
         0;
+    }
+}
+
+# ------------------------------------------------------------ review
+
+multi MAIN('review', *@range, Str :$file, Bool :$staged = False, Bool :$for-push = False,
+           Bool :$offline = False, Bool :$strict = False, Bool :$install-hook = False, Bool :$force = False) {
+    attempt {
+        my $path = resolve-target($file);
+        if $install-hook {
+            say "pre-push hook: {install-hook($path, :$force)} (advisory; set IZ4_REVIEW_STRICT=1 to make it block on a conflict)";
+            return 0;
+        }
+        my $doc = check-doc($path);
+        user-error("fix the errors 'iz4 check' reports before reviewing") if $doc.errors;
+        my ($diff, $what) = change-diff($path, |($for-push ?? (push-range($path),) !! @range), :$staged);
+        .say for offline-report($doc, $diff, :$what);
+        return 0 unless $diff.trim;
+        return 0 if $offline;
+
+        my $review = try agent-review($path, :$diff, :$what);
+        without $review {
+            say "No agent review: {$!.message.lines.head} (IZ4_AGENT_CMD names your agent; --offline skips this).";
+            return 0;
+        }
+        say '';
+        .say for assessment-lines($review, $doc);
+        my $conflicts = $review<assessments>.grep(*<level> eq 'conflicting').elems;
+
+        if $review<candidates> {
+            for $review<candidates>.list -> %c {
+                say '';
+                say "Candidate invariant ({%c<class>.lc}): {%c<text>}";
+                say "  BECAUSE {%c<because>}" if %c<because>;
+                say "  Evidence that would show it holds: {%c<evidence>}" if %c<evidence>;
+                if interactive() {
+                    my $answer = (ask('Consider it? [Y/n/q] ') // 'q').trim.lc;
+                    last if $answer.starts-with('q');
+                    next if $answer.starts-with('n');
+                    coach-into($path, :candidate(%c<text>), :suggested-because(%c<because>));
+                }
+            }
+            say "Nothing was added. Add one with 'iz4 add' if you agree." unless interactive();
+        }
+        say '';
+        say $conflicts
+            ?? "A conflict is the agent's reading of the diff, with its evidence above; you decide."
+            !! "No conflict reported. That is one reading of the diff, not a proof.";
+        $strict && $conflicts ?? 1 !! 0;
     }
 }
 

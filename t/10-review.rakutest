@@ -1,0 +1,126 @@
+# Reviewing a change against the invariants: the offline layer says only
+# what it can see, the agent layer is an opinion with evidence, and no
+# candidate becomes an invariant without a person.
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+use IZ4::Document;
+use IZ4::Review;
+
+%*ENV<IZ4_INTERACTIVE>:delete;
+
+# ---- offline: an invariant's own words in the change --------------------
+my $doc = IZ4::Document.parse(q:to/END/);
+    IZ4
+
+    IS FOR WHAT
+    Keeping a jewellery bench stocked and its prices honest.
+
+    IS FOR WHO
+    Makers.
+
+    INVARIANT 5
+    A live shop price changes only by human decision; a proposal is only a
+    proposal until a person approves it.
+
+    BECAUSE
+    A quiet price cut is a decision nobody made.
+
+    INVARIANT 6
+    Stock only goes up when a person has seen the goods; a parcel's arrival is
+    not receipt of stock.
+    END
+my $price-diff = "diff --git a/lib/Price.pm b/lib/Price.pm\n--- a/lib/Price.pm\n+++ b/lib/Price.pm\n@@ -1 +1,2 @@\n sub price \{ \}\n+sub push_price_to_shop \{ send(proposal) \}  # no approval\n";
+my @t = touched-invariants($doc, $price-diff);
+is @t».<number>, (5,), 'a change using an invariant\'s words touches that invariant';
+ok @t[0]<terms> ⊇ <price shop>, 'and says which words matched';
+my @none = touched-invariants($doc, "--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-Hello\n+Hello there\n");
+is @none.elems, 0, 'a change sharing no words touches nothing';
+ok touched-invariants($doc, "--- a/t/x.t\n+++ b/t/parcel-receipt.t\n@@ -0,0 +1 @@\n+ok 1\n")».<number> eqv (6,),
+    'file names count too';
+ok invariant-terms('Prices are printed and reprinted.') ⊇ <price print>, 'terms are stemmed so prices meets price';
+my @report = offline-report($doc, $price-diff, :what('the change'));
+like @report.join("\n"), /'touches, by its own words, Invariant 5' .* 'BECAUSE A quiet price cut'/, 'the report shows the invariant and its reason';
+like @report[*-1], /'nothing here says the change keeps or breaks'/, 'and claims nothing more';
+is offline-report($doc, '', :what('nothing'))[0], 'Nothing to review: no change in nothing.', 'an empty diff is said plainly';
+
+# ---- the agent reply: honesty vocabulary, capped candidates -------------
+my %r = parse-review(q:to/END/);
+    INVARIANT 5 | conflicting | lib/Price.pm pushes a proposal with no approval
+    INVARIANT 6 | apparently consistent | nothing touches stock
+    INVARIANT 9 | probably fine | not a real level
+    CANDIDATE | STRONG | A price never reaches the shop without its calculation. | BECAUSE: a wrong price sells at a loss | EVIDENCE: a test rejecting a push with no calculation id
+    CANDIDATE | POSSIBLE | Stock is received only by a person. | BECAUSE: parcels are not stock | EVIDENCE: ask the owner
+    CANDIDATE | STRONG | A third one. | BECAUSE: too many | EVIDENCE: none
+    chatter the model added
+    END
+is %r<assessments>».<level>, <conflicting apparently-consistent>, 'assessments use the five honesty levels; others are dropped';
+is %r<assessments>[0]<number>, 5, 'the invariant number is kept';
+is %r<candidates>.elems, 2, 'candidates are capped at two';
+is %r<candidates>[0]<because>, 'a wrong price sells at a loss', 'a candidate carries its BECAUSE';
+is %r<candidates>[0]<evidence>, 'a test rejecting a push with no calculation id', 'and the evidence that would show it holds';
+like review-prompt(effective => 'x', diff => 'y').words.join(' '), /'Say' \s* "'uncertain'" \s* 'rather than guess'/, 'the prompt asks for uncertainty over guessing';
+like review-prompt(effective => 'x', diff => 'y'), /'None is a fine answer'/, 'and says no candidate is a fine answer';
+like review-prompt(effective => 'x', diff => 'y').words.join(' '), /'Never invent intent'/, 'and never to invent intent';
+
+# ---- the command, in a repository ------------------------------------------
+if have-git() {
+    my $repo = temp-dir;
+    sub g(*@a) { run 'git', '-C', $repo.Str, |@a, :out, :err }
+    g('init', '-q'); g('config', 'user.email', 't@t'); g('config', 'user.name', 'T');
+    my $iz4 = minimal-iz4(:dir($repo));
+    add-invariant($iz4, 'A live shop price changes only by human decision.', :because('A quiet price cut is a decision nobody made.'));
+    $repo.add('lib').mkdir;
+    $repo.add('lib/Price.pm').spurt("sub price \{ \}\n");
+    g('add', '-A'); g('commit', '-qm', 'init');
+    $repo.add('lib/Price.pm').spurt("sub price \{ \}\nsub push_price_to_shop \{ send(proposal) \}\n");
+
+    my ($rc, $out, $err) = iz4($repo, 'review', '--offline');
+    is $rc, 0, 'review --offline exits 0';
+    like $out, /'touches, by its own words, Invariant 5'/, 'and points at the touched invariant';
+    unlike $out, /'agent'/, '--offline never mentions an agent';
+
+    my $reply = $repo.add('reply.txt');
+    $reply.spurt("INVARIANT 5 | conflicting | push_price_to_shop sends a proposal with no approval\nCANDIDATE | STRONG | A price never reaches the shop without its calculation. | BECAUSE: a wrong price sells at a loss | EVIDENCE: a rejecting test\n");
+    %*ENV<IZ4_AGENT_CMD> = "cat {$reply}";
+    ($rc, $out, $err) = iz4($repo, 'review');
+    is $rc, 0, 'a conflict does not fail the review by default';
+    like $out, /"agent's assessment (an opinion with evidence, not a proof)" .* 'Invariant 5' \s+ 'conflicting'/, 'the assessment is shown as an opinion';
+    like $out, /'Candidate invariant (strong): A price never reaches the shop' .* 'Nothing was added'/, 'a candidate is shown, not added';
+    nok $iz4.slurp.contains('calculation'), 'the file is untouched without a person';
+    like $out, /"A conflict is the agent's reading"/, 'the closing line keeps it an opinion';
+    ($rc, $out, $err) = iz4($repo, 'review', '--strict');
+    is $rc, 1, '--strict exits 1 on a conflict';
+
+    ($rc, $out, $err) = iz4-talk($repo, "y\ny\n\ny\n", 'review');
+    like $out, /'Added INVARIANT 6'/, 'on a terminal the candidate goes through the coach and is added on a yes';
+    like $iz4.slurp, /'INVARIANT 6' \n 'A price never reaches the shop without its calculation.' \n\n 'BECAUSE' \n 'A wrong price sells at a loss'/,
+        'with the suggested BECAUSE';
+
+    %*ENV<IZ4_AGENT_CMD> = 'false';
+    ($rc, $out, $err) = iz4($repo, 'review');
+    is $rc, 0, 'a failing agent leaves the offline review standing';
+    like $out, /'No agent review'/, 'and says so';
+
+    g('add', '-A'); g('commit', '-qm', 'change');
+    ($rc, $out, $err) = iz4($repo, 'review', 'HEAD', '--offline');
+    like $out, /'Reviewed commit HEAD'/, 'a single revision reviews that commit';
+    ($rc, $out, $err) = iz4($repo, 'review', '--for-push', '--offline');
+    like $out, /'Reviewed ' <xdigit>+ '..HEAD'/, 'for-push with no upstream reviews the last few commits';
+
+    ($rc, $out, $err) = iz4($repo, 'review', '--install-hook');
+    like $out, /'pre-push hook: installed'/, 'the hook installs';
+    my $hook = $repo.add('.git/hooks/pre-push');
+    ok $hook.f && $hook.slurp.contains('iz4 review --for-push; exit 0'), 'and is advisory';
+    ($rc, $out, $err) = iz4($repo, 'review', '--install-hook');
+    like $out, /'unchanged'/, 'installing twice is harmless';
+    $hook.spurt("#!/bin/sh\necho mine\n");
+    ($rc, $out, $err) = iz4($repo, 'review', '--install-hook');
+    ok $rc == 1 && $err.contains('--force') && $hook.slurp.contains('mine'), 'someone else\'s hook is never replaced silently';
+}
+else {
+    skip 'git not available', 21;
+}
+
+done-testing;

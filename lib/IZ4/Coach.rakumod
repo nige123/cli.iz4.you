@@ -345,7 +345,9 @@ sub coach-invariant(
         return %( outcome => 'not-iz4', advice => 'the README, tests or developer documentation' );
     }
 
+    # the suggestion is shown exactly as it would be written
     my $hint = ($suggested-because // '').trim;
+    $hint = $hint.substr(0, 1).uc ~ $hint.substr(1) if $hint ne '';
     my $because = answer("BECAUSE: why must this survive? How does it matter to $who, or to $what?"
         ~ ($hint ne '' ?? "\n(enter to use the suggestion: $hint)" !! '') ~ "\n> ");
     $because = $hint if $because eq '' && $hint ne '';

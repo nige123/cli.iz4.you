@@ -98,6 +98,8 @@ sub github-workflow(--> Str) is export {
         continue-on-error: true   # advisory: never blocks a release
         steps:
           - uses: actions/checkout@v4
+            with:
+              fetch-depth: 0      # so iz4 review can see the pushed commits
           - uses: actions/cache@v4
             with:
               path: |
@@ -108,6 +110,10 @@ sub github-workflow(--> Str) is export {
           - run: ~/.local/bin/iz4 report --release "$GITHUB_REF_NAME" --run-id "$GITHUB_RUN_ID"
             env:
               S2R_TOKEN: ${{ secrets.S2R_TOKEN }}
+          # Which invariants the pushed commits touch, by their own words.
+          # Offline and advisory; it never says a change keeps or breaks one.
+          - run: ~/.local/bin/iz4 review "${{ github.event.before }}..${{ github.sha }}" --offline || true
+            if: github.event.before != '0000000000000000000000000000000000000000'
     YAML
 }
 

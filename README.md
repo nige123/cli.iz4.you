@@ -211,6 +211,44 @@ an invariant. It proposes a few, strongest first, and each one goes through
 the same questions before anything is added. Where the answer depends on
 product intent, you get the question to ask, not an invented answer.
 
+## Reviewing a change
+
+```text
+$ iz4 review
+Reviewed working tree against HEAD: 2 files changed, against Invariants 0-10.
+This change touches, by its own words, Invariant 7, 8. Look at each before you push:
+  Invariant 8: A live shop price changes only by human decision. A proposal is only ever a proposal until...
+    matched: approval, price, push, shop
+Offline: nothing here says the change keeps or breaks an invariant; only a person or a review can.
+
+The agent's assessment (an opinion with evidence, not a proof):
+  Invariant 8                conflicting            lib/Price.pm adds push_to_shop sending a proposal with no approval
+  Invariant 7                uncertain              the diff does not show whether the pushed price carries its calculation
+
+Candidate invariant (strong): A price never reaches the shop without the calculation that produced it.
+  BECAUSE A confidently wrong price sells work at a loss.
+  Evidence that would show it holds: a test that rejects a push with no calculation id
+Consider it? [Y/n/q]
+```
+
+Two layers. The offline one reads the diff and says which invariants it
+touches, by their own words turning up in the changed lines, and claims
+nothing more. The agent layer hands the diff and the effective invariants to
+your own agent command (`IZ4_AGENT_CMD`, default `claude -p`; on your
+machine, on your account) and asks for two things: an assessment of each
+invariant the change could affect, in the five honesty levels, with the
+lines it relied on; and, only when the change reveals enduring intent the
+IZ4 does not yet state, at most two candidate invariants, each with a
+BECAUSE and the evidence that would show it holds. A candidate goes through
+the same coaching as `iz4 add`, and nothing is written without your yes.
+
+`iz4 review` takes a commit, a range or `--staged`; `--offline` skips the
+agent; `--strict` exits 1 on a reported conflict. `iz4 review --install-hook`
+writes an advisory pre-push hook that reviews what you are about to push,
+and the workflow `iz4 register --github` writes runs the offline review on
+every push. A conflict is the agent's reading of the diff, shown with its
+evidence: you decide.
+
 ## Commands
 
 ```text
@@ -222,6 +260,9 @@ iz4 add for-what|for-who TEXT    set IS FOR WHAT or IS FOR WHO (--replace)
 iz4 because N WHY                say why invariant N must survive
 iz4 because [N] --split          move a reason folded into the invariant's
                                    own text under BECAUSE
+iz4 review [RANGE|--staged]      which invariants a change touches, your agent's
+                                   assessment, and any invariant it reveals
+                                   (--offline, --strict, --for-push, --install-hook)
 iz4 suggest                      a few candidate invariants from an agent, reviewed
 iz4 invariants [FILE]            the effective invariants: inherited 0-4 plus yours
 iz4 show [FILE] [PART]           the file, or for-what, for-who or invariants
@@ -418,7 +459,8 @@ evidence, so embedding it claims nothing the card cannot back.
 - The format and the tool are useful on their own, with no service attached.
   The file belongs to your project.
 - Offline by default. The only network calls are the register commands you
-  ask for, and the agent behind `iz4 suggest` if you use it.
+  ask for, and your own agent command behind `iz4 suggest` and `iz4 review`
+  if you use it.
 - History comes from Git, not from a versioning scheme we invented.
 - A check reports what it verified and says plainly what it cannot.
 
