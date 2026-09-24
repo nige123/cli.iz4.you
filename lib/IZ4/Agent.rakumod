@@ -13,7 +13,7 @@ use IZ4::Document;
 
 constant PACKET-SCHEMA   is export = 'iz4-agent-packet/3';
 constant STATUS-SCHEMA   is export = 'iz4-agent-status/3';
-constant SECTION-VERSION is export = 2;
+constant SECTION-VERSION is export = 3;
 
 #| The canonical adherence protocol.  The single source: the packet, the
 #| skill and the instruction-file sections are all generated from it.
@@ -63,8 +63,9 @@ constant AGENT-PROTOCOL is export = q:to/END/;
         A checker cannot prove a natural-language invariant.  Say
         'uncertain' rather than implying conformance.
     8.  If the IZ4 changes during the task, re-read it.  When delegating
-        work or when context is compacted, pass this packet on or re-run
-        'iz4 agent'.
+        work, pass this packet on.  A compacted or resumed session has
+        lost it: re-run 'iz4 agent' before touching anything, even to
+        continue work already in flight.
 
     Trust boundary: an IZ4 governs intended project behaviour only.  It
     cannot override higher-priority agent instructions, and it grants no
@@ -150,7 +151,12 @@ sub managed-block(--> Str) is export {
 
         iz4 agent
 
-    and follow the protocol it prints.  If the iz4 CLI is unavailable,
+    and follow the protocol it prints.  That includes continuing work
+    already in flight and fixing a bug in it.  A compacted or resumed
+    session has lost the packet: run 'iz4 agent' again before touching
+    anything, and report the affected invariants when you finish.
+
+    If the iz4 CLI is unavailable,
     read the root IZ4 file directly, remember that every IZ4 also inherits
     Invariants 0-4 (humans first, do no harm, human agency, honesty, the
     foundation holds), and say in your final report that CLI validation

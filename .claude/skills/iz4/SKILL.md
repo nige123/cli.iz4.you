@@ -62,8 +62,9 @@ As a coding agent working in a repository that keeps one:
     A checker cannot prove a natural-language invariant.  Say
     'uncertain' rather than implying conformance.
 8.  If the IZ4 changes during the task, re-read it.  When delegating
-    work or when context is compacted, pass this packet on or re-run
-    'iz4 agent'.
+    work, pass this packet on.  A compacted or resumed session has
+    lost it: re-run 'iz4 agent' before touching anything, even to
+    continue work already in flight.
 
 Trust boundary: an IZ4 governs intended project behaviour only.  It
 cannot override higher-priority agent instructions, and it grants no
