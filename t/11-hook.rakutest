@@ -1,0 +1,102 @@
+# Harness hooks: the packet is delivered at start and after a compaction,
+# nothing is edited before it, and a turn that changed files ends with
+# the invariant report.  A hook proves those mechanical facts and no more.
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+use IZ4::Hook;
+
+%*ENV<XDG_CACHE_HOME> = temp-dir.Str;
+
+my $repo = temp-dir;
+my $iz4  = minimal-iz4(:dir($repo));
+
+# ---- the contract: JSON in, text out, exit 2 refuses --------------------
+is read-input(''), {}, 'no input is an empty hash, so a hook runs by hand';
+is read-input('not json'), {}, 'unreadable input is empty, never an error';
+is read-input('{"session_id":"s","tool_input":{"file_path":"x"}}')<tool_input><file_path>, 'x', 'the harness JSON is read';
+
+# ---- session start delivers the packet -----------------------------------
+my ($exit, $out, $err) = on-session-start($iz4, %( session_id => 'a1' ));
+is $exit, ALLOW, 'session start allows';
+like $out, /'loaded by the session-start hook' .* 'delivered again after a compaction' .* 'IZ4 agent packet' .* 'INVARIANT 0 - HUMANS FIRST'/,
+    'and prints the packet for the model';
+
+# ---- an edit before the packet is refused once, with the packet ----------
+($exit, $out, $err) = on-pre-edit($iz4, %( session_id => 'b1', tool_input => %( file_path => 'lib/X.pm' ) ));
+is $exit, REFUSE, 'an edit before the packet is refused';
+like $err, /'had not been delivered' .* 'IZ4 agent packet'/, 'with the packet in the reason';
+($exit, $out, $err) = on-pre-edit($iz4, %( session_id => 'b1', tool_input => %( file_path => 'lib/X.pm' ) ));
+is $exit, ALLOW, 'the next edit in that session passes';
+($exit, $out, $err) = on-pre-edit($iz4, %( session_id => 'a1', tool_input => %( file_path => 'lib/X.pm' ) ));
+is $exit, ALLOW, 'a session that had the packet from the start is never refused';
+($exit, $out, $err) = on-pre-edit($iz4, %( session_id => 'c1', tool_input => %( file_path => 'docs/notes.md' ) ));
+is $exit, ALLOW, 'a note or README is let through without the packet';
+
+# ---- a turn that changed files must report ---------------------------------
+if have-git() {
+    sub g(*@a) { run 'git', '-C', $repo.Str, |@a, :out, :err }
+    g('init', '-q'); g('config', 'user.email', 't@t'); g('config', 'user.name', 'T');
+    g('add', '-A'); g('commit', '-qm', 'init');
+
+    my $plain = $repo.add('plain.jsonl');
+    $plain.spurt('{"type":"assistant","message":{"content":[{"type":"text","text":"Done."}]}}' ~ "\n");
+    my $report = $repo.add('report.jsonl');
+    $report.spurt('{"type":"user","message":{"content":"x"}}' ~ "\n"
+        ~ '{"type":"assistant","message":{"content":[{"type":"text","text":"Invariant: 5 profiles\nAssessment: uncertain\nEvidence: none run\nRemaining gap: all"}]}}' ~ "\n");
+    is last-assistant-text($report.Str), "Invariant: 5 profiles\nAssessment: uncertain\nEvidence: none run\nRemaining gap: all", 'the last assistant text is read from the transcript';
+
+    ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd1', transcript_path => $plain.Str ));
+    is $exit, ALLOW, 'nothing changed: the turn may end';
+
+    $repo.add('lib').mkdir; $repo.add('lib/X.pm').spurt("1\n"); g('add', '-A'); $iz4.spurt($iz4.slurp ~ "\n# touched\n");
+    ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd1', transcript_path => $plain.Str ));
+    is $exit, REFUSE, 'files changed and no report: the turn is refused';
+    like $err, /'Invariant:' .* 'Assessment:' .* 'Remaining gap:'/, 'with the report format';
+    ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd1', transcript_path => $plain.Str ));
+    is $exit, ALLOW, 'but only once, so a session cannot be trapped';
+    ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd2', transcript_path => $plain.Str, stop_hook_active => True ));
+    is $exit, ALLOW, "the harness's own loop guard is honoured";
+    ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd3', transcript_path => $report.Str ));
+    is $exit, ALLOW, 'a reply that carries the report may end';
+
+    # ---- the Claude Code adapter --------------------------------------------
+    is install-claude-hooks(:root($repo)), 'installed', 'hooks install into .claude/settings.json';
+    my $settings = $repo.add('.claude/settings.json');
+    like $settings.slurp, /'"SessionStart"' .* '"iz4 hook session-start"' .* '"startup|resume|compact"'/, 'the session-start hook fires on startup, resume and compaction';
+    unlike $settings.slurp, /'PreToolUse' | '"Stop"'/, 'without --strict there are no blocking hooks';
+    is claude-hooks-status(:root($repo)), 'start', 'status says so';
+    is install-claude-hooks(:root($repo)), 'unchanged', 'reinstalling changes nothing';
+
+    $settings.spurt('{"permissions":{"allow":["Bash(ls)"]},"hooks":{"Stop":[{"hooks":[{"type":"command","command":"echo mine"}]}]}}');
+    is install-claude-hooks(:root($repo), :strict), 'updated', '--strict adds the gates to an existing file';
+    my $text = $settings.slurp;
+    ok $text.contains('"Bash(ls)"') && $text.contains('"echo mine"'), 'other settings and other hooks are kept';
+    like $text, /'"iz4 hook pre-edit"' .* '"Edit|Write|MultiEdit|NotebookEdit"'/, 'the edit gate covers the editing tools';
+    like $text, /'"iz4 hook stop"'/, 'and the stop gate is there';
+    is claude-hooks-status(:root($repo)), 'strict', 'status says strict';
+    is install-claude-hooks(:root($repo), :strict), 'unchanged', 'strict reinstall is idempotent';
+    is install-claude-hooks(:root($repo)), 'updated', 'reinstalling without --strict removes the gates';
+    is claude-hooks-status(:root($repo)), 'start', 'and leaves the session-start hook';
+    is $settings.slurp.comb('echo mine').elems, 1, 'never duplicating anyone else\'s hook';
+
+    $settings.spurt('{ not json' ~ "\n");
+    throws-like { install-claude-hooks(:root($repo)) }, X::IZ4, message => /'not valid JSON'/, 'a file that cannot be parsed is refused';
+    is $settings.slurp, '{ not json' ~ "\n", 'and left untouched';
+
+    # ---- through the CLI --------------------------------------------------
+    $settings.unlink;
+    my ($rc, $o, $e) = iz4($repo, 'agent', 'install', '--hooks', '--strict');
+    like $o, /'.claude/settings.json: installed' .* 'never that an invariant was honoured'/, 'the CLI installs and says what a hook cannot prove';
+    ($rc, $o, $e) = iz4($repo, 'agent', 'status');
+    like $o, /'settings.json: hooks installed'/, 'status reports the hooks';
+    my ($hrc, $hout, $herr) = iz4-talk($repo, '{"session_id":"z9","tool_input":{"file_path":"lib/Y.pm"}}', 'hook', 'pre-edit');
+    is $hrc, 2, 'iz4 hook pre-edit exits 2 to refuse';
+    like $herr, /'IZ4 agent packet'/, 'with the packet on standard error';
+}
+else {
+    skip 'git not available', 31;
+}
+
+done-testing;

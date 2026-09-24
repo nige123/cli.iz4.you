@@ -273,6 +273,8 @@ iz4 migrate [FILE]               convert a legacy IZ4 to the Is For format
 iz4 log [FILE]                   the Git history of your intent
 iz4 diff [FILE] [REV [REV]]      what changed, working tree by default
 iz4 agent [install|status]       hand the invariants to a coding agent
+iz4 agent install --hooks        Claude Code hooks: the packet at start and after
+                                   compaction (--strict: gate edits and turn end)
 iz4 register / report / badge    connect to the register and submit evidence
 ```
 
@@ -411,6 +413,17 @@ evidence, apparently consistent, uncertain or conflicting.
 protocol and the foundation for places the CLI cannot reach.
 `iz4 agent status --strict` is the version for CI. A packet proves neither
 that an agent read it nor that the software conforms.
+
+A managed section can be ignored, and a compaction summary drops the
+packet. `iz4 agent install --hooks` makes the harness deliver it instead: a
+Claude Code hook prints the packet at session start, on resume and after
+every compaction. `--strict` adds two gates: an edit before the packet has
+been delivered is refused once, with the packet, and a turn that changed
+files cannot end without the per-invariant report. A hook can prove the
+packet was delivered and a report written, never that an invariant was
+honoured. The hooks are one harness-neutral command, `iz4 hook`, with a
+thin Claude Code adapter; [docs/hooks.md](docs/hooks.md) has the contract
+and what other harnesses offer.
 
 ## Register your IZ4
 

@@ -12,7 +12,8 @@
         "IZ4::Register": "lib/IZ4/Register.rakumod",
         "IZ4::Agent": "lib/IZ4/Agent.rakumod",
         "IZ4::Coach": "lib/IZ4/Coach.rakumod",
-        "IZ4::Review": "lib/IZ4/Review.rakumod"
+        "IZ4::Review": "lib/IZ4/Review.rakumod",
+        "IZ4::Hook": "lib/IZ4/Hook.rakumod"
     },
     "depends": [],
     "test-depends": [],

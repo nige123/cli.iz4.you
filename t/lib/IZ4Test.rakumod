@@ -45,7 +45,7 @@ sub iz4-talk(IO::Path $cwd, Str $input, *@args) is export {
     %env<IZ4_INTERACTIVE> = '1';
     my $proc = run |@cmd, |@args, :cwd($cwd.Str), :in, :out, :err, :%env;
     $proc.in.print($input);
-    $proc.in.close;
+    my $ = $proc.in.close;         # sunk, a refusing exit would throw here; the code is read below
     my $out = $proc.out.slurp(:close);
     my $err = $proc.err.slurp(:close);
     $proc.exitcode, $out, $err;

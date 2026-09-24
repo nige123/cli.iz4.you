@@ -9,6 +9,7 @@ use IZ4::Register;
 use IZ4::Agent;
 use IZ4::Coach;
 use IZ4::Review;
+use IZ4::Hook;
 
 my %*SUB-MAIN-OPTS = :named-anywhere;
 $*OUT.out-buffer = False;   # a closed pipe fails at the write, leaving nothing to flush at exit
@@ -67,10 +68,18 @@ sub USAGE() {
       iz4 diff [FILE] [REV [REV]]      Git diff of the IZ4
       iz4 agent [--json]               print the agent packet: the protocol
                                            and the effective invariants
-      iz4 agent install [--claude] [--skill]
+      iz4 agent install [--claude] [--skill] [--hooks [--strict]]
                                          add a managed section to AGENTS.md
                                            (--claude: CLAUDE.md too; --skill:
-                                           the portable skill)
+                                           the portable skill; --hooks: Claude
+                                           Code hooks that deliver the packet at
+                                           start and after a compaction;
+                                           --strict: also refuse an edit before
+                                           the packet, and a turn that changed
+                                           files without the invariant report)
+      iz4 hook session-start|pre-edit|stop
+                                         the harness-neutral hook: JSON in,
+                                           text out, exit 2 to refuse
       iz4 agent status [--json] [--strict]
                                          report spec validity and integration
                                            state (--strict for CI)
@@ -602,16 +611,42 @@ multi MAIN('agent', Bool :$json = False, Str :$file) {
     }
 }
 
-multi MAIN('agent', 'install', Bool :$claude = False, Bool :$skill = False, Str :$file) {
+multi MAIN('agent', 'install', Bool :$claude = False, Bool :$skill = False, Bool :$hooks = False,
+           Bool :$strict = False, Str :$file) {
     attempt {
         my $root = resolve-target($file).parent;
         for 'AGENTS.md', |($claude ?? 'CLAUDE.md' !! Empty) -> $name {
             say "$name: {install-agent-section($root.add($name), :$root)}";
         }
         say "{SKILL-PATH}: {install-skill(:$root)}" if $skill;
-        say "These integrations only encourage adherence in tools that load them.";
+        if $hooks {
+            say "{SETTINGS-PATH}: {install-claude-hooks(:$root, :$strict)} ("
+              ~ ($strict ?? 'session-start, pre-edit and stop hooks: the packet is delivered, nothing is edited before it, and a turn that changed files ends with the invariant report'
+                         !! 'session-start hook: the packet is delivered at start, resume and after a compaction; --strict adds the blocking hooks')
+              ~ ')';
+        }
+        say "These integrations only encourage adherence in tools that load them"
+          ~ ($hooks ?? '; a hook can prove the packet was delivered and a report written, never that an invariant was honoured.' !! '.');
         0;
     }
+}
+
+# ------------------------------------------------------------ hook
+
+#| The harness-neutral hook contract: JSON in, text for the model out,
+#| exit 2 with a reason on standard error to refuse.
+multi MAIN('hook', Str $event where 'session-start' | 'pre-edit' | 'stop', Str :$file) {
+    my %input = read-input($*IN.slurp);
+    my $path = try resolve-target($file);
+    without $path { exit ALLOW }                # no IZ4 here: nothing to insist on
+    my ($exit, $out, $err) = do given $event {
+        when 'session-start' { on-session-start($path, %input) }
+        when 'pre-edit'      { on-pre-edit($path, %input) }
+        when 'stop'          { on-stop($path, %input) }
+    };
+    print $out if $out;
+    note $err.trim-trailing if $err;
+    exit $exit;
 }
 
 multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$file) {
@@ -619,6 +654,7 @@ multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$
         my $path = try resolve-target($file);
         my $root = $path.defined ?? $path.parent !! $*CWD;
         my %s    = agent-status($path, :$root);
+        %s<hooks> = claude-hooks-status(:$root);
         if $json { say json-encode(%s) }
         else {
             if %s<iz4><present> {
@@ -629,6 +665,11 @@ multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$
             }
             else { say 'IZ4: none found in this directory or its parents' }
             say integration-line($_, %s<integrations>{$_}) for 'AGENTS.md', 'CLAUDE.md', SKILL-PATH;
+            say "{SETTINGS-PATH}: " ~ do given %s<hooks> {
+                when 'strict' { 'hooks installed (packet delivered, edits and turn end gated)' }
+                when 'start'  { "session-start hook installed ('iz4 agent install --hooks --strict' adds the gates)" }
+                default       { "no hooks ('iz4 agent install --hooks')" }
+            };
             say %s<note>;
         }
         my $fail = !%s<iz4><present> || !%s<iz4><valid>
