@@ -57,7 +57,7 @@ is install-agent-section($agents, :root($dir)), 'installed', 'fresh install into
 is install-agent-section($agents, :root($dir)), 'unchanged', 'repeat install is idempotent';
 unlike $agents.slurp, /'Private profiles'/, 'project invariants are not copied into instruction files';
 like $agents.slurp, /'Keep the IZ4 small'/, 'the managed section says to keep the IZ4 small';
-like $agents.slurp, /'compacted or resumed session' .* "run 'iz4 agent' again"/, 'the managed section survives compaction and says to re-run';
+like $agents.slurp.words.join(' '), /'compacted or resumed session' .* "run 'iz4 agent' again"/, 'the managed section survives compaction and says to re-run';
 like $agents.slurp, /'inherits' \s+ 'Invariants 0-4'/, 'and names the inherited foundation for agents without the CLI';
 
 my $before = "# My project\n\nHand-written notes stay.\n";

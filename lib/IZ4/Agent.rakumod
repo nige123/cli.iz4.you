@@ -156,11 +156,10 @@ sub managed-block(--> Str) is export {
     session has lost the packet: run 'iz4 agent' again before touching
     anything, and report the affected invariants when you finish.
 
-    If the iz4 CLI is unavailable,
-    read the root IZ4 file directly, remember that every IZ4 also inherits
-    Invariants 0-4 (humans first, do no harm, human agency, honesty, the
-    foundation holds), and say in your final report that CLI validation
-    was not performed.
+    If the iz4 CLI is unavailable, read the root IZ4 file directly,
+    remember that every IZ4 also inherits Invariants 0-4 (humans first,
+    do no harm, human agency, honesty, the foundation holds), and say in
+    your final report that CLI validation was not performed.
 
     Keep the IZ4 small: never add requirements, plans, tasks or
     implementation detail to it.
