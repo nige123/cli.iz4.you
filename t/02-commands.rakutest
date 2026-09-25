@@ -25,7 +25,7 @@ throws-like { set-is-for($path, 'IS FOR WHO', 'Someone else.') }, X::IZ4, messag
 set-is-for($path, 'IS FOR WHO', 'People looking for work, and the employers hiring them.', :replace);
 is check-doc($path).for-who, 'People looking for work, and the employers hiring them.', 'IS FOR WHO replaced';
 my $nowho = temp-dir.add('IZ4');
-$nowho.spurt("IZ4\n\nIS FOR WHAT\nSomething.\n");
+$nowho.spurt("IZ4\n\nIS FOR WHAT?\nSomething.\n");
 set-is-for($nowho, 'IS FOR WHO', 'Somebody.');
 ok check-doc($nowho).ok, 'a missing IS FOR WHO is inserted after IS FOR WHAT';
 
@@ -66,13 +66,13 @@ is show-text($path), $path.slurp, 'show prints the whole file';
 
 # ---- number -------------------------------------------------------------------
 my $num = temp-dir.add('IZ4');
-$num.spurt("IZ4\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n\nINVARIANT\nFirst.\n\nBECAUSE\nWhy one.\n\nINVARIANT 7\nChosen.\n\nINVARIANT\nSecond.\n");
+$num.spurt("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT\nFirst.\n\nBECAUSE\nWhy one.\n\nINVARIANT 7\nChosen.\n\nINVARIANT\nSecond.\n");
 is number-invariants($num), ((9, 8), (18, 9)), 'unnumbered invariants get the next free numbers from 5, in file order';
 is check-doc($num).invariants».number, (8, 7, 9), 'existing numbers are never changed';
 like $num.slurp, /'INVARIANT 8' \n 'First.' \n\n 'BECAUSE' \n 'Why one.'/, 'only the header line changes';
 is number-invariants($num), (), 'a second run has nothing to do';
 my $fresh = temp-dir.add('IZ4');
-$fresh.spurt("IZ4\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n\nINVARIANT\nOnly.\n");
+$fresh.spurt("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT\nOnly.\n");
 is number-invariants($fresh), ((9, 5),), 'with nothing numbered, numbering starts at 5';
 
 # ---- migrate: legacy to Is For, nothing silently lost -------------------------

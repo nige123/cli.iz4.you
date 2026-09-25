@@ -104,8 +104,8 @@ sub template(Str :$for-what!, Str :$for-who! --> Str) is export {
     join "\n",
         ROOT-NAME, '',
         INHERITANCE-COMMENT, '',
-        'IS FOR WHAT', |wrap($for-what.trim, WRAP-WIDTH), '',
-        'IS FOR WHO', |wrap($for-who.trim, WRAP-WIDTH), '';
+        'IS FOR WHAT?', |wrap($for-what.trim, WRAP-WIDTH), '',
+        'IS FOR WHO?', |wrap($for-who.trim, WRAP-WIDTH), '';
 }
 
 #| Create a root IZ4 in $dir.  Refuses to overwrite; refuses empty answers.
@@ -176,8 +176,8 @@ sub project-invariants-text(IZ4::Document $doc --> Str) {
 #| consequential change.
 sub effective-text(IZ4::Document $doc, Str :$name = 'IZ4' --> Str) is export {
     my @out;
-    @out.push: "IS FOR WHAT\n" ~ wrap($doc.for-what // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
-    @out.push: "IS FOR WHO\n"  ~ wrap($doc.for-who  // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
+    @out.push: "IS FOR WHAT?\n" ~ wrap($doc.for-what // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
+    @out.push: "IS FOR WHO?\n"  ~ wrap($doc.for-who  // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
     @out.append: FOUNDATION.map({ invariant-block(.<number>, .<name>, .<text>, .<because>, :note<inherited>) });
     @out.push: project-invariants-text($doc);
     my $collisions = $doc.reserved-collisions;
@@ -252,12 +252,13 @@ sub set-is-for(IO::Path $path, Str $which where 'IS FOR WHAT' | 'IS FOR WHO', St
         user-error("$which is already set; use --replace to replace it")
             if $b.text ne '' && !$replace;
         @lines.splice($b.line, $b.last-line - $b.line, @new);
+        @lines[$b.line - 1] = "$which?";           # asked as a question
     }
     else {
         my $after = do if $which eq 'IS FOR WHO' {
             $doc.blocks.first(*.kind eq 'IS FOR WHAT') andthen .last-line
         } // ($doc.header-line // 0);
-        @lines.splice($after, 0, '', $which, |@new);
+        @lines.splice($after, 0, '', "$which?", |@new);
     }
     $path.spurt(@lines.join("\n") ~ "\n");
     $which;
@@ -460,8 +461,8 @@ sub migrate-text(IO::Path $path, Str :$for-who! --> Hash) is export {
     my $next = max(FIRST-PROJECT-NUMBER, 1 + (@numbered ?? @numbered».number.max + $shift !! FIRST-PROJECT-NUMBER - 1));
 
     my @out = ROOT-NAME, '', INHERITANCE-COMMENT, '',
-        'IS FOR WHAT', |wrap($doc.for-what // '', WRAP-WIDTH), '',
-        'IS FOR WHO', |wrap($for-who.trim, WRAP-WIDTH);
+        'IS FOR WHAT?', |wrap($doc.for-what // '', WRAP-WIDTH), '',
+        'IS FOR WHO?', |wrap($for-who.trim, WRAP-WIDTH);
     my @placed;
     for $doc.invariants -> $inv {
         my $new = $inv.number.defined ?? $inv.number + $shift !! $next++;

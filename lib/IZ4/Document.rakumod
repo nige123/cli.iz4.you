@@ -7,10 +7,10 @@ unit class IZ4::Document;
 #|
 #|     IZ4
 #|
-#|     IS FOR WHAT
+#|     IS FOR WHAT?
 #|     Helping people find work they love to do.
 #|
-#|     IS FOR WHO
+#|     IS FOR WHO?
 #|     People looking for work.
 #|
 #|     INVARIANT 5
@@ -128,7 +128,9 @@ sub invariant-number(Str $t --> Str) is export {
 
 # --------------------------------------------------------------- grammar
 
-#| The four blocks of the format, in canonical order.
+#| The four blocks of the format, in canonical order.  The first two are
+#| questions and are written with their question mark; a file without it
+#| is read, with a warning.
 constant @BLOCKS is export = 'IS FOR WHAT', 'IS FOR WHO', 'INVARIANT', 'BECAUSE';
 
 #| Legacy placeholder gist written by the old 'iz4 init'.
@@ -195,9 +197,10 @@ class Section {
 
 #| A block of the current format.
 class Block {
-    has Str $.kind is required;           # IS FOR WHAT | IS FOR WHO | INVARIANT | BECAUSE | other caps
-    has Str $.label;                      # the text after INVARIANT, if any
-    has Int $.line is required;
+    has Str  $.kind is required;          # IS FOR WHAT | IS FOR WHO | INVARIANT | BECAUSE | other caps
+    has Str  $.label;                     # the text after INVARIANT, if any
+    has Bool $.asked = False;             # written as a question: IS FOR WHAT?
+    has Int  $.line is required;
     has Int $.last-line is rw;
     has Str @.lines;
     method text(--> Str) { @!lines.join(' ').words.join(' ') }
@@ -334,7 +337,7 @@ method !parse() {
 
 # ---------------------------------------------------------- current format
 
-my regex caps-header { ^ <[A..Z]> <[A..Z 0..9 \x20]>* $ }
+my regex caps-header { ^ <[A..Z]> <[A..Z 0..9 \x20]>* '?'? $ }
 
 method !parse-blocks(Int $from) {
     my Block $current;
@@ -355,7 +358,8 @@ method !parse-blocks(Int $from) {
                 self!problem($n, "unexpected second 'IZ4' header");
                 next;
             }
-            $current = Block.new(:kind($line.words.join(' ')), :line($n), :last-line($n));
+            my $asked = $line.ends-with('?');
+            $current = Block.new(:kind($line.subst(/ \s* '?' $ /, '').words.join(' ')), :$asked, :line($n), :last-line($n));
             @!blocks.push: $current;
             next;
         }
@@ -383,6 +387,7 @@ method !validate-blocks() {
                 }
                 else { %seen{$kind} = $b.line }
                 self!problem($b.line, "$kind is empty") if $b.text eq '';
+                self!problem($b.line, "$kind is a question: write it as '$kind?'", :warning) unless $b.asked;
                 if $kind eq 'IS FOR WHAT' { $!for-what = $b.text; $!for-what-line = $b.line }
                 else                      { $!for-who  = $b.text; $!for-who-line  = $b.line }
                 $last-was-invariant = False;

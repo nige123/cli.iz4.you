@@ -54,8 +54,8 @@ sub iz4-talk(IO::Path $cwd, Str $input, *@args) is export {
 #| A minimal current-format IZ4 in a fresh directory.
 sub minimal-iz4(IO::Path :$dir = temp-dir(), Str :$extra = '' --> IO::Path) is export {
     my $path = $dir.add('IZ4');
-    $path.spurt("IZ4\n\nIS FOR WHAT\nHelping people find work they love to do.\n\n"
-        ~ "IS FOR WHO\nPeople looking for work.\n$extra");
+    $path.spurt("IZ4\n\nIS FOR WHAT?\nHelping people find work they love to do.\n\n"
+        ~ "IS FOR WHO?\nPeople looking for work.\n$extra");
     $path;
 }
 

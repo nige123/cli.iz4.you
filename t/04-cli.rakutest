@@ -19,7 +19,7 @@ like $out, /'inherits invariants 0-4' .* 'begin at 5'/, 'init teaches inheritanc
 like $out, /'Add an invariant now? [Y/n]'/, 'and offers to add one';
 unlike $out, /:i 'behaviour' | 'requirement' | 'constraint'/, 'without asking for a specification';
 my $iz4 = $dir.add('IZ4').slurp;
-like $iz4, /'IS FOR WHAT' \n 'Helping people find work they love to do.' \n\n 'IS FOR WHO' \n 'People looking for work.'/,
+like $iz4, /'IS FOR WHAT?' \n 'Helping people find work they love to do.' \n\n 'IS FOR WHO?' \n 'People looking for work.'/,
     'the two answers are the file';
 nok $iz4.contains('INVARIANT'), 'declining the offer leaves a valid two-question IZ4';
 ($rc, $out, $err) = iz4($dir, 'init', '--for-what=x', '--for-who=y');
@@ -127,7 +127,7 @@ is $rc, 1, 'migrating twice is refused';
 # ---- explicit .iz4 documents ------------------------------------------------------
 my $nested = $dir.add('docs');
 $nested.mkdir;
-$nested.add('security.iz4').spurt("IZ4\n\nIS FOR WHAT\nKeeping secrets.\n\nIS FOR WHO\nEveryone with an account.\n\nINVARIANT\nSecrets are never logged.\n");
+$nested.add('security.iz4').spurt("IZ4\n\nIS FOR WHAT?\nKeeping secrets.\n\nIS FOR WHO?\nEveryone with an account.\n\nINVARIANT\nSecrets are never logged.\n");
 ($rc, $out, $err) = iz4($nested, 'check', 'security.iz4');
 is $rc, 0, 'explicit .iz4 checked';
 like $out, /"security.iz4:9: warning: unnumbered INVARIANT"/, 'with the unnumbered warning';
@@ -137,7 +137,7 @@ is ($rc, $out), (0, "Numbered 1 invariant in security.iz4 (Invariant 5)\n"), 'nu
 
 # ---- suggest: few candidates, nothing added without a person ---------------------
 my $sug = temp-dir;
-$sug.add('IZ4').spurt("IZ4\n\nIS FOR WHAT\nJobs.\n\nIS FOR WHO\nJob seekers.\n");
+$sug.add('IZ4').spurt("IZ4\n\nIS FOR WHAT?\nJobs.\n\nIS FOR WHO?\nJob seekers.\n");
 my $reply = $sug.add('reply.txt');
 $reply.spurt((1..47).map({ "STRONG | Behaviour $_ is kept. | because $_ | t/$_.t" }).join("\n")
     ~ "\nPOSSIBLE | Applications are never shared. | Is sharing with partners acceptable?\nIMPLEMENTATION | Uses Mojolicious | README\n");

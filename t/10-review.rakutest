@@ -14,10 +14,10 @@ use IZ4::Review;
 my $doc = IZ4::Document.parse(q:to/END/);
     IZ4
 
-    IS FOR WHAT
+    IS FOR WHAT?
     Keeping a jewellery bench stocked and its prices honest.
 
-    IS FOR WHO
+    IS FOR WHO?
     Makers.
 
     INVARIANT 5

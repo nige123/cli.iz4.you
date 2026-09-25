@@ -3,11 +3,11 @@ IZ4
 # Every IZ4 inherits Invariants 0-4 ('iz4 invariants' shows them).
 # Project invariants begin at 5.
 
-IS FOR WHAT
+IS FOR WHAT?
 Helping people and the agents working with them hold on to the few truths their
 software must never accidentally lose, as it changes and is rewritten.
 
-IS FOR WHO
+IS FOR WHO?
 Developers and project owners, and the coding agents working alongside them.
 
 INVARIANT 5

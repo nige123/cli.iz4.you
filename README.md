@@ -20,10 +20,10 @@ accident.
 ```text
 IZ4
 
-IS FOR WHAT
+IS FOR WHAT?
 Helping people find work they love to do.
 
-IS FOR WHO
+IS FOR WHO?
 People looking for work.
 
 INVARIANT 5
@@ -311,9 +311,10 @@ cannot know. That line stays a question mark, and review against
 
 - The first line is the word `IZ4`.
 - Four kinds of block, each a line in capitals followed by plain text:
-  `IS FOR WHAT`, `IS FOR WHO`, `INVARIANT n` and `BECAUSE`. Text may wrap
+  `IS FOR WHAT?`, `IS FOR WHO?`, `INVARIANT n` and `BECAUSE`. Text may wrap
   over several lines.
-- `IS FOR WHAT` and `IS FOR WHO` are required, once each.
+- `IS FOR WHAT?` and `IS FOR WHO?` are required, once each. They are
+  questions, and the text beneath each is the answer.
 - A `BECAUSE` belongs to the `INVARIANT` directly above it. It is optional in
   the grammar and strongly encouraged in practice: the reason is usually the
   one thing the code cannot tell a future reader.

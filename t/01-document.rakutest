@@ -8,10 +8,10 @@ my $job = q:to/END/;
     IZ4
 
     # comments are for humans
-    IS FOR WHAT
+    IS FOR WHAT?
     Helping people find work they love to do.
 
-    IS FOR WHO
+    IS FOR WHO?
     People looking for work.
 
     INVARIANT 5
@@ -43,23 +43,29 @@ is $doc.invariants[1].because, 'Job seekers should not acquire another unsolicit
     'each BECAUSE attaches to its own invariant';
 is $doc.invariants[0].line, 10, 'invariant line tracked';
 
+# the headers are questions; a file that leaves out the question mark is read, with a warning
+my $unasked = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nSign-in codes.\n\nIS FOR WHO?\nPeople signing in.\n");
+ok $unasked.ok, 'IS FOR WHAT without its question mark still parses';
+is $unasked.for-what, 'Sign-in codes.', 'and is read';
+like $unasked.warnings[0].Str, /"IS FOR WHAT is a question: write it as 'IS FOR WHAT?'"/, 'with a warning saying how to write it';
+
 # minimal files are valid: two answers are a real IZ4
-my $minimal = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nSign-in codes.\n\nIS FOR WHO\nPeople signing in.\n");
+my $minimal = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nSign-in codes.\n\nIS FOR WHO?\nPeople signing in.\n");
 ok $minimal.ok && !$minimal.warnings, 'a two-question IZ4 with no invariants is valid';
 nok $minimal.invariants, 'and has no project invariants of its own';
 
 # BECAUSE is optional at the grammar level
-my $bare = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nx y z\n\nIS FOR WHO\na b c\n\nINVARIANT 5\nSomething holds.\n");
+my $bare = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx y z\n\nIS FOR WHO?\na b c\n\nINVARIANT 5\nSomething holds.\n");
 ok $bare.ok, 'an invariant without BECAUSE is still valid grammar';
 is $bare.unexplained-invariants».number, (5,), 'and is listed as unexplained';
 
 # ---- 0-4 are inherited and reserved ------------------------------------
 
 for 0..4 -> $n {
-    my $override = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n\nINVARIANT $n\nMy own version.\n");
+    my $override = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT $n\nMy own version.\n");
     nok $override.ok, "INVARIANT $n cannot be redefined by a project";
 }
-like IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n\nINVARIANT 2\nNope.\n").errors[0].Str,
+like IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT 2\nNope.\n").errors[0].Str,
     /'reserved' .* 'inherited' .* 'begin at 5'/, 'the refusal explains inheritance';
 is FOUNDATION».<number>, (0, 1, 2, 3, 4), 'the foundation is exactly 0-4';
 is FOUNDATION».<name>, ('HUMANS FIRST', 'DO NO HARM', 'HUMAN AGENCY', 'HONESTY', 'THE FOUNDATION HOLDS'),
@@ -68,34 +74,34 @@ like $doc.foundation-status, /'Invariants 0-4: inherited'/, 'every file inherits
 
 # ---- structural problems -------------------------------------------------
 
-my $dups = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n\nIS FOR WHO\nz\n\nINVARIANT 5\na\n\nINVARIANT 5\nb\n");
+my $dups = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nIS FOR WHO?\nz\n\nINVARIANT 5\na\n\nINVARIANT 5\nb\n");
 like $dups.report.join("\n"), /'IZ4:9: duplicate IS FOR WHO (first at line 6)'/, 'duplicate IS FOR reported';
 like $dups.report.join("\n"), /'duplicate INVARIANT 5 (first at line 12)'/, 'duplicate number reported';
 
-my $orphan = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nx\n\nBECAUSE\nno invariant\n\nIS FOR WHO\ny\n");
+my $orphan = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nBECAUSE\nno invariant\n\nIS FOR WHO?\ny\n");
 like $orphan.errors».Str.join, /'BECAUSE must directly follow the INVARIANT'/, 'a stray BECAUSE is an error';
 
 my $missing = IZ4::Document.parse("IZ4\n\nINVARIANT 5\nSomething.\n");
 like $missing.errors».Str.join("\n"), /'missing IS FOR WHAT' .* 'missing IS FOR WHO'/,
     'both IS FOR answers are required';
 
-my $wordy = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n\nINVARIANT five\nx\n");
+my $wordy = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT five\nx\n");
 like $wordy.errors[0].Str, /'whole number'/, 'INVARIANT needs a whole number';
 
-my $unnumbered = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n\nINVARIANT\nx y z\n");
+my $unnumbered = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT\nx y z\n");
 ok $unnumbered.ok && $unnumbered.warnings[0].Str.contains("'iz4 number'"),
     'an unnumbered INVARIANT is a warning pointing at iz4 number';
 is $unnumbered.next-number, 5, 'the next free number is 5';
 
 # old concepts are kept as unknown blocks, and the warning says where they belong
-my $spec = IZ4::Document.parse("IZ4\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n\nBEHAVIOURS\nSearch shows 20 results.\n");
+my $spec = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nBEHAVIOURS\nSearch shows 20 results.\n");
 ok $spec.ok, 'an unknown block is not an error, so the format can evolve';
 like $spec.warnings[0].Str, /"unknown block 'BEHAVIOURS'" .* 'README, ADRs, tests or issues'/,
     'but the warning steers specification content elsewhere';
 
 like IZ4::Document.parse('').report.join, /'file is empty'/, 'empty file reported';
-like IZ4::Document.parse("IS FOR WHAT\nx\n").report[0], /'expected' .* 'IZ4'/, 'missing header reported';
-ok IZ4::Document.parse("SPOZ2\n\nIS FOR WHAT\nx\n\nIS FOR WHO\ny\n").ok, 'the old SPOZ2 header word is still read';
+like IZ4::Document.parse("IS FOR WHAT?\nx\n").report[0], /'expected' .* 'IZ4'/, 'missing header reported';
+ok IZ4::Document.parse("SPOZ2\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n").ok, 'the old SPOZ2 header word is still read';
 
 # ---- the legacy format is still read ----------------------------------------
 
