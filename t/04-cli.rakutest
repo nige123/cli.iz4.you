@@ -104,26 +104,6 @@ for <behaviour constraint decision> -> $kind {
 ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Sneaky.', '--number=3', '--force');
 ok $rc == 1 && $err.contains('reserved'), 'not even --force can take a number in 0-4';
 
-# ---- legacy files: still read, clearly flagged, migrated on request ---------------
-my $legacy = temp-dir;
-$legacy.add('IZ4').spurt("IZ4\n\ngist:\n    Security intent.\n\nconstraints:\n    - Runs offline.\n\ninvariants:\n    - Invariant 1: Secrets never logged.\n");
-($rc, $out, $err) = iz4($legacy, 'check');
-is $rc, 0, 'a legacy file still passes check';
-like $out, /"✗ format: legacy - 'iz4 migrate'"/, 'and is flagged for migration';
-like $out, /'✗ invariants: 1 use numbers reserved for the foundation'/, 'including its reserved-number collision';
-($rc, $out, $err) = iz4($legacy, 'migrate');
-is $rc, 1, 'migrate from a script needs --for-who';
-($rc, $out, $err) = iz4($legacy, 'migrate', '--for-who=The people whose secrets these are.', '--dry-run');
-ok $rc == 0 && $out.contains('INVARIANT 5'), 'dry run shows the result';
-nok $legacy.add('IZ4.legacy.md').e, 'and writes nothing';
-($rc, $out, $err) = iz4($legacy, 'migrate', '--for-who=The people whose secrets these are.');
-like $out, /'1 -> 5'/, 'migrate reports the renumbering';
-ok $legacy.add('IZ4.legacy.md').slurp.contains('Runs offline.'), 'and keeps what it removed in the companion';
-($rc, $out, $err) = iz4($legacy, 'check');
-unlike $out, /'legacy'/, 'the migrated file is current';
-($rc, $out, $err) = iz4($legacy, 'migrate', '--for-who=x');
-is $rc, 1, 'migrating twice is refused';
-
 # ---- explicit .iz4 documents ------------------------------------------------------
 my $nested = $dir.add('docs');
 $nested.mkdir;

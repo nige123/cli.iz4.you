@@ -1,54 +1,27 @@
 unit class IZ4::Document;
 
 #| IZ4 means Is For.  A file answers three questions and nothing else:
-#| what is this software for, who is it for, and what must remain true
-#| for it to keep serving them.  It is deliberately incomplete: enduring
-#| intent, never everything known about the software.
+#| what is this system for, who is it for, and what must remain true for
+#| it to keep serving them.  It is deliberately incomplete: enduring
+#| intent, never everything known about the system.
 #|
-#|     IZ4
-#|
-#|     IS FOR WHAT?
-#|     Helping people find work they love to do.
-#|
-#|     IS FOR WHO?
-#|     People looking for work.
-#|
-#|     INVARIANT 5
-#|     People control whether their profile is visible.
-#|
-#|     BECAUSE
-#|     Looking for work should not mean surrendering privacy.
+#| The format is specified by IZ4::Grammar and restated in docs/format.md.
+#| This class parses a file with that grammar, keeps what it found, and
+#| judges it: which of the grammar's forgiving productions are errors,
+#| which are warnings, and what the blocks must add up to.
 #|
 #| Every IZ4 inherits the foundation, Invariants 0-4, without repeating
 #| it.  Those numbers are reserved; a project's own invariants begin at 5.
-#|
-#| The earlier format ('gist:', 'invariants:' and friends, indented '- '
-#| entries) is still read, as the legacy dialect, so no existing file
-#| stops working; 'iz4 migrate' converts one explicitly.
+
+use IZ4::Grammar;
 
 # ------------------------------------------------------------ foundation
 
-#| The inherited foundation, Invariants 0-4.  Rewritten on 2026-09-17 from
-#| the single Invariant 0 into five invariants that refer to one another,
-#| each with its BECAUSE, keeping every protection of that text: thriving
-#| and dignity, no disposable people, no harm, humans in charge (explain,
-#| challenge, correct, stop safely), honesty including what is uncertain
-#| or blocked, the safe pause on conflict, and nothing may weaken it.
-#| Written short and in the imperative, so a person or an AI can take
-#| them in at a glance: both 'help people thrive' and 'do no harm'.
-#|
-#| Drafted against Asimov's laws, to work where they fail: the duty to
-#| prevent harm reaches wherever the system affects people and no further
-#| (no inaction clause licensing it to take control of people's lives);
-#| authority comes from the people entitled to decide, not from whoever
-#| gives an order, and content gains none by appearing in its input; the
-#| system never resists being paused or switched off,
-#| where Asimov's third law had it protect itself; each person matters
-#| above any greater good, where his later zeroth law traded people away;
-#| honesty is required; and conflicts end in the smallest reversible step,
-#| a safe pause and an honest report, with the decision handed back to
-#| people.  'System', not 'software': an IZ4 may sit beside any collection
-#| of files.  Stating a rule, or hashing it, does not make software obey it.
+#| The inherited foundation, Invariants 0-4.  Short and in the imperative,
+#| so a person or an AI can take them in at a glance; each cites the
+#| others by number and says why it must survive.  Drafted against
+#| Asimov's laws, to work where they fail (docs/foundation.md).  Stating a
+#| rule, or hashing it, does not make software obey it.
 constant FOUNDATION is export = (
     %( number => 0, name => 'HUMANS FIRST',
        text => "Help people thrive, on their own terms. Respect every person's "
@@ -100,55 +73,11 @@ constant FOUNDATION-TEXT is export =
 constant FOUNDATION-DIGEST is export =
     '9782949420dc1941338b7287e992ed20559447190e4342f94be53ff0bbad560a';
 
-#| The single Invariant 0 text the foundation replaced.  Legacy files
-#| repeat it; it is recognised, never written.
-constant LEGACY-INVARIANT-ZERO is export =
-    "Invariant 0: humans first. Help people thrive, and respect each person's "
-    ~ 'dignity. Do no harm, and no greater good makes a person disposable. Keep '
-    ~ 'humans in charge: explain consequential actions, accept challenge and '
-    ~ 'correction, and stop safely when asked. When an objective conflicts with '
-    ~ 'these protections, preserve them, report the conflict, and safely pause '
-    ~ 'the affected action. Be honest about what this is, what it knows, what '
-    ~ 'it has done, and what remains uncertain or blocked. No other entry may '
-    ~ 'weaken this.';
-constant LEGACY-INVARIANT-ZERO-DIGEST is export =
-    '1af8b123edd8b27afba34c2ee385bb649c6eaed25647e7240f9f26cd440472f3';
-
-#| The designations legacy files use for Invariant 0.
-sub is-invariant-zero-text(Str $t --> Bool) is export {
-    $t.starts-with('Invariant 0:') || $t.starts-with('Invariant 0.0:')
-        || $t.starts-with('Invariant zero:')
-}
-
-#| The explicit number of a legacy invariant entry ('Invariant 3: ...'
-#| gives '3'), or Str when the entry is unnumbered.
-sub invariant-number(Str $t --> Str) is export {
-    $t ~~ /^ 'Invariant ' (\d+) ':' / ?? ~$0 !! Str;
-}
-
-# --------------------------------------------------------------- grammar
+# --------------------------------------------------------------- format
 
 #| The four blocks of the format, in canonical order.  The first two are
-#| questions and are written with their question mark; a file without it
-#| is read, with a warning.
+#| questions and are written with their question mark.
 constant @BLOCKS is export = 'IS FOR WHAT', 'IS FOR WHO', 'INVARIANT', 'BECAUSE';
-
-#| Legacy placeholder gist written by the old 'iz4 init'.
-constant GIST-PLACEHOLDER is export = '<What is this thing supposed to do?>';
-
-#| Legacy sections, in their canonical order, with their kind.
-constant %SECTION-KIND is export =
-    gist        => 'text',
-    behaviours  => 'list',
-    invariants  => 'list',
-    constraints => 'list',
-    decisions   => 'list',
-    direction   => 'list',
-    references  => 'list';
-constant @KNOWN-SECTIONS is export = <gist behaviours invariants constraints decisions direction references>;
-
-#| Default indentation for legacy entries written by this tool.
-constant INDENT is export = '    ';
 
 #| Text written by this tool is wrapped at this width.
 constant WRAP-WIDTH is export = 80;
@@ -165,58 +94,35 @@ class Problem {
     method Str(--> Str) { ($!warning ?? 'warning: ' !! '') ~ $!message }
 }
 
-#| One project invariant, in either dialect.
+#| One project invariant.
 class Invariant {
     has Int $.number;                     # undefined when unnumbered
     has Str $.text    is required;
     has Str $.because;                    # undefined when none given
-    has Int $.line    is required;        # its header (or legacy entry) line
+    has Int $.line    is required;        # its INVARIANT line
     has Int $.because-line;
     has Int $.last-line is rw;            # last line of the INVARIANT block
 }
 
-#| A legacy list entry.
-class Item {
-    has Int $.line is required;
-    has Str $.text is required;
-}
-
-#| A legacy section.
-class Section {
-    has Str  $.name is required;
-    has Int  $.line is required;
-    has Str  $.kind is required;
-    has Int  $.last-line is rw;
-    has Str  $.indent is rw;
-    has Str  @.lines;
-    has Item @.items;
-
-    method text(--> Str)     { @!lines.join("\n") }
-    method is-empty(--> Bool) { !@!lines && !@!items }
-}
-
-#| A block of the current format (named Part: Block is a core type).
+#| A block as written (named Part: Block is a core type).
 class Part {
     has Str  $.kind is required;          # IS FOR WHAT | IS FOR WHO | INVARIANT | BECAUSE | other caps
     has Str  $.label;                     # the text after INVARIANT, if any
     has Bool $.asked = False;             # written as a question: IS FOR WHAT?
     has Int  $.line is required;
-    has Int $.last-line is rw;
-    has Str @.lines;
+    has Int  $.last-line is rw;
+    has Str  @.lines;
     method text(--> Str) { @!lines.join(' ').words.join(' ') }
 }
 
 has Str       $.source is required;
 has IO::Path  $.path;
-has Str       $.dialect;                  # 'iz4' | 'legacy'
-has Str       $.version;                  # legacy trailing header version, read silently
 has Str       $.for-what;
 has Str       $.for-who;
 has Int       $.for-what-line;
 has Int       $.for-who-line;
 has Invariant @.invariants;
 has Part      @.blocks;
-has Section   @.sections;
 has Problem   @.problems;
 has Str       @.lines;
 has Int       $.header-line;
@@ -234,23 +140,12 @@ method parse(Str $source, IO::Path :$path --> IZ4::Document) {
 method errors   { @!problems.grep(!*.warning) }
 method warnings { @!problems.grep(*.warning) }
 method ok(--> Bool) { !self.errors }
-method is-legacy(--> Bool) { $!dialect eq 'legacy' }
-
-# legacy accessors, for tools that still read old files
-method section(Str $name --> Section) { @!sections.first(*.name eq $name) }
-method sections-named(Str $name)      { @!sections.grep(*.name eq $name) }
 
 #| Project invariants with no number, in file order.
 method unnumbered-invariants(--> List) { @!invariants.grep({ !.number.defined }).List }
 
 #| Project invariants with no BECAUSE, in file order.
 method unexplained-invariants(--> List) { @!invariants.grep({ !(.because // '').trim }).List }
-
-#| Project invariants whose number falls in the inherited range 0-4
-#| (only a legacy file can hold one; the current grammar refuses them).
-method reserved-collisions(--> List) {
-    @!invariants.grep({ .number.defined && .number < FIRST-PROJECT-NUMBER }).List
-}
 
 #| The next free project number: never below 5, never reusing one in use.
 method next-number(--> Int) {
@@ -263,27 +158,7 @@ method invariant(Int $n) { @!invariants.first({ (.number // -1) == $n }) }
 
 #| One line saying what this parse established about the foundation.
 method foundation-status(--> Str) {
-    my $digest = FOUNDATION-DIGEST.substr(0, 12);
-    my $base = "Invariants 0-4: inherited from the foundation (sha256 $digest)";
-    return $base unless self.is-legacy;
-    with self!legacy-zero -> $zero {
-        return squish-ws($zero.text) eq squish-ws(LEGACY-INVARIANT-ZERO)
-            ?? "$base; the file repeats the earlier single Invariant 0 text, whose protections the foundation keeps"
-            !! "$base; the file repeats a reworded earlier Invariant 0, and the foundation binds regardless";
-    }
-    $base;
-}
-
-#| True unless a legacy file repeats a reworded Invariant 0.
-method foundation-intact(--> Bool) {
-    return True unless self.is-legacy;
-    my $zero = self!legacy-zero;
-    !$zero.defined || squish-ws($zero.text) eq squish-ws(LEGACY-INVARIANT-ZERO);
-}
-
-method !legacy-zero {
-    my $inv = self.section('invariants');
-    $inv ?? $inv.items.first({ is-invariant-zero-text(.text) }) !! Nil;
+    "Invariants 0-4: inherited from the foundation (sha256 {FOUNDATION-DIGEST.substr(0, 12)})";
 }
 
 #| Problems sorted by line, formatted as "NAME:LINE: message".
@@ -297,82 +172,62 @@ method !problem(Int $line, Str $message, Bool :$warning = False) {
 
 # ----------------------------------------------------------------- parse
 
+#| Parse with IZ4::Grammar, turn every item into a Part or a problem,
+#| then judge what the blocks add up to.
 method !parse() {
     @!lines = $!source.lines;
-    my $header;
-    for @!lines.kv -> $i, $raw {
-        my $line = $raw.trim-trailing;
-        next if $line eq '' || $line.starts-with('#');
-        $header = $i;
-        last;
-    }
-    without $header {
-        self!problem(1, "expected 'IZ4' header (file is empty)");
-        $!dialect = 'iz4';
-        return;
-    }
-    my $first = @!lines[$header].trim-trailing;
-    my $body-from = $header;
-    if $first ~~ /^ ['IZ4' | 'SPOZ2'] [\s+ (\S+)]? $/ {
-        $!version = ~$0 with $0;
-        $!header-line = $header + 1;
-        $body-from = $header + 1;
-    }
+    my $text = $!source.ends-with("\n") || $!source eq '' ?? $!source !! $!source ~ "\n";
+    my $m = IZ4::Grammar.parse($text);
+    my sub line-of($match) { 1 + $text.substr(0, $match.from).comb("\n").elems }
+
+    with $m<header> { $!header-line = line-of($_) }
     else {
-        self!problem($header + 1, "expected 'IZ4' header on the first line");
+        my $first = $m<item>.first({ !.<blank> && !.<comment> });
+        self!problem($first.defined ?? line-of($first) !! 1,
+            $first.defined ?? "expected 'IZ4' header on the first line" !! "expected 'IZ4' header (file is empty)");
     }
 
-    # The dialect follows the first significant line after the header.
-    my $legacy = False;
-    for @!lines[$body-from .. *] -> $raw {
-        my $line = $raw.trim-trailing;
-        next if $line eq '' || $line.starts-with('#');
-        $legacy = so $line ~~ /^ <[a..z]> <[\w\-]>* ':' $/;
-        last;
-    }
-    $!dialect = $legacy ?? 'legacy' !! 'iz4';
-    if $legacy { self!parse-legacy($body-from); self!validate-legacy }
-    else       { self!parse-blocks($body-from); self!validate-blocks }
-}
-
-# ---------------------------------------------------------- current format
-
-my regex caps-header { ^ <[A..Z]> <[A..Z 0..9 \x20]>* '?'? $ }
-
-method !parse-blocks(Int $from) {
-    my Part $current;
-    for @!lines.kv -> $i, $raw {
-        next if $i < $from;
-        my $n    = $i + 1;
-        my $line = $raw.trim-trailing;
-        next if $line eq '';
-        next if $line.starts-with('#');
-
-        if $line ~~ /^ 'INVARIANT' [\s+ (.+)]? $/ {
-            $current = Part.new(:kind<INVARIANT>, :label($0 ?? ~$0 !! Str), :line($n), :last-line($n));
-            @!blocks.push: $current;
-            next;
+    for $m<item>.list -> $i {
+        with $i<block> -> $b {
+            my $k = $b<keyword>;
+            my ($kind, $label, $asked) = do
+                if    $k<for-what>  { 'IS FOR WHAT', Str, ?$k<for-what><asked> }
+                elsif $k<for-who>   { 'IS FOR WHO',  Str, ?$k<for-who><asked> }
+                elsif $k<invariant> { 'INVARIANT', ($k<invariant><label>.defined ?? $k<invariant><label>.Str.trim !! Str), False }
+                else                { 'BECAUSE', Str, False };
+            my $line = line-of($b);
+            my @text = $b<text-line>».Str».trim;
+            @!blocks.push: Part.new(:$kind, :$label, :$asked, :$line, :last-line($line + @text.elems), :lines(@text));
         }
-        if $line ~~ &caps-header {
-            if $line eq 'IZ4' {
-                self!problem($n, "unexpected second 'IZ4' header");
-                next;
+        orwith $i<unknown-block> -> $u {
+            my $line = line-of($u);
+            my @text = $u<text-line>».Str».trim;
+            my $kind = $u<caps-line>.Str.trim.subst(/ \s* '?' $ /, '').words.join(' ');
+            if $kind eq 'IZ4' {
+                self!problem($line, "unexpected second 'IZ4' header");
             }
-            my $asked = $line.ends-with('?');
-            $current = Part.new(:kind($line.subst(/ \s* '?' $ /, '').words.join(' ')), :$asked, :line($n), :last-line($n));
-            @!blocks.push: $current;
-            next;
+            else {
+                @!blocks.push: Part.new(:$kind, :$line, :last-line($line + @text.elems), :lines(@text));
+                self!problem($line, "unknown block '$kind' kept; IZ4 holds only IS FOR WHAT?, IS FOR WHO?, "
+                    ~ "INVARIANT and BECAUSE - {ELSEWHERE}", :warning);
+            }
         }
-        without $current {
-            self!problem($n, "text before any block: start with IS FOR WHAT");
-            next;
+        orwith $i<indented-keyword> -> $w {
+            self!problem(line-of($w), "'{$w<keyword>.Str.trim}' is indented: a block keyword starts at column 0");
         }
-        $current.lines.push: $line.trim;
-        $current.last-line = $n;
+        orwith $i<legacy-section> -> $l {
+            self!problem(line-of($l), "'{$l.Str.trim}' is the earlier IZ4 format (sections like gist: and "
+                ~ "invariants:), which this version no longer reads; the format is now IS FOR WHAT?, "
+                ~ "IS FOR WHO?, INVARIANT n and BECAUSE (docs/format.md); iz4 0.3.0 can convert it with 'iz4 migrate'");
+        }
+        orwith $i<stray> -> $s {
+            self!problem(line-of($s), "text before any block: start with IS FOR WHAT?");
+        }
     }
+    self!validate;
 }
 
-method !validate-blocks() {
+method !validate() {
     my %seen;
     my Invariant $last-invariant;
     my Bool $last-was-invariant = False;
@@ -434,150 +289,13 @@ method !validate-blocks() {
                 }
                 $last-was-invariant = False;
             }
-            default {
-                self!problem($b.line,
-                    "unknown block '$_' kept; IZ4 holds only IS FOR WHAT, IS FOR WHO, "
-                    ~ "INVARIANT and BECAUSE - {ELSEWHERE}", :warning);
-                $last-was-invariant = False;
-            }
+            default { $last-was-invariant = False }
         }
     }
 
     my $end = @!lines.elems max 1;
-    self!problem($end, 'missing IS FOR WHAT: what is this software for?')
+    self!problem($end, 'missing IS FOR WHAT?: what is this system for?')
         unless %seen{'IS FOR WHAT'}:exists;
-    self!problem($end, 'missing IS FOR WHO: who is this software for?')
+    self!problem($end, 'missing IS FOR WHO?: who is this system for?')
         unless %seen{'IS FOR WHO'}:exists;
 }
-
-# ------------------------------------------------------------ legacy format
-
-method !parse-legacy(Int $from) {
-    my Section $current;
-    for @!lines.kv -> $i, $raw {
-        next if $i < $from;
-        my $n    = $i + 1;
-        my $line = $raw.trim-trailing;
-
-        next if $line eq '';
-        next if $line.starts-with('#');
-
-        if $line ~~ /^ (<[\w-]>+) ':' $/ {
-            my $name = ~$0;
-            if self.section($name) -> $dup {
-                self!problem($n, "duplicate section '$name' (first defined at line {$dup.line})");
-            }
-            my $kind = %SECTION-KIND{$name} // 'unknown';
-            $current = Section.new(:$name, :line($n), :$kind, :last-line($n));
-            @!sections.push: $current;
-            next;
-        }
-
-        if $line ~~ /^ \S/ {
-            if $line ~~ /^ 'IZ4' \s/ {
-                self!problem($n, "unexpected second 'IZ4' header");
-            }
-            else {
-                self!problem($n, "unexpected text at column 0: '{$line.substr(0, 40)}' (section headers look like 'name:'; entries are indented)");
-            }
-            next;
-        }
-
-        without $current {
-            self!problem($n, "entry before any section header");
-            next;
-        }
-
-        $current.last-line = $n;
-        my $indent  = $line.match(/^ \s+/).Str;
-        my $content = $line.trim-leading;
-        $current.indent //= $indent;
-
-        if $current.kind eq 'text' {
-            $current.lines.push: $content;
-            next;
-        }
-
-        if $content ~~ /^ '-' [\s+ (.*)]? $/ {
-            my $text = $0 ?? $0.Str.trim !! '';
-            self!problem($n, "empty entry in section '{$current.name}'") if $text eq '';
-            $current.items.push: Item.new(:line($n), :$text);
-        }
-        elsif $current.items {
-            my $last = $current.items.pop;
-            $current.items.push: Item.new(:line($last.line), :text($last.text ~ ' ' ~ $content));
-        }
-        elsif $current.kind eq 'list' {
-            self!problem($n, "expected a '- ' entry in section '{$current.name}'");
-        }
-        else {
-            $current.lines.push: $content;
-        }
-    }
-}
-
-method !validate-legacy() {
-    self!problem($!header-line // 1,
-        "legacy format, still read: IZ4 now holds only IS FOR WHAT, IS FOR WHO, "
-        ~ "INVARIANT and BECAUSE ('iz4 migrate' converts it)", :warning);
-
-    my @gists = self.sections-named('gist');
-    if !@gists {
-        self!problem(@!lines.elems max 1, "missing 'gist:' section");
-    }
-    else {
-        my $gist = @gists[0];
-        my $text = $gist.text.trim;
-        if $text eq '' {
-            self!problem($gist.line, "gist is empty");
-        }
-        elsif $text eq GIST-PLACEHOLDER {
-            self!problem($gist.line, "gist is still the placeholder from 'iz4 init'");
-        }
-        else {
-            $!for-what = $text.words.join(' ');
-            $!for-what-line = $gist.line;
-        }
-    }
-
-    for @!sections -> $s {
-        next if %SECTION-KIND{$s.name}:exists;
-        self!problem($s.line, "unknown section '{$s.name}'", :warning);
-    }
-
-    my $inv = self.section('invariants') // return;
-    with self!legacy-zero -> $zero {
-        if squish-ws($zero.text) ne squish-ws(LEGACY-INVARIANT-ZERO) {
-            self!problem($zero.line,
-                'Invariant 0 text differs from the earlier canonical wording '
-                ~ '(the foundation, Invariants 0-4, binds regardless)', :warning);
-        }
-    }
-
-    my %first-line;
-    for $inv.items -> $item {
-        next if is-invariant-zero-text($item.text);
-        my $n    = invariant-number($item.text);
-        my $text = $item.text.subst(/^ 'Invariant ' \d+ ':' \s*/, '');
-        my ($claim, $because) = $text.split(/\s+ 'Because:' \s+/, 2);
-        @!invariants.push: Invariant.new(
-            :number($n.defined ?? +$n !! Int), :text($claim), :because($because // Str),
-            :line($item.line), :last-line($item.line));
-        without $n {
-            self!problem($item.line, "unnumbered invariant ('iz4 number' gives every invariant a number)", :warning);
-            next;
-        }
-        if %first-line{$n}:exists {
-            self!problem($item.line, "duplicate invariant number '$n' (first used at line {%first-line{$n}})");
-        }
-        else { %first-line{$n} = $item.line }
-        if +$n < FIRST-PROJECT-NUMBER {
-            self!problem($item.line,
-                "Invariant $n uses a number now reserved for the inherited foundation (0-4); "
-                ~ "'iz4 migrate' renumbers project invariants from 5", :warning);
-        }
-    }
-}
-
-#| Whitespace-insensitive comparison for canonical text.
-my sub squish-ws(Str $s --> Str) { $s.words.join(' ') }

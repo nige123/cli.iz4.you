@@ -286,7 +286,6 @@ iz4 show [FILE] [PART]           the file, or for-what, for-who or invariants
 iz4 show invariant N             one invariant; 0-4 are the inherited foundation
 iz4 check [FILE]                 ticks for what is true, crosses with remedies
 iz4 number [FILE]                number unnumbered invariants from 5
-iz4 migrate [FILE]               convert a legacy IZ4 to the Is For format
 iz4 update [--check]             bring iz4 to the latest published version
 iz4 log [FILE]                   the Git history of your intent
 iz4 diff [FILE] [REV [REV]]      what changed, working tree by default
@@ -346,17 +345,14 @@ cannot know. That line stays a question mark, and review against
 `iz4 add` appends and leaves your words alone. Your editor is still the main
 tool.
 
-### Older files
+### The grammar
 
-Files in the earlier format (`gist:`, `behaviours:`, `invariants:` and so on)
-still work: every command reads them, and `iz4 check` passes them with a
-cross pointing at `iz4 migrate`. Migration asks who the software is for,
-turns the gist into `IS FOR WHAT`, keeps the invariants, and moves project
-numbers out of 0-4 by the same amount so their order survives, printing the
-mapping. The old format had no BECAUSE, so people folded the reason into the
-invariant's last sentence; where migrate can see that, it moves the sentence
-under BECAUSE, unchanged, and tells you which ones to check. Everything the new format does not hold goes into a companion
-`IZ4.legacy.md`, word for word, for you to move to where it belongs.
+The format is specified by a Raku grammar, `lib/IZ4/Grammar.rakumod`, and
+the parser is that grammar, so the specification and the implementation
+cannot drift. [docs/format.md](docs/format.md) restates it in prose, with
+the table of what is an error and what is a warning. Files in the earlier
+`gist:` and `invariants:` format are no longer read; iz4 0.3.0 was the last
+version that converted them.
 
 ## The inherited foundation: Invariants 0-4
 

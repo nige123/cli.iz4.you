@@ -1,13 +1,14 @@
 {
     "name": "IZ4",
     "description": "iz4: IZ4 means Is For - find the few invariants your software must never accidentally lose",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "auth": "iz4.you",
     "license": "Apache-2.0",
     "perl": "6.d",
     "provides": {
         "IZ4": "lib/IZ4.rakumod",
         "IZ4::Document": "lib/IZ4/Document.rakumod",
+        "IZ4::Grammar": "lib/IZ4/Grammar.rakumod",
         "IZ4::Git": "lib/IZ4/Git.rakumod",
         "IZ4::Register": "lib/IZ4/Register.rakumod",
         "IZ4::Agent": "lib/IZ4/Agent.rakumod",

@@ -91,9 +91,8 @@ do no harm. Nothing was weakened:
 | When an objective conflicts with these protections, preserve them, report the conflict, and safely pause the affected action | 4, widened from objectives to anything |
 | No other entry may weaken this | 4 |
 
-The earlier text is still recognised in older files. `iz4 migrate` removes
-the repeated copy, because the foundation now carries it; a reworded copy is
-kept aside rather than dropped.
+The earlier text lives on only in Git history and in the mapping above; the
+format no longer reads files that repeat it.
 
 ## The digest
 

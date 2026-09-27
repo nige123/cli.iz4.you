@@ -31,7 +31,6 @@ my $job = q:to/END/;
 my $doc = IZ4::Document.parse($job);
 ok $doc.ok, 'the example from the brief is a valid IZ4';
 nok $doc.warnings, 'and draws no warnings';
-is $doc.dialect, 'iz4', 'it is the current format';
 is $doc.for-what, 'Helping people find work they love to do.', 'IS FOR WHAT read';
 is $doc.for-who, 'People looking for work.', 'IS FOR WHO read';
 is $doc.invariants».number, (5, 6), 'project invariants begin at 5';
@@ -101,47 +100,24 @@ like $spec.warnings[0].Str, /"unknown block 'BEHAVIOURS'" .* 'README, ADRs, test
 
 like IZ4::Document.parse('').report.join, /'file is empty'/, 'empty file reported';
 like IZ4::Document.parse("IS FOR WHAT?\nx\n").report[0], /'expected' .* 'IZ4'/, 'missing header reported';
-ok IZ4::Document.parse("SPOZ2\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n").ok, 'the old SPOZ2 header word is still read';
+# ---- the earlier format is refused, with a pointer ------------------------
+my $old = IZ4::Document.parse("IZ4\n\ngist:\n    A small tool.\n\ninvariants:\n    - Invariant 1: X.\n");
+nok $old.ok, 'the earlier gist:/invariants: format is no longer read';
+like $old.errors[0].Str, /"'gist:' is the earlier IZ4 format" .* 'docs/format.md' .* 'iz4 0.3.0'/,
+    'and the error says what the format is now and which version converts';
+nok IZ4::Document.parse("SPOZ2\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n").ok, 'the old SPOZ2 header word is not a header';
 
-# ---- the legacy format is still read ----------------------------------------
+# ---- mistakes the grammar catches by line ---------------------------------------
+my $indented = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT 5\nRule.\n    BECAUSE\n    reason\n");
+nok $indented.ok, 'an indented BECAUSE is an error, never swallowed as text';
+like $indented.errors[0].Str, /"'BECAUSE' is indented" .* 'column 0'/, 'and says where a keyword goes';
+is $indented.errors[0].line, 11, 'at its line';
+is $indented.invariant(5).text, 'Rule.', 'the invariant keeps only its own text';
 
-my $legacy = q:to/END/;
-    IZ4 0.0
-
-    gist:
-        A small tool for testing.
-
-    behaviours:
-        - Does X.
-
-    invariants:
-        - Invariant 0: humans first. Help people thrive, and respect each person's dignity. Do no harm, and no greater good makes a person disposable. Keep humans in charge: explain consequential actions, accept challenge and correction, and stop safely when asked. When an objective conflicts with these protections, preserve them, report the conflict, and safely pause the affected action. Be honest about what this is, what it knows, what it has done, and what remains uncertain or blocked. No other entry may weaken this.
-        - Invariant 1: X must always remain true.
-        - Invariant 7: Y holds. Because: people rely on Y.
-        - Unnumbered rule.
-    END
-
-my $old = IZ4::Document.parse($legacy);
-ok $old.ok, 'a legacy file still parses without errors';
-is $old.dialect, 'legacy', 'and is recognised as legacy';
-like $old.warnings[0].Str, /'legacy format' .* "'iz4 migrate'"/, 'with one warning pointing at migrate';
-is $old.for-what, 'A small tool for testing.', 'the gist stands in for IS FOR WHAT';
-nok $old.for-who.defined, 'a legacy file has no IS FOR WHO';
-is $old.invariants».text, ('X must always remain true.', 'Y holds.', 'Unnumbered rule.'),
-    'the old Invariant 0 is not a project invariant; the rest are';
-is $old.invariants[1].because, 'people rely on Y.', "a legacy 'Because:' is read as BECAUSE";
-is $old.reserved-collisions».number, (1,), 'a legacy number inside 0-4 is found';
-ok $old.warnings».Str.grep(*.contains('now reserved for the inherited foundation')),
-    'and warned about, not refused: existing files keep working';
-ok $old.foundation-intact, 'the earlier canonical Invariant 0 text is recognised';
-is $old.next-number, 8, 'numbering continues after the highest number in use';
-is $old.section('behaviours').items[0].text, 'Does X.', 'legacy sections stay readable';
-
-my $drift = IZ4::Document.parse("IZ4\n\ngist:\n    hi\n\ninvariants:\n    - Invariant 0: humans first. But reworded weakly.\n");
-nok $drift.foundation-intact, 'a reworded Invariant 0 in a legacy file is noticed';
-like $drift.foundation-status, /'binds regardless'/, 'and the foundation binds regardless';
-
-my $bad = IZ4::Document.parse("IZ4 0.0\n\ngist:\n    hi\n\ninvariants:\n    not an item\n    -\nstray\n");
-is $bad.errors».line, (7, 8, 9), 'legacy malformed lines are still reported by line';
+my $stray = IZ4::Document.parse("IZ4\n\nsome prose\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n");
+like $stray.errors[0].Str, /'text before any block'/, 'text outside a block is an error';
+is $stray.errors[0].line, 3, 'at its line';
+ok IZ4::Document.parse("\n# leading comment\nIZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n").ok, 'blank and comment lines may precede the header';
+ok IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny").ok, 'a file without a final newline is read';
 
 done-testing;

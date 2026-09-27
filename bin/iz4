@@ -59,11 +59,6 @@ sub USAGE() {
       iz4 check [FILE]                 tick what is true, cross what needs a
                                            remedy; exit 1 only on errors
       iz4 number [FILE]                number any unnumbered invariant from 5
-      iz4 migrate [FILE]               convert a legacy IZ4 (gist:, invariants:
-                                           ...) to IS FOR / INVARIANT / BECAUSE,
-                                           keeping everything else in a
-                                           companion file (--for-who=...,
-                                           --keep=PATH, --dry-run)
       iz4 log [FILE]                   Git history of the IZ4
       iz4 diff [FILE] [REV [REV]]      Git diff of the IZ4
       iz4 agent [--json]               print the agent packet: the protocol
@@ -176,8 +171,6 @@ sub coach-into(IO::Path $path, Str :$candidate, Str :$suggested-because --> Int)
 multi MAIN('init', Str :$for-what, Str :$for-who, Bool :$agent, Bool :$agents) {
     attempt {
         user-error("IZ4 already exists here; not overwriting") if $*CWD.add('IZ4').e;
-        user-error("a legacy SPOZ2 already exists here; rename it to IZ4 (git mv SPOZ2 IZ4) and run 'iz4 migrate'")
-            if $*CWD.add('SPOZ2').e;
         note "init no longer drafts a specification from the repository; after init, 'iz4 suggest' proposes a few candidate invariants"
             if $agent === True;
         my $talk = interactive();
@@ -232,7 +225,7 @@ multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Int :$numbe
                     without $text;
                 fast-add($path, $text, :$because, :$number, :$force);
             }
-            when 'for-what' | 'what' | 'is-for-what' | 'gist' {
+            when 'for-what' | 'what' | 'is-for-what' {
                 user-error('iz4 add for-what needs the answer: what is this for?') without $text;
                 set-is-for($path, 'IS FOR WHAT', $text, :$replace);
                 say 'Set IS FOR WHAT.';
@@ -358,27 +351,17 @@ multi MAIN('check', Str $file?) {
             $errors == 0
                 ?? "structure: valid" ~ ($warns ?? " ($warns warning{$warns == 1 ?? '' !! 's'} above)" !! '')
                 !! "structure: $errors error{$errors == 1 ?? '' !! 's'} above - fix each line listed");
-        if $doc.is-legacy {
-            @rows.push: ('✗', "format: legacy - 'iz4 migrate' converts it to IS FOR WHAT, IS FOR WHO, INVARIANT and BECAUSE");
-        }
         @rows.push: $doc.for-what.defined
             ?? ('✓', "IS FOR WHAT: {short($doc.for-what)}")
             !! ('✗', "IS FOR WHAT: missing - what is this for? ('iz4 add for-what ...')");
         @rows.push: $doc.for-who.defined
             ?? ('✓', "IS FOR WHO: {short($doc.for-who)}")
-            !! ('✗', "IS FOR WHO: missing - who is this for? "
-                ~ ($doc.is-legacy ?? "('iz4 migrate' asks)" !! "('iz4 add for-who ...')"));
-        @rows.push: $doc.foundation-intact
-            ?? ('✓', $doc.foundation-status)
-            !! ('✗', $doc.foundation-status ~ " - 'iz4 migrate' removes the reworded copy and keeps its words aside");
+            !! ('✗', "IS FOR WHO: missing - who is this for? ('iz4 add for-who ...')");
+        @rows.push: ('✓', $doc.foundation-status);
 
         my $count = $doc.invariants.elems;
-        my @collide = $doc.reserved-collisions».number.sort;
-        my $unnum   = +$doc.unnumbered-invariants;
-        if @collide {
-            @rows.push: ('✗', "invariants: {@collide.join(', ')} use numbers reserved for the foundation (0-4) - 'iz4 migrate' renumbers from 5");
-        }
-        elsif $unnum {
+        my $unnum = +$doc.unnumbered-invariants;
+        if $unnum {
             @rows.push: ('✗', "invariants: $unnum of $count unnumbered - run 'iz4 number'");
         }
         elsif $count {
@@ -387,7 +370,7 @@ multi MAIN('check', Str $file?) {
         else {
             @rows.push: ('✓', "invariants: none of your own yet, which is a fine start ('iz4 add' helps you find one)");
         }
-        if !$doc.is-legacy && $count {
+        if $count {
             my @bare   = $doc.unexplained-invariants;
             my @folded = @bare.grep({ split-reason(.text)[1].defined }).map({ .number // 'unnumbered' });
             my @plain  = @bare.grep({ !split-reason(.text)[1].defined }).map({ .number // 'unnumbered' });
@@ -398,7 +381,7 @@ multi MAIN('check', Str $file?) {
             @rows.push: ('✓', 'BECAUSE: every invariant says why it must survive') unless @bare;
         }
 
-        if $path.basename eq ROOT-NAME | LEGACY-ROOT-NAME {
+        if $path.basename eq ROOT-NAME {
             my $root = $path.parent;
             my %s    = agent-status($path, :$root);
             for expected-integrations(:$root) -> $i {
@@ -433,7 +416,7 @@ sub mark(Str $glyph --> Str) {
     "\e[{$colour}m$glyph\e[0m";
 }
 
-# ------------------------------------------------------------ number / migrate
+# ------------------------------------------------------------ number
 
 multi MAIN('number', Str $file?) {
     attempt {
@@ -448,47 +431,6 @@ multi MAIN('number', Str $file?) {
         else {
             say "$name: every invariant is already numbered";
         }
-        0;
-    }
-}
-
-multi MAIN('migrate', Str $file?, Str :$for-who, Str :$keep, Bool :$dry-run = False) {
-    attempt {
-        my $path = resolve-target($file);
-        my $name = display-name($path);
-        my $doc  = check-doc($path);
-        user-error("$name is already in the current format") unless $doc.is-legacy;
-        my $who = $for-who;
-        without $who {
-            user-error("the current format asks who this is for; pass --for-who=...")
-                unless interactive();
-            say "IS FOR WHAT (from the gist): {short($doc.for-what // '')}";
-            $who = ask-required("Who is it for?\n> ", 'who it is for');
-        }
-        my %m = migrate-text($path, :for-who($who));
-        my $companion = $keep.defined
-            ?? ($keep.IO.is-absolute ?? $keep.IO !! $*CWD.add($keep))
-            !! $path.parent.add($path.basename ~ '.legacy.md');
-        my @moves = %m<mapping>.grep({ .[0].defined && .[0] != .[1] }).map({ "{.[0]} -> {.[1]}" });
-
-        if $dry-run {
-            print %m<text>;
-            say "--- the rest would be kept in {display-name($companion)}";
-            say "--- invariants renumbered: {@moves.join(', ')}" if @moves;
-            say "--- reasons moved under BECAUSE from Invariant {%m<split>.map(*.[0]).join(', ')}" if %m<split>;
-            return 0;
-        }
-        user-error("{display-name($companion)} already exists; pass --keep=PATH to choose another file")
-            if $companion.e;
-        $companion.parent.mkdir;
-        $companion.spurt(%m<companion> ~ "\n");
-        $path.spurt(%m<text>);
-        say "Migrated $name to the Is For format.";
-        say "Invariants renumbered, because 0-4 are now inherited: {@moves.join(', ')}" if @moves;
-        say "Reasons moved under BECAUSE from the text of Invariant {%m<split>.map(*.[0]).join(', ')} - check them" if %m<split>;
-        say "Everything else it held is in {display-name($companion)}, word for word.";
-        say "Next: read each invariant and ask whether you would regret not telling the people";
-        say "rebuilding it. Keep those, give each a BECAUSE, and move the rest out.";
         0;
     }
 }

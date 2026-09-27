@@ -4,7 +4,7 @@ use IZ4::Document;
 use IZ4::Git;
 use IZ4::Coach;
 
-constant VERSION is export = '0.3.0';
+constant VERSION is export = '0.4.0';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -13,9 +13,6 @@ class X::IZ4 is Exception {
 sub user-error(Str $message) { X::IZ4.new(:$message).throw }
 
 constant ROOT-NAME is export = 'IZ4';
-
-#| The legacy root name: read silently, never written.
-constant LEGACY-ROOT-NAME is export = 'SPOZ2';
 
 #| sha256 of a file's exact bytes, via whichever digest tool this system
 #| has - sha256sum (Linux), shasum (macOS/BSD) or openssl - external,
@@ -39,10 +36,8 @@ sub sha256-file(IO::Path $f --> Str) is export {
 sub find-root(IO::Path $start = $*CWD --> IO::Path) is export {
     my $dir = $start.resolve;
     loop {
-        for ROOT-NAME, LEGACY-ROOT-NAME -> $name {
-            my $candidate = $dir.add($name);
-            return $candidate if $candidate.f;
-        }
+        my $candidate = $dir.add(ROOT-NAME);
+        return $candidate if $candidate.f;
         my $parent = $dir.parent;
         return Nil if $parent eq $dir;
         $dir = $parent;
@@ -51,8 +46,7 @@ sub find-root(IO::Path $start = $*CWD --> IO::Path) is export {
 
 #| True when a CLI argument names a IZ4 document rather than a section or revision.
 sub looks-like-file(Str $arg --> Bool) is export {
-    so $arg.ends-with('.iz4') || $arg.ends-with('.spoz2')
-        || $arg.IO.basename eq ROOT-NAME | LEGACY-ROOT-NAME;
+    so $arg.ends-with('.iz4') || $arg.IO.basename eq ROOT-NAME;
 }
 
 #| The document to operate on: an explicit path, or the nearest root IZ4.
@@ -112,8 +106,6 @@ sub template(Str :$for-what!, Str :$for-who! --> Str) is export {
 sub init(IO::Path :$dir = $*CWD, Str :$for-what!, Str :$for-who! --> IO::Path) is export {
     my $path = $dir.add(ROOT-NAME);
     user-error("{ROOT-NAME} already exists here; not overwriting") if $path.e;
-    user-error("a legacy {LEGACY-ROOT-NAME} already exists here; rename it to {ROOT-NAME} (git mv {LEGACY-ROOT-NAME} {ROOT-NAME}) and run 'iz4 migrate'")
-        if $dir.add(LEGACY-ROOT-NAME).e;
     user-error('what is this for? the answer cannot be empty') if $for-what.trim eq '';
     user-error('who is this for? the answer cannot be empty')  if $for-who.trim eq '';
     $path.spurt(template(:$for-what, :$for-who));
@@ -123,7 +115,7 @@ sub init(IO::Path :$dir = $*CWD, Str :$for-what!, Str :$for-who! --> IO::Path) i
 # ---------------------------------------------------------------- show
 
 #| Text of the whole document, or of one part: 'for-what', 'for-who' or
-#| 'invariants' (legacy files also answer to their old section names).
+#| 'invariants'.
 sub show-text(IO::Path $path, Str $part? is copy --> Str) is export {
     my $doc = IZ4::Document.load($path);
     without $part { return $doc.source }
@@ -139,16 +131,7 @@ sub show-text(IO::Path $path, Str $part? is copy --> Str) is export {
             return project-invariants-text($doc);
         }
     }
-    user-error("unknown part '$part'; use for-what, for-who or invariants") unless $doc.is-legacy;
-    my @found = $doc.sections-named($part eq 'behaviour' ?? 'behaviours' !! $part);
-    user-error("no section '$part' in {$path.basename}") unless @found;
-    my @out;
-    for @found -> $s {
-        my @body = $doc.lines[$s.line .. $s.last-line - 1];
-        my $indent = $s.indent // '';
-        @out.append: @body.map({ .starts-with($indent) ?? .substr($indent.chars) !! .trim-leading });
-    }
-    @out.join("\n") ~ "\n";
+    user-error("unknown part '$part'; use for-what, for-who or invariants");
 }
 
 #| One invariant as a reader sees it: header, text, BECAUSE.
@@ -180,12 +163,6 @@ sub effective-text(IZ4::Document $doc, Str :$name = 'IZ4' --> Str) is export {
     @out.push: "IS FOR WHO?\n"  ~ wrap($doc.for-who  // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
     @out.append: FOUNDATION.map({ invariant-block(.<number>, .<name>, .<text>, .<because>, :note<inherited>) });
     @out.push: project-invariants-text($doc);
-    my $collisions = $doc.reserved-collisions;
-    if $collisions {
-        @out.push: "note: $name is in the legacy format and numbers "
-            ~ "{$collisions».number.sort.join(', ')} of its own invariants inside the "
-            ~ "inherited range 0-4; 'iz4 migrate' renumbers them from 5\n";
-    }
     @out.join("\n");
 }
 
@@ -198,12 +175,7 @@ sub invariant-text(IO::Path $path, Str $number --> Str) is export {
     my $n = +$raw;
     if $n < FIRST-PROJECT-NUMBER {
         my %f = FOUNDATION[$n];
-        my $text = invariant-block($n, %f<name>, %f<text>, %f<because>, :note<inherited>);
-        with $doc.invariant($n) {
-            $text ~= "note: {$path.basename} also numbers one of its own invariants $n "
-                ~ "(legacy format); 'iz4 migrate' renumbers it from 5\n";
-        }
-        return $text;
+        return invariant-block($n, %f<name>, %f<text>, %f<because>, :note<inherited>);
     }
     with $doc.invariant($n) {
         return invariant-block($n, Str, .text, .because);
@@ -240,13 +212,6 @@ sub set-is-for(IO::Path $path, Str $which where 'IS FOR WHAT' | 'IS FOR WHO', St
     user-error("nothing to set: the answer is empty") if $value eq '';
     my $doc   = IZ4::Document.load($path);
     my @lines = $doc.lines;
-
-    if $doc.is-legacy {
-        user-error("{$path.basename} is in the legacy format, which has no IS FOR WHO; run 'iz4 migrate'")
-            if $which eq 'IS FOR WHO';
-        return set-legacy-gist($path, $doc, $value, :$replace);
-    }
-
     my @new = wrap($value, WRAP-WIDTH);
     with $doc.blocks.first(*.kind eq $which) -> $b {
         user-error("$which is already set; use --replace to replace it")
@@ -262,23 +227,6 @@ sub set-is-for(IO::Path $path, Str $which where 'IS FOR WHAT' | 'IS FOR WHO', St
     }
     $path.spurt(@lines.join("\n") ~ "\n");
     $which;
-}
-
-sub set-legacy-gist(IO::Path $path, IZ4::Document $doc, Str $value, Bool :$replace --> Str) {
-    my @lines = $doc.lines;
-    my $s = $doc.section('gist');
-    my @new = wrap($value, WRAP-WIDTH - INDENT.chars).map({ INDENT ~ $_ });
-    with $s {
-        my $text = $s.text.trim;
-        user-error("IS FOR WHAT (the legacy gist) is already set; use --replace to replace it")
-            if $text ne '' && $text ne GIST-PLACEHOLDER && !$replace;
-        @lines.splice($s.line, $s.last-line - $s.line, @new);
-    }
-    else {
-        @lines.splice($doc.header-line // 0, 0, '', 'gist:', |@new);
-    }
-    $path.spurt(@lines.join("\n") ~ "\n");
-    'IS FOR WHAT';
 }
 
 #| Add a project invariant, with its BECAUSE when given.  It takes the
@@ -307,17 +255,8 @@ sub add-invariant(IO::Path $path, Str $text, Str :$because, Int :$number --> Int
 
     my @lines = $doc.lines;
     @lines.pop while @lines && @lines[*-1].trim eq '';
-    if $doc.is-legacy {
-        my $entry = "Invariant $n: $value" ~ ($reason ne '' ?? " Because: $reason" !! '');
-        my $inv = $doc.section('invariants');
-        my @new = legacy-entry-lines($entry, $inv ?? ($inv.indent // INDENT) !! INDENT);
-        with $inv { @lines.splice($inv.last-line, 0, @new) }
-        else      { @lines.append: '', 'invariants:', |@new }
-    }
-    else {
-        @lines.append: '', "INVARIANT $n", |wrap($value, WRAP-WIDTH);
-        @lines.append: '', 'BECAUSE', |wrap($reason, WRAP-WIDTH) if $reason ne '';
-    }
+    @lines.append: '', "INVARIANT $n", |wrap($value, WRAP-WIDTH);
+    @lines.append: '', 'BECAUSE', |wrap($reason, WRAP-WIDTH) if $reason ne '';
     $path.spurt(@lines.join("\n") ~ "\n");
     $n;
 }
@@ -325,13 +264,11 @@ sub add-invariant(IO::Path $path, Str $text, Str :$because, Int :$number --> Int
 # ---------------------------------------------------------------- because
 
 #| Set the BECAUSE of project invariant $n.  An existing one needs
-#| :replace.  Only the current format has a BECAUSE block; a legacy file
-#| is told to migrate.  Returns the number.
+#| :replace.  Returns the number.
 sub set-because(IO::Path $path, Int $n, Str $text, Bool :$replace = False --> Int) is export {
     my $reason = $text.trim;
     user-error('nothing to set: the reason is empty') if $reason eq '';
     my $doc = IZ4::Document.load($path);
-    user-error("{$path.basename} is in the legacy format; run 'iz4 migrate' first") if $doc.is-legacy;
     my $inv = invariant-or-die($doc, $path, $n);
     user-error("Invariant $n already has a BECAUSE; use --replace to replace it")
         if ($inv.because // '').trim && !$replace;
@@ -344,7 +281,6 @@ sub set-because(IO::Path $path, Int $n, Str $text, Bool :$replace = False --> In
 #| the owner's, only moved; nothing is added.
 sub split-because(IO::Path $path, Int $n --> Str) is export {
     my $doc = IZ4::Document.load($path);
-    user-error("{$path.basename} is in the legacy format; run 'iz4 migrate' first") if $doc.is-legacy;
     my $inv = invariant-or-die($doc, $path, $n);
     user-error("Invariant $n already has a BECAUSE") if ($inv.because // '').trim;
     my ($claim, $reason) = split-reason($inv.text);
@@ -382,15 +318,6 @@ sub rewrite-invariant(IO::Path $path, IZ4::Document $doc, $inv, Str $claim, Str 
     $path.spurt(@lines.join("\n") ~ "\n");
 }
 
-#| Lines for one legacy '- ' entry, wrapped to WRAP-WIDTH.
-sub legacy-entry-lines(Str $value, Str $indent) {
-    my @out;
-    for wrap($value, WRAP-WIDTH - $indent.chars - 2) -> $line {
-        @out.push: (@out ?? $indent ~ '  ' !! $indent ~ '- ') ~ $line;
-    }
-    @out;
-}
-
 #| Greedy word wrap; a single over-long word stays on its own line.
 sub wrap(Str $text, Int $width) is export {
     my @lines;
@@ -408,8 +335,7 @@ sub wrap(Str $text, Int $width) is export {
 
 #| Give every unnumbered invariant in $path the next free number from 5,
 #| in file order.  Existing numbers are references and are never changed;
-#| only the header (or legacy first line) of each one numbered is
-#| touched.  Returns (line, number) pairs, empty when there was nothing
+#| only the header line of each one numbered is touched.  Returns (line, number) pairs, empty when there was nothing
 #| to do.
 sub number-invariants(IO::Path $path --> List) is export {
     my @lines = IZ4::Document.load($path).lines;
@@ -426,123 +352,16 @@ sub number-lines(@lines --> List) is export {
     my $next = $doc.next-number;
     my @done;
     for @todo -> $inv {
-        my $i = $inv.line - 1;
-        if $doc.is-legacy {
-            @lines[$i] = @lines[$i].subst(/^ (\s* '-') \s*/, { "$0 Invariant $next: " });
-        }
-        else {
-            @lines[$i] = "INVARIANT $next";
-        }
+        @lines[$inv.line - 1] = "INVARIANT $next";
         @done.push: ($inv.line, $next++);
     }
     @done;
 }
 
-# ---------------------------------------------------------------- migrate
-
-#| Convert a legacy IZ4 to the current format.  Returns a hash with the
-#| new 'text', the 'companion' Markdown holding everything the new format
-#| does not keep (word for word, so nothing is silently discarded), and
-#| the invariant number 'mapping' as (old, new) pairs.  Writes nothing:
-#| the caller decides.
-sub migrate-text(IO::Path $path, Str :$for-who! --> Hash) is export {
-    my $doc = IZ4::Document.load($path);
-    user-error("{$path.basename} is already in the current format") unless $doc.is-legacy;
-    user-error("fix the errors 'iz4 check' reports before migrating") if $doc.errors;
-    user-error('who is this for? the answer cannot be empty') if $for-who.trim eq '';
-    my $name = $path.basename;
-
-    # Renumber once, only when a project number sits in 0-4: shift every
-    # number up by the same amount so relative order and gaps survive.
-    my @numbered = $doc.invariants.grep(*.number.defined);
-    my $lowest = @numbered ?? @numbered».number.min !! FIRST-PROJECT-NUMBER;
-    my $shift  = max(0, FIRST-PROJECT-NUMBER - $lowest);
-    my @mapping;
-    my $next = max(FIRST-PROJECT-NUMBER, 1 + (@numbered ?? @numbered».number.max + $shift !! FIRST-PROJECT-NUMBER - 1));
-
-    my @out = ROOT-NAME, '', INHERITANCE-COMMENT, '',
-        'IS FOR WHAT?', |wrap($doc.for-what // '', WRAP-WIDTH), '',
-        'IS FOR WHO?', |wrap($for-who.trim, WRAP-WIDTH);
-    my @placed;
-    for $doc.invariants -> $inv {
-        my $new = $inv.number.defined ?? $inv.number + $shift !! $next++;
-        @mapping.push: ($inv.number, $new);
-        @placed.push: ($new, $inv);
-    }
-    # written in number order, so the file reads 5, 6, 7 ...  The old
-    # format had no BECAUSE, so authors folded the why into the entry;
-    # a reason the detector can see is moved under BECAUSE and reported.
-    my @split;
-    for @placed.sort(*.[0]) -> ($new, $inv) {
-        my ($claim, $reason) = $inv.text, $inv.because;
-        unless ($reason // '').trim {
-            ($claim, $reason) = split-reason($inv.text);
-            @split.push: ($new, $reason) with $reason;
-        }
-        @out.append: '', "INVARIANT $new", |wrap($claim, WRAP-WIDTH);
-        @out.append: '', 'BECAUSE', |wrap($reason, WRAP-WIDTH) if ($reason // '').trim;
-    }
-    @mapping = @mapping.sort({ $_[0] // Inf });
-    my $text = @out.join("\n") ~ "\n";
-
-    # everything else, word for word
-    my @c = "# $name before migration", '',
-        "`iz4 migrate` converted $name to the Is For format on {Date.today}. The new",
-        'file keeps only what the system is for, who it is for, and the',
-        'invariants that must remain true. Everything else it held is kept here',
-        'word for word, so nothing was lost. Move each part to wherever it now',
-        'belongs - the README, an ADR, tests or issues - or delete what no',
-        'longer matters.', '';
-    @c.append: '## Invariant numbers', '';
-    if $shift {
-        @c.append: 'Invariants 0-4 are now the inherited foundation, so project invariants',
-            "were renumbered by adding $shift:", '',
-            '| before | after |', '|---|---|',
-            |@mapping.map({ "| {.[0] // 'unnumbered'} | {.[1]} |" }), '';
-    }
-    else {
-        @c.append: 'Numbered invariants kept their numbers'
-            ~ (@mapping.grep({ !.[0].defined }) ?? '; unnumbered ones were numbered from ' ~ ($next - @mapping.grep({ !.[0].defined }).elems) !! '')
-            ~ '.', '';
-    }
-    if @split {
-        @c.append: '## Reasons moved under BECAUSE', '',
-            'These invariants ended with a sentence that read as the reason, so it was',
-            'moved under BECAUSE. Check each: the words are unchanged, only moved.', '',
-            |@split.map({ "- Invariant {.[0]}: {.[1]}" }), '';
-    }
-    for $doc.sections -> $s {
-        next if $s.name eq 'invariants';
-        @c.append: "## {$s.name}", '';
-        if $s.kind eq 'list' {
-            @c.append: $s.items.map({ "- {.text}" });
-        }
-        else {
-            @c.append: $s.lines;
-        }
-        @c.push: '';
-    }
-    with $doc.sections.first(*.name eq 'invariants') -> $inv {
-        with $inv.items.first({ is-invariant-zero-text(.text) }) -> $zero {
-            unless $doc.foundation-intact {
-                @c.append: '## Invariant 0 as this file worded it', '',
-                    'The foundation, Invariants 0-4, binds regardless of this wording; any',
-                    'protection here that goes beyond it belongs in a project invariant.', '',
-                    $zero.text, '';
-            }
-        }
-    }
-    my @comments = $doc.lines.grep({ .starts-with('#') });
-    if @comments {
-        @c.append: '## Comments', '', |@comments.map({ "    $_" }), '';
-    }
-    %( :$text, companion => @c.join("\n"), :@mapping, :@split, renumbered => ?$shift );
-}
-
 # ---------------------------------------------------------------- suggest
 
 #| The agent command behind `iz4 suggest`: overridable, external, optional.
-sub agent-cmd(--> Str) is export { %*ENV<IZ4_AGENT_CMD> // %*ENV<SPOZ2_AGENT_CMD> // 'claude -p' }
+sub agent-cmd(--> Str) is export { %*ENV<IZ4_AGENT_CMD> // 'claude -p' }
 
 #| The prompt for repository analysis.  Its job is to keep IZ4 small.
 sub suggest-prompt(Str :$current = '', Str :$evidence = '' --> Str) is export {

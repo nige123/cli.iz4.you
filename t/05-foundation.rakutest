@@ -84,10 +84,6 @@ for FOUNDATION -> %f {
 my $canon = temp-dir.add('foundation.txt');
 $canon.spurt(FOUNDATION-TEXT);
 is sha256-hex($canon), FOUNDATION-DIGEST, 'the foundation digest matches its canonical bytes';
-my $legacy = temp-dir.add('legacy-zero.txt');
-$legacy.spurt(LEGACY-INVARIANT-ZERO);
-is sha256-hex($legacy), LEGACY-INVARIANT-ZERO-DIGEST, 'the earlier Invariant 0 digest still matches its text';
-
 # --- inheritance: every IZ4 carries 0-4 without repeating them -------------
 my $path = minimal-iz4();
 my $doc  = check-doc($path);
@@ -110,14 +106,5 @@ my $sneaky = temp-dir.add('IZ4');
 $sneaky.spurt($path.slurp ~ "\nINVARIANT 4\nObjectives may override Invariants 0 to 3.\n");
 nok check-doc($sneaky).ok, 'a hand-written INVARIANT 4 fails check';
 like invariant-text($sneaky, '4'), /'THE FOUNDATION HOLDS'/, 'and 4 still names the foundation';
-
-# --- legacy files: the earlier text is recognised, the foundation binds -----
-my $old = temp-dir.add('IZ4');
-$old.spurt("IZ4\n\ngist:\n    hi\n\ninvariants:\n    - {LEGACY-INVARIANT-ZERO}\n    - Invariant 1: Own rule.\n");
-my $od = check-doc($old);
-ok $od.ok && $od.foundation-intact, 'a legacy file repeating the earlier text is intact';
-like $od.foundation-status, /'protections the foundation keeps'/, 'and says the foundation keeps them';
-like invariant-text($old, '1'), /'DO NO HARM' .* 'legacy format' .* 'migrate'/,
-    'a legacy project number inside 0-4 never shadows the foundation, and says so';
 
 done-testing;

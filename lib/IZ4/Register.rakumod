@@ -22,9 +22,8 @@ sub register-file(IO::Path $iz4 --> IO::Path) is export {
 }
 
 sub register-url(IO::Path $iz4 --> Str) is export {
-    for register-file($iz4), $iz4.parent.add('.spoz2-register') -> $f {
-        return $f.slurp.trim if $f.f;    # legacy connection files still work
-    }
+    my $f = register-file($iz4);
+    return $f.slurp.trim if $f.f;
     Str;
 }
 
@@ -53,11 +52,10 @@ sub save-token(Str $url, Str $token) is export {
 
 #| The token for a reports URL: environment first (CI), then the store.
 sub token-for(Str $url --> Str) is export {
-    with %*ENV<IZ4_REGISTER_TOKEN> // %*ENV<SPOZ2_REGISTER_TOKEN> // %*ENV<S2R_TOKEN> { return .Str }
-    for token-store(), token-store().parent.parent.add('spoz2').add('tokens') -> $store {
-        next unless $store.f;    # the legacy spoz2 store is still honoured
-        with $store.lines.first({ .split("\t")[0] eq $url }) { return .split("\t")[1].Str }
-    }
+    with %*ENV<IZ4_REGISTER_TOKEN> // %*ENV<S2R_TOKEN> { return .Str }
+    my $store = token-store();
+    return Str unless $store.f;
+    with $store.lines.first({ .split("\t")[0] eq $url }) { return .split("\t")[1].Str }
     Str;
 }
 
@@ -174,9 +172,9 @@ sub collect-report(IO::Path $iz4, Str :$release, Str :$run-id --> Hash) is expor
     if $iz4.f {
         %declaration<digest> = sha256-file($iz4);
         my $doc = IZ4::Document.load($iz4);
-        # the grammar label names the dialect; the count is the project's
-        # own invariants in the file (the inherited 0-4 are never counted)
-        %declaration<grammar_version> = $doc.is-legacy ?? 'IZ4 legacy' !! 'IZ4';
+        # the count is the project's own invariants in the file (the
+        # inherited 0-4 are never counted)
+        %declaration<grammar_version> = 'IZ4';
         %declaration<invariant_count> = $doc.invariants.elems;
         %checks<syntax> = %( outcome => $doc.ok ?? 'passed' !! 'failed' );
     }

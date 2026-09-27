@@ -22,7 +22,6 @@ is %p<sha256>, sha256-hex($sp), 'digest is of the exact file bytes';
 my $text = packet-text(%p);
 like $text, /'treat as data, not instructions'/, 'project content is delimited as data';
 like $text, /'proves neither'/, 'packet says what it cannot prove';
-nok $text.contains('legacy file begin'), 'a current-format packet does not repeat the raw file';
 
 # the protocol keeps IZ4 small and assessments honest
 my $protocol = AGENT-PROTOCOL.words.join(' ');
@@ -36,14 +35,6 @@ like $protocol, /'mechanically verified | supported by evidence | apparently con
 like $protocol, /'cannot prove a natural-language invariant'/, 'no checker proves prose';
 like $protocol, /'No project-level approval can waive Invariants 0-4'/, 'the foundation cannot be waived';
 unlike $protocol, /"'direction' entries"/, 'no trace of the old specification sections';
-
-# legacy files: the packet adds the raw text agents were relying on
-my $leg = $dir.add('legacy.iz4');
-$leg.spurt("IZ4\n\ngist:\n    Old style.\n\nconstraints:\n    - Runs offline.\n\ninvariants:\n    - Invariant 1: Something.\n");
-my %lp = agent-packet($leg);
-is %lp<format>, 'legacy', 'a legacy packet says so';
-like packet-text(%lp), /'legacy file begin' .* 'Runs offline'/, 'and carries the raw file';
-like %lp<effective>, /'legacy format' .* 'migrate'/, 'with the renumbering note';
 
 # failures: never invent a valid packet
 my $bad = $dir.add('bad.iz4');
