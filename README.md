@@ -290,6 +290,8 @@ iz4 show [FILE] [PART]           the file, or for-what, for-who or invariants
 iz4 show invariant N             one invariant; 0-4 are the inherited foundation
 iz4 check [FILE]                 ticks for what is true, crosses with remedies
 iz4 number [FILE]                number unnumbered invariants from 5
+iz4 test [N ...] [--list]        scaffold a born-red test for each invariant
+                                   without one, in your test language
 iz4 update [--check]             bring iz4 to the latest published version
 iz4 log [FILE]                   the Git history of your intent
 iz4 diff [FILE] [REV [REV]]      what changed, working tree by default
@@ -302,6 +304,43 @@ iz4 register / report / badge    connect to the register and submit evidence
 In a script or CI nothing ever asks a question: `init` takes `--for-what` and
 `--for-who`, and `add` takes the invariant and `--because`. Without a `FILE`,
 iz4 uses the nearest `IZ4` above you, so it works from deep inside `src/`.
+
+## Evidence: a test for each invariant
+
+A checker cannot verify prose, but a test can pin the behaviour an invariant
+describes, and a test that names its invariant can be found. The convention
+is one phrase: a test file that says `Invariant 5` and quotes the
+invariant's opening words is evidence named for it. `iz4 check` reports
+which invariants have such a test, which have only a scaffold, and which
+have nothing:
+
+```text
+✗ evidence: Invariant 6, 8 have no test naming them - 'iz4 test' scaffolds one
+```
+
+`iz4 test` writes one test file per invariant without evidence, in your
+repository's own test language (Raku, Perl, Go, Python, Ruby, Rust,
+TypeScript or JavaScript, detected from your tests or project files; a
+shell script otherwise). Each carries the invariant and its BECAUSE, names
+it, and fails until you replace the placeholder with an assertion that
+would fail if the invariant stopped being true:
+
+```text
+$ iz4 test
+Scaffolded 2 tests (javascript), each failing until you write the assertion:
+  test/invariant-6.test.js  (Invariant 6)
+  test/invariant-8.test.js  (Invariant 8)
+A scaffold is not evidence: 'iz4 check' counts it only once its placeholder is gone.
+```
+
+A scaffold is born red on purpose, and check reports it as scaffolded, not
+as evidence. A mention of `Invariant 5` in some other test, or in prose
+outside the test directories, never counts. `iz4 test --list` shows the
+state of each invariant, and `iz4 test 6` scaffolds one.
+
+None of this proves an invariant holds. It makes visible which invariants
+have a test that says it does, and which have none, which is the question
+a checker can answer.
 
 ## Checking
 

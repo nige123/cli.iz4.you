@@ -10,6 +10,7 @@ use IZ4::Agent;
 use IZ4::Coach;
 use IZ4::Review;
 use IZ4::Hook;
+use IZ4::Evidence;
 
 my %*SUB-MAIN-OPTS = :named-anywhere;
 $*OUT.out-buffer = False;   # a closed pipe fails at the write, leaving nothing to flush at exit
@@ -59,6 +60,11 @@ sub USAGE() {
       iz4 check [FILE]                 tick what is true, cross what needs a
                                            remedy; exit 1 only on errors
       iz4 number [FILE]                number any unnumbered invariant from 5
+      iz4 test [N ...] [--lang=L]      scaffold a test for each invariant that
+                                           has none: born red, named for the
+                                           invariant, in the repository's own
+                                           test language (--list: the evidence
+                                           each invariant has)
       iz4 log [FILE]                   Git history of the IZ4
       iz4 diff [FILE] [REV [REV]]      Git diff of the IZ4
       iz4 agent [--json]               print the agent packet: the protocol
@@ -379,6 +385,18 @@ multi MAIN('check', Str $file?) {
             @rows.push: ('✗', "BECAUSE: missing for Invariant {@plain.join(', ')} - write under each why it must survive ('iz4 because N WHY')")
                 if @plain;
             @rows.push: ('✓', 'BECAUSE: every invariant says why it must survive') unless @bare;
+
+            # evidence: a test that names the invariant and quotes it.  Named
+            # is a test; scaffolded is the born-red placeholder; none is none.
+            my %ev = evidence-for($doc, $path.parent);
+            my @none = %ev<state>.pairs.grep(*.value eq 'none').map(*.key).sort(+*);
+            my @scaf = %ev<state>.pairs.grep(*.value eq 'scaffolded').map(*.key).sort(+*);
+            my $named = %ev<state>.values.grep(* eq 'named').elems;
+            @rows.push: ('✗', "evidence: Invariant {@scaf.join(', ')} ha{@scaf == 1 ?? 's' !! 've'} only a scaffold - write the assertion in {%ev<files>{@scaf[0]}[0]}" ~ (@scaf > 1 ?? ' and the others' !! ''))
+                if @scaf;
+            @rows.push: ('✗', "evidence: Invariant {@none.join(', ')} ha{@none == 1 ?? 's' !! 've'} no test naming {@none == 1 ?? 'it' !! 'them'} - 'iz4 test' scaffolds one")
+                if @none;
+            @rows.push: ('✓', "evidence: every invariant is named and quoted by a test ($named of $count)") unless @none || @scaf;
         }
 
         if $path.basename eq ROOT-NAME {
@@ -417,6 +435,41 @@ sub mark(Str $glyph --> Str) {
 }
 
 # ------------------------------------------------------------ number
+
+multi MAIN('test', *@numbers, Str :$file, Str :$lang, Bool :$list = False) {
+    attempt {
+        my $path = resolve-target($file);
+        my $root = $path.parent;
+        my $doc  = check-doc($path);
+        user-error("fix the errors 'iz4 check' reports first") if $doc.errors;
+        my %ev = evidence-for($doc, $root);
+        if $list || !$doc.invariants {
+            say "No project invariants yet; 'iz4 add' finds one." unless $doc.invariants;
+            for $doc.invariants.grep(*.number.defined) -> $inv {
+                my $n = $inv.number;
+                say sprintf('  Invariant %-3s %-10s %s', $n, %ev<state>{$n}, (%ev<files>{$n} // ()).join(', '));
+            }
+            say "named: a test names and quotes it; scaffolded: the born-red placeholder 'iz4 test' wrote; none: nothing.";
+            say "Evidence that an invariant holds is a test that would fail if it stopped being true; a name alone is not that.";
+            return 0;
+        }
+        my @only = @numbers.map({ parse-number($_) });
+        for @only { user-error("no invariant $_ in {display-name($path)}") unless $doc.invariant($_) }
+        my $language = $lang // detect-language($root);
+        my @done = write-scaffolds($doc, $root, :lang($language), :@only);
+        if @done {
+            say "Scaffolded {+@done} test{+@done == 1 ?? '' !! 's'} ($language), each failing until you write the assertion:";
+            say "  $_[0]  (Invariant $_[1])" for @done;
+            say "A scaffold is not evidence: 'iz4 check' counts it only once its placeholder is gone.";
+        }
+        else {
+            say @only
+                ?? "Nothing to scaffold: {@only.map({ 'Invariant ' ~ $_ }).join(', ')} already ha{@only == 1 ?? 's' !! 've'} a test naming it (or the scaffold file exists)."
+                !! "Nothing to scaffold: every invariant already has a test naming it, or its scaffold exists ('iz4 test --list').";
+        }
+        0;
+    }
+}
 
 multi MAIN('number', Str $file?) {
     attempt {

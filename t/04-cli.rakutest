@@ -60,12 +60,13 @@ like $out, /'✓ structure: valid' \n
             '✓ BECAUSE: every invariant says why it must survive' \n/, 'ticks for what is true';
 like $out, /'? the system keeps Invariants 0-5: uncertain'/, 'conformance is uncertain, never a tick';
 unlike $out, /'✓' <-[\n]>* 'keeps Invariants'/, 'no green tick for something a checker cannot know';
-ok $out.ends-with("OK IZ4\n"), 'and the summary has nothing to remedy';
+like $out, /"✗ evidence: Invariant 5 has no test naming it - 'iz4 test' scaffolds one"/, 'an untested invariant is a cross with a remedy';
+ok $out.ends-with("OK IZ4 (1 to remedy above)\n"), 'and the summary counts it';
 
 ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Employers cannot contact someone first.');
 ($rc, $out, $err) = iz4($dir, 'check');
 like $out, /'✗ BECAUSE: missing for Invariant 6 - write under each why it must survive'/, 'a missing BECAUSE is a cross with a remedy';
-ok $out.ends-with("OK IZ4 (1 to remedy above)\n"), 'crosses are counted, and never fail the check';
+ok $out.ends-with("OK IZ4 (2 to remedy above)\n"), 'crosses are counted, and never fail the check';
 
 # ---- because: check points at a folded reason, and the command moves it ---------
 ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'No price is sent unexplained. A confidently wrong price sells work at a loss.', '--force');

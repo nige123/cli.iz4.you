@@ -1,0 +1,76 @@
+# Evidence: a test that names an invariant and quotes it; a scaffold that
+# is born red and never counted until written; the check row that says
+# which invariants have nothing.
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+use IZ4::Document;
+use IZ4::Evidence;
+
+my $repo = temp-dir;
+my $iz4  = minimal-iz4(:dir($repo));
+add-invariant($iz4, 'A code works once and only once.', :because('A code that works twice lets someone else sign in as you.'));
+add-invariant($iz4, 'Codes expire within ten minutes.', :because('A stale code in an inbox is a key under the mat.'));
+my $doc = check-doc($iz4);
+
+# ---- nothing yet --------------------------------------------------------------
+my %e = evidence-for($doc, $repo);
+is %e<state>, { 5 => 'none', 6 => 'none' }, 'with no tests, every invariant has no evidence';
+
+# ---- a mention is not evidence; naming and quoting is ---------------------
+$repo.add('t').mkdir;
+$repo.add('t/other.t').spurt("# see Invariant 5 for why\nok 1;\n");
+is evidence-for($doc, $repo)<state><5>, 'none', "a test that only mentions 'Invariant 5' is not evidence";
+$repo.add('t/codes.t').spurt("# Invariant 5: A code works once and only once.\nok !use_twice(), 'second use fails';\n");
+%e = evidence-for($doc, $repo);
+is %e<state><5>, 'named', 'a test that names the invariant and quotes its opening words is';
+is %e<files><5>, ['t/codes.t'], 'and is listed once';
+$repo.add('README.md').spurt("Invariant 6: Codes expire within ten minutes.\n");
+is evidence-for($doc, $repo)<state><6>, 'none', 'prose outside the test directories never counts';
+
+# ---- scaffolds: the repository's language, born red, never overwritten ----
+is detect-language($repo), 'perl', 'the language follows the existing tests';
+my @done = write-scaffolds($doc, $repo);
+is @done, (('t/invariant-6.t', 6),), 'only the invariant without evidence is scaffolded';
+my $scaffold = $repo.add('t/invariant-6.t').slurp;
+like $scaffold, /'# Invariant 6: Codes expire within ten minutes.' \n '# BECAUSE A stale code'/, 'it carries the invariant and its reason';
+like $scaffold, /'fail(' .* 'not yet tested'/, 'and fails until written';
+is evidence-for($doc, $repo)<state><6>, 'scaffolded', 'a scaffold counts as scaffolded, never as evidence';
+is write-scaffolds($doc, $repo), (), 'a second run writes nothing';
+$repo.add('t/invariant-6.t').spurt("# Invariant 6: Codes expire within ten minutes.\nok expiry() < 600;\n");
+is evidence-for($doc, $repo)<state><6>, 'named', 'writing the assertion turns it into evidence';
+
+# every language produces a scaffold that names, quotes and fails
+for <raku perl go python ruby rust typescript javascript sh> -> $lang {
+    my ($rel, $text) = scaffold($lang, $doc.invariant(5));
+    ok $text.contains('Invariant 5') && $text.contains(PLACEHOLDER) && $text.lc.contains(opening-words($doc.invariant(5).text)),
+        "$lang scaffold at $rel names, quotes and fails";
+}
+my $empty = temp-dir;
+is detect-language($empty), 'sh', 'with nothing to go on, the scaffold is a shell script';
+$empty.add('go.mod').spurt("module x\n");
+is detect-language($empty), 'go', 'a project file decides when there are no tests';
+
+# ---- the CLI -------------------------------------------------------------------
+my $cli = temp-dir;
+my $f = minimal-iz4(:dir($cli));
+add-invariant($f, 'Private profiles never appear in public search.', :because('A hidden search can cost someone their job.'));
+$cli.add('package.json').spurt("{}\n");
+my ($rc, $out, $err) = iz4($cli, 'check');
+like $out, /"✗ evidence: Invariant 5 has no test naming it - 'iz4 test' scaffolds one"/, 'check says which invariants have no test';
+($rc, $out, $err) = iz4($cli, 'test');
+is $rc, 0, 'iz4 test exits 0';
+like $out, /'Scaffolded 1 test (javascript)' .* 'test/invariant-5.test.js' .* 'A scaffold is not evidence'/, 'and says what it wrote and what that is not';
+ok $cli.add('test/invariant-5.test.js').f, 'the scaffold exists';
+($rc, $out, $err) = iz4($cli, 'check');
+like $out, /'✗ evidence: Invariant 5 has only a scaffold - write the assertion in test/invariant-5.test.js'/, 'check now points at the scaffold';
+($rc, $out, $err) = iz4($cli, 'test', '--list');
+like $out, /'Invariant 5' \s+ 'scaffolded' \s+ 'test/invariant-5.test.js'/, '--list shows the state per invariant';
+$cli.add('test/invariant-5.test.js').spurt("// Invariant 5: Private profiles never appear in public search.\ntest('x', () => expect(search('private')).toEqual([]));\n");
+($rc, $out, $err) = iz4($cli, 'check');
+like $out, /'✓ evidence: every invariant is named and quoted by a test (1 of 1)'/, 'a written test is a tick';
+($rc, $out, $err) = iz4($cli, 'test', '9');
+ok $rc == 1 && $err.contains('no invariant 9'), 'an unknown number is refused';
+
+done-testing;
