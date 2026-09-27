@@ -34,10 +34,21 @@ without them:
 Marks live under `$XDG_CACHE_HOME/iz4/sessions/` (default
 `~/.cache/iz4/sessions/`), one small file per session and event.
 
+## Through 321
+
+When [321](https://321.do), an agent launcher, is installed (the iz4
+installer fetches it beside iz4), `iz4 agent install --hooks` hands the
+wiring to it: 321 knows each harness's settings file, event names and
+quirks, writes `iz4 hook` into every harness it knows, and keeps up with
+them as they change. The protocol above stays iz4's. `iz4 agent status`
+then quotes what 321 says each harness enforces: pre-edit and stop can
+refuse, session-start can only inject. `IZ4_NO_321=1` makes iz4 act as if
+321 were not installed and write its own Claude Code wiring, below.
+
 ## Claude Code
 
-`iz4 agent install --hooks` writes the session-start hook into the
-repository's `.claude/settings.json`, merged with whatever is there, and
+Without 321, `iz4 agent install --hooks` writes the session-start hook into
+the repository's `.claude/settings.json`, merged with whatever is there, and
 refuses to touch a file it cannot parse. `--strict` adds the two refusing
 hooks. Re-running is idempotent, and running without `--strict` removes the
 gates again. `iz4 agent status` reports which are installed.
@@ -63,12 +74,13 @@ sees.
 
 The same three moments exist in most agent harnesses, under different
 names. An adapter is a few lines that call `iz4 hook` and translate the
-input fields. Where a harness offers fewer moments, the ones it has still
+input fields; 321 is where those adapters live, so that iz4 need not
+follow every harness. Where a harness offers fewer moments, the ones it has still
 help, and Git supplies two more that every harness passes through.
 
 | Harness | Session start | Before an edit | Turn end | Notes |
 |---|---|---|---|---|
-| Claude Code | SessionStart | PreToolUse | Stop | Built in: `iz4 agent install --hooks`. |
+| Claude Code | SessionStart | PreToolUse | Stop | Built in: `iz4 agent install --hooks`, through 321 or by iz4 itself. |
 | Cursor | hooks.json `beforeSubmitPrompt` | `beforeShellExecution` / MCP hooks | `stop` | Field names differ; an adapter maps them. Not yet verified against a live install. |
 | Gemini CLI | settings hooks, tool-call hooks | `BeforeTool` | `AfterAgent` | Same shape as Claude Code's; not yet verified. |
 | GitHub Copilot agent | hooks in `.github/hooks` | `preToolUse` | `sessionEnd` | Not yet verified. |

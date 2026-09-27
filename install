@@ -63,7 +63,46 @@ try_binary() {
     say "installed: $BIN_DIR/iz4 ($("$BIN_DIR/iz4" version)) - 'iz4 update' keeps it current"
     return 0
 }
+# -- 321.do, an agent launcher ------------------------------------------------
+# iz4 uses 321 for everything agentic when it is there (suggest, review,
+# test drafting, and hooks for every harness it knows). It is fetched
+# beside iz4 unless one is already installed, and IZ4_NO_321=1 skips it.
+# iz4 works without it: a failure here is a note, never an error.
+launcher_asset_for() {
+    case "$(uname -s):$(uname -m)" in
+        Linux:x86_64)              echo 321-linux-x86_64 ;;
+        Linux:aarch64|Linux:arm64) echo 321-linux-aarch64 ;;
+        Darwin:*)                  echo 321-macos-universal ;;
+        *)                         echo '' ;;
+    esac
+}
+install_launcher() {
+    [ "${IZ4_NO_321:-}" != 1 ] || return 0
+    if command -v 321 >/dev/null 2>&1 && [ ! -f "$BIN_DIR/.321-from-iz4" ]; then
+        say "321.do, an agent launcher, is already installed at $(command -v 321); left as is"
+        return 0
+    fi
+    command -v curl >/dev/null 2>&1 || { say "could not fetch 321.do (no curl); iz4 works without it"; return 0; }
+    asset=$(launcher_asset_for); [ -n "$asset" ] || { say "no published 321.do for this machine; iz4 works without it"; return 0; }
+    lrelease="${IZ4_321_RELEASE_URL:-https://github.com/nige123/cli.321.do/releases/latest/download}"
+    say "install 321.do, an agent launcher"
+    tmp=$(mktemp -d 2>/dev/null || mktemp -d -t iz4)
+    curl -fsSL -o "$tmp/$asset" "$lrelease/$asset" 2>/dev/null || { say "could not fetch 321.do; iz4 works without it"; rm -rf "$tmp"; return 0; }
+    curl -fsSL -o "$tmp/$asset.sha256" "$lrelease/$asset.sha256" 2>/dev/null || { say "could not fetch the 321.do checksum; iz4 works without it"; rm -rf "$tmp"; return 0; }
+    exp=$(tr -d '\r\n ' < "$tmp/$asset.sha256" | grep -o -i '[0-9a-f]\{64\}' | head -1 | tr 'A-F' 'a-f')
+    got=$(sha256_of "$tmp/$asset")
+    [ -n "$exp" ] && [ "$exp" = "$got" ] || { say "checksum mismatch for $asset; 321.do was not installed, iz4 works without it"; rm -rf "$tmp"; return 0; }
+    chmod +x "$tmp/$asset"
+    "$tmp/$asset" version >/dev/null 2>&1 || { say "the published 321.do does not run on this system; iz4 works without it"; rm -rf "$tmp"; return 0; }
+    mkdir -p "$BIN_DIR"
+    mv "$tmp/$asset" "$BIN_DIR/321"
+    printf 'installed by iz4\n' > "$BIN_DIR/.321-from-iz4"
+    rm -rf "$tmp"
+    say "installed: $BIN_DIR/321 ($("$BIN_DIR/321" version)) - 'iz4 update' keeps it current"
+}
+
 if try_binary; then
+    install_launcher
     case ":$PATH:" in
         *":$BIN_DIR:"*) ;;
         *) say "note: $BIN_DIR is not on your PATH. Add this line to your shell profile:"
@@ -137,6 +176,7 @@ say "checking the installation (the first run compiles; about half a minute) ...
     || fail "installed, but iz4 does not run; please report this"
 
 say "installed: $BIN_DIR/iz4"
+install_launcher
 case ":$PATH:" in
     *":$BIN_DIR:"*) ;;
     *) say "note: $BIN_DIR is not on your PATH. Add this line to your shell profile:"

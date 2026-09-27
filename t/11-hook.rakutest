@@ -87,9 +87,11 @@ if have-git() {
 
     # ---- through the CLI --------------------------------------------------
     $settings.unlink;
-    my ($rc, $o, $e) = iz4($repo, 'agent', 'install', '--hooks', '--strict');
+    # as if 321 were not installed: this pins iz4's own Claude Code wiring
+    my %no = IZ4_NO_321 => '1';
+    my ($rc, $o, $e) = iz4($repo, 'agent', 'install', '--hooks', '--strict', :env(%no));
     like $o, /'.claude/settings.json: installed' .* 'never that an invariant was honoured'/, 'the CLI installs and says what a hook cannot prove';
-    ($rc, $o, $e) = iz4($repo, 'agent', 'status');
+    ($rc, $o, $e) = iz4($repo, 'agent', 'status', :env(%no));
     like $o, /'settings.json: hooks installed'/, 'status reports the hooks';
     my ($hrc, $hout, $herr) = iz4-talk($repo, '{"session_id":"z9","tool_input":{"file_path":"lib/Y.pm"}}', 'hook', 'pre-edit');
     is $hrc, 2, 'iz4 hook pre-edit exits 2 to refuse';

@@ -1,10 +1,11 @@
 unit module IZ4;
 
 use IZ4::Document;
+use IZ4::Launcher;
 use IZ4::Git;
 use IZ4::Coach;
 
-constant VERSION is export = '0.6.0';
+constant VERSION is export = '0.7.0';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -529,15 +530,11 @@ sub parse-suggestions(Str $reply, Int :$cap = 5 --> Hash) is export {
 
 #| One agent pass over the repository.  Dies when the agent fails; a
 #| reply with no usable lines is an honest 'nothing found'.
-sub agent-suggest(IO::Path $dir = $*CWD, Str :$cmd = agent-cmd(), Str :$current = '' --> Hash) is export {
+
+sub agent-suggest(IO::Path $dir = $*CWD, Str :$cmd, Str :$current = '' --> Hash) is export {
     my $prompt = suggest-prompt(:$current, evidence => gather-context($dir));
-    note "asking agent ($cmd) for candidate invariants in {$dir.resolve} ...";
-    my $proc = run '/bin/sh', '-c', $cmd, :in, :out;
-    $proc.in.print($prompt);
-    my $ = $proc.in.close;
-    my $reply = $proc.out.slurp(:close);
-    die "agent command failed ($cmd)" if $proc.exitcode != 0;
-    parse-suggestions($reply);
+    note "asking agent ({$cmd // agent-label()}) for candidate invariants in {$dir.resolve} ...";
+    parse-suggestions(ask-agent($prompt, :root($dir), :$cmd));
 }
 
 #| Bounded evidence for the agent: the codebase's own account of itself

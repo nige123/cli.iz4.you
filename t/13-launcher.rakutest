@@ -1,0 +1,143 @@
+# 321.do, an agent launcher, under iz4: when it is installed, agent
+# prompts go through it as read-only runs, hooks are wired by it for every
+# harness it knows, and status quotes what it enforces; when it is not,
+# iz4 falls back to its own command and its own Claude Code wiring.  321
+# is a stand-in script here: iz4 only runs it and reads its answers.
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+use IZ4::Document;
+use IZ4::Launcher;
+use IZ4::Register;
+
+#| A stand-in 321 that records what it was asked and answers from files
+#| beside it: REPLY for a prompt run, HOOKS for hooks --json.
+sub stub-launcher(IO::Path :$dir = temp-dir() --> IO::Path) {
+    my $bin = $dir.add('321');
+    $bin.spurt(q:to/SH/);
+        #!/bin/sh
+        here=$(dirname "$0")
+        printf '%s\n' "$*" >> "$here/calls"
+        case "$*" in
+          version) echo "321 0.3.1"; exit 0 ;;
+          "packages builtin prompt") mkdir -p "$here/pkg"; echo "$here/pkg"; exit 0 ;;
+          *"prompt -"*) cat > "$here/prompt.txt"; cat "$here/REPLY"; exit 0 ;;
+          "hooks install"*|"hooks status"*|"hooks remove"*) cat "$here/HOOKS"; exit 0 ;;
+          "doctor --json") echo '{"schema":"doctor.v1","adapters":[{"name":"claude_code","available":true,"enforces":{"tool_allowlist":true},"hooks":{"pre-edit":"refuses","stop":"refuses","session-start":"advises"}}]}'; exit 0 ;;
+          *) echo "stub: unknown $*" >&2; exit 64 ;;
+        esac
+        SH
+    $bin.chmod(0o755);
+    $dir.add('HOOKS').spurt('{"schema":"hooks.v1","harnesses":[{"harness":"claude_code","available":true,"action":"installed","events":{"session-start":"wired","pre-edit":"wired","stop":"wired"},"enforced":["pre-edit","stop"],"advisory":["session-start"]}]}' ~ "\n");
+    $bin;
+}
+
+sub receipt-line(Str $status, Str :$summary = '', Str :$blocked = '' --> Str) {
+    json-encode(%( schema => 'run-receipt.v1', status => $status, summary => $summary, blockedOn => $blocked,
+        denied => %( reason => 'the work package is invalid', details => ['objective: is required'] ), evidence => %( errors => ['boom'] ) )) ~ "\n";
+}
+
+# ---- with 321 installed --------------------------------------------------------
+{
+    my $bin = stub-launcher();
+    temp %*ENV<IZ4_321> = $bin.Str;
+    temp %*ENV<IZ4_AGENT_CMD>; %*ENV<IZ4_AGENT_CMD>:delete;
+    is launcher-binary(), $bin.Str, 'IZ4_321 names the launcher';
+    is launcher-version($bin.Str), '0.3.1', 'and its version is read';
+    ok agent-label().contains('321, an agent launcher'), 'the label says prompts go through 321';
+
+    $bin.parent.add('REPLY').spurt(receipt-line('completed', :summary("The answer.\nSecond line.")));
+    my $root = temp-dir();
+    is ask-agent("What is this?\nTwo lines.", :$root), "The answer.\nSecond line.", 'a prompt through 321 comes back as the receipt summary';
+    is $bin.parent.add('prompt.txt').slurp, "What is this?\nTwo lines.", 'the prompt went to 321 on stdin, verbatim';
+    my @calls = $bin.parent.add('calls').slurp.lines;
+    ok @calls.grep(*.contains("--package-dir {$bin.parent.add('pkg')} --workspace {$root} --non-interactive --json prompt -")), 'as a read-only run of the prompt package in the workspace' or diag @calls.join("\n");
+
+    $bin.parent.add('REPLY').spurt(receipt-line('blocked', :blocked('which file?')));
+    throws-like { ask-agent('x', :$root) }, Exception, message => /'stopped to ask: which file?'/, 'a blocked run says what it asked';
+    $bin.parent.add('REPLY').spurt(receipt-line('denied'));
+    throws-like { ask-agent('x', :$root) }, Exception, message => /'refused the run' .* 'invalid'/, 'a denial says why';
+    $bin.parent.add('REPLY').spurt(receipt-line('failed'));
+    throws-like { ask-agent('x', :$root) }, Exception, message => /'failed' .* 'boom'/, 'a failure carries its errors';
+    $bin.parent.add('REPLY').spurt("not json\n");
+    throws-like { ask-agent('x', :$root) }, Exception, message => /'no receipt'/, 'no receipt is an error';
+
+    # an explicit command still wins
+    my $reply = temp-dir().add('reply.txt'); $reply.spurt("from the command\n");
+    is ask-agent('x', :$root, :cmd("cat {$reply}")), "from the command\n", 'an explicit :cmd bypasses 321';
+    temp %*ENV<IZ4_AGENT_CMD> = "cat {$reply}";
+    is ask-agent('x', :$root), "from the command\n", 'and so does IZ4_AGENT_CMD';
+    is agent-label(), "cat {$reply}", 'which the label shows';
+}
+
+# suggest goes through 321 and its candidates are parsed as before
+{
+    my $bin = stub-launcher();
+    temp %*ENV<IZ4_321> = $bin.Str;
+    temp %*ENV<IZ4_AGENT_CMD>; %*ENV<IZ4_AGENT_CMD>:delete;
+    my $dir = temp-dir();
+    minimal-iz4(:$dir);
+    $bin.parent.add('REPLY').spurt(receipt-line('completed', :summary("STRONG | Private profiles never appear in public search. | BECAUSE: a hidden search can cost a job | EVIDENCE: a test\n")));
+    my %s = agent-suggest($dir);
+    is %s<strong>.elems, 1, 'one strong candidate came through 321' or diag %s.raku;
+    ok %s<strong>[0]<text>.contains('Private profiles'), 'the candidate text';
+}
+
+# hooks and status through 321, via the CLI
+{
+    my $bin = stub-launcher();
+    my $dir = temp-dir();
+    minimal-iz4(:$dir);
+    my %env = IZ4_321 => $bin.Str;
+    my ($rc, $out, $err) = iz4($dir, 'agent', 'install', '--hooks', '--strict', :env(%env));
+    is $rc, 0, 'agent install --hooks exits 0' or diag $err;
+    ok $out.contains('hooks via 321 0.3.1') && $out.contains('claude_code: installed') && $out.contains('enforced: pre-edit, stop') && $out.contains('advisory: session-start'), 'hooks are wired by 321 and the line says what is enforced' or diag $out;
+    ok $bin.parent.add('calls').slurp.lines.grep(*.contains("hooks install --workspace {$dir.resolve} --command iz4 hook --strict --json")), '321 was asked to install, strict' or diag $bin.parent.add('calls').slurp;
+    ok !$dir.add('.claude/settings.json').e, 'iz4 wrote no settings of its own';
+    ($rc, $out, $err) = iz4($dir, 'agent', 'status', :env(%env));
+    is $rc, 0, 'agent status exits 0' or diag $err;
+    ok $out.contains('321 0.3.1, an agent launcher, is installed') && $out.contains('claude_code:') && $out.contains('enforced: pre-edit, stop'), 'status quotes 321' or diag $out;
+    ($rc, $out, $err) = iz4($dir, 'agent', 'status', '--json', :env(%env));
+    my $j = Rakudo::Internals::JSON.from-json($out);
+    is $j<launcher><version>, '0.3.1', 'and the JSON carries the launcher';
+}
+
+# ---- without 321 -----------------------------------------------------------------
+{
+    my $dir = temp-dir();
+    minimal-iz4(:$dir);
+    my %env = IZ4_321 => temp-dir().add('missing').Str, PATH => temp-dir().Str ~ ':' ~ %*ENV<PATH>.split(':').grep({ !.IO.add('321').e }).join(':');
+    my ($rc, $out, $err) = iz4($dir, 'agent', 'install', '--hooks', :env(%env));
+    is $rc, 0, 'without 321, agent install --hooks still works' or diag $err;
+    ok $out.contains('.claude/settings.json: installed'), 'writing the Claude Code wiring itself';
+    ($rc, $out, $err) = iz4($dir, 'agent', 'status', :env(%env));
+    ok $out.contains('321, an agent launcher, is not installed'), 'and status says 321 is not there' or diag $out;
+    temp %*ENV<IZ4_321> = temp-dir().add('missing').Str;
+    temp %*ENV<PATH> = temp-dir().Str;
+    temp %*ENV<IZ4_AGENT_CMD>; %*ENV<IZ4_AGENT_CMD>:delete;
+    ok !launcher-binary().defined, 'no launcher';
+    is agent-label(), 'claude -p', 'the default command stands';
+}
+{
+    # IZ4_NO_321=1 hides an installed 321
+    my $bin = stub-launcher();
+    temp %*ENV<IZ4_321> = $bin.Str;
+    temp %*ENV<IZ4_NO_321> = '1';
+    ok !launcher-binary().defined, 'IZ4_NO_321=1 makes iz4 act as if 321 were not installed';
+}
+
+# ---- the release file for this machine --------------------------------------
+ok launcher-asset().defined && launcher-asset().starts-with('321-'), 'a 321 file is published for this machine';
+my $bd = temp-dir();
+ok !launcher-marker($bd).e, 'no marker means iz4 did not install 321 here';
+{
+    # a 321 that is on PATH but not ours is never replaced
+    my $bin = stub-launcher();
+    temp %*ENV<IZ4_321> = $bin.Str;
+    my %l = launcher-install(:bin-dir($bd));
+    is %l<state>, 'skipped', 'an existing 321 is left as is';
+    ok %l<note>.contains('not by iz4'), 'and the note says why';
+}
+
+done-testing;

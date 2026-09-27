@@ -23,6 +23,7 @@ unit module IZ4::Evidence;
 #| have a test that says it does, and which have none.
 
 use IZ4::Document;
+use IZ4::Launcher;
 
 #| The phrase a scaffold carries until it is written; its presence marks
 #| a file as scaffolded rather than as evidence.
@@ -317,14 +318,9 @@ sub example-test(IO::Path $root --> Str) is export {
 }
 
 #| Ask the agent command for a draft.  Dies when the agent fails.
-sub agent-draft($doc, $inv, IO::Path $root, Str :$lang!, Str :$path!, Str :$cmd!, Str :$layout = '' --> Hash) is export {
+sub agent-draft($doc, $inv, IO::Path $root, Str :$lang!, Str :$path!, Str :$cmd, Str :$layout = '' --> Hash) is export {
     my $prompt = draft-prompt($doc, $inv, :$lang, :$path, example => example-test($root), :$layout);
-    my $proc = run '/bin/sh', '-c', $cmd, :in, :out;
-    $proc.in.print($prompt);
-    my $ = $proc.in.close;
-    my $reply = $proc.out.slurp(:close);
-    die "agent command failed ($cmd)" if $proc.exitcode != 0;
-    parse-draft($reply);
+    parse-draft(ask-agent($prompt, :$root, :$cmd));
 }
 
 #| The draft as it is written: the review line first, in the language's

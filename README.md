@@ -520,6 +520,27 @@ honoured. The hooks are one harness-neutral command, `iz4 hook`, with a
 thin Claude Code adapter; [docs/hooks.md](docs/hooks.md) has the contract
 and what other harnesses offer.
 
+## 321.do, an agent launcher
+
+Everything agentic in iz4 goes through [321](https://321.do) when it is
+installed: `iz4 suggest`, `iz4 review` and the test drafting in `iz4 test`
+become read-only runs of 321's prompt package, on whatever harness 321
+picks and can hold to the package's limits (no writes, no shell, no
+network beyond the model), answered in text. `iz4 agent install --hooks`
+asks 321 to wire `iz4 hook` into every harness it knows, and `iz4 agent
+status` quotes what 321 says each harness enforces, so nobody reads a
+written hook as an enforced one. Under 321, the IZ4 protocol is also a
+policy on the run itself: the packet goes into the prompt, and a run that
+changed files ends blocked without the per-invariant report.
+
+The installer fetches 321 beside iz4 ("install 321.do, an agent
+launcher") unless one is already there or `IZ4_NO_321=1`, and `iz4 update`
+keeps the one it installed current. iz4 works without it: `IZ4_AGENT_CMD`
+still names your own agent command and takes precedence, the default
+without either is `claude -p`, and the Claude Code hooks are written by
+iz4 itself. `IZ4_321` names the executable when it is not on PATH, and
+`IZ4_NO_321=1` makes iz4 act as if 321 were not installed.
+
 ## Register your IZ4
 
 Optional, and free to start. The [IZ4 register](https://iz4.you) gives a

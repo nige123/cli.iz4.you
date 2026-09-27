@@ -15,6 +15,7 @@ unit module IZ4::Review;
 #| shown; the coach adds it, and only on a person's yes.
 
 use IZ4;
+use IZ4::Launcher;
 use IZ4::Document;
 use IZ4::Git;
 
@@ -235,16 +236,11 @@ sub parse-review(Str $reply --> Hash) is export {
 }
 
 #| One agent pass over the change.  Dies when the agent fails.
-sub agent-review(IO::Path $iz4, Str :$diff!, Str :$what!, Str :$cmd = agent-cmd() --> Hash) is export {
+sub agent-review(IO::Path $iz4, Str :$diff!, Str :$what!, Str :$cmd --> Hash) is export {
     my $doc = IZ4::Document.load($iz4);
     my $prompt = review-prompt(effective => effective-text($doc), :$diff, :$what);
-    note "asking agent ($cmd) to review $what ...";
-    my $proc = run '/bin/sh', '-c', $cmd, :in, :out;
-    $proc.in.print($prompt);
-    my $ = $proc.in.close;
-    my $reply = $proc.out.slurp(:close);
-    die "agent command failed ($cmd)" if $proc.exitcode != 0;
-    parse-review($reply);
+    note "asking agent ({$cmd // agent-label()}) to review $what ...";
+    parse-review(ask-agent($prompt, :root($iz4.parent), :$cmd));
 }
 
 #| The agent's assessments as report lines, worded as opinions.
