@@ -4,7 +4,7 @@ use IZ4::Document;
 use IZ4::Git;
 use IZ4::Coach;
 
-constant VERSION is export = '0.4.0';
+constant VERSION is export = '0.4.1';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -499,7 +499,12 @@ sub own-checkout(--> IO::Path) is export {
 
 #| Where the standalone files are published, and the file for this machine.
 constant RELEASES is export = 'https://github.com/nige123/cli.iz4.you/releases';
-sub release-base(--> Str) { %*ENV<IZ4_RELEASE_URL> // (RELEASES ~ '/latest/download') }
+constant RELEASES-API is export = 'https://api.github.com/repos/nige123/cli.iz4.you/releases/latest';
+
+#| The directory holding a release's files: the explicit tag, never the
+#| 'latest' redirect, which GitHub serves from a cache that can lag the
+#| release itself by minutes.
+sub release-base(Str $tag --> Str) { %*ENV<IZ4_RELEASE_URL> // "{RELEASES}/download/$tag" }
 
 #| The release file built for this operating system and processor, or
 #| Str when none is published for them.
@@ -515,19 +520,19 @@ sub own-asset(--> Str) is export {
 }
 
 #| The newest published tag (like v0.3.0), or Str when none can be found.
-#| GitHub answers /releases/latest with a redirect to the tag; a test
-#| release directory names it in latest.txt.
+#| GitHub's releases API says which release is latest; a test release
+#| directory names it in latest.txt.
 sub latest-tag(--> Str) is export {
     if %*ENV<IZ4_RELEASE_URL> {
         my $p = run 'curl', '-fsSL', "{%*ENV<IZ4_RELEASE_URL>}/latest.txt", :out, :err;
         my $tag = $p.out.slurp(:close).trim; $p.err.slurp(:close);
         return $p.exitcode == 0 && $tag ?? $tag !! Str;
     }
-    my $p = run 'curl', '-sI', '-o', '-', RELEASES ~ '/latest', :out, :err;
-    my $head = $p.out.slurp(:close); $p.err.slurp(:close);
-    with $head.lines.first(*.starts-with(any('location:', 'Location:'))) {
-        my $where = .split(':', 2)[1].trim;
-        my $tag = $where.split('/')[*-1];
+    my $p = run 'curl', '-fsSL', '-H', 'Accept: application/vnd.github+json', RELEASES-API, :out, :err;
+    my $body = $p.out.slurp(:close); $p.err.slurp(:close);
+    return Str if $p.exitcode != 0;
+    with $body.match(/ '"tag_name"' \s* ':' \s* '"' (<-["]>+) '"' /) {
+        my $tag = ~$0;
         return $tag if $tag ~~ /^ 'v' \d/;
     }
     Str;
@@ -551,8 +556,8 @@ sub binary-update(Bool :$check = False --> Hash) is export {
     my $tmp = $*TMPDIR.add("iz4-update-{$*PID}");
     $tmp.mkdir;
     my $new = $tmp.add($asset);
-    fetch("{release-base()}/$asset", $new) && fetch("{release-base()}/$asset.sha256", $tmp.add("$asset.sha256"))
-        or return %( state => 'failed', note => "could not download $asset $tag from {release-base()}" );
+    fetch("{release-base($tag)}/$asset", $new) && fetch("{release-base($tag)}/$asset.sha256", $tmp.add("$asset.sha256"))
+        or return %( state => 'failed', note => "could not download $asset $tag from {release-base($tag)}" );
     my $expected = $tmp.add("$asset.sha256").slurp.lc.match(/ <[0..9a..f]> ** 64 /);
     my $got = sha256-file($new);
     return %( state => 'failed', note => "checksum mismatch for $asset $tag; nothing was replaced" )
