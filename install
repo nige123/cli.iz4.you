@@ -5,8 +5,8 @@
 #
 # Fetches the iz4 CLI into your home directory and puts `iz4` on your
 # PATH. If the runtime it needs is missing, it fetches that too (via
-# rakubrew, also into your home - nothing system-wide, no sudo). Re-running
-# the installer updates iz4.
+# rakubrew, also into your home - nothing system-wide, no sudo). Afterwards
+# 'iz4 update' keeps it current; re-running the installer does the same.
 #
 # Overrides: IZ4_REPO (git URL), IZ4_HOME (checkout parent),
 # IZ4_BIN (launcher directory), IZ4_NO_RUNTIME=1 (never fetch a runtime).
@@ -75,7 +75,7 @@ mkdir -p "$BIN_DIR"
 rm -f "$BIN_DIR/iz4"    # replace, never write through an existing symlink
 cat > "$BIN_DIR/iz4" <<LAUNCH
 #!/bin/sh
-# iz4 launcher, written by the iz4 installer; re-run the installer to update.
+# iz4 launcher, written by the iz4 installer; iz4 update keeps it current.
 exec "$RAKU" "$CHECKOUT/bin/iz4" "\$@"
 LAUNCH
 chmod +x "$BIN_DIR/iz4"
@@ -91,4 +91,4 @@ case ":$PATH:" in
     *) say "note: $BIN_DIR is not on your PATH. Add this line to your shell profile:"
        say "    export PATH=\"$BIN_DIR:\$PATH\"" ;;
 esac
-say "next: cd your-project && iz4 init"
+say "next: cd your-project && iz4 init   (later: iz4 update)"

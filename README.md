@@ -53,8 +53,13 @@ curl -fsSL https://raw.githubusercontent.com/nige123/cli.iz4.you/main/install | 
 
 That puts a `iz4` launcher in `~/.local/bin`. If your machine needs the
 runtime, the installer fetches it into your home directory. Nothing
-system-wide, no sudo. Run the same command again to update. Git is the only
-prerequisite.
+system-wide, no sudo. Git is the only prerequisite.
+
+From then on, `iz4 update` brings it to the latest published version, and
+`iz4 update --check` only says whether there is one. It fast-forwards the
+installed checkout and proves the result still runs before claiming
+success; a checkout with your own changes in it is left alone. Re-running
+the install line does the same.
 
 Rather see every step?
 
@@ -270,6 +275,7 @@ iz4 show invariant N             one invariant; 0-4 are the inherited foundation
 iz4 check [FILE]                 ticks for what is true, crosses with remedies
 iz4 number [FILE]                number unnumbered invariants from 5
 iz4 migrate [FILE]               convert a legacy IZ4 to the Is For format
+iz4 update [--check]             bring iz4 to the latest published version
 iz4 log [FILE]                   the Git history of your intent
 iz4 diff [FILE] [REV [REV]]      what changed, working tree by default
 iz4 agent [install|status]       hand the invariants to a coding agent
@@ -473,8 +479,8 @@ evidence, so embedding it claims nothing the card cannot back.
 - The format and the tool are useful on their own, with no service attached.
   The file belongs to your project.
 - Offline by default. The only network calls are the register commands you
-  ask for, and your own agent command behind `iz4 suggest` and `iz4 review`
-  if you use it.
+  ask for, `iz4 update`, and your own agent command behind `iz4 suggest`
+  and `iz4 review` if you use it.
 - History comes from Git, not from a versioning scheme we invented.
 - A check reports what it verified and says plainly what it cannot.
 

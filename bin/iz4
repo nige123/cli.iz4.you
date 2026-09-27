@@ -88,6 +88,10 @@ sub USAGE() {
       iz4 report [--dry-run|--strict]  submit evidence (never the text)
       iz4 badge                        print the card link and badge snippets
       iz4 version                      print the tool version
+      iz4 update [--check]             update this iz4 to the latest published
+                                           version (--check: only say whether one
+                                           exists); a developer checkout with
+                                           local changes is left alone
 
     The golden test for an invariant: if the whole system were
     rewritten tomorrow, would we regret not telling the people and agents
@@ -600,7 +604,21 @@ multi MAIN('diff', *@args) {
 }
 
 multi MAIN('version') {
-    say "iz4 {VERSION}";
+    say "iz4 {VERSION}" ~ (own-revision() andthen " ($_)" orelse '');
+}
+
+multi MAIN('update', Bool :$check = False) {
+    attempt {
+        my %u = self-update(:$check);
+        my sub commits() { say "  $_" for %u<commits>.head(8); say "  ..." if %u<commits> > 8 }
+        given %u<state> {
+            when 'current'  { say "iz4 is up to date ({VERSION}, {%u<from>})."; 0 }
+            when 'behind'   { say "iz4 is {%u<n>} commit{%u<n> == 1 ?? '' !! 's'} behind; 'iz4 update' fetches:"; commits(); 0 }
+            when 'updated'  { say "Updated iz4 from {%u<from>} to {%u<to>} ({%u<n>} commit{%u<n> == 1 ?? '' !! 's'}):"; commits(); 0 }
+            when 'standalone' { say %u<note>; 0 }
+            default         { note %u<note>; 1 }
+        }
+    }
 }
 
 multi MAIN('agent', Bool :$json = False, Str :$file) {

@@ -2,7 +2,7 @@ use lib $?FILE.IO.parent.add('lib').Str;
 use Test;
 use IZ4Test;
 
-plan 13;
+plan 22;
 
 my $repo-root = $?FILE.IO.parent.parent.resolve;
 
@@ -10,7 +10,7 @@ my $repo-root = $?FILE.IO.parent.parent.resolve;
 my ($rc, $out, $err) = iz4(temp-dir, 'version');
 is $rc, 0, 'version exits 0';
 like $out, /^ 'iz4 ' \d+ '.' \d+ '.' \d+ /, 'prints the tool version';
-like $out, /^ 'iz4 ' \d+ '.' \d+ '.' \d+ \s* $/, 'prints only the tool version: the format is unversioned';
+like $out, /^ 'iz4 ' \d+ '.' \d+ '.' \d+ [' (' <xdigit>+ ')']? \s* $/, 'prints the tool version and, for a checkout, its commit: the format is unversioned';
 
 # the installer, run against this checkout, into an isolated prefix;
 # raku is already present here, so no runtime is ever fetched. The installer
@@ -44,6 +44,54 @@ if have-git() && have-raku() {
     $p2.err.slurp(:close);
     is $p2.exitcode, 0, 're-running the installer updates cleanly';
 
+    # iz4 update: an installed copy fast-forwards from where it was installed
+    # the origin carries this working tree, so the test exercises the code being tested
+    my $origin = temp-dir.add('origin');
+    run 'git', 'clone', '-q', $repo-root.Str, $origin.Str;
+    run 'git', '-C', $origin.Str, 'config', 'user.email', 't@t';
+    run 'git', '-C', $origin.Str, 'config', 'user.name', 'T';
+    for <bin lib install> -> $part {
+        run 'rm', '-rf', $origin.add($part).Str;
+        run 'cp', '-r', $repo-root.add($part).Str, $origin.add($part).Str;
+    }
+    run 'git', '-C', $origin.Str, 'add', '-A';
+    run 'git', '-C', $origin.Str, 'commit', '-qm', 'working tree', '--allow-empty';
+    my $home2 = temp-dir;
+    my %env2 = %env;
+    %env2<IZ4_REPO> = $origin.Str;
+    %env2<IZ4_HOME> = $home2.add('share').Str;
+    %env2<IZ4_BIN>  = $home2.add('bin').Str;
+    my $pi = run 'sh', $repo-root.add('install').Str, :out, :err, :env(%env2);
+    $pi.out.slurp(:close); $pi.err.slurp(:close);
+    my $launcher2 = $home2.add('bin/iz4');
+    my sub installed(*@args) {
+        my $p = run $launcher2.Str, |@args, :out, :err, :env(%env2);
+        my $o = $p.out.slurp(:close); my $e = $p.err.slurp(:close);
+        (try $p.exitcode) // 1, $o, $e;
+    }
+    my ($urc, $uout, $uerr) = installed('update', '--check');
+    like $uout, /'iz4 is up to date'/, 'a fresh install is up to date';
+    like installed('version')[1], /^ 'iz4 ' \d+ '.' \d+ '.' \d+ ' (' <xdigit>+ ')'/, 'version shows the commit of an installed copy';
+    $origin.add('README.md').spurt($origin.add('README.md').slurp ~ "\nA new line.\n");
+    run 'git', '-C', $origin.Str, 'commit', '-qam', 'A newer iz4';
+    ($urc, $uout, $uerr) = installed('update', '--check');
+    ok $urc == 0 && $uout.contains('1 commit behind') && $uout.contains('A newer iz4'), '--check reports what an update would fetch';
+    ($urc, $uout, $uerr) = installed('update');
+    ok $urc == 0 && $uout.contains('Updated iz4 from') && $uout.contains('A newer iz4'), 'update fast-forwards and says what changed';
+    ok $home2.add('share/cli/README.md').slurp.contains('A new line.'), 'the installed checkout has the new commit';
+    ($urc, $uout, $uerr) = installed('update');
+    like $uout, /'up to date'/, 'a second update has nothing to do';
+    $home2.add('share/cli/README.md').spurt("edited locally\n");
+    ($urc, $uout, $uerr) = installed('update');
+    ok $urc == 1 && $uerr.contains('local changes'), 'a checkout with local changes is left alone';
+    run 'git', '-C', $home2.add('share/cli').Str, 'checkout', '-q', '--', 'README.md';
+    %env2<IZ4_REPO> = temp-dir.add('gone').Str;
+    run 'git', '-C', $home2.add('share/cli').Str, 'remote', 'set-url', 'origin', temp-dir.add('gone').Str;
+    ($urc, $uout, $uerr) = installed('update');
+    ok $urc == 1 && $uerr.contains('could not reach'), 'an unreachable source is reported, not hidden';
+    ($urc, $uout, $uerr) = installed('version');
+    is $urc, 0, 'and iz4 still runs';
+
     # a symlinked checkout is a developer's own: left alone, never pulled over
     my $cli = $fake.add('share/cli');
     run 'rm', '-rf', $cli.Str;
@@ -69,5 +117,5 @@ if have-git() && have-raku() {
     is $pointee.slurp, "do not clobber\n", 'the symlink target was not written through';
 }
 else {
-    skip 'needs git and a Rakudo runtime', 10;
+    skip 'needs git and a Rakudo runtime', 19;
 }

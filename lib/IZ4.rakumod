@@ -662,6 +662,60 @@ sub walk(IO::Path $dir, Int $depth) {
     @out;
 }
 
+# ---------------------------------------------------------------- update
+
+#| The short commit id of this copy, or Str for a standalone file.
+sub own-revision(--> Str) is export {
+    my $root = own-checkout() // return Str;
+    my ($rc, $out, $) = git($root.add('bin').add('iz4'), 'rev-parse', '--short', 'HEAD');
+    $rc == 0 ?? $out.trim !! Str;
+}
+
+#| Where this copy of iz4 lives: the checkout two levels above bin/iz4,
+#| or Nil when this copy is not a Git checkout (a standalone binary).
+sub own-checkout(--> IO::Path) is export {
+    my $root = try $*PROGRAM.resolve.parent(2);
+    $root.defined && $root.add('.git').e && $root.add('bin').add('iz4').e ?? $root !! Nil;
+}
+
+#| Update this copy of iz4 to the latest published version, or with
+#| :check only say whether one exists.  Returns a hash: 'state' is one of
+#| current, behind, updated, dirty, standalone or failed, with 'from',
+#| 'to', 'commits' (their subjects) and 'note' as apply.  The only
+#| network call is Git talking to the checkout's own remote.
+sub self-update(Bool :$check = False --> Hash) is export {
+    my $root = own-checkout() // return %( state => 'standalone',
+        note => 'this iz4 is a standalone file, not a Git checkout; download the latest from '
+              ~ 'https://github.com/nige123/cli.iz4.you and replace it, or re-run the installer' );
+    my $marker = $root.add('bin').add('iz4');
+    my sub g(*@a) { git($marker, |@a) }
+
+    my ($rc, $dirty, $) = g('status', '--porcelain', '--untracked-files=no');
+    return %( state => 'dirty', note => "$root has local changes; this looks like a developer checkout, so update it yourself" )
+        if $rc == 0 && $dirty.trim;
+
+    my ($rf, $, $ferr) = g('fetch', '--quiet');
+    return %( state => 'failed', note => "could not reach the update source: {$ferr.trim.lines.head // 'git fetch failed'}" ) if $rf != 0;
+
+    my ($, $from, $) = g('rev-parse', '--short', 'HEAD');
+    my ($rb, $behind, $) = g('rev-list', '--count', 'HEAD..@{u}');
+    return %( state => 'failed', note => 'this checkout tracks no upstream branch; re-run the installer' ) if $rb != 0;
+    my $n = +$behind.trim;
+    my ($, $log, $) = g('log', '--format=%s', 'HEAD..@{u}');
+    my @commits = $log.lines;
+    return %( state => 'current', from => $from.trim, :$n ) if $n == 0;
+    return %( state => 'behind', from => $from.trim, :$n, :@commits ) if $check;
+
+    my ($rp, $, $perr) = g('pull', '--ff-only', '--quiet');
+    return %( state => 'failed', note => "update failed: {$perr.trim.lines.head // 'git pull failed'}; re-run the installer" ) if $rp != 0;
+    my ($, $to, $) = g('rev-parse', '--short', 'HEAD');
+    # prove the updated copy still runs before claiming success
+    my $probe = run $*EXECUTABLE, '-I', $root.add('lib').Str, $marker.Str, 'version', :out, :err;
+    $probe.out.slurp(:close); $probe.err.slurp(:close);
+    return %( state => 'failed', note => "updated to {$to.trim} but iz4 no longer runs; re-run the installer" ) if $probe.exitcode != 0;
+    %( state => 'updated', from => $from.trim, to => $to.trim, :$n, :@commits );
+}
+
 # ---------------------------------------------------------------- log / diff
 
 sub log-text(IO::Path $path --> Str) is export {
