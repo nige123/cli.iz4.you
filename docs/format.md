@@ -33,7 +33,10 @@ Job seekers should not acquire another unsolicited inbox.
 - **The header** is the word `IZ4` on a line by itself. Blank and comment
   lines may come before it; nothing else may.
 - **A comment** is a line starting with `#`. Comments are for people; the
-  tool never reads intent from them.
+  tool never reads intent from them. `iz4 init` writes three: that the
+  file inherits Invariants 0-4, human intention protected; where to read
+  them, https://iz4.you/invariant-zero; and that project invariants begin
+  at 5.
 - **A block** is a keyword line at column 0, then its text: every following
   line up to a blank line, a comment or the next keyword. The lines join
   with a space, so text may wrap however you like.

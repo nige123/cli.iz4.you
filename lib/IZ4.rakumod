@@ -68,9 +68,14 @@ sub display-name(IO::Path $path, IO::Path :$cwd = $*CWD --> Str) is export {
 
 # ---------------------------------------------------------------- teaching
 
-#| The line every new IZ4 carries, so a reader knows 0-4 exist.
+#| Where Invariants 0-4 are explained, for a reader with no CLI.
+constant FOUNDATION-URL is export = 'https://iz4.you/invariant-zero';
+
+#| The lines every new IZ4 carries, so a reader knows 0-4 exist, what
+#| they protect, and where to read them.
 constant INHERITANCE-COMMENT is export =
-    "# Every IZ4 inherits Invariants 0-4 ('iz4 invariants' shows them).\n"
+    "# Every IZ4 inherits Invariants 0-4: human intention protected.\n"
+    ~ "# Read them at {FOUNDATION-URL} ('iz4 invariants' prints them).\n"
     ~ '# Project invariants begin at 5.';
 
 #| Paired examples: what does and does not belong.  The right-hand side

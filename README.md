@@ -39,6 +39,10 @@ BECAUSE
 Job seekers should not acquire another unsolicited inbox.
 ```
 
+Every file opens with a comment naming what it inherits and where to read it:
+Invariants 0-4, human intention protected, at
+[iz4.you/invariant-zero](https://iz4.you/invariant-zero).
+
 It is small enough that an agent can read all of it before every meaningful
 change. And it need not sit beside software at all: a data room, an archive or
 any collection of files can say what it is for and what must stay true. `iz4` is the command-line tool that helps you write it: it works

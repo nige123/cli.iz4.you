@@ -14,7 +14,8 @@ my $doc = check-doc($path);
 ok $doc.ok && !$doc.warnings, 'a freshly initialised IZ4 is valid';
 nok $doc.invariants, 'and demands no invariants';
 ok $path.slurp.lines.elems < 12, 'and is tiny: no template to fill in';
-like $path.slurp, /'inherits Invariants 0-4'/, 'it tells a reader that 0-4 are inherited';
+like $path.slurp, /'inherits Invariants 0-4: human intention protected' .* 'https://iz4.you/invariant-zero'/,
+    'it tells a reader that 0-4 are inherited, what they protect, and where to read them';
 nok $path.slurp ~~ /:i 'behaviour' | 'constraint' | 'decision' | 'gist'/, 'and has no specification sections';
 throws-like { init(:$dir, :for-what('x'), :for-who('y')) }, X::IZ4, message => /'already exists'/, 'init never overwrites';
 throws-like { init(:dir(temp-dir), :for-what(''), :for-who('y')) }, X::IZ4, message => /'for'/, 'init needs a real answer';
