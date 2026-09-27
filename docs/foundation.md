@@ -1,8 +1,10 @@
-# The inherited foundation: Invariants 0-4
+# The foundation: Invariants 0-4
 
-Every IZ4 inherits five invariants, whether or not the file repeats them.
-Leaving the text out does not remove the obligation. A project cannot
-redefine, remove or override them, so its own invariants begin at 5. They
+Every IZ4 carries five invariants word for word, after IS FOR WHO? and
+before its own. They are part of the grammar: the CLI holds the reference
+copy, `iz4 check` refuses a file where they are missing or altered, and
+`iz4 foundation --restore` writes them back. A project cannot redefine,
+remove or override them, so its own invariants begin at 5. They
 are short on purpose, under 320 words with their reasons, written as plain
 instructions that a person or an AI can take in at a glance. Each refers to
 the others by number and says why it must survive.
@@ -109,7 +111,7 @@ The earlier single Invariant 0 was `1af8b123edd8...`, and before that
 
 The digest identifies the adopted text, and nothing more. Writing a rule
 down, or hashing it, does not make software obey it. It is there so nobody
-can quietly rewrite what a file inherited.
+can quietly rewrite what every file carries.
 
 ## Applying it
 
@@ -141,5 +143,5 @@ to look:
 
 A reported conflict is honesty, not evidence: it does not establish that an
 invariant held. `iz4 check` ticks only what it verified, that a file is well
-formed and inherits the foundation. Whether software keeps Invariants 0 to N
+formed and carries the foundation word for word. Whether software keeps Invariants 0 to N
 is reported as uncertain, and settled by people reviewing a change.

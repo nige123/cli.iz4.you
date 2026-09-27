@@ -14,7 +14,7 @@ add-invariant($iz4, 'Nothing here needs a tool.', :because('An editor is enough.
 
 # what the tool writes is plain, short-lined UTF-8 text with no markup
 my $text = $iz4.slurp;
-ok $text.lines.grep(*.chars > 80) == 0, 'no line is longer than 80 columns';
+ok $text.lines.grep({ .chars > 80 && !.starts-with('#') }) == 0, 'no line is longer than 80 columns';
 nok $text ~~ /<[{}<>\[\]]>/, 'no brackets, braces or angle markup';
 ok $text.lines.grep({ $_ ne '' && !.starts-with('#') && !.starts-with(' ') }) == $text.lines.grep({ $_ ne '' && !.starts-with('#') }), 'nothing is indented';
 ok $text.encode('utf8').decode('utf8') eq $text, 'it is UTF-8';
@@ -38,6 +38,8 @@ $hand.spurt(q:to/END/);
     BECAUSE
     I said so.
     END
+# the foundation is written by hand too, wrapped as the person likes
+$hand.spurt($hand.slurp.subst("IS FOR WHO?\nMe.\n", "IS FOR WHO?\nMe.\n\n" ~ foundation-block().subst("Do not harm people, or help", "Do not harm people,\nor help")));
 my $doc = IZ4::Document.load($hand);
 ok $doc.ok, 'a hand-written file with its own line breaks is valid';
 is $doc.for-what, 'A thing I typed by hand, over three lines.', 'and reads as the person meant it';

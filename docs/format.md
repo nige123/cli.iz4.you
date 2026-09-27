@@ -33,18 +33,23 @@ Job seekers should not acquire another unsolicited inbox.
 - **The header** is the word `IZ4` on a line by itself. Blank and comment
   lines may come before it; nothing else may.
 - **A comment** is a line starting with `#`. Comments are for people; the
-  tool never reads intent from them. `iz4 init` writes three: that the
-  file inherits Invariants 0-4, human intention protected; where to read
-  them, https://iz4.you/invariant-zero; and that project invariants begin
-  at 5.
+  tool never reads intent from them. `iz4 init` writes a few: that the
+  file carries Invariants 0-4, the foundation, word for word; where to
+  read about them, https://iz4.you/invariant-zero; that project invariants
+  begin at 5; and, above the foundation, that it is not the owner's to
+  edit.
 - **A block** is a keyword line at column 0, then its text: every following
   line up to a blank line, a comment or the next keyword. The lines join
   with a space, so text may wrap however you like.
 - **There are four keywords.** `IS FOR WHAT?` and `IS FOR WHO?` are the two
   questions, written with their question mark, each answered once.
-  `INVARIANT n` names a project invariant, numbered from 5 because 0 to 4
-  are inherited. `BECAUSE` gives the reason for the invariant directly
-  above it, and only that one.
+  `INVARIANT n` names a project invariant, numbered from 5. `BECAUSE`
+  gives the reason for the invariant directly above it, and only that one.
+- **The foundation** is five more blocks every file carries, after IS FOR
+  WHO? and before the project's own: `INVARIANT 0 - HUMANS FIRST` to
+  `INVARIANT 4 - THE FOUNDATION HOLDS`, each with its BECAUSE, in that
+  order, word for word as `iz4 foundation` prints them. Wrapping is free;
+  the words are not. The reference copy lives in the CLI.
 - **Any other line of capitals** (letters, digits and spaces) starts a
   block too, so the format can grow. Such a block is kept and reported as
   a warning, with a reminder that requirements, plans, tasks and
@@ -65,7 +70,8 @@ problem with its line number. The document layer then decides:
 | A line like `gist:` or `invariants:` | error: the earlier IZ4 format, which this version no longer reads |
 | Prose where a keyword was expected | error: text before any block |
 | A second `IZ4` line | error |
-| `INVARIANT 3` or any number below 5 | error: reserved for the inherited foundation |
+| `INVARIANT 3` without its name, or any of 0-4 whose words differ from the foundation | error: the foundation is not the owner's to edit |
+| Any of `INVARIANT 0` to `4` missing, out of order, or after a project invariant | error: every IZ4 carries the foundation first |
 | The same number twice, or the same IS FOR twice | error |
 | `BECAUSE` not directly after an `INVARIANT` | error |
 | An empty block | error |

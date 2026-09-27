@@ -1,6 +1,7 @@
 use lib $?FILE.IO.parent.add('lib').Str;
 use Test;
 use IZ4Test;
+use IZ4::Document;
 
 # Never let a test reach a real agent.
 %*ENV<IZ4_AGENT_CMD> = 'false';
@@ -15,13 +16,13 @@ is $err, "No IZ4 found in this directory or its parents.\nRun 'iz4 init' to crea
 ($rc, $out, $err) = iz4-talk($dir, "Helping people find work they love to do.\nPeople looking for work.\nn\n", 'init');
 is $rc, 0, 'coached init exits 0';
 like $out, /'What is this for?' .* 'Who is it for?' .* 'Created IZ4.'/, 'init asks what and who';
-like $out, /'inherits invariants 0-4' .* 'begin at 5'/, 'init teaches inheritance';
+like $out, /'carries invariants 0-4, the foundation, word for word' .* 'begin at 5'/, 'init teaches the foundation';
 like $out, /'Add an invariant now? [Y/n]'/, 'and offers to add one';
 unlike $out, /:i 'behaviour' | 'requirement' | 'constraint'/, 'without asking for a specification';
 my $iz4 = $dir.add('IZ4').slurp;
 like $iz4, /'IS FOR WHAT?' \n 'Helping people find work they love to do.' \n\n 'IS FOR WHO?' \n 'People looking for work.'/,
     'the two answers are the file';
-nok $iz4.contains('INVARIANT'), 'declining the offer leaves a valid two-question IZ4';
+nok $iz4.contains('INVARIANT 5'), 'declining the offer leaves a valid two-question IZ4 with only the foundation';
 ($rc, $out, $err) = iz4($dir, 'init', '--for-what=x', '--for-who=y');
 is $rc, 1, 'second init fails';
 like $err, /'already exists'/, 'and explains';
@@ -55,7 +56,7 @@ is $rc, 0, 'check passes';
 like $out, /'✓ structure: valid' \n
             '✓ IS FOR WHAT: Helping people find work they love to do.' \n
             '✓ IS FOR WHO: People looking for work.' \n
-            '✓ Invariants 0-4: inherited' .* \n
+            '✓ Invariants 0-4: the foundation, in the file word for word' .* \n
             '✓ invariants: 1 of your own, numbered from 5' \n
             '✓ BECAUSE: every invariant says why it must survive' \n/, 'ticks for what is true';
 like $out, /'? the system keeps Invariants 0-5: uncertain'/, 'conformance is uncertain, never a tick';
@@ -83,13 +84,13 @@ is ($rc, $out), (0, "Set BECAUSE for Invariant 6.\n"), 'because N WHY sets a rea
 ($rc, $out, $err) = iz4($dir, 'check');
 like $out, /'✓ BECAUSE: every invariant says why it must survive'/, 'and the checklist is clean';
 ($rc, $out, $err) = iz4($dir, 'because', '2', 'Mine.');
-ok $rc == 1 && $err.contains('inherited'), 'the foundation reasons are canonical';
+ok $rc == 1 && $err.contains("the foundation's"), 'the foundation reasons are canonical';
 
 # ---- the effective invariant set -------------------------------------------------
 ($rc, $out, $err) = iz4($dir, 'invariants');
 is $rc, 0, 'iz4 invariants exits 0';
-like $out, /'INVARIANT 0 - HUMANS FIRST (inherited)' .* 'INVARIANT 4 - THE FOUNDATION HOLDS (inherited)' .* 'INVARIANT 5' \n 'Private profiles'/,
-    'it shows the inherited 0-4 and the project invariants together';
+like $out, /'INVARIANT 0 - HUMANS FIRST (foundation)' .* 'INVARIANT 4 - THE FOUNDATION HOLDS (foundation)' .* 'INVARIANT 5' \n 'Private profiles'/,
+    'it shows the foundation 0-4 and the project invariants together';
 ($rc, $out, $err) = iz4($dir, 'show', 'invariant', '2');
 like $out, /'HUMAN AGENCY'/, 'show invariant 2 is the inherited foundation';
 ($rc, $out, $err) = iz4($dir, 'show', 'invariant', '5');
@@ -108,10 +109,10 @@ ok $rc == 1 && $err.contains('reserved'), 'not even --force can take a number in
 # ---- explicit .iz4 documents ------------------------------------------------------
 my $nested = $dir.add('docs');
 $nested.mkdir;
-$nested.add('security.iz4').spurt("IZ4\n\nIS FOR WHAT?\nKeeping secrets.\n\nIS FOR WHO?\nEveryone with an account.\n\nINVARIANT\nSecrets are never logged.\n");
+$nested.add('security.iz4').spurt("IZ4\n\nIS FOR WHAT?\nKeeping secrets.\n\nIS FOR WHO?\nEveryone with an account.\n\n" ~ foundation-block() ~ "\nINVARIANT\nSecrets are never logged.\n");
 ($rc, $out, $err) = iz4($nested, 'check', 'security.iz4');
 is $rc, 0, 'explicit .iz4 checked';
-like $out, /"security.iz4:9: warning: unnumbered INVARIANT"/, 'with the unnumbered warning';
+like $out, /"security.iz4:" \d+ ": warning: unnumbered INVARIANT"/, 'with the unnumbered warning';
 unlike $out, /'AGENTS.md'/, 'agent entry points are only checked for a root IZ4';
 ($rc, $out, $err) = iz4($nested, 'number', 'security.iz4');
 is ($rc, $out), (0, "Numbered 1 invariant in security.iz4 (Invariant 5)\n"), 'number starts at 5';

@@ -84,17 +84,33 @@ for FOUNDATION -> %f {
 my $canon = temp-dir.add('foundation.txt');
 $canon.spurt(FOUNDATION-TEXT);
 is sha256-hex($canon), FOUNDATION-DIGEST, 'the foundation digest matches its canonical bytes';
-# --- inheritance: every IZ4 carries 0-4 without repeating them -------------
+# --- every IZ4 carries 0-4 word for word ----------------------------------
 my $path = minimal-iz4();
 my $doc  = check-doc($path);
-nok $path.slurp.contains('HUMANS FIRST'), 'the file itself does not repeat the foundation';
+ok $path.slurp.contains(foundation-block()), 'the file itself carries the foundation, word for word';
+ok $doc.foundation-intact, 'and the parse finds it intact';
+for FOUNDATION -> %f {
+    ok $path.slurp.contains("INVARIANT {%f<number>} - {%f<name>}"), "the file names Invariant {%f<number>}";
+}
+my $bare = temp-dir.add('IZ4');
+$bare.spurt("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n");
+nok check-doc($bare).ok, 'without the foundation a file is not a valid IZ4';
+is restore-foundation($bare), 'written', 'restore writes it';
+ok check-doc($bare).foundation-intact, 'and the file is then intact';
+is restore-foundation($bare), 'unchanged', 'a second restore changes nothing';
+my $edited = $bare.slurp.subst('a machine is a machine', 'a machine is a colleague');
+$bare.spurt($edited);
+nok check-doc($bare).ok, 'an edited foundation fails';
+like check-doc($bare).report.join, /"INVARIANT 3 is the foundation's HONESTY" .* 'not yours to edit'/, 'and the error names the invariant';
+is restore-foundation($bare), 'replaced', 'restore replaces it';
+ok check-doc($bare).ok && $bare.slurp.contains('a machine is a machine'), 'with the words every IZ4 carries';
 my $effective = effective-text($doc);
 for FOUNDATION -> %f {
-    ok $effective.contains("INVARIANT {%f<number>} - {%f<name>} (inherited)"),
-        "the effective set includes inherited Invariant {%f<number>}";
+    ok $effective.contains("INVARIANT {%f<number>} - {%f<name>} (foundation)"),
+        "the effective set includes foundation Invariant {%f<number>}";
     ok $effective.contains(%f<because>.words.head(4).join(' ')), "with its BECAUSE";
 }
-like invariant-text($path, '3'), /'INVARIANT 3 - HONESTY (inherited)'/, 'show invariant 3 resolves the foundation';
+like invariant-text($path, '3'), /'INVARIANT 3 - HONESTY (foundation)'/, 'show invariant 3 resolves the foundation';
 
 # --- 0-4 cannot be overridden ---------------------------------------------
 throws-like { add-invariant($path, 'A softer harm rule.', :number(1)) }, X::IZ4,

@@ -28,7 +28,7 @@ nok $bin.add('curl').e, 'curl is not on the PATH these commands get';
 is offline('init', '--for-what=Offline.', '--for-who=Anyone.', '--/agents')[0], 0, 'init works with no network tool';
 is offline('add', 'invariant', 'The file is the source.', '--because=Nothing else is.')[0], 0, 'add works';
 is offline('check')[0], 0, 'check works';
-like offline('invariants')[1], /'INVARIANT 0 - HUMANS FIRST (inherited)' .* 'INVARIANT 5'/, 'the inherited foundation is available with no account';
+like offline('invariants')[1], /'INVARIANT 0 - HUMANS FIRST (foundation)' .* 'INVARIANT 5'/, 'the foundation is available with no account';
 is offline('agent')[0], 0, 'the agent packet works';
 is offline('number')[0], 0, 'number works';
 ok $dir.add('IZ4').slurp.contains('The file is the source.'), 'and the file, plain text, holds it all';

@@ -39,9 +39,12 @@ BECAUSE
 Job seekers should not acquire another unsolicited inbox.
 ```
 
-Every file opens with a comment naming what it inherits and where to read it:
-Invariants 0-4, human intention protected, at
-[iz4.you/invariant-zero](https://iz4.you/invariant-zero).
+Every file carries Invariants 0-4, the foundation, word for word, after
+IS FOR WHO? and before its own invariants: human intention protected, the
+same five blocks in every IZ4, explained at
+[iz4.you/invariant-zero](https://iz4.you/invariant-zero). They are part of
+the grammar: `iz4 check` refuses a file where they are missing or altered,
+and `iz4 foundation --restore` puts them back.
 
 It is small enough that an agent can read all of it before every meaningful
 change. And it need not sit beside software at all: a data room, an archive or
@@ -110,7 +113,7 @@ Who is it for?
 Created IZ4.
 AGENTS.md: installed
 
-Every IZ4 inherits invariants 0-4 ('iz4 invariants' shows them).
+Every IZ4 carries invariants 0-4, the foundation, word for word ('iz4 invariants' shows them).
 Your project-specific invariants begin at 5.
 
 Add an invariant now? [Y/n]
@@ -285,9 +288,11 @@ iz4 review [RANGE|--staged]      which invariants a change touches, your agent's
                                    assessment, and any invariant it reveals
                                    (--offline, --strict, --for-push, --install-hook)
 iz4 suggest                      a few candidate invariants from an agent, reviewed
-iz4 invariants [FILE]            the effective invariants: inherited 0-4 plus yours
+iz4 invariants [FILE]            the effective invariants: the foundation 0-4 plus yours
+iz4 foundation [--restore FILE]  the foundation as every file carries it; --restore
+                                   writes it back where it is missing or altered
 iz4 show [FILE] [PART]           the file, or for-what, for-who or invariants
-iz4 show invariant N             one invariant; 0-4 are the inherited foundation
+iz4 show invariant N             one invariant; 0-4 are the foundation
 iz4 check [FILE]                 ticks for what is true, crosses with remedies
 iz4 number [FILE]                number unnumbered invariants from 5
 iz4 test [N ...] [--list]        a test for each invariant without one: drafted
@@ -377,7 +382,7 @@ $ iz4 check
 ✓ structure: valid
 ✓ IS FOR WHAT: Helping people find work they love to do.
 ✓ IS FOR WHO: People looking for work.
-✓ Invariants 0-4: inherited from the foundation (sha256 9782949420dc)
+✓ Invariants 0-4: the foundation, in the file word for word (sha256 9782949420dc)
 ✓ invariants: 2 of your own, numbered from 5
 ✗ BECAUSE: missing for Invariant 6 - write under each why it must survive
 ✓ AGENTS.md: integration installed (current)
@@ -406,9 +411,12 @@ cannot know. That line stays a question mark, and review against
 - A `BECAUSE` belongs to the `INVARIANT` directly above it. It is optional in
   the grammar and strongly encouraged in practice: the reason is usually the
   one thing the code cannot tell a future reader.
-- Project invariants are numbered from 5, because 0-4 are inherited. A number,
-  once given, is never reused for a different invariant, so "Invariant 6"
-  means one thing wherever it is cited.
+- Invariants 0-4 are the foundation, written as `INVARIANT 0 - HUMANS FIRST`
+  and so on, with their BECAUSE, word for word as in every other IZ4. They
+  are not the owner's to edit: a missing or altered one is an error.
+- Project invariants are numbered from 5. A number, once given, is never
+  reused for a different invariant, so "Invariant 6" means one thing
+  wherever it is cited.
 - Lines starting with `#` are comments, for humans.
 - Any other block in capitals is kept and reported as a warning, so the format
   can grow, with a reminder of where that content usually belongs.
@@ -425,11 +433,12 @@ the table of what is an error and what is a warning. Files in the earlier
 `gist:` and `invariants:` format are no longer read; iz4 0.3.0 was the last
 version that converted them.
 
-## The inherited foundation: Invariants 0-4
+## The foundation: Invariants 0-4
 
-Every IZ4 inherits five invariants, whether or not the file repeats them.
-Projects cannot redefine, remove or override them, which is why their own
-begin at 5.
+Every IZ4 carries these five invariants word for word, so anyone who opens
+the file reads them there, and no file can drop or bend them: the CLI holds
+the reference copy and `iz4 check` compares the two. Projects cannot
+redefine, remove or override them, which is why their own begin at 5.
 
 ```text
 INVARIANT 0 - HUMANS FIRST

@@ -52,11 +52,14 @@ sub USAGE() {
       iz4 suggest                      ask an agent (IZ4_AGENT_CMD, default
                                            'claude -p') for a few candidate
                                            invariants, then review them
-      iz4 invariants [FILE]            the effective invariants: the inherited
+      iz4 invariants [FILE]            the effective invariants: the foundation
                                            0-4 and this project's own
+      iz4 foundation [--restore FILE]  the foundation every IZ4 carries word for
+                                           word; --restore writes it back into a
+                                           file where it is missing or altered
       iz4 show [FILE] [PART]           print the IZ4, or for-what, for-who or
                                            invariants
-      iz4 show invariant N             print invariant N (0-4 are inherited)
+      iz4 show invariant N             print invariant N (0-4 are the foundation)
       iz4 check [FILE]                 tick what is true, cross what needs a
                                            remedy; exit 1 only on errors
       iz4 number [FILE]                number any unnumbered invariant from 5
@@ -208,7 +211,7 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Bool :$agent, Bool :$agents) {
         }
 
         say '';
-        say "Every IZ4 inherits invariants 0-4 ('iz4 invariants' shows them).";
+        say "Every IZ4 carries invariants 0-4, the foundation, word for word ('iz4 invariants' shows them).";
         say 'Your project-specific invariants begin at 5.';
         if $talk {
             say '';
@@ -318,6 +321,27 @@ sub parse-number(Str $s --> Int) {
 
 # ------------------------------------------------------------ read
 
+#| The foundation as every file carries it; --restore writes it into
+#| the file when it is missing or altered.
+multi MAIN('foundation', Str $file?, Bool :$restore = False) {
+    attempt {
+        unless $restore {
+            print foundation-block();
+            say "(sha256 of the foundation text: {FOUNDATION-DIGEST.substr(0, 12)}; every IZ4 carries these five word for word)";
+            return 0;
+        }
+        my $path = resolve-target($file);
+        given restore-foundation($path) {
+            when 'unchanged' { say "{display-name($path)}: the foundation is already there, word for word" }
+            when 'written'   { say "{display-name($path)}: wrote the foundation, Invariants 0-4, after IS FOR WHO?" }
+            when 'replaced'  { say "{display-name($path)}: replaced the altered foundation with Invariants 0-4 word for word" }
+        }
+        my $doc = check-doc($path);
+        say "  now: {$doc.foundation-status}";
+        $doc.foundation-intact ?? 0 !! 1;
+    }
+}
+
 multi MAIN('invariants', Str $file?) {
     attempt {
         my $path = resolve-target($file);
@@ -367,7 +391,7 @@ multi MAIN('check', Str $file?) {
         @rows.push: $doc.for-who.defined
             ?? ('✓', "IS FOR WHO: {short($doc.for-who)}")
             !! ('✗', "IS FOR WHO: missing - who is this for? ('iz4 add for-who ...')");
-        @rows.push: ('✓', $doc.foundation-status);
+        @rows.push: ($doc.foundation-intact ?? '✓' !! '✗', $doc.foundation-status);
 
         my $count = $doc.invariants.elems;
         my $unnum = +$doc.unnumbered-invariants;

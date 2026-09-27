@@ -11,7 +11,7 @@ use IZ4::Document;
 
 my $dir = temp-dir;
 my $iz4 = init(:$dir, :for-what('Small.'), :for-who('Readers.'));
-ok $iz4.slurp.lines.grep(*.chars).elems <= 8, 'a new IZ4 is a handful of lines, with nothing to fill in';
+ok $iz4.slurp.lines.grep(*.chars).elems - foundation-block().lines.grep(*.chars).elems <= 8, 'a new IZ4 is a handful of lines beyond the foundation, with nothing to fill in';
 
 # the grammar has exactly four keywords, and every other block is only kept
 # with a warning that says where such content belongs

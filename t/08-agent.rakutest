@@ -15,7 +15,7 @@ my %p = agent-packet($sp);
 is %p<schema>, 'iz4-agent-packet/3', 'packet schema is versioned';
 is %p<foundation><text>, FOUNDATION-TEXT, 'the canonical foundation is carried';
 is %p<foundation><sha256>, FOUNDATION-DIGEST, 'with its digest';
-like %p<effective>, /'INVARIANT 0 - HUMANS FIRST (inherited)' .* 'INVARIANT 5' \n 'Private profiles'/,
+like %p<effective>, /'INVARIANT 0 - HUMANS FIRST (foundation)' .* 'INVARIANT 5' \n 'Private profiles'/,
     'the effective invariants, inherited and project, are in the packet';
 is %p<specification>, $sp.slurp, 'the verbatim file is carried too';
 is %p<sha256>, sha256-hex($sp), 'digest is of the exact file bytes';

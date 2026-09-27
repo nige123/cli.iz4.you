@@ -156,7 +156,7 @@ my $talk = temp-dir;
 minimal-iz4(:dir($talk));
 ($rc, $out, $err) = iz4-talk($talk, "We use PostgreSQL.\ny\n\n", 'add');
 is $rc, 0, 'being talked out of an entry is not an error';
-nok $talk.add('IZ4').slurp.contains('INVARIANT'), 'nothing was added';
+nok $talk.add('IZ4').slurp.contains('INVARIANT 5'), 'nothing was added';
 ($rc, $out, $err) = iz4-talk($talk, "Private profiles never appear in public search.\ny\nA hidden search can cost someone their job.\ny\n", 'add');
 like $out, /'Added INVARIANT 5'/, 'a coached invariant is added';
 like $talk.add('IZ4').slurp, /'INVARIANT 5' \n 'Private profiles never appear in public search.' \n\n 'BECAUSE' \n/,

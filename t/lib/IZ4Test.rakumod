@@ -1,5 +1,7 @@
 unit module IZ4Test;
 
+use IZ4::Document;
+
 #| A fresh temporary directory; removed at process exit.
 sub temp-dir(--> IO::Path) is export {
     my $dir = $*TMPDIR.add("iz4-test-{$*PID}-{(^1_000_000).pick}");
@@ -56,7 +58,7 @@ sub iz4-talk(IO::Path $cwd, Str $input, *@args, :%env) is export {
 sub minimal-iz4(IO::Path :$dir = temp-dir(), Str :$extra = '' --> IO::Path) is export {
     my $path = $dir.add('IZ4');
     $path.spurt("IZ4\n\nIS FOR WHAT?\nHelping people find work they love to do.\n\n"
-        ~ "IS FOR WHO?\nPeople looking for work.\n$extra");
+        ~ "IS FOR WHO?\nPeople looking for work.\n\n" ~ foundation-block() ~ $extra);
     $path;
 }
 

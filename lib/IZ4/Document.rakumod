@@ -10,8 +10,9 @@ unit class IZ4::Document;
 #| judges it: which of the grammar's forgiving productions are errors,
 #| which are warnings, and what the blocks must add up to.
 #|
-#| Every IZ4 inherits the foundation, Invariants 0-4, without repeating
-#| it.  Those numbers are reserved; a project's own invariants begin at 5.
+#| Every IZ4 carries the foundation, Invariants 0-4, word for word: the
+#| same five blocks in every file, checked against the reference copy
+#| below.  A project's own invariants begin at 5.
 
 use IZ4::Grammar;
 
@@ -61,8 +62,53 @@ constant FOUNDATION is export = (
              ~ 'and report, so people decide.' ),
 );
 
-#| Project invariants begin here; everything below is inherited.
+#| Project invariants begin here; everything below is the foundation.
 constant FIRST-PROJECT-NUMBER is export = 5;
+
+#| The comment written directly above the foundation blocks in a file.
+constant FOUNDATION-COMMENT is export =
+    "# The foundation, Invariants 0-4. Every IZ4 carries these five word for word;\n"
+    ~ "# 'iz4 check' refuses a file where they are missing or altered, and\n"
+    ~ "# 'iz4 foundation --restore' puts them back.";
+
+#| The foundation as it is written into every file: the comment, then
+#| Invariants 0-4 with their BECAUSE, each block ending in a blank line.
+sub foundation-block(--> Str) is export {
+    my @out = FOUNDATION-COMMENT, '';
+    for FOUNDATION -> %f {
+        @out.push: "INVARIANT {%f<number>} - {%f<name>}";
+        @out.append: wrap-words(%f<text>, 80);
+        @out.push: '';
+        @out.push: 'BECAUSE';
+        @out.append: wrap-words(%f<because>, 80);
+        @out.push: '';
+    }
+    @out.join("\n");
+}
+
+sub wrap-words(Str $text, Int $width --> List) {
+    my @lines;
+    my $line = '';
+    for $text.words -> $w {
+        if $line ne '' && $line.chars + 1 + $w.chars > $width { @lines.push($line); $line = $w }
+        else { $line = $line eq '' ?? $w !! "$line $w" }
+    }
+    @lines.push($line) if $line ne '';
+    @lines.List;
+}
+
+#| Words joined by single spaces: how two texts are compared, so wrapping
+#| is free and only the words count.
+sub normalised(Str $text --> Str) is export { $text.words.join(' ') }
+
+#| Whether a block in a file is foundation invariant $n exactly: its name
+#| after the number, its text and its BECAUSE, word for word.
+sub foundation-matches(Int $n, Str $name, Str $text, Str $because --> Bool) is export {
+    return False unless 0 <= $n <= 4;
+    my %f = FOUNDATION[$n];
+    normalised($name) eq %f<name> && normalised($text) eq normalised(%f<text>)
+        && normalised($because // '') eq normalised(%f<because>);
+}
 
 #| The canonical bytes the digest covers: one line per foundation
 #| invariant, its BECAUSE on the same line, no trailing newline.
@@ -126,6 +172,9 @@ has Part      @.blocks;
 has Problem   @.problems;
 has Str       @.lines;
 has Int       $.header-line;
+has Bool      $.foundation-intact = False;   # 0-4 present, in order, word for word
+has Int       $.foundation-first-line;       # the INVARIANT 0 line, when 0-4 are in the file
+has Int       $.foundation-last-line;        # the last line of Invariant 4's BECAUSE
 
 method load(IO::Path() $path --> IZ4::Document) {
     self.parse($path.slurp, :$path);
@@ -158,7 +207,9 @@ method invariant(Int $n) { @!invariants.first({ (.number // -1) == $n }) }
 
 #| One line saying what this parse established about the foundation.
 method foundation-status(--> Str) {
-    "Invariants 0-4: inherited from the foundation (sha256 {FOUNDATION-DIGEST.substr(0, 12)})";
+    $!foundation-intact
+        ?? "Invariants 0-4: the foundation, in the file word for word (sha256 {FOUNDATION-DIGEST.substr(0, 12)})"
+        !! "Invariants 0-4: the foundation is missing or altered - 'iz4 foundation --restore' writes it back";
 }
 
 #| Problems sorted by line, formatted as "NAME:LINE: message".
@@ -227,11 +278,25 @@ method !parse() {
     self!validate;
 }
 
+#| The BECAUSE block directly after $b, if any.
+method !because-after(Part $b) {
+    my $i = @!blocks.first({ $_ === $b }, :k);
+    return Part unless $i.defined && $i + 1 < @!blocks;
+    my $next = @!blocks[$i + 1];
+    $next.kind eq 'BECAUSE' ?? $next !! Part;
+}
+
 method !validate() {
     my %seen;
     my Invariant $last-invariant;
     my Bool $last-was-invariant = False;
     my %numbers;
+    my %foundation;             # number => line, for 0-4 seen in any form
+    my @foundation-order;       # the intact ones, in file order
+    my Bool $foundation-block = False;
+    my Bool $foundation-broken = False;
+    my Int $foundation-first;
+    my Int $foundation-last;
 
     for @!blocks -> $b {
         given $b.kind {
@@ -249,33 +314,66 @@ method !validate() {
             }
             when 'INVARIANT' {
                 my Int $number;
-                with $b.label -> $label {
-                    if $label ~~ /^ \d+ $/ {
-                        $number = +$label;
-                        if $number < FIRST-PROJECT-NUMBER {
-                            self!problem($b.line,
-                                "INVARIANT $number is reserved: Invariants 0-4 are inherited from the "
-                                ~ "foundation and cannot be redefined; project invariants begin at "
-                                ~ FIRST-PROJECT-NUMBER);
+                my $label = $b.label;
+                if $label.defined && $label ~~ /^ (\d+) \s* '-' \s* (.+) $/ && +$0 < FIRST-PROJECT-NUMBER {
+                    # a foundation block: INVARIANT n - NAME, checked word for word
+                    my ($n, $name) = +$0, $1.Str;
+                    my $because-block = self!because-after($b);
+                    if %foundation{$n}:exists {
+                        self!problem($b.line, "duplicate INVARIANT $n (first at line {%foundation{$n}})");
+                        $foundation-broken = True;
+                    }
+                    elsif foundation-matches($n, $name, $b.text, $because-block.defined ?? $because-block.text !! Str) {
+                        %foundation{$n} = $b.line;
+                        @foundation-order.push($n);
+                        $foundation-first //= $b.line;
+                        $foundation-last = $because-block.defined ?? $because-block.last-line !! $b.last-line;
+                        if @!invariants {
+                            self!problem($b.line, "INVARIANT $n comes after a project invariant: the foundation, 0-4, comes first");
+                            $foundation-broken = True;
                         }
-                        elsif %numbers{$number}:exists {
-                            self!problem($b.line, "duplicate INVARIANT $number (first at line {%numbers{$number}})");
-                        }
-                        else { %numbers{$number} = $b.line }
                     }
                     else {
-                        self!problem($b.line, "INVARIANT needs a whole number, like 'INVARIANT 5'");
+                        %foundation{$n} = $b.line;
+                        $foundation-broken = True;
+                        self!problem($b.line, "INVARIANT $n is the foundation's {FOUNDATION[$n]<name>} and must read exactly as it does "
+                            ~ "in every IZ4; it is not yours to edit ('iz4 foundation --restore' puts it back)");
                     }
+                    $last-was-invariant = False;
+                    $foundation-block = True;
                 }
                 else {
-                    self!problem($b.line, "unnumbered INVARIANT ('iz4 number' numbers it)", :warning);
+                    with $label {
+                        if $label ~~ /^ \d+ $/ {
+                            $number = +$label;
+                            if $number < FIRST-PROJECT-NUMBER {
+                                self!problem($b.line,
+                                    "INVARIANT $number is the foundation's {FOUNDATION[$number]<name>}: every IZ4 carries "
+                                    ~ "Invariants 0-4 word for word, and a project's own begin at "
+                                    ~ FIRST-PROJECT-NUMBER ~ " ('iz4 foundation --restore' puts the foundation back)");
+                                %foundation{$number} = $b.line;
+                                $foundation-broken = True;
+                            }
+                            elsif %numbers{$number}:exists {
+                                self!problem($b.line, "duplicate INVARIANT $number (first at line {%numbers{$number}})");
+                            }
+                            else { %numbers{$number} = $b.line }
+                        }
+                        else {
+                            self!problem($b.line, "INVARIANT needs a whole number, like 'INVARIANT 5'");
+                        }
+                    }
+                    else {
+                        self!problem($b.line, "unnumbered INVARIANT ('iz4 number' numbers it)", :warning);
+                    }
+                    self!problem($b.line, ($number.defined ?? "INVARIANT $number" !! 'INVARIANT') ~ ' is empty') if $b.text eq '';
+                    $last-invariant = Invariant.new(:$number, :text($b.text), :line($b.line), :last-line($b.last-line));
+                    @!invariants.push: $last-invariant;
+                    $last-was-invariant = True;
                 }
-                self!problem($b.line, ($number.defined ?? "INVARIANT $number" !! 'INVARIANT') ~ ' is empty') if $b.text eq '';
-                $last-invariant = Invariant.new(:$number, :text($b.text), :line($b.line), :last-line($b.last-line));
-                @!invariants.push: $last-invariant;
-                $last-was-invariant = True;
             }
             when 'BECAUSE' {
+                if $foundation-block { $foundation-block = False; $last-was-invariant = False; succeed }
                 if $last-was-invariant && $last-invariant.defined {
                     self!problem($b.line, 'BECAUSE is empty') if $b.text eq '';
                     my $i = @!invariants.end;
@@ -298,4 +396,18 @@ method !validate() {
         unless %seen{'IS FOR WHAT'}:exists;
     self!problem($end, 'missing IS FOR WHO?: who is this system for?')
         unless %seen{'IS FOR WHO'}:exists;
+
+    my @missing = (0..4).grep({ !(%foundation{$_}:exists) });
+    self!problem($end, "the foundation is missing: every IZ4 carries Invariant{@missing == 1 ?? '' !! 's'} "
+        ~ "{@missing.join(', ')} word for word ('iz4 foundation --restore' writes {@missing == 1 ?? 'it' !! 'them'})")
+        if @missing;
+    if @foundation-order.join(',') eq '0,1,2,3,4' {
+        $!foundation-intact = !$foundation-broken;
+        $!foundation-first-line = $foundation-first;
+        $!foundation-last-line  = $foundation-last;
+    }
+    elsif @foundation-order == 5 {
+        self!problem(%foundation{@foundation-order[0]}, "the foundation is out of order: Invariants 0-4 come in order "
+            ~ "('iz4 foundation --restore' puts them right)");
+    }
 }

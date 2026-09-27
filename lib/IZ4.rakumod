@@ -4,7 +4,7 @@ use IZ4::Document;
 use IZ4::Git;
 use IZ4::Coach;
 
-constant VERSION is export = '0.5.2';
+constant VERSION is export = '0.6.0';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -71,12 +71,69 @@ sub display-name(IO::Path $path, IO::Path :$cwd = $*CWD --> Str) is export {
 #| Where Invariants 0-4 are explained, for a reader with no CLI.
 constant FOUNDATION-URL is export = 'https://iz4.you/invariant-zero';
 
-#| The lines every new IZ4 carries, so a reader knows 0-4 exist, what
-#| they protect, and where to read them.
+#| The lines every new IZ4 opens with, so a reader knows what the
+#| foundation below is, what it protects, and where to read about it.
 constant INHERITANCE-COMMENT is export =
-    "# Every IZ4 inherits Invariants 0-4: human intention protected.\n"
-    ~ "# Read them at {FOUNDATION-URL} ('iz4 invariants' prints them).\n"
-    ~ '# Project invariants begin at 5.';
+    "# Every IZ4 carries Invariants 0-4, the foundation, word for word: human intention protected.\n"
+    ~ "# Read about them at {FOUNDATION-URL}. They are the same in every IZ4 and not yours to edit.\n"
+    ~ '# Your own invariants begin at 5.';
+
+#| Write the foundation into an IZ4 that lacks it or has an altered one.
+#| Only the INVARIANT 0-4 blocks (with their BECAUSE) and the foundation
+#| comment are touched; every other line stays.  Returns 'unchanged',
+#| 'written' or 'replaced'.  Run on request only: this is the one case
+#| where the tool rewrites lines, because the foundation was never the
+#| owner's words to keep.
+sub restore-foundation(IO::Path $path --> Str) is export {
+    my $doc = IZ4::Document.load($path);
+    return 'unchanged' if $doc.foundation-intact;
+    my @lines = $path.slurp.lines;
+    # every INVARIANT 0-4 block (in either label form) and the BECAUSE
+    # directly after it, plus the foundation comment, are dropped
+    my %drop;
+    for $doc.blocks.kv -> $i, $b {
+        next unless $b.kind eq 'INVARIANT' && $b.label.defined && $b.label ~~ /^ (\d+) / && +$0 < FIRST-PROJECT-NUMBER;
+        %drop{$_} = True for $b.line .. $b.last-line;
+        if $i + 1 < $doc.blocks && $doc.blocks[$i + 1].kind eq 'BECAUSE' {
+            %drop{$_} = True for $doc.blocks[$i + 1].line .. $doc.blocks[$i + 1].last-line;
+        }
+    }
+    my $replaced = %drop.elems > 0;
+    # the header comment this tool wrote for earlier versions is brought up to date too
+    my @old-header = "# Every IZ4 inherits Invariants 0-4: human intention protected.",
+        "# Read them at {FOUNDATION-URL} ('iz4 invariants' prints them).",
+        '# Project invariants begin at 5.';
+    for @lines.kv -> $i, $l {
+        if $l eq @old-header[0] && $i + 2 < @lines && @lines[$i + 1] eq @old-header[1] && @lines[$i + 2] eq @old-header[2] {
+            @lines[$i .. $i + 2] = INHERITANCE-COMMENT.lines;
+        }
+    }
+    for @lines.kv -> $i, $l {
+        %drop{$i + 1} = True if $l.starts-with('# The foundation, Invariants 0-4.')
+            || $l.starts-with("# 'iz4 check' refuses a file where they are missing")
+            || $l.starts-with("# 'iz4 foundation --restore' puts them back");
+    }
+    # insert after the IS FOR WHO? block, else after IS FOR WHAT?, else at the end
+    my $anchor = $doc.blocks.first(*.kind eq 'IS FOR WHO') // $doc.blocks.first(*.kind eq 'IS FOR WHAT');
+    my $at = $anchor.defined ?? $anchor.last-line !! @lines.elems;
+    my @out;
+    for @lines.kv -> $i, $l {
+        @out.push($l) unless %drop{$i + 1};
+        if $i + 1 == $at {
+            @out.push('') if @out && @out.tail ne '';
+            @out.append(foundation-block().lines);
+        }
+    }
+    if $at == @lines.elems && !$anchor.defined {
+        @out.push('') if @out && @out.tail ne '';
+        @out.append(foundation-block().lines);
+    }
+    # collapse runs of blank lines the removal may have left
+    my @tidy;
+    for @out -> $l { @tidy.push($l) unless $l eq '' && @tidy && @tidy.tail eq '' }
+    $path.spurt(@tidy.join("\n") ~ "\n");
+    $replaced ?? 'replaced' !! 'written';
+}
 
 #| Paired examples: what does and does not belong.  The right-hand side
 #| is not automatically an invariant either; the owner decides.
@@ -104,7 +161,8 @@ sub template(Str :$for-what!, Str :$for-who! --> Str) is export {
         ROOT-NAME, '',
         INHERITANCE-COMMENT, '',
         'IS FOR WHAT?', |wrap($for-what.trim, WRAP-WIDTH), '',
-        'IS FOR WHO?', |wrap($for-who.trim, WRAP-WIDTH), '';
+        'IS FOR WHO?', |wrap($for-who.trim, WRAP-WIDTH), '',
+        foundation-block();
 }
 
 #| Create a root IZ4 in $dir.  Refuses to overwrite; refuses empty answers.
@@ -159,14 +217,14 @@ sub project-invariants-text(IZ4::Document $doc --> Str) {
     }).join("\n");
 }
 
-#| The effective invariant set: the inherited foundation, then the
+#| The effective invariant set: the foundation, then the
 #| project's own.  This is what a person or agent should read before a
 #| consequential change.
 sub effective-text(IZ4::Document $doc, Str :$name = 'IZ4' --> Str) is export {
     my @out;
     @out.push: "IS FOR WHAT?\n" ~ wrap($doc.for-what // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
     @out.push: "IS FOR WHO?\n"  ~ wrap($doc.for-who  // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
-    @out.append: FOUNDATION.map({ invariant-block(.<number>, .<name>, .<text>, .<because>, :note<inherited>) });
+    @out.append: FOUNDATION.map({ invariant-block(.<number>, .<name>, .<text>, .<because>, :note<foundation>) });
     @out.push: project-invariants-text($doc);
     @out.join("\n");
 }
@@ -180,15 +238,15 @@ sub invariant-text(IO::Path $path, Str $number --> Str) is export {
     my $n = +$raw;
     if $n < FIRST-PROJECT-NUMBER {
         my %f = FOUNDATION[$n];
-        return invariant-block($n, %f<name>, %f<text>, %f<because>, :note<inherited>);
+        return invariant-block($n, %f<name>, %f<text>, %f<because>, :note<foundation>);
     }
     with $doc.invariant($n) {
         return invariant-block($n, Str, .text, .because);
     }
     my @nums = $doc.invariants.map(*.number).grep(*.defined);
     user-error("no invariant $n in {$path.basename}; "
-        ~ (@nums ?? "its own are {@nums.join(', ')}, and 0-4 are inherited"
-                 !! "it has none of its own yet, and 0-4 are inherited"));
+        ~ (@nums ?? "its own are {@nums.join(', ')}, and 0-4 are the foundation"
+                 !! "it has none of its own yet, and 0-4 are the foundation"));
 }
 
 # ---------------------------------------------------------------- check
@@ -329,7 +387,7 @@ sub split-all-because(IO::Path $path --> List) is export {
 }
 
 sub invariant-or-die(IZ4::Document $doc, IO::Path $path, Int $n) {
-    user-error("Invariant $n is inherited; the foundation's reasons are canonical") if $n < FIRST-PROJECT-NUMBER;
+    user-error("Invariant $n is the foundation's; its reasons are the same in every IZ4 and not yours to change") if $n < FIRST-PROJECT-NUMBER;
     $doc.invariant($n) // user-error("no invariant $n in {$path.basename}");
 }
 
@@ -404,9 +462,9 @@ sub suggest-prompt(Str :$current = '', Str :$evidence = '' --> Str) is export {
 
     Do not try to make IZ4 complete.  Try to make it small.
 
-    Every IZ4 inherits Invariants 0-4 (humans first, do no harm, human
-    agency, honesty, the foundation holds).  Do not restate them; propose
-    only this project's own invariants.
+    Every IZ4 carries Invariants 0-4, the foundation (humans first, do no
+    harm, human agency, honesty, the foundation holds), word for word.  Do
+    not restate them; propose only this project's own invariants.
 
     The golden test: if the whole system were rewritten tomorrow,
     would we regret not telling the people and agents rebuilding it this?

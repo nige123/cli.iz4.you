@@ -65,6 +65,6 @@ is $iz4.slurp, $before, 'nothing written';
 
 # the tool never fills in the two answers or the foundation's reasons for anyone
 throws-like { init(:dir(temp-dir), :for-what(''), :for-who('y')) }, X::IZ4, 'init will not write an IZ4 without the owner saying what it is for';
-throws-like { set-because($iz4, 2, 'Mine.') }, X::IZ4, message => /'inherited'/, "and the foundation's reasons are not the tool's to set";
+throws-like { set-because($iz4, 2, 'Mine.') }, X::IZ4, message => /"the foundation's"/, "and the foundation's reasons are not the tool's to set";
 
 done-testing;

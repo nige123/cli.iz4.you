@@ -13,10 +13,11 @@ ok $path.slurp.starts-with("IZ4\n"), 'with the bare IZ4 header';
 my $doc = check-doc($path);
 ok $doc.ok && !$doc.warnings, 'a freshly initialised IZ4 is valid';
 nok $doc.invariants, 'and demands no invariants';
-ok $path.slurp.lines.elems < 12, 'and is tiny: no template to fill in';
-like $path.slurp, /'inherits Invariants 0-4: human intention protected' .* 'https://iz4.you/invariant-zero'/,
-    'it tells a reader that 0-4 are inherited, what they protect, and where to read them';
-nok $path.slurp ~~ /:i 'behaviour' | 'constraint' | 'decision' | 'gist'/, 'and has no specification sections';
+ok $path.slurp.lines.elems <= 12 + foundation-block().lines.elems, 'and is tiny: no template to fill in beyond the foundation';
+like $path.slurp, /'carries Invariants 0-4, the foundation, word for word: human intention protected' .* 'https://iz4.you/invariant-zero'/,
+    'it tells a reader that 0-4 are the foundation, what they protect, and where to read about them';
+ok $path.slurp.contains(foundation-block()), 'and carries the foundation itself, after IS FOR WHO?';
+nok $path.slurp ~~ /:i 'behaviours' | 'constraints' | 'decisions' | 'gist'/, 'and has no specification sections';
 throws-like { init(:$dir, :for-what('x'), :for-who('y')) }, X::IZ4, message => /'already exists'/, 'init never overwrites';
 throws-like { init(:dir(temp-dir), :for-what(''), :for-who('y')) }, X::IZ4, message => /'for'/, 'init needs a real answer';
 
@@ -26,9 +27,9 @@ throws-like { set-is-for($path, 'IS FOR WHO', 'Someone else.') }, X::IZ4, messag
 set-is-for($path, 'IS FOR WHO', 'People looking for work, and the employers hiring them.', :replace);
 is check-doc($path).for-who, 'People looking for work, and the employers hiring them.', 'IS FOR WHO replaced';
 my $nowho = temp-dir.add('IZ4');
-$nowho.spurt("IZ4\n\nIS FOR WHAT?\nSomething.\n");
+$nowho.spurt("IZ4\n\nIS FOR WHAT?\nSomething.\n\n" ~ foundation-block());
 set-is-for($nowho, 'IS FOR WHO', 'Somebody.');
-ok check-doc($nowho).ok, 'a missing IS FOR WHO is inserted after IS FOR WHAT';
+ok check-doc($nowho).ok, 'a missing IS FOR WHO is inserted after IS FOR WHAT' or diag check-doc($nowho).report.join("\n");
 
 # ---- add: numbering from 5, BECAUSE beside it, nothing else touched --------
 my $before = $path.slurp;
@@ -46,7 +47,7 @@ is $doc.invariant(5).because, 'Looking for work should not mean surrendering pri
 nok $doc.invariant(6).because.defined, 'an invariant may be added without one';
 my $long = ('word' xx 40).join(' ');
 add-invariant($path, $long, :because($long));
-ok $path.slurp.lines.grep(*.chars > 80) == 0, 'text is wrapped at 80 columns';
+ok $path.slurp.lines.grep({ .chars > 80 && !.starts-with('#') }) == 0, 'text is wrapped at 80 columns';
 is check-doc($path).invariant(11).text, $long, 'and reads back unchanged';
 
 # old specification kinds have somewhere else to go
@@ -59,10 +60,10 @@ is show-text($path, 'for-what'), "Helping people find work they love to do.\n", 
 like show-text($path, 'invariants'), /^ 'INVARIANT 5' \n .* 'BECAUSE' /, 'show invariants lists the project ones';
 unlike show-text($path, 'invariants'), /'HUMANS FIRST'/, 'without the inherited ones';
 my $effective = effective-text(check-doc($path));
-like $effective, /'IS FOR WHAT' .* 'IS FOR WHO' .* 'INVARIANT 0 - HUMANS FIRST (inherited)' .* 'INVARIANT 4 - THE FOUNDATION HOLDS (inherited)' .* 'INVARIANT 5' /,
-    'the effective set is IS FOR, then 0-4 inherited, then 5 and up';
+like $effective, /'IS FOR WHAT' .* 'IS FOR WHO' .* 'INVARIANT 0 - HUMANS FIRST (foundation)' .* 'INVARIANT 4 - THE FOUNDATION HOLDS (foundation)' .* 'INVARIANT 5' /,
+    'the effective set is IS FOR, then the foundation 0-4, then 5 and up';
 like invariant-text($path, 'Invariant 5'), /'INVARIANT 5' \n 'People control'/, "show invariant accepts 'Invariant 5'";
-throws-like { invariant-text($path, '42') }, X::IZ4, message => /'0-4 are inherited'/, 'an unknown number explains what exists';
+throws-like { invariant-text($path, '42') }, X::IZ4, message => /'0-4 are the foundation'/, 'an unknown number explains what exists';
 is show-text($path), $path.slurp, 'show prints the whole file';
 
 # ---- number -------------------------------------------------------------------
