@@ -132,6 +132,15 @@ ok launcher-asset().defined && launcher-asset().starts-with('321-'), 'a 321 file
 my $bd = temp-dir();
 ok !launcher-marker($bd).e, 'no marker means iz4 did not install 321 here';
 {
+    # a source install: the marker sits beside the launcher script on PATH, not beside bin/iz4
+    my $d = temp-dir();
+    $d.add('iz4').spurt("#!/bin/sh\nexit 0\n"); $d.add('iz4').chmod(0o755);
+    temp %*ENV<PATH> = $d.Str;
+    ok !launcher-owner-dir().defined, 'no marker anywhere: 321 is not ours';
+    launcher-marker($d).spurt("installed by iz4\n");
+    is launcher-owner-dir().Str, $d.Str, 'the marker beside the iz4 on PATH names the owner directory';
+}
+{
     # a 321 that is on PATH but not ours is never replaced
     my $bin = stub-launcher();
     temp %*ENV<IZ4_321> = $bin.Str;

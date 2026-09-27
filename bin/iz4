@@ -703,9 +703,11 @@ multi MAIN('update', Bool :$check = False) {
             when 'updated'  { say "Updated iz4 from {%u<from>} to {%u<to>} ({%u<n>} commit{%u<n> == 1 ?? '' !! 's'}):"; commits(); 0 }
             default         { note %u<note>; 1 }
         };
-        # 321, when iz4 installed it, is kept current too; one someone else installed is left alone
-        my $bin-dir = $*PROGRAM.resolve.parent;
-        if launcher-marker($bin-dir).e {
+        # 321, when iz4 installed it, is kept current too; one someone else installed is left alone.
+        # A source install runs the checkout's bin/iz4 through a launcher script on PATH, so
+        # the marker is looked for beside that script as well as beside the program itself.
+        my $bin-dir = launcher-owner-dir();
+        if $bin-dir.defined {
             my %l = launcher-install(:$bin-dir, :$check);
             given %l<state> {
                 when 'current' { say "321.do, an agent launcher, is up to date ({%l<version>})." }

@@ -189,7 +189,9 @@ sub launcher-latest-tag(--> Str) is export {
     my $p = run 'curl', '-fsSL', '-H', 'Accept: application/vnd.github+json', LAUNCHER-API, :out, :err;
     my $body = $p.out.slurp(:close); $p.err.slurp(:close);
     return Str if $p.exitcode != 0;
-    with $body.match(/ '"tag_name"' \s* ':' \s* '"' (<-["]>+) '"' /) { return ~$0 if ~$0 ~~ /^ 'v' \d/ }
+    # the capture is read from the Match itself: inside a `with` block $0 is not the outer $/
+    my $m = $body.match(/ '"tag_name"' \s* ':' \s* '"' (<-["]>+) '"' /);
+    return $m[0].Str if $m && $m[0].Str ~~ /^ 'v' \d/;
     Str;
 }
 
@@ -211,6 +213,19 @@ sub digest-file(IO::Path $f --> Str) {
 #| The marker beside an iz4-installed 321, saying iz4 put it there and may
 #| keep it current.  A 321 someone installed themselves is never touched.
 sub launcher-marker(IO::Path $bin-dir --> IO::Path) is export { $bin-dir.add('.321-from-iz4') }
+
+#| The directory holding a 321 that iz4 installed, if any: beside the
+#| running program, or beside the iz4 on PATH (a source install's
+#| launcher script, which runs the checkout's bin/iz4).
+sub launcher-owner-dir(--> IO::Path) is export {
+    my @dirs = $*PROGRAM.resolve.parent;
+    my $sep = $*DISTRO.is-win ?? ';' !! ':';
+    for (%*ENV<PATH> // '').split($sep).grep(* ne '') -> $d {
+        my $f = $d.IO.add($*DISTRO.is-win ?? 'iz4.exe' !! 'iz4');
+        @dirs.push($f.parent) if $f.f;
+    }
+    @dirs.first({ launcher-marker($_).e });
+}
 
 #| Install or update 321 into $bin-dir from the latest release.  Returns
 #| a hash with state: 'installed', 'updated', 'current', 'skipped' (a 321
