@@ -105,7 +105,7 @@ my $old = IZ4::Document.parse("IZ4\n\ngist:\n    A small tool.\n\ninvariants:\n 
 nok $old.ok, 'the earlier gist:/invariants: format is no longer read';
 like $old.errors[0].Str, /"'gist:' is the earlier IZ4 format" .* 'docs/format.md' .* 'iz4 0.3.0'/,
     'and the error says what the format is now and which version converts';
-nok IZ4::Document.parse("SPOZ2\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n").ok, 'the old SPOZ2 header word is not a header';
+nok IZ4::Document.parse("NOTIZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n").ok, 'a header word other than IZ4 is refused';
 
 # ---- mistakes the grammar catches by line ---------------------------------------
 my $indented = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT 5\nRule.\n    BECAUSE\n    reason\n");
