@@ -1,0 +1,39 @@
+# Invariant 6: An IZ4 stays small: what the software is for, who it is for,
+# and the invariants that must survive. The tool never turns it into a home
+# for requirements, plans, tasks or implementation detail.
+# BECAUSE A file that tries to say everything is too long to read before
+# every change, and the few truths that matter get buried in it.
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+use IZ4::Document;
+
+my $dir = temp-dir;
+my $iz4 = init(:$dir, :for-what('Small.'), :for-who('Readers.'));
+ok $iz4.slurp.lines.grep(*.chars).elems <= 8, 'a new IZ4 is a handful of lines, with nothing to fill in';
+
+# the grammar has exactly four keywords, and every other block is only kept
+# with a warning that says where such content belongs
+is @BLOCKS, <IS FOR WHAT IS FOR WHO INVARIANT BECAUSE>.join(' ').split(' ').Seq.rotor(2, 2, 1, 1).map(*.join(' ')), 'the format has four blocks';
+my $spec = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nREQUIREMENTS\nSearch shows 20 results.\n\nTASKS\nShip it.\n");
+like $spec.warnings.map(*.Str).join("\n"), /'REQUIREMENTS' .* 'belong in the README, ADRs, tests or issues'/, 'a requirements block is steered elsewhere';
+like $spec.warnings.map(*.Str).join("\n"), /'TASKS' .* 'belong in'/, 'so is a tasks block';
+
+# the tool refuses to add anything but an invariant, and says where it goes
+for <behaviour requirement constraint decision direction task reference> -> $kind {
+    ok %ELSEWHERE-FOR{$kind}.defined && %ELSEWHERE-FOR{$kind}.contains('IZ4 does not record'), "adding a $kind is refused with a home for it";
+}
+my ($rc, $out, $err) = iz4($dir, 'add', 'requirement', 'Search shows 20 results.');
+ok $rc == 1 && $err.contains('does not record requirements'), 'through the CLI too';
+
+# the fast path challenges implementation detail rather than storing it
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'We use PostgreSQL.', '--because=It is fast.');
+ok $rc == 1 && !$iz4.slurp.contains('PostgreSQL'), 'an implementation choice is not written without the owner overriding';
+
+# suggestions to an agent are capped and told to keep the file small
+my $prompt = suggest-prompt(current => '', evidence => 'x').words.join(' ');
+like $prompt, /'Do not try to make IZ4 complete. Try to make it small.'/, 'the agent is told to keep it small';
+is parse-suggestions((1..40).map({ "STRONG | Rule $_. | because | t" }).join("\n"))<strong>.elems, 5, 'a flood of candidates is capped before a person sees it';
+
+done-testing;

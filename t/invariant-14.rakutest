@@ -1,0 +1,54 @@
+# Invariant 14: The project owner decides what must remain true. The tool
+# may question a candidate and suggest where it belongs, but never adds an
+# invariant without a person's confirmation and never invents intent they
+# did not state.
+# BECAUSE Only the people who own the software, and those it serves, know
+# which truths are worth preserving; a tool that decided for them would
+# manufacture intent.
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+use IZ4::Coach;
+
+my $dir = temp-dir;
+my $iz4 = minimal-iz4(:$dir);
+my $before = $iz4.slurp;
+
+# the coach: declining at the confirmation adds nothing; uncertainty goes back to a person
+sub coach(@answers, *%opts) {
+    my @queue = @answers;
+    coach-invariant(ask => -> $ { @queue ?? @queue.shift !! Str }, tell => -> $ {}, for-what => 'x', for-who => 'y', |%opts);
+}
+is coach(['y', 'A hidden search can cost someone their job.', 'n'], candidate => 'Private profiles never appear in public search.')<outcome>, 'skipped', 'a candidate the person declines is not added';
+is coach(['not sure'], candidate => 'Employers only see a candidate after the candidate applies.')<outcome>, 'needs-human', 'uncertainty is handed back, not resolved by the tool';
+is coach(['maybe'], candidate => 'Data lives in Redis.')<outcome>, 'needs-human', 'an implementation question the person cannot answer is not decided for them';
+is coach([''])<outcome>, 'skipped', 'no candidate, nothing added';
+
+# a scripted candidate is never added without a yes
+my ($rc, $out, $err) = iz4-talk($dir, "Private profiles never appear in public search.\ny\nbecause it matters to them\nn\n", 'add');
+is $iz4.slurp, $before, 'the file is untouched after a coached no';
+
+# suggestions and reviews only show candidates; nothing is written without a person
+my $reply = $dir.add('reply.txt');
+$reply.spurt("STRONG | A price never reaches the shop without its calculation. | BECAUSE: a wrong price sells at a loss | EVIDENCE: a test\n");
+my %env-agent = IZ4_AGENT_CMD => "cat {$reply}";
+{
+    temp %*ENV<IZ4_AGENT_CMD> = "cat {$reply}";
+    ($rc, $out, $err) = iz4($dir, 'suggest');
+    like $out, /'Nothing was added'/, 'suggest adds nothing in a script';
+    is $iz4.slurp, $before, 'and writes nothing';
+    ($rc, $out, $err) = iz4-talk($dir, "n\n", 'suggest');
+    is $iz4.slurp, $before, 'nor when the person says no';
+}
+
+# the fast path refuses to store what looks like implementation unless the owner overrides
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'We use PostgreSQL.', '--because=fast');
+ok $rc == 1 && $err.contains('--force'), 'a challenged candidate is refused, and the override is named';
+is $iz4.slurp, $before, 'nothing written';
+
+# the tool never fills in the two answers or the foundation's reasons for anyone
+throws-like { init(:dir(temp-dir), :for-what(''), :for-who('y')) }, X::IZ4, 'init will not write an IZ4 without the owner saying what it is for';
+throws-like { set-because($iz4, 2, 'Mine.') }, X::IZ4, message => /'inherited'/, "and the foundation's reasons are not the tool's to set";
+
+done-testing;

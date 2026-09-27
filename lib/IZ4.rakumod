@@ -4,7 +4,7 @@ use IZ4::Document;
 use IZ4::Git;
 use IZ4::Coach;
 
-constant VERSION is export = '0.5.0';
+constant VERSION is export = '0.5.1';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -234,10 +234,32 @@ sub set-is-for(IO::Path $path, Str $which where 'IS FOR WHAT' | 'IS FOR WHO', St
     $which;
 }
 
+#| The highest project number this file has ever carried, from its Git
+#| history as well as its current text, so a retired number is never
+#| handed to a different invariant (Invariant 13).  Without Git, or for an
+#| untracked file, only the current text is known.
+sub highest-ever-number(IO::Path $path --> Int) is export {
+    my $doc = IZ4::Document.load($path);
+    my $highest = (-1, |$doc.invariants.map(*.number).grep(*.defined)).max;
+    my ($rc, $log, $) = git($path, 'log', '-p', '--follow', '--format=', '--', $path.basename);
+    if $rc == 0 {
+        for $log.lines -> $l {
+            if $l ~~ /^ <[+\-]> 'INVARIANT' \h+ (\d+) \h* $/ { $highest max= +$0 }
+        }
+    }
+    $highest;
+}
+
+#| The next number to give a new invariant: after every number the file
+#| has ever carried, and never below 5.
+sub next-free-number(IO::Path $path --> Int) is export {
+    max(FIRST-PROJECT-NUMBER, highest-ever-number($path) + 1);
+}
+
 #| Add a project invariant, with its BECAUSE when given.  It takes the
-#| next free number from 5 unless :$number chooses one; 0-4 and numbers in
-#| use are refused.  Returns the number written.  Existing text is never
-#| touched: the new block is appended.
+#| next free number from 5 unless :$number chooses one; 0-4, numbers in
+#| use, and numbers the file has ever used are refused.  Returns the number
+#| written.  Existing text is never touched: the new block is appended.
 sub add-invariant(IO::Path $path, Str $text, Str :$because, Int :$number --> Int) is export {
     my $value = $text.trim;
     user-error("nothing to add: the invariant is empty") if $value eq '';
@@ -254,8 +276,10 @@ sub add-invariant(IO::Path $path, Str $text, Str :$because, Int :$number --> Int
             ~ "project invariants begin at {FIRST-PROJECT-NUMBER}") if $n < FIRST-PROJECT-NUMBER;
         user-error("Invariant $n is already used in {$path.basename}; pick a free number")
             if $doc.invariant($n).defined;
+        user-error("Invariant $n was used before in {$path.basename} (see 'iz4 log'); a number is never reused for a different invariant, so pick a fresh one")
+            if $n <= highest-ever-number($path);
     }
-    else { $n = $doc.next-number }
+    else { $n = next-free-number($path) }
     my $reason = ($because // '').trim;
 
     my @lines = $doc.lines;
@@ -344,17 +368,17 @@ sub wrap(Str $text, Int $width) is export {
 #| to do.
 sub number-invariants(IO::Path $path --> List) is export {
     my @lines = IZ4::Document.load($path).lines;
-    my @done  = number-lines(@lines);
+    my @done  = number-lines(@lines, from => next-free-number($path));
     $path.spurt(@lines.join("\n") ~ "\n") if @done;
     @done;
 }
 
 #| The same, on a whole IZ4 held as @lines, changed in place.
-sub number-lines(@lines --> List) is export {
+sub number-lines(@lines, Int :$from --> List) is export {
     my $doc  = IZ4::Document.parse(@lines.join("\n") ~ "\n");
     my @todo = $doc.unnumbered-invariants;
     return () unless @todo;
-    my $next = $doc.next-number;
+    my $next = max($from // 0, $doc.next-number);
     my @done;
     for @todo -> $inv {
         @lines[$inv.line - 1] = "INVARIANT $next";

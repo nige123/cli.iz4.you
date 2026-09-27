@@ -161,7 +161,7 @@ sub coach-into(IO::Path $path, Str :$candidate, Str :$suggested-because --> Int)
     my %r = coach-invariant(
         :&ask, :&tell, :$candidate, :$suggested-because,
         for-what => $doc.for-what, for-who => $doc.for-who,
-        number => $doc.next-number);
+        number => next-free-number($path));
     given %r<outcome> {
         when 'add' {
             my $n = add-invariant($path, %r<text>, :because(%r<because>));

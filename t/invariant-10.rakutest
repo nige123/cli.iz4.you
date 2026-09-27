@@ -1,0 +1,50 @@
+# Invariant 10: People and agents can read and edit an IZ4 in any text
+# editor, without specialised or proprietary tooling.
+# BECAUSE Intent that needs special software to read will not be read at
+# the moment a change is being made.
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+use IZ4::Document;
+
+my $dir = temp-dir;
+my $iz4 = init(:$dir, :for-what('Editable.'), :for-who('People with an editor.'));
+add-invariant($iz4, 'Nothing here needs a tool.', :because('An editor is enough.'));
+
+# what the tool writes is plain, short-lined UTF-8 text with no markup
+my $text = $iz4.slurp;
+ok $text.lines.grep(*.chars > 80) == 0, 'no line is longer than 80 columns';
+nok $text ~~ /<[{}<>\[\]]>/, 'no brackets, braces or angle markup';
+ok $text.lines.grep({ $_ ne '' && !.starts-with('#') && !.starts-with(' ') }) == $text.lines.grep({ $_ ne '' && !.starts-with('#') }), 'nothing is indented';
+ok $text.encode('utf8').decode('utf8') eq $text, 'it is UTF-8';
+
+# a file written by hand in an editor, with its own wrapping and comments, reads back exactly
+my $hand = temp-dir.add('IZ4');
+$hand.spurt(q:to/END/);
+    IZ4
+    # my own note
+    IS FOR WHAT?
+    A thing I
+    typed by hand,
+    over three lines.
+
+    IS FOR WHO?
+    Me.
+
+    INVARIANT 5
+    It keeps
+    working.
+    BECAUSE
+    I said so.
+    END
+my $doc = IZ4::Document.load($hand);
+ok $doc.ok, 'a hand-written file with its own line breaks is valid';
+is $doc.for-what, 'A thing I typed by hand, over three lines.', 'and reads as the person meant it';
+is $doc.invariant(5).because, 'I said so.', 'with its BECAUSE';
+
+# nothing in the tool's output for a person depends on a terminal feature
+my ($rc, $out, $err) = iz4($dir, 'invariants');
+nok $out ~~ /\e/, 'the effective invariants carry no escape sequences when piped';
+
+done-testing;

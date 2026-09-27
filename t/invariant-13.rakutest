@@ -1,0 +1,50 @@
+# Invariant 13: Invariant numbers are stable references: 0-4 are the
+# inherited foundation, a project's own begin at 5, and a number once given
+# is never reused for a different invariant.
+# BECAUSE People and agents cite invariants by number in reviews, commits
+# and conversations, and a citation that silently changes meaning misleads
+# them.
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+use IZ4::Document;
+
+# 0-4 are the foundation, everywhere
+is FOUNDATION».<number>, (0, 1, 2, 3, 4), 'the foundation is 0-4';
+is FIRST-PROJECT-NUMBER, 5, "a project's own begin at 5";
+my $dir = temp-dir;
+my $iz4 = minimal-iz4(:$dir);
+is add-invariant($iz4, 'First.', :because('one')), 5, 'the first project invariant is 5';
+for 0..4 -> $n {
+    throws-like { add-invariant($iz4, 'Mine.', :number($n)) }, X::IZ4, message => /'reserved'/, "number $n cannot be given to a project invariant";
+    nok IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT $n\nMine.\n").ok, "nor written by hand as INVARIANT $n";
+}
+like invariant-text($iz4, '2'), /'HUMAN AGENCY'/, "'Invariant 2' always means the foundation";
+
+# a number is never reused while the invariant is in the file
+is add-invariant($iz4, 'Second.', :because('two')), 6, 'then 6';
+throws-like { add-invariant($iz4, 'Another.', :number(5)) }, X::IZ4, message => /'already used'/, 'a number in use is refused';
+throws-like { add-invariant($iz4, 'Invariant 6: Another.') }, X::IZ4, message => /'already used'/, 'even when asked for in the text';
+
+# nor after the invariant it named is gone: numbers grow, they never come back
+if have-git() {
+    my $repo = temp-dir;
+    sub g(*@a) { run 'git', '-C', $repo.Str, |@a, :out, :err }
+    g('init', '-q'); g('config', 'user.email', 't@t'); g('config', 'user.name', 'T');
+    my $f = minimal-iz4(:dir($repo));
+    add-invariant($f, 'Kept.', :because('a'));
+    add-invariant($f, 'Retired later.', :because('b'));
+    g('add', '-A'); g('commit', '-qm', 'two invariants');
+    # the owner retires Invariant 6 by hand
+    $f.spurt($f.slurp.subst(/ \n 'INVARIANT 6' \n .* /, "\n"));
+    g('commit', '-qam', 'retire 6');
+    is check-doc($f).invariants».number, (5,), 'Invariant 6 is gone from the file';
+    is add-invariant($f, 'New and different.', :because('c')), 7, 'the next invariant is 7: a retired number is never reused for a different invariant';
+    like $f.slurp, /'INVARIANT 7'/, 'and it is written as 7';
+}
+else {
+    skip 'git not available', 3;
+}
+
+done-testing;

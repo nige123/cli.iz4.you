@@ -1,0 +1,60 @@
+# Invariant 11: The tool never silently overwrites, reformats or discards a
+# person's words in an IZ4.
+# BECAUSE The file records what its owner decided must stay true; a tool
+# that rewrote it quietly would be substituting its own judgement for theirs.
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+use IZ4::Document;
+
+my $dir = temp-dir;
+my $iz4 = $dir.add('IZ4');
+$iz4.spurt(q:to/END/);
+    IZ4
+    # a comment the owner wrote, with   odd   spacing
+    IS FOR WHAT?
+    Their words,
+      wrapped their way.
+
+    IS FOR WHO?
+    Them.
+
+    INVARIANT 5
+    First rule. A stale price sells work at a loss.
+    END
+my $before = $iz4.slurp;
+
+# adding appends; every byte that was there is still there
+add-invariant($iz4, 'Second rule.', :because('Why two.'));
+ok $iz4.slurp.starts-with($before.trim-trailing), 'add keeps every existing byte, odd spacing included';
+
+# setting an answer needs --replace, and even then touches only that block
+throws-like { set-is-for($iz4, 'IS FOR WHO', 'Others.') }, X::IZ4, message => /'--replace'/, 'replacing an answer is refused without --replace';
+set-is-for($iz4, 'IS FOR WHO', 'Others.', :replace);
+ok $iz4.slurp.contains("Their words,\n  wrapped their way."), 'replacing one answer leaves the other, and its wrapping, alone';
+
+# numbering changes only the header line
+$iz4.spurt($iz4.slurp ~ "\nINVARIANT\nUnnumbered, in\nmy own lines.\n");
+number-invariants($iz4);
+ok $iz4.slurp.contains("INVARIANT 7\nUnnumbered, in\nmy own lines."), 'number rewrites the keyword line and nothing else';
+
+# splitting a reason moves the owner's words; it never rewrites them
+my sub words { $iz4.slurp.lc.comb(/\w+/).grep(* ne 'because').Bag }   # the keyword the split adds is not the owner's word
+my $words-before = words();
+split-because($iz4, 5);
+ok words() eqv $words-before, 'every word is still there after a split; only the position changed';
+
+# init never overwrites; scaffolds never overwrite; a failing rewrite leaves the file as it was
+throws-like { init(:$dir, :for-what('x'), :for-who('y')) }, X::IZ4, message => /'not overwriting'/, 'init refuses an existing file';
+my $snapshot = $iz4.slurp;
+throws-like { add-invariant($iz4, 'Clash.', :number(5)) }, X::IZ4, 'a refused add';
+is $iz4.slurp, $snapshot, 'writes nothing';
+
+# an old-format file is refused, not rewritten
+my $old = temp-dir.add('IZ4');
+$old.spurt("IZ4\n\ngist:\n    Their old words.\n");
+my ($rc, $out, $err) = iz4($old.parent, 'check');
+is $old.slurp, "IZ4\n\ngist:\n    Their old words.\n", 'check leaves a file it cannot read exactly as it was';
+
+done-testing;
