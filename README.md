@@ -290,8 +290,9 @@ iz4 show [FILE] [PART]           the file, or for-what, for-who or invariants
 iz4 show invariant N             one invariant; 0-4 are the inherited foundation
 iz4 check [FILE]                 ticks for what is true, crosses with remedies
 iz4 number [FILE]                number unnumbered invariants from 5
-iz4 test [N ...] [--list]        scaffold a born-red test for each invariant
-                                   without one, in your test language
+iz4 test [N ...] [--list]        a test for each invariant without one: drafted
+                                   by your agent for your approval on a terminal,
+                                   a born-red scaffold otherwise (--/draft)
 iz4 update [--check]             bring iz4 to the latest published version
 iz4 log [FILE]                   the Git history of your intent
 iz4 diff [FILE] [REV [REV]]      what changed, working tree by default
@@ -311,8 +312,8 @@ A checker cannot verify prose, but a test can pin the behaviour an invariant
 describes, and a test that names its invariant can be found. The convention
 is one phrase: a test file that says `Invariant 5` and quotes the
 invariant's opening words is evidence named for it. `iz4 check` reports
-which invariants have such a test, which have only a scaffold, and which
-have nothing:
+which invariants have such a test, which have an unreviewed draft or only
+a scaffold, and which have nothing:
 
 ```text
 ✗ evidence: Invariant 6, 8 have no test naming them - 'iz4 test' scaffolds one
@@ -336,11 +337,38 @@ A scaffold is not evidence: 'iz4 check' counts it only once its placeholder is g
 A scaffold is born red on purpose, and check reports it as scaffolded, not
 as evidence. A mention of `Invariant 5` in some other test, or in prose
 outside the test directories, never counts. `iz4 test --list` shows the
-state of each invariant, and `iz4 test 6` scaffolds one.
+state of each invariant, and `iz4 test 6` writes one.
+
+On a terminal, `iz4 test` first asks your own agent (`IZ4_AGENT_CMD`,
+default `claude -p`, the same command `iz4 review` uses) to draft the real
+test: it is given the invariant, its BECAUSE, the repository layout and one
+of your existing tests as the example, and asked for a file whose assertion
+would fail if the invariant stopped being true, or for `CANNOT:` and a
+reason when the invariant cannot be tested from what is in the repository.
+The draft is shown in full, and written only when you say yes:
+
+```text
+Invariant 6: Codes expire within ten minutes.
+asking agent (claude -p) for a test (javascript, test/invariant-6.test.js) ...
+
+    // Invariant 6: Codes expire within ten minutes.
+    // BECAUSE A stale code in an inbox is a key under the mat.
+    ...
+
+Write it to test/invariant-6.test.js, marked for your review? [Y/n/q]
+```
+
+A written draft begins with one line saying an agent wrote it and what to
+do: read it, run it, make sure it can fail, then delete that line. Until
+the line is gone, check reports the invariant as drafted, not as evidence.
+A no, a `CANNOT:`, a failing agent, a script or CI, or `--/draft` all fall
+back to the plain scaffold, so nothing is ever written that a person has
+not seen. The agent is asked not to touch the repository; it runs with
+your account and your permissions, so use an agent command you trust.
 
 None of this proves an invariant holds. It makes visible which invariants
-have a test that says it does, and which have none, which is the question
-a checker can answer.
+have a test that says it does, which have a draft or a scaffold waiting for
+a person, and which have none, which is the question a checker can answer.
 
 ## Checking
 

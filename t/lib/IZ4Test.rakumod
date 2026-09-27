@@ -20,14 +20,15 @@ sub rm-rf(IO::Path $path) is export {
 }
 
 #| Run bin/iz4 in $cwd; returns (exit-code, stdout, stderr).
-sub iz4(IO::Path $cwd, *@args) is export {
+sub iz4(IO::Path $cwd, *@args, :%env) is export {
     my $root = $?FILE.IO.resolve.parent(3);
     # IZ4_TEST_BIN points the suite at a compiled iz4 (a Raku++ binary),
     # so CI tests the executable it ships, not the source it came from.
     my @cmd = %*ENV<IZ4_TEST_BIN>
         ?? (%*ENV<IZ4_TEST_BIN>,)
         !! ($*EXECUTABLE, '-I', $root.add('lib').Str, $root.add('bin/iz4').Str);
-    my $proc = run |@cmd, |@args, :cwd($cwd.Str), :out, :err;
+    my %e = %*ENV, %env;
+    my $proc = run |@cmd, |@args, :cwd($cwd.Str), :out, :err, :env(%e);
     my $out = $proc.out.slurp(:close);
     my $err = $proc.err.slurp(:close);
     $proc.exitcode, $out, $err;
@@ -36,14 +37,14 @@ sub iz4(IO::Path $cwd, *@args) is export {
 #| Run bin/iz4 in $cwd with $input on standard input, as a person would
 #| answer its questions (IZ4_INTERACTIVE=1 turns coaching on without a
 #| terminal).  Returns (exit-code, stdout, stderr).
-sub iz4-talk(IO::Path $cwd, Str $input, *@args) is export {
+sub iz4-talk(IO::Path $cwd, Str $input, *@args, :%env) is export {
     my $root = $?FILE.IO.resolve.parent(3);
     my @cmd = %*ENV<IZ4_TEST_BIN>
         ?? (%*ENV<IZ4_TEST_BIN>,)
         !! ($*EXECUTABLE, '-I', $root.add('lib').Str, $root.add('bin/iz4').Str);
-    my %env = %*ENV;
-    %env<IZ4_INTERACTIVE> = '1';
-    my $proc = run |@cmd, |@args, :cwd($cwd.Str), :in, :out, :err, :%env;
+    my %e = %*ENV, %env;
+    %e<IZ4_INTERACTIVE> = '1';
+    my $proc = run |@cmd, |@args, :cwd($cwd.Str), :in, :out, :err, :env(%e);
     $proc.in.print($input);
     my $ = $proc.in.close;         # sunk, a refusing exit would throw here; the code is read below
     my $out = $proc.out.slurp(:close);

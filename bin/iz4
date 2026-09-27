@@ -60,11 +60,15 @@ sub USAGE() {
       iz4 check [FILE]                 tick what is true, cross what needs a
                                            remedy; exit 1 only on errors
       iz4 number [FILE]                number any unnumbered invariant from 5
-      iz4 test [N ...] [--lang=L]      scaffold a test for each invariant that
-                                           has none: born red, named for the
-                                           invariant, in the repository's own
-                                           test language (--list: the evidence
-                                           each invariant has)
+      iz4 test [N ...] [--lang=L]      a test for each invariant that has
+                                           none, in the repository's own test
+                                           language: on a terminal with an
+                                           agent (IZ4_AGENT_CMD), a drafted
+                                           real test you approve, marked for
+                                           review until you delete the mark;
+                                           otherwise a born-red scaffold
+                                           (--/draft: scaffold only; --list:
+                                           the evidence each invariant has)
       iz4 log [FILE]                   Git history of the IZ4
       iz4 diff [FILE] [REV [REV]]      Git diff of the IZ4
       iz4 agent [--json]               print the agent packet: the protocol
@@ -392,11 +396,14 @@ multi MAIN('check', Str $file?) {
             my @none = %ev<state>.pairs.grep(*.value eq 'none').map(*.key).sort(+*);
             my @scaf = %ev<state>.pairs.grep(*.value eq 'scaffolded').map(*.key).sort(+*);
             my $named = %ev<state>.values.grep(* eq 'named').elems;
+            my @draft = %ev<state>.pairs.grep(*.value eq 'drafted').map(*.key).sort(+*);
             @rows.push: ('✗', "evidence: Invariant {@scaf.join(', ')} ha{@scaf == 1 ?? 's' !! 've'} only a scaffold - write the assertion in {%ev<files>{@scaf[0]}[0]}" ~ (@scaf > 1 ?? ' and the others' !! ''))
                 if @scaf;
+            @rows.push: ('✗', "evidence: Invariant {@draft.join(', ')} ha{@draft == 1 ?? 's' !! 've'} an agent-drafted test awaiting review - read {%ev<files>{@draft[0]}[0]}" ~ (@draft > 1 ?? ' and the others' !! '') ~ ", run it, make sure it can fail, then delete its first line")
+                if @draft;
             @rows.push: ('✗', "evidence: Invariant {@none.join(', ')} ha{@none == 1 ?? 's' !! 've'} no test naming {@none == 1 ?? 'it' !! 'them'} - 'iz4 test' scaffolds one")
                 if @none;
-            @rows.push: ('✓', "evidence: every invariant is named and quoted by a test ($named of $count)") unless @none || @scaf;
+            @rows.push: ('✓', "evidence: every invariant is named and quoted by a test ($named of $count)") unless @none || @scaf || @draft;
         }
 
         if $path.basename eq ROOT-NAME {
@@ -436,7 +443,7 @@ sub mark(Str $glyph --> Str) {
 
 # ------------------------------------------------------------ number
 
-multi MAIN('test', *@numbers, Str :$file, Str :$lang, Bool :$list = False) {
+multi MAIN('test', *@numbers, Str :$file, Str :$lang, Bool :$list = False, Bool :$draft = True) {
     attempt {
         my $path = resolve-target($file);
         my $root = $path.parent;
@@ -449,23 +456,63 @@ multi MAIN('test', *@numbers, Str :$file, Str :$lang, Bool :$list = False) {
                 my $n = $inv.number;
                 say sprintf('  Invariant %-3s %-10s %s', $n, %ev<state>{$n}, (%ev<files>{$n} // ()).join(', '));
             }
-            say "named: a test names and quotes it; scaffolded: the born-red placeholder 'iz4 test' wrote; none: nothing.";
+            say "named: a reviewed test names and quotes it; drafted: an agent's draft awaiting review; scaffolded: the born-red placeholder; none: nothing.";
             say "Evidence that an invariant holds is a test that would fail if it stopped being true; a name alone is not that.";
             return 0;
         }
         my @only = @numbers.map({ parse-number($_) });
         for @only { user-error("no invariant $_ in {display-name($path)}") unless $doc.invariant($_) }
         my $language = $lang // detect-language($root);
+        user-error("no scaffold for language '$language'; --lang takes one of {LANGUAGES.join(', ')}")
+            unless so $language eq any(LANGUAGES);
+
+        # With an agent and a person present, draft the real test and ask;
+        # a draft is written only on a yes, and is marked for review.
+        my @drafted;
+        if $draft && interactive() {
+            my $layout = gather-context($root);
+            for $doc.invariants.grep(*.number.defined) -> $inv {
+                my $n = $inv.number;
+                next if @only && $n ne any(@only);
+                next if %ev<state>{$n} ne 'none';
+                my ($rel, $) = scaffold($language, $inv);
+                next if $root.add($rel).e;
+                say '';
+                say "Invariant $n: {$inv.text}";
+                say "asking agent ({agent-cmd()}) for a test ($language, $rel) ...";
+                my $d = try agent-draft($doc, $inv, $root, :lang($language), :path($rel), :cmd(agent-cmd()), :$layout);
+                without $d { say "  no draft: {$!.message.lines.head}; a scaffold will be written instead"; next }
+                with $d<cannot> { say "  the agent declined: $_"; say "  a scaffold will be written instead"; next }
+                say '';
+                say $d<text>.lines.map({ "    $_" }).join("\n");
+                say '';
+                my $answer = (ask("Write it to $rel, marked for your review? [Y/n/q] ") // 'q').trim.lc;
+                last if $answer.starts-with('q');
+                next if $answer.starts-with('n');
+                $root.add($rel).parent.mkdir;
+                $root.add($rel).spurt(marked-draft($language, $d<text>));
+                @drafted.push: ($rel, $n);
+            }
+            %ev = evidence-for($doc, $root);
+        }
         my @done = write-scaffolds($doc, $root, :lang($language), :@only);
+        if @drafted {
+            say '';
+            say "Drafted {+@drafted} test{+@drafted == 1 ?? '' !! 's'} ($language), each marked for review on its first line:";
+            say "  $_[0]  (Invariant $_[1])" for @drafted;
+            say "A draft is not evidence until you have read it, run it, seen that it can fail, and deleted that line.";
+        }
         if @done {
+            say '';
             say "Scaffolded {+@done} test{+@done == 1 ?? '' !! 's'} ($language), each failing until you write the assertion:";
             say "  $_[0]  (Invariant $_[1])" for @done;
             say "A scaffold is not evidence: 'iz4 check' counts it only once its placeholder is gone.";
+            say "On a terminal with an agent (IZ4_AGENT_CMD), 'iz4 test' drafts the real test for you to approve." unless $draft && interactive();
         }
-        else {
+        unless @drafted || @done {
             say @only
-                ?? "Nothing to scaffold: {@only.map({ 'Invariant ' ~ $_ }).join(', ')} already ha{@only == 1 ?? 's' !! 've'} a test naming it (or the scaffold file exists)."
-                !! "Nothing to scaffold: every invariant already has a test naming it, or its scaffold exists ('iz4 test --list').";
+                ?? "Nothing to write: {@only.map({ 'Invariant ' ~ $_ }).join(', ')} already ha{@only == 1 ?? 's' !! 've'} a test naming it (or its file exists)."
+                !! "Nothing to write: every invariant already has a test naming it, or its file exists ('iz4 test --list').";
         }
         0;
     }

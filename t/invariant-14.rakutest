@@ -42,6 +42,22 @@ my %env-agent = IZ4_AGENT_CMD => "cat {$reply}";
     is $iz4.slurp, $before, 'nor when the person says no';
 }
 
+# a test an agent drafts is evidence about intent too: it is written only on
+# a person's yes, and never counted as evidence until they have reviewed it
+add-invariant($iz4, 'Private profiles never appear in public search.', :because('A hidden search can cost someone their job.'));
+$dir.add('package.json').spurt(Q[{}] ~ "\n");
+$reply.spurt("// Invariant 5: Private profiles never appear in public search.\ntest('x', () => expect(search('private')).toEqual([]));\n");
+($rc, $out, $err) = iz4-talk($dir, "n\n", 'test', :env(%env-agent));
+ok !$dir.add('test/invariant-5.test.js').slurp.contains('expect(search'), 'a drafted test the person declines is not written';
+$dir.add('test/invariant-5.test.js').unlink;
+($rc, $out, $err) = iz4($dir, 'test', :env(%env-agent));
+ok !$dir.add('test/invariant-5.test.js').slurp.contains('expect(search'), 'nor is one written where no person can answer';
+$dir.add('test/invariant-5.test.js').unlink;
+($rc, $out, $err) = iz4-talk($dir, "y\n", 'test', :env(%env-agent));
+($rc, $out, $err) = iz4($dir, 'check');
+like $out, /'✗ evidence: Invariant 5 has an agent-drafted test awaiting review'/, 'a draft the person accepted still waits for their review before it counts';
+$before = $iz4.slurp;
+
 # the fast path refuses to store what looks like implementation unless the owner overrides
 ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'We use PostgreSQL.', '--because=fast');
 ok $rc == 1 && $err.contains('--force'), 'a challenged candidate is refused, and the override is named';
