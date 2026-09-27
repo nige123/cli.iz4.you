@@ -1,8 +1,9 @@
 use lib $?FILE.IO.parent.add('lib').Str;
 use Test;
 use IZ4Test;
+use IZ4;
 
-plan 22;
+plan 32;
 
 my $repo-root = $?FILE.IO.parent.parent.resolve;
 
@@ -27,6 +28,7 @@ if have-git() && have-raku() {
     %env<IZ4_HOME>       = $fake.add('share').Str;
     %env<IZ4_BIN>        = $fake.add('bin').Str;
     %env<IZ4_NO_RUNTIME> = '1';
+    %env<IZ4_SOURCE>     = '1';      # these tests are about the source install; no network
 
     my $p1 = run 'sh', $repo-root.add('install').Str, :out, :err, :env(%env);
     my $o1 = $p1.out.slurp(:close);
@@ -92,6 +94,61 @@ if have-git() && have-raku() {
     ($urc, $uout, $uerr) = installed('version');
     is $urc, 0, 'and iz4 still runs';
 
+    # the published file: the installer prefers it, verifies it, proves it runs
+    my $asset = do given $*KERNEL.name.lc {
+        when 'darwin' { 'iz4-macos-universal' }
+        default       { "iz4-linux-{$*KERNEL.hardware.lc eq 'arm64' ?? 'aarch64' !! $*KERNEL.hardware.lc}" }
+    };
+    my $rel = temp-dir;
+    $rel.add($asset).spurt("#!/bin/sh\ncase \"\$1\" in version) echo 'iz4 9.9.9';; *) echo fake;; esac\n");
+    $rel.add("$asset.sha256").spurt("{sha256-hex($rel.add($asset))}  $asset\n");
+    $rel.add('latest.txt').spurt("v9.9.9\n");
+    my $bhome = temp-dir;
+    my %benv = %*ENV;
+    %benv<IZ4_RELEASE_URL> = "file://{$rel}";
+    %benv<IZ4_HOME>        = $bhome.add('share').Str;
+    %benv<IZ4_BIN>         = $bhome.add('bin').Str;
+    %benv<IZ4_NO_RUNTIME>  = '1';
+    %benv<IZ4_REPO>        = temp-dir.add('never-cloned').Str;
+    my $pb = run 'sh', $repo-root.add('install').Str, :out, :err, :env(%benv);
+    my $ob = $pb.out.slurp(:close); my $eb = $pb.err.slurp(:close);
+    is $pb.exitcode, 0, 'the installer takes the published file when there is one' or diag "out: $ob\nerr: $eb";
+    like $ob, /'installed:' .* 'iz4 9.9.9' .* "'iz4 update' keeps it current"/, 'and says what it installed';
+    ok $bhome.add('bin/iz4').x && !$bhome.add('share/cli').e, 'the file itself is the command; nothing is cloned';
+
+    # a file whose checksum does not match is never installed
+    $rel.add("$asset.sha256").spurt("0000000000000000000000000000000000000000000000000000000000000000  $asset\n");
+    my $bhome2 = temp-dir;
+    %benv<IZ4_HOME> = $bhome2.add('share').Str; %benv<IZ4_BIN> = $bhome2.add('bin').Str;
+    $pb = run 'sh', $repo-root.add('install').Str, :out, :err, :env(%benv);
+    $ob = $pb.out.slurp(:close); $eb = $pb.err.slurp(:close);
+    ok $pb.exitcode != 0 && $eb.contains('checksum mismatch'), 'a checksum mismatch stops the install';
+    nok $bhome2.add('bin/iz4').e, 'and nothing is installed';
+
+    # a file that does not run here falls back to the source install
+    $rel.add($asset).spurt("#!/bin/sh\nexit 7\n");
+    $rel.add("$asset.sha256").spurt("{sha256-hex($rel.add($asset))}  $asset\n");
+    %benv<IZ4_REPO> = $origin.Str;
+    $pb = run 'sh', $repo-root.add('install').Str, :out, :err, :env(%benv);
+    $ob = $pb.out.slurp(:close); $eb = $pb.err.slurp(:close);
+    ok $pb.exitcode == 0 && $ob.contains('does not run on this system; installing from source'), 'a file that will not run falls back to source';
+    ok $bhome2.add('share/cli/.git').e, 'and the source is installed instead';
+
+    # IZ4_SOURCE=1 skips the published file altogether
+    %benv<IZ4_SOURCE> = '1';
+    my $bhome3 = temp-dir;
+    %benv<IZ4_HOME> = $bhome3.add('share').Str; %benv<IZ4_BIN> = $bhome3.add('bin').Str;
+    $pb = run 'sh', $repo-root.add('install').Str, :out, :err, :env(%benv);
+    $ob = $pb.out.slurp(:close); $pb.err.slurp(:close);
+    unlike $ob, /'fetching the iz4 file'/, 'IZ4_SOURCE=1 never looks for the published file';
+
+    # the standalone update: which file is ours, and the latest published tag
+    {
+        temp %*ENV<IZ4_RELEASE_URL> = "file://{$rel}";
+        is latest-tag(), 'v9.9.9', 'latest-tag reads the release directory';
+        ok own-asset().defined && own-asset() eq $asset, 'own-asset names the file for this machine';
+    }
+
     # a symlinked checkout is a developer's own: left alone, never pulled over
     my $cli = $fake.add('share/cli');
     run 'rm', '-rf', $cli.Str;
@@ -117,5 +174,5 @@ if have-git() && have-raku() {
     is $pointee.slurp, "do not clobber\n", 'the symlink target was not written through';
 }
 else {
-    skip 'needs git and a Rakudo runtime', 19;
+    skip 'needs git and a Rakudo runtime', 29;
 }

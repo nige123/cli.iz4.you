@@ -195,8 +195,8 @@ class Section {
     method is-empty(--> Bool) { !@!lines && !@!items }
 }
 
-#| A block of the current format.
-class Block {
+#| A block of the current format (named Part: Block is a core type).
+class Part {
     has Str  $.kind is required;          # IS FOR WHAT | IS FOR WHO | INVARIANT | BECAUSE | other caps
     has Str  $.label;                     # the text after INVARIANT, if any
     has Bool $.asked = False;             # written as a question: IS FOR WHAT?
@@ -215,7 +215,7 @@ has Str       $.for-who;
 has Int       $.for-what-line;
 has Int       $.for-who-line;
 has Invariant @.invariants;
-has Block     @.blocks;
+has Part      @.blocks;
 has Section   @.sections;
 has Problem   @.problems;
 has Str       @.lines;
@@ -340,7 +340,7 @@ method !parse() {
 my regex caps-header { ^ <[A..Z]> <[A..Z 0..9 \x20]>* '?'? $ }
 
 method !parse-blocks(Int $from) {
-    my Block $current;
+    my Part $current;
     for @!lines.kv -> $i, $raw {
         next if $i < $from;
         my $n    = $i + 1;
@@ -349,7 +349,7 @@ method !parse-blocks(Int $from) {
         next if $line.starts-with('#');
 
         if $line ~~ /^ 'INVARIANT' [\s+ (.+)]? $/ {
-            $current = Block.new(:kind<INVARIANT>, :label($0 ?? ~$0 !! Str), :line($n), :last-line($n));
+            $current = Part.new(:kind<INVARIANT>, :label($0 ?? ~$0 !! Str), :line($n), :last-line($n));
             @!blocks.push: $current;
             next;
         }
@@ -359,7 +359,7 @@ method !parse-blocks(Int $from) {
                 next;
             }
             my $asked = $line.ends-with('?');
-            $current = Block.new(:kind($line.subst(/ \s* '?' $ /, '').words.join(' ')), :$asked, :line($n), :last-line($n));
+            $current = Part.new(:kind($line.subst(/ \s* '?' $ /, '').words.join(' ')), :$asked, :line($n), :last-line($n));
             @!blocks.push: $current;
             next;
         }

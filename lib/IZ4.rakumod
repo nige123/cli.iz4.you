@@ -4,7 +4,7 @@ use IZ4::Document;
 use IZ4::Git;
 use IZ4::Coach;
 
-constant VERSION is export = '0.2.0';
+constant VERSION is export = '0.3.0';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -678,15 +678,90 @@ sub own-checkout(--> IO::Path) is export {
     $root.defined && $root.add('.git').e && $root.add('bin').add('iz4').e ?? $root !! Nil;
 }
 
+#| Where the standalone files are published, and the file for this machine.
+constant RELEASES is export = 'https://github.com/nige123/cli.iz4.you/releases';
+sub release-base(--> Str) { %*ENV<IZ4_RELEASE_URL> // (RELEASES ~ '/latest/download') }
+
+#| The release file built for this operating system and processor, or
+#| Str when none is published for them.
+sub own-asset(--> Str) is export {
+    my $arch = $*KERNEL.hardware.lc;
+    $arch = 'aarch64' if $arch eq 'arm64';
+    given $*KERNEL.name.lc {
+        when 'linux'  { $arch eq 'x86_64' | 'aarch64' ?? "iz4-linux-$arch" !! Str }
+        when 'darwin' { 'iz4-macos-universal' }
+        when /win/    { $arch eq 'x86_64' | 'amd64' ?? 'iz4-windows-x64.exe' !! Str }
+        default       { Str }
+    }
+}
+
+#| The newest published tag (like v0.3.0), or Str when none can be found.
+#| GitHub answers /releases/latest with a redirect to the tag; a test
+#| release directory names it in latest.txt.
+sub latest-tag(--> Str) is export {
+    if %*ENV<IZ4_RELEASE_URL> {
+        my $p = run 'curl', '-fsSL', "{%*ENV<IZ4_RELEASE_URL>}/latest.txt", :out, :err;
+        my $tag = $p.out.slurp(:close).trim; $p.err.slurp(:close);
+        return $p.exitcode == 0 && $tag ?? $tag !! Str;
+    }
+    my $p = run 'curl', '-sI', '-o', '-', RELEASES ~ '/latest', :out, :err;
+    my $head = $p.out.slurp(:close); $p.err.slurp(:close);
+    with $head.lines.first(*.starts-with(any('location:', 'Location:'))) {
+        my $where = .split(':', 2)[1].trim;
+        my $tag = $where.split('/')[*-1];
+        return $tag if $tag ~~ /^ 'v' \d/;
+    }
+    Str;
+}
+
+sub fetch(Str $url, IO::Path $to --> Bool) {
+    my $p = run 'curl', '-fsSL', '-o', $to.Str, $url, :out, :err;
+    $p.out.slurp(:close); $p.err.slurp(:close);
+    $p.exitcode == 0 && $to.f;
+}
+
+#| Update a standalone iz4 in place from the published files.
+sub binary-update(Bool :$check = False --> Hash) is export {
+    my $asset = own-asset() // return %( state => 'failed',
+        note => "no published iz4 for {$*KERNEL.name} on {$*KERNEL.hardware}; install from source with the install script" );
+    my $tag = latest-tag() // return %( state => 'failed', note => "could not find the latest release at {RELEASES}" );
+    my $from = "v{VERSION}";
+    return %( state => 'current', :$from, n => 0 ) if $tag eq $from;
+    return %( state => 'behind', :$from, n => 1, commits => ("release $tag",) ) if $check;
+
+    my $tmp = $*TMPDIR.add("iz4-update-{$*PID}");
+    $tmp.mkdir;
+    my $new = $tmp.add($asset);
+    fetch("{release-base()}/$asset", $new) && fetch("{release-base()}/$asset.sha256", $tmp.add("$asset.sha256"))
+        or return %( state => 'failed', note => "could not download $asset $tag from {release-base()}" );
+    my $expected = $tmp.add("$asset.sha256").slurp.lc.match(/ <[0..9a..f]> ** 64 /);
+    my $got = sha256-file($new);
+    return %( state => 'failed', note => "checksum mismatch for $asset $tag; nothing was replaced" )
+        unless $expected && ~$expected eq $got;
+    $new.chmod(0o755);
+    my $probe = run $new.Str, 'version', :out, :err;
+    $probe.out.slurp(:close); $probe.err.slurp(:close);
+    return %( state => 'failed', note => "the downloaded $asset does not run here; nothing was replaced" ) if $probe.exitcode != 0;
+
+    my $self = $*PROGRAM.resolve;
+    if $*KERNEL.name.lc ~~ /win/ {
+        # a running .exe cannot be overwritten, but it can be renamed
+        my $old = $self.parent.add($self.basename ~ '.old');
+        $old.unlink if $old.e;
+        $self.rename($old);
+    }
+    $new.rename($self) or return %( state => 'failed', note => "could not replace {$self}; is it writable?" );
+    %( state => 'updated', :$from, to => $tag, n => 1, commits => ("release $tag",) );
+}
+
 #| Update this copy of iz4 to the latest published version, or with
 #| :check only say whether one exists.  Returns a hash: 'state' is one of
-#| current, behind, updated, dirty, standalone or failed, with 'from',
-#| 'to', 'commits' (their subjects) and 'note' as apply.  The only
-#| network call is Git talking to the checkout's own remote.
+#| current, behind, updated, dirty or failed, with 'from', 'to',
+#| 'commits' (their subjects) and 'note' as apply.  A Git checkout
+#| fast-forwards from its own remote; a standalone file downloads the
+#| newest published file for this machine and replaces itself.
 sub self-update(Bool :$check = False --> Hash) is export {
-    my $root = own-checkout() // return %( state => 'standalone',
-        note => 'this iz4 is a standalone file, not a Git checkout; download the latest from '
-              ~ 'https://github.com/nige123/cli.iz4.you and replace it, or re-run the installer' );
+    my $root = own-checkout() // return binary-update(:$check);
     my $marker = $root.add('bin').add('iz4');
     my sub g(*@a) { git($marker, |@a) }
 

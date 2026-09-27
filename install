@@ -8,13 +8,20 @@
 # rakubrew, also into your home - nothing system-wide, no sudo). Afterwards
 # 'iz4 update' keeps it current; re-running the installer does the same.
 #
-# Overrides: IZ4_REPO (git URL), IZ4_HOME (checkout parent),
-# IZ4_BIN (launcher directory), IZ4_NO_RUNTIME=1 (never fetch a runtime).
-# Working on iz4 itself: symlink $IZ4_HOME/cli (default
+# It first tries the standalone file published for your system (one file,
+# nothing else needed; 'iz4 update' keeps it current). Where none is
+# published, or it will not run here, it installs from source instead:
+# the code into your home, plus Rakudo if missing.
+#
+# Overrides: IZ4_SOURCE=1 (install from source even if a file is published),
+# IZ4_RELEASE_URL (where the files are), IZ4_REPO (git URL), IZ4_HOME
+# (checkout parent), IZ4_BIN (launcher directory), IZ4_NO_RUNTIME=1 (never
+# fetch a runtime).  Working on iz4 itself: symlink $IZ4_HOME/cli (default
 # ~/.local/share/iz4/cli) to your checkout and the launcher runs that.
 set -eu
 
 REPO="${IZ4_REPO:-https://github.com/nige123/cli.iz4.you}"
+RELEASE="${IZ4_RELEASE_URL:-https://github.com/nige123/cli.iz4.you/releases/latest/download}"
 DATA="${IZ4_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/iz4}"
 BIN_DIR="${IZ4_BIN:-$HOME/.local/bin}"
 CHECKOUT="$DATA/cli"
@@ -23,6 +30,50 @@ RAKUBREW="$HOME/.rakubrew/bin/rakubrew"
 say()  { printf '%s\n' "$*"; }
 fail() { printf 'iz4 install: %s\n' "$*" >&2; exit 1; }
 
+# -- the standalone file, when one is published for this machine ---------------
+asset_for() {
+    case "$(uname -s):$(uname -m)" in
+        Linux:x86_64)              echo iz4-linux-x86_64 ;;
+        Linux:aarch64|Linux:arm64) echo iz4-linux-aarch64 ;;
+        Darwin:*)                  echo iz4-macos-universal ;;
+        *)                         echo '' ;;
+    esac
+}
+sha256_of() {
+    (sha256sum "$1" 2>/dev/null || shasum -a 256 "$1" 2>/dev/null || openssl dgst -sha256 -r "$1" 2>/dev/null) | awk '{print tolower($1)}'
+}
+try_binary() {
+    [ -z "${IZ4_SOURCE:-}" ] || return 1
+    [ ! -L "$CHECKOUT" ] || return 1          # a developer checkout stays in charge
+    command -v curl >/dev/null 2>&1 || return 1
+    asset=$(asset_for); [ -n "$asset" ] || return 1
+    tmp=$(mktemp -d 2>/dev/null || mktemp -d -t iz4)
+    say "fetching the iz4 file for $(uname -s) $(uname -m)"
+    curl -fsSL -o "$tmp/$asset" "$RELEASE/$asset" 2>/dev/null || { say "no published file for this machine; installing from source"; return 1; }
+    curl -fsSL -o "$tmp/$asset.sha256" "$RELEASE/$asset.sha256" 2>/dev/null || { say "no checksum published; installing from source"; return 1; }
+    exp=$(tr -d '\r\n ' < "$tmp/$asset.sha256" | grep -o -i '[0-9a-f]\{64\}' | head -1 | tr 'A-F' 'a-f')
+    got=$(sha256_of "$tmp/$asset")
+    [ -n "$exp" ] && [ "$exp" = "$got" ] || fail "checksum mismatch for $asset: expected $exp, got $got; nothing was installed"
+    chmod +x "$tmp/$asset"
+    "$tmp/$asset" version >/dev/null 2>&1 || { say "the published file does not run on this system; installing from source"; return 1; }
+    mkdir -p "$BIN_DIR"
+    rm -f "$BIN_DIR/iz4"
+    mv "$tmp/$asset" "$BIN_DIR/iz4"
+    rm -rf "$tmp"
+    say "installed: $BIN_DIR/iz4 ($("$BIN_DIR/iz4" version)) - 'iz4 update' keeps it current"
+    return 0
+}
+if try_binary; then
+    case ":$PATH:" in
+        *":$BIN_DIR:"*) ;;
+        *) say "note: $BIN_DIR is not on your PATH. Add this line to your shell profile:"
+           say "    export PATH=\"$BIN_DIR:\$PATH\"" ;;
+    esac
+    say "next: cd your-project && iz4 init"
+    exit 0
+fi
+
+# -- from source ----------------------------------------------------------------
 command -v git  >/dev/null 2>&1 || fail "git is required (https://git-scm.com); install it and re-run"
 
 # -- the iz4 code -----------------------------------------------------------

@@ -123,9 +123,23 @@ sub interactive(--> Bool) {
 
 sub ask(Str $prompt --> Str) {
     print $prompt;
-    my $line = $*IN.get;
+    my $line = read-line();
     print "\n" unless $*IN.t;     # keep scripted transcripts readable
     $line // Str;                 # end of input: no answer
+}
+
+#| One line from standard input, read a character at a time: under Raku++
+#| a second $*IN.get on a pipe returns nothing and .lines reads to the end
+#| before answering, and a coach must answer as the person types.
+sub read-line(--> Str) {
+    my $s = '';
+    loop {
+        my $c = $*IN.getc;
+        without $c { return $s ne '' ?? $s !! Str }
+        last if $c eq "\n";
+        $s ~= $c;
+    }
+    $s.subst(/ \r $ /, '');
 }
 
 sub tell(Str $line) { say $line }
@@ -615,7 +629,6 @@ multi MAIN('update', Bool :$check = False) {
             when 'current'  { say "iz4 is up to date ({VERSION}, {%u<from>})."; 0 }
             when 'behind'   { say "iz4 is {%u<n>} commit{%u<n> == 1 ?? '' !! 's'} behind; 'iz4 update' fetches:"; commits(); 0 }
             when 'updated'  { say "Updated iz4 from {%u<from>} to {%u<to>} ({%u<n>} commit{%u<n> == 1 ?? '' !! 's'}):"; commits(); 0 }
-            when 'standalone' { say %u<note>; 0 }
             default         { note %u<note>; 1 }
         }
     }

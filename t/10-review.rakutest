@@ -37,7 +37,7 @@ is @t».<number>, (5,), 'a change using an invariant\'s words touches that invar
 ok @t[0]<terms> ⊇ <price shop>, 'and says which words matched';
 my @none = touched-invariants($doc, "--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-Hello\n+Hello there\n");
 is @none.elems, 0, 'a change sharing no words touches nothing';
-ok touched-invariants($doc, "--- a/t/x.t\n+++ b/t/parcel-receipt.t\n@@ -0,0 +1 @@\n+ok 1\n")».<number> eqv (6,),
+is touched-invariants($doc, "--- a/t/x.t\n+++ b/t/parcel-receipt.t\n@@ -0,0 +1 @@\n+ok 1\n")».<number>, (6,),
     'file names count too';
 ok invariant-terms('Prices are printed and reprinted.') ⊇ <price print>, 'terms are stemmed so prices meets price';
 my @report = offline-report($doc, $price-diff, :what('the change'));

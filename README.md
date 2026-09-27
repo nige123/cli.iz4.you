@@ -47,41 +47,53 @@ belongs to your project.
 
 ## Install
 
+One line, on macOS, Linux or WSL:
+
 ```text
 curl -fsSL https://raw.githubusercontent.com/nige123/cli.iz4.you/main/install | sh
 ```
 
-That puts a `iz4` launcher in `~/.local/bin`. If your machine needs the
-runtime, the installer fetches it into your home directory. Nothing
-system-wide, no sudo. Git is the only prerequisite.
+On Windows, in PowerShell:
 
-From then on, `iz4 update` brings it to the latest published version, and
-`iz4 update --check` only says whether there is one. It fast-forwards the
-installed checkout and proves the result still runs before claiming
-success; a checkout with your own changes in it is left alone. Re-running
-the install line does the same.
+```text
+irm https://raw.githubusercontent.com/nige123/cli.iz4.you/main/install.ps1 | iex
+```
+
+Both fetch the standalone `iz4` file published for your system, check its
+checksum, prove it runs, and put it on your PATH. It is one file that needs
+nothing else installed: no runtime, no package manager, no admin rights.
+The files are built with [Raku++](https://github.com/ash/rakupp) for Linux
+on x86-64 and arm64, macOS 11 or newer on Apple silicon and Intel, and
+64-bit Windows 10 or newer.
+
+From then on, `iz4 update` brings it to the newest release, and
+`iz4 update --check` only says whether there is one. It downloads the file
+for your machine, verifies it and proves it runs before replacing itself.
+
+Where no file is published for your system, or it will not run there, the
+shell installer falls back to installing from source: the code into your
+home directory plus Rakudo if you lack it, with Git as the only
+prerequisite. `IZ4_SOURCE=1` asks for that on purpose. A source install
+updates with the same `iz4 update`, which fast-forwards its checkout.
 
 Rather see every step?
 
 ```text
 git clone https://github.com/nige123/cli.iz4.you iz4
-ln -s "$PWD/iz4/bin/iz4" ~/.local/bin/iz4     # or: cd iz4 && zef install .
+ln -s "$PWD/iz4/bin/iz4" ~/.local/bin/iz4     # needs Rakudo; or: cd iz4 && zef install .
 ```
 
 Working on iz4 itself? Point the installer's checkout at yours and the
-launcher runs your working tree, uncommitted edits included; re-running the
-installer leaves it alone:
+launcher runs your working tree, uncommitted edits included; `iz4 update`
+leaves a checkout with your changes alone:
 
 ```text
 ln -sfn "$PWD/iz4" ~/.local/share/iz4/cli
 ```
 
-iz4 is written in [Raku](https://raku.org), though you never need to think
-about that. It runs anywhere: where a prebuilt runtime exists the installer
-downloads one, and elsewhere it builds one for you and says so first. On
-Windows, install [Rakudo](https://rakudo.org) and use the manual steps.
-
-Run the tests with `prove --ext .rakutest -e 'raku -Ilib' t/`.
+Run the tests with `prove --ext .rakutest -e 'raku -Ilib' t/`, or under
+Raku++ with `-e 'rakupp -Ilib'`; `IZ4_TEST_BIN=dist/iz4` runs them against a
+compiled file.
 
 ## Start
 
