@@ -137,6 +137,7 @@ class Problem {
     has Int  $.line    is required;
     has Str  $.message is required;
     has Bool $.warning = False;
+    has Str  $.fix     = '';          # the next step that clears it: a command, or what to change by hand
     method Str(--> Str) { ($!warning ?? 'warning: ' !! '') ~ $!message }
 }
 
@@ -217,8 +218,16 @@ method report(Str :$name = ($!path ?? $!path.Str !! 'IZ4')) {
     @!problems.sort(*.line).map({ "$name:{.line}: {.Str}" });
 }
 
-method !problem(Int $line, Str $message, Bool :$warning = False) {
-    @!problems.push: Problem.new(:$line, :$message, :$warning);
+method !problem(Int $line, Str $message, Bool :$warning = False, Str :$fix = '') {
+    @!problems.push: Problem.new(:$line, :$message, :$warning, :$fix);
+}
+
+#| The next steps that clear the errors, in line order, each once.  A
+#| fix is a command where iz4 has one, and otherwise what to change by
+#| hand: iz4 never rewrites a person's words for them.
+method fixes(--> List) {
+    my @seen;
+    @!problems.sort(*.line).grep({ !.warning && .fix ne '' }).map(*.fix).grep({ !(@seen.first($_).defined) && @seen.push($_) }).List;
 }
 
 # ----------------------------------------------------------------- parse
@@ -235,7 +244,8 @@ method !parse() {
     else {
         my $first = $m<item>.first({ !.<blank> && !.<comment> });
         self!problem($first.defined ?? line-of($first) !! 1,
-            $first.defined ?? "expected 'IZ4' header on the first line" !! "expected 'IZ4' header (file is empty)");
+            $first.defined ?? "expected 'IZ4' header on the first line" !! "expected 'IZ4' header (file is empty)",
+            :fix($first.defined ?? "put 'IZ4' alone on the first line" !! "start over: 'iz4 init' asks what and who this is for"));
     }
 
     for $m<item>.list -> $i {
@@ -255,24 +265,27 @@ method !parse() {
             my @text = $u<text-line>».Str».trim;
             my $kind = $u<caps-line>.Str.trim.subst(/ \s* '?' $ /, '').words.join(' ');
             if $kind eq 'IZ4' {
-                self!problem($line, "unexpected second 'IZ4' header");
+                self!problem($line, "unexpected second 'IZ4' header", :fix("delete the second 'IZ4' on line $line"));
             }
             else {
                 @!blocks.push: Part.new(:$kind, :$line, :last-line($line + @text.elems), :lines(@text));
                 self!problem($line, "unknown block '$kind' kept; IZ4 holds only IS FOR WHAT?, IS FOR WHO?, "
-                    ~ "INVARIANT and BECAUSE - {ELSEWHERE}", :warning);
+                    ~ "INVARIANT and BECAUSE - {ELSEWHERE}", :warning, :fix("move '$kind' (line $line) out of the IZ4, or rewrite it as an INVARIANT if it must remain true"));
             }
         }
         orwith $i<indented-keyword> -> $w {
-            self!problem(line-of($w), "'{$w<keyword>.Str.trim}' is indented: a block keyword starts at column 0");
+            self!problem(line-of($w), "'{$w<keyword>.Str.trim}' is indented: a block keyword starts at column 0",
+                :fix("remove the indent before '{$w<keyword>.Str.trim}' on line {line-of($w)}"));
         }
         orwith $i<legacy-section> -> $l {
             self!problem(line-of($l), "'{$l.Str.trim}' is the earlier IZ4 format (sections like gist: and "
                 ~ "invariants:), which this version no longer reads; the format is now IS FOR WHAT?, "
-                ~ "IS FOR WHO?, INVARIANT n and BECAUSE (docs/format.md); iz4 0.3.0 can convert it with 'iz4 migrate'");
+                ~ "IS FOR WHO?, INVARIANT n and BECAUSE (docs/format.md); iz4 0.3.0 can convert it with 'iz4 migrate'",
+                :fix("rewrite the file in the current format (docs/format.md), or convert it with iz4 0.3.0's 'iz4 migrate'"));
         }
         orwith $i<stray> -> $s {
-            self!problem(line-of($s), "text before any block: start with IS FOR WHAT?");
+            self!problem(line-of($s), "text before any block: start with IS FOR WHAT?",
+                :fix("move the text on line {line-of($s)} under a block, or delete it"));
         }
     }
     self!validate;
@@ -303,11 +316,13 @@ method !validate() {
             when 'IS FOR WHAT' | 'IS FOR WHO' {
                 my $kind = $b.kind;
                 if %seen{$kind}:exists {
-                    self!problem($b.line, "duplicate $kind (first at line {%seen{$kind}})");
+                    self!problem($b.line, "duplicate $kind (first at line {%seen{$kind}})",
+                        :fix("merge the $kind? on line {$b.line} into the one on line {%seen{$kind}}, then delete it"));
                 }
                 else { %seen{$kind} = $b.line }
-                self!problem($b.line, "$kind is empty") if $b.text eq '';
-                self!problem($b.line, "$kind is a question: write it as '$kind?'", :warning) unless $b.asked;
+                self!problem($b.line, "$kind is empty",
+                    :fix($kind eq 'IS FOR WHAT' ?? 'iz4 add for-what "what it is for"' !! 'iz4 add for-who "who it is for"')) if $b.text eq '';
+                self!problem($b.line, "$kind is a question: write it as '$kind?'", :warning, :fix("add the ? after $kind on line {$b.line}")) unless $b.asked;
                 if $kind eq 'IS FOR WHAT' { $!for-what = $b.text; $!for-what-line = $b.line }
                 else                      { $!for-who  = $b.text; $!for-who-line  = $b.line }
                 $last-was-invariant = False;
@@ -320,7 +335,7 @@ method !validate() {
                     my ($n, $name) = +$0, $1.Str;
                     my $because-block = self!because-after($b);
                     if %foundation{$n}:exists {
-                        self!problem($b.line, "duplicate INVARIANT $n (first at line {%foundation{$n}})");
+                        self!problem($b.line, "duplicate INVARIANT $n (first at line {%foundation{$n}})", :fix('iz4 foundation --restore'));
                         $foundation-broken = True;
                     }
                     elsif foundation-matches($n, $name, $b.text, $because-block.defined ?? $because-block.text !! Str) {
@@ -329,7 +344,7 @@ method !validate() {
                         $foundation-first //= $b.line;
                         $foundation-last = $because-block.defined ?? $because-block.last-line !! $b.last-line;
                         if @!invariants {
-                            self!problem($b.line, "INVARIANT $n comes after a project invariant: the foundation, 0-4, comes first");
+                            self!problem($b.line, "INVARIANT $n comes after a project invariant: the foundation, 0-4, comes first", :fix('iz4 foundation --restore'));
                             $foundation-broken = True;
                         }
                     }
@@ -337,7 +352,7 @@ method !validate() {
                         %foundation{$n} = $b.line;
                         $foundation-broken = True;
                         self!problem($b.line, "INVARIANT $n is the foundation's {FOUNDATION[$n]<name>} and must read exactly as it does "
-                            ~ "in every IZ4; it is not yours to edit ('iz4 foundation --restore' puts it back)");
+                            ~ "in every IZ4; it is not yours to edit ('iz4 foundation --restore' puts it back)", :fix('iz4 foundation --restore'));
                     }
                     $last-was-invariant = False;
                     $foundation-block = True;
@@ -350,23 +365,27 @@ method !validate() {
                                 self!problem($b.line,
                                     "INVARIANT $number is the foundation's {FOUNDATION[$number]<name>}: every IZ4 carries "
                                     ~ "Invariants 0-4 word for word, and a project's own begin at "
-                                    ~ FIRST-PROJECT-NUMBER ~ " ('iz4 foundation --restore' puts the foundation back)");
+                                    ~ FIRST-PROJECT-NUMBER ~ " ('iz4 foundation --restore' puts the foundation back)",
+                                    :fix("iz4 foundation --restore, then renumber the invariant on line {$b.line} from 5 up ('iz4 number' picks a free number once its number is removed)"));
                                 %foundation{$number} = $b.line;
                                 $foundation-broken = True;
                             }
                             elsif %numbers{$number}:exists {
-                                self!problem($b.line, "duplicate INVARIANT $number (first at line {%numbers{$number}})");
+                                self!problem($b.line, "duplicate INVARIANT $number (first at line {%numbers{$number}})",
+                                    :fix("give the invariant on line {$b.line} a number the file has never used (remove its number and 'iz4 number' picks one)"));
                             }
                             else { %numbers{$number} = $b.line }
                         }
                         else {
-                            self!problem($b.line, "INVARIANT needs a whole number, like 'INVARIANT 5'");
+                            self!problem($b.line, "INVARIANT needs a whole number, like 'INVARIANT 5'",
+                                :fix("replace '$label' on line {$b.line} with a whole number from 5 up (remove it and 'iz4 number' picks one)"));
                         }
                     }
                     else {
-                        self!problem($b.line, "unnumbered INVARIANT ('iz4 number' numbers it)", :warning);
+                        self!problem($b.line, "unnumbered INVARIANT ('iz4 number' numbers it)", :warning, :fix('iz4 number'));
                     }
-                    self!problem($b.line, ($number.defined ?? "INVARIANT $number" !! 'INVARIANT') ~ ' is empty') if $b.text eq '';
+                    self!problem($b.line, ($number.defined ?? "INVARIANT $number" !! 'INVARIANT') ~ ' is empty',
+                        :fix("write what must remain true under the INVARIANT on line {$b.line}, or delete the block")) if $b.text eq '';
                     $last-invariant = Invariant.new(:$number, :text($b.text), :line($b.line), :last-line($b.last-line));
                     @!invariants.push: $last-invariant;
                     $last-was-invariant = True;
@@ -375,7 +394,8 @@ method !validate() {
             when 'BECAUSE' {
                 if $foundation-block { $foundation-block = False; $last-was-invariant = False; succeed }
                 if $last-was-invariant && $last-invariant.defined {
-                    self!problem($b.line, 'BECAUSE is empty') if $b.text eq '';
+                    self!problem($b.line, 'BECAUSE is empty',
+                        :fix($last-invariant.number.defined ?? "iz4 because {$last-invariant.number} \"why it must survive\"" !! "write under the BECAUSE on line {$b.line} why the invariant must survive")) if $b.text eq '';
                     my $i = @!invariants.end;
                     @!invariants[$i] = Invariant.new(
                         :number($last-invariant.number), :text($last-invariant.text),
@@ -383,7 +403,8 @@ method !validate() {
                         :because-line($b.line), :last-line($last-invariant.last-line));
                 }
                 else {
-                    self!problem($b.line, 'BECAUSE must directly follow the INVARIANT it explains');
+                    self!problem($b.line, 'BECAUSE must directly follow the INVARIANT it explains',
+                        :fix("move the BECAUSE on line {$b.line} directly under the INVARIANT it explains, or delete it"));
                 }
                 $last-was-invariant = False;
             }
@@ -392,14 +413,14 @@ method !validate() {
     }
 
     my $end = @!lines.elems max 1;
-    self!problem($end, 'missing IS FOR WHAT?: what is this system for?')
+    self!problem($end, 'missing IS FOR WHAT?: what is this system for?', :fix('iz4 add for-what "what it is for"'))
         unless %seen{'IS FOR WHAT'}:exists;
-    self!problem($end, 'missing IS FOR WHO?: who is this system for?')
+    self!problem($end, 'missing IS FOR WHO?: who is this system for?', :fix('iz4 add for-who "who it is for"'))
         unless %seen{'IS FOR WHO'}:exists;
 
     my @missing = (0..4).grep({ !(%foundation{$_}:exists) });
     self!problem($end, "the foundation is missing: every IZ4 carries Invariant{@missing == 1 ?? '' !! 's'} "
-        ~ "{@missing.join(', ')} word for word ('iz4 foundation --restore' writes {@missing == 1 ?? 'it' !! 'them'})")
+        ~ "{@missing.join(', ')} word for word ('iz4 foundation --restore' writes {@missing == 1 ?? 'it' !! 'them'})", :fix('iz4 foundation --restore'))
         if @missing;
     if @foundation-order.join(',') eq '0,1,2,3,4' {
         $!foundation-intact = !$foundation-broken;
@@ -408,6 +429,6 @@ method !validate() {
     }
     elsif @foundation-order == 5 {
         self!problem(%foundation{@foundation-order[0]}, "the foundation is out of order: Invariants 0-4 come in order "
-            ~ "('iz4 foundation --restore' puts them right)");
+            ~ "('iz4 foundation --restore' puts them right)", :fix('iz4 foundation --restore'));
     }
 }

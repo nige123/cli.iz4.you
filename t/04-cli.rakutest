@@ -68,6 +68,21 @@ ok $out.ends-with("OK IZ4 (1 to remedy above)\n"), 'and the summary counts it';
 ($rc, $out, $err) = iz4($dir, 'check');
 like $out, /'✗ BECAUSE: missing for Invariant 6 - write under each why it must survive'/, 'a missing BECAUSE is a cross with a remedy';
 ok $out.ends-with("OK IZ4 (2 to remedy above)\n"), 'crosses are counted, and never fail the check';
+like $out, /"next:\n  1. iz4 because 6 \"why it must survive\"\n  2. iz4 test 5 6\n  then: iz4 check again\n"/,
+    'and the next steps are listed in order, one command each, ending with a check';
+
+# ---- a failing check says what to do next, then that it is not OK ----------------
+{
+    my $broken = temp-dir();
+    $broken.add('IZ4').spurt("IZ4\n\nIS FOR WHAT?\n\nINVARIANT 5\nSomething.\n");
+    my ($rc, $out, $err) = iz4($broken, 'check');
+    is $rc, 1, 'structural errors fail the check';
+    like $out, /'✗ IS FOR WHAT: missing'/, 'an empty answer is a cross, not a tick';
+    like $out, /"next:\n  1. iz4 add for-what \"what it is for\"\n  2. iz4 add for-who \"who it is for\"\n  3. iz4 foundation --restore\n  4. iz4 because 5 \"why it must survive\"\n"/,
+        'the structural fixes come first, in line order, then the crosses';
+    like $out, /'  then: iz4 check again' \n 'NOT OK IZ4: 3 errors - do the next steps above'/, 'the verdict is last, after the steps';
+    ok !$out.contains("\n  1. iz4 add for-what \"what it is for\"\n  2. iz4 add for-what"), 'a step is listed once even when two lines call for it';
+}
 
 # ---- because: check points at a folded reason, and the command moves it ---------
 ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'No price is sent unexplained. A confidently wrong price sells work at a loss.', '--force');

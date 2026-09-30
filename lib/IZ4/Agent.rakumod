@@ -325,6 +325,15 @@ sub install-hint(Str $name --> Str) is export {
     }
 }
 
+#| The next step that brings an integration current: the install
+#| command, or for a malformed section what to do by hand first.
+sub integration-next(Str $name, Str $status --> Str) is export {
+    my $cmd = install-hint($name).subst(/^ 'run ' \' (.*) \' $/, { ~$0 });
+    $status eq 'malformed'
+        ?? "fix the managed-section markers in $name by hand, or remove them, then $cmd"
+        !! $cmd;
+}
+
 #| One human line per integration, worded so it claims nothing more;
 #| anything short of current says how to remedy it.
 sub integration-line(Str $name, Str $status --> Str) is export {

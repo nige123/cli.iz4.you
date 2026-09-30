@@ -268,8 +268,9 @@ the same coaching as `iz4 add`, and nothing is written without your yes.
 
 `iz4 review` takes a commit, a range or `--staged`; `--offline` skips the
 agent; `--strict` exits 1 on a reported conflict. `iz4 review --install-hook`
-writes an advisory pre-push hook that reviews what you are about to push,
-and the workflow `iz4 register --github` writes runs the offline review on
+writes an advisory pre-push hook that reviews what you are about to push
+(never into a shared `core.hooksPath` directory: it tells you the line to
+add there instead), and the workflow `iz4 register --github` writes runs the offline review on
 every push. A conflict is the agent's reading of the diff, shown with its
 evidence: you decide.
 
@@ -388,11 +389,19 @@ $ iz4 check
 ✓ AGENTS.md: integration installed (current)
 ? the system keeps Invariants 0-6: uncertain - a checker cannot verify
   natural-language invariants; review consequential changes against 'iz4 invariants'
+next:
+  1. iz4 because 6 "why it must survive"
+  then: iz4 check again
 OK IZ4 (1 to remedy above)
 ```
 
 A tick is a file fact that was mechanically verified. A cross says how to
-remedy it, and never fails the check; only structural errors do. Whether your
+remedy it, and never fails the check; only structural errors do. Whatever
+is not in place ends in a numbered `next:` list, one command per step in
+the order that clears the most first, or, where iz4 must not touch your
+words, what to change by hand and on which line. A failing check ends
+`NOT OK` after that list; so does `iz4 agent status` and `iz4 foundation
+--restore` when something remains. Whether your
 software actually keeps its invariants is never a tick, because a checker
 cannot know. That line stays a question mark, and review against
 `iz4 invariants` is how it gets answered.

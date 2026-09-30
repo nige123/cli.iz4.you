@@ -117,6 +117,12 @@ is $rc, 0, 'strict passes while everything is current';
 $dir.add(SKILL-PATH).spurt("tampered\n");
 ($rc, $out, $err) = iz4($dir, 'agent', 'status', '--strict');
 is $rc, 1, 'strict exits 1 on a stale integration';
+like $out, /"next:\n" .* "  1. iz4 agent install --skill\n" .* "  then: iz4 agent status again\n"/, 'and status says what to run next';
+{
+    my $empty = temp-dir();
+    ($rc, $out, $err) = iz4($empty, 'agent', 'status');
+    like $out, /"next:\n  1. iz4 init\n  2. iz4 agent install\n"/, 'without an IZ4 the first step is iz4 init' or diag $out;
+}
 
 my $broken = temp-dir;
 $broken.add('IZ4').spurt("IZ4\n\nINVARIANT 5\nNo IS FOR.\n");

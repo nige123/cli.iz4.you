@@ -109,15 +109,25 @@ if have-git() {
     ($rc, $out, $err) = iz4($repo, 'review', '--for-push', '--offline');
     like $out, /'Reviewed ' <xdigit>+ '..HEAD'/, 'for-push with no upstream reviews the last few commits';
 
-    ($rc, $out, $err) = iz4($repo, 'review', '--install-hook');
-    like $out, /'pre-push hook: installed'/, 'the hook installs';
+    # a hermetic Git: the machine's own global config (a core.hooksPath, say) must not reach the test
+    my %hermetic = GIT_CONFIG_GLOBAL => temp-dir().add('gitconfig').Str;
+    %hermetic<GIT_CONFIG_GLOBAL>.IO.spurt('');
+    ($rc, $out, $err) = iz4($repo, 'review', '--install-hook', :env(%hermetic));
+    like $out, /'pre-push hook: installed'/, 'the hook installs' or diag $err;
     my $hook = $repo.add('.git/hooks/pre-push');
     ok $hook.f && $hook.slurp.contains('iz4 review --for-push; exit 0'), 'and is advisory';
-    ($rc, $out, $err) = iz4($repo, 'review', '--install-hook');
+    ($rc, $out, $err) = iz4($repo, 'review', '--install-hook', :env(%hermetic));
     like $out, /'unchanged'/, 'installing twice is harmless';
     $hook.spurt("#!/bin/sh\necho mine\n");
-    ($rc, $out, $err) = iz4($repo, 'review', '--install-hook');
+    ($rc, $out, $err) = iz4($repo, 'review', '--install-hook', :env(%hermetic));
     ok $rc == 1 && $err.contains('--force') && $hook.slurp.contains('mine'), 'someone else\'s hook is never replaced silently';
+    # a shared hooks directory is never written into
+    my $shared = temp-dir();
+    g('config', 'core.hooksPath', $shared.Str);
+    ($rc, $out, $err) = iz4($repo, 'review', '--install-hook', '--force', :env(%hermetic));
+    ok $rc == 1 && $err.contains('core.hooksPath') && $err.contains("next: add this line to {$shared}/pre-push"), 'with core.hooksPath set, iz4 refuses and says what to do instead' or diag $err;
+    ok !$shared.add('pre-push').e, 'and wrote nothing there';
+    g('config', '--unset', 'core.hooksPath');
 }
 else {
     skip 'git not available', 21;

@@ -344,6 +344,7 @@ multi MAIN('foundation', Str $file?, Bool :$restore = False) {
         }
         my $doc = check-doc($path);
         say "  now: {$doc.foundation-status}";
+        say-next(['iz4 check'], :then('iz4 foundation --restore')) unless $doc.foundation-intact;
         $doc.foundation-intact ?? 0 !! 1;
     }
 }
@@ -382,43 +383,47 @@ multi MAIN('check', Str $file?) {
         .say for $doc.report(:$name);
 
         # A checklist of file facts: a tick for what is true, a cross with
-        # its remedy for what is not.  Whether the software keeps its
-        # invariants is never a tick: a checker cannot know, so it says so.
-        my @rows;
+        # its remedy for what is not, and for every cross the next step
+        # that clears it, listed in order at the end.  Whether the software
+        # keeps its invariants is never a tick: a checker cannot know, so it
+        # says so.
+        my @rows;                      # (glyph, line, next step or '')
+        my @next = $doc.fixes;         # the structural fixes come first, in line order
         my $errors = +$doc.errors;
         my $warns  = +$doc.warnings;
         @rows.push: ($errors == 0 ?? '✓' !! '✗',
             $errors == 0
                 ?? "structure: valid" ~ ($warns ?? " ($warns warning{$warns == 1 ?? '' !! 's'} above)" !! '')
-                !! "structure: $errors error{$errors == 1 ?? '' !! 's'} above - fix each line listed");
-        @rows.push: $doc.for-what.defined
-            ?? ('✓', "IS FOR WHAT: {short($doc.for-what)}")
-            !! ('✗', "IS FOR WHAT: missing - what is this for? ('iz4 add for-what ...')");
-        @rows.push: $doc.for-who.defined
-            ?? ('✓', "IS FOR WHO: {short($doc.for-who)}")
-            !! ('✗', "IS FOR WHO: missing - who is this for? ('iz4 add for-who ...')");
-        @rows.push: ($doc.foundation-intact ?? '✓' !! '✗', $doc.foundation-status);
+                !! "structure: $errors error{$errors == 1 ?? '' !! 's'} above - fix each line listed", '');
+        @rows.push: $doc.for-what.defined && $doc.for-what ne ''
+            ?? ('✓', "IS FOR WHAT: {short($doc.for-what)}", '')
+            !! ('✗', "IS FOR WHAT: missing - what is this for? ('iz4 add for-what ...')", 'iz4 add for-what "what it is for"');
+        @rows.push: $doc.for-who.defined && $doc.for-who ne ''
+            ?? ('✓', "IS FOR WHO: {short($doc.for-who)}", '')
+            !! ('✗', "IS FOR WHO: missing - who is this for? ('iz4 add for-who ...')", 'iz4 add for-who "who it is for"');
+        @rows.push: ($doc.foundation-intact ?? '✓' !! '✗', $doc.foundation-status, $doc.foundation-intact ?? '' !! 'iz4 foundation --restore');
 
         my $count = $doc.invariants.elems;
         my $unnum = +$doc.unnumbered-invariants;
         if $unnum {
-            @rows.push: ('✗', "invariants: $unnum of $count unnumbered - run 'iz4 number'");
+            @rows.push: ('✗', "invariants: $unnum of $count unnumbered - run 'iz4 number'", 'iz4 number');
         }
         elsif $count {
-            @rows.push: ('✓', "invariants: $count of your own, numbered from 5");
+            @rows.push: ('✓', "invariants: $count of your own, numbered from 5", '');
         }
         else {
-            @rows.push: ('✓', "invariants: none of your own yet, which is a fine start ('iz4 add' helps you find one)");
+            @rows.push: ('✓', "invariants: none of your own yet, which is a fine start ('iz4 add' helps you find one)", '');
         }
         if $count {
             my @bare   = $doc.unexplained-invariants;
             my @folded = @bare.grep({ split-reason(.text)[1].defined }).map({ .number // 'unnumbered' });
             my @plain  = @bare.grep({ !split-reason(.text)[1].defined }).map({ .number // 'unnumbered' });
-            @rows.push: ('✗', "BECAUSE: Invariant {@folded.join(', ')} carr{@folded == 1 ?? 'ies' !! 'y'} the reason inside the invariant - 'iz4 because --split' moves it under BECAUSE")
+            @rows.push: ('✗', "BECAUSE: Invariant {@folded.join(', ')} carr{@folded == 1 ?? 'ies' !! 'y'} the reason inside the invariant - 'iz4 because --split' moves it under BECAUSE", 'iz4 because --split')
                 if @folded;
-            @rows.push: ('✗', "BECAUSE: missing for Invariant {@plain.join(', ')} - write under each why it must survive ('iz4 because N WHY')")
+            @rows.push: ('✗', "BECAUSE: missing for Invariant {@plain.join(', ')} - write under each why it must survive ('iz4 because N WHY')",
+                @plain.map({ "iz4 because $_ \"why it must survive\"" }).join("\n"))
                 if @plain;
-            @rows.push: ('✓', 'BECAUSE: every invariant says why it must survive') unless @bare;
+            @rows.push: ('✓', 'BECAUSE: every invariant says why it must survive', '') unless @bare;
 
             # evidence: a test that names the invariant and quotes it.  Named
             # is a test; scaffolded is the born-red placeholder; none is none.
@@ -427,13 +432,16 @@ multi MAIN('check', Str $file?) {
             my @scaf = %ev<state>.pairs.grep(*.value eq 'scaffolded').map(*.key).sort(+*);
             my $named = %ev<state>.values.grep(* eq 'named').elems;
             my @draft = %ev<state>.pairs.grep(*.value eq 'drafted').map(*.key).sort(+*);
-            @rows.push: ('✗', "evidence: Invariant {@scaf.join(', ')} ha{@scaf == 1 ?? 's' !! 've'} only a scaffold - write the assertion in {%ev<files>{@scaf[0]}[0]}" ~ (@scaf > 1 ?? ' and the others' !! ''))
+            @rows.push: ('✗', "evidence: Invariant {@scaf.join(', ')} ha{@scaf == 1 ?? 's' !! 've'} only a scaffold - write the assertion in {%ev<files>{@scaf[0]}[0]}" ~ (@scaf > 1 ?? ' and the others' !! ''),
+                @scaf.map({ "write the assertion for Invariant $_ in {%ev<files>{$_}[0]}" }).join("\n"))
                 if @scaf;
-            @rows.push: ('✗', "evidence: Invariant {@draft.join(', ')} ha{@draft == 1 ?? 's' !! 've'} an agent-drafted test awaiting review - read {%ev<files>{@draft[0]}[0]}" ~ (@draft > 1 ?? ' and the others' !! '') ~ ", run it, make sure it can fail, then delete its first line")
+            @rows.push: ('✗', "evidence: Invariant {@draft.join(', ')} ha{@draft == 1 ?? 's' !! 've'} an agent-drafted test awaiting review - read {%ev<files>{@draft[0]}[0]}" ~ (@draft > 1 ?? ' and the others' !! '') ~ ", run it, make sure it can fail, then delete its first line",
+                @draft.map({ "review {%ev<files>{$_}[0]} (Invariant $_): run it, make sure it can fail, then delete its first line" }).join("\n"))
                 if @draft;
-            @rows.push: ('✗', "evidence: Invariant {@none.join(', ')} ha{@none == 1 ?? 's' !! 've'} no test naming {@none == 1 ?? 'it' !! 'them'} - 'iz4 test' scaffolds one")
+            @rows.push: ('✗', "evidence: Invariant {@none.join(', ')} ha{@none == 1 ?? 's' !! 've'} no test naming {@none == 1 ?? 'it' !! 'them'} - 'iz4 test' scaffolds one",
+                "iz4 test {@none.join(' ')}")
                 if @none;
-            @rows.push: ('✓', "evidence: every invariant is named and quoted by a test ($named of $count)") unless @none || @scaf || @draft;
+            @rows.push: ('✓', "evidence: every invariant is named and quoted by a test ($named of $count)", '') unless @none || @scaf || @draft;
         }
 
         if $path.basename eq ROOT-NAME {
@@ -441,24 +449,45 @@ multi MAIN('check', Str $file?) {
             my %s    = agent-status($path, :$root);
             for expected-integrations(:$root) -> $i {
                 my $status = %s<integrations>{$i};
-                @rows.push: ($status eq 'current' ?? '✓' !! '✗', integration-line($i, $status));
+                @rows.push: ($status eq 'current' ?? '✓' !! '✗', integration-line($i, $status),
+                    $status eq 'current' ?? '' !! integration-next($i, $status));
             }
         }
 
         my $top = $count ?? ($doc.invariants.map(*.number).grep(*.defined).max max 4) !! 4;
         @rows.push: ('?', "the system keeps Invariants 0-$top: uncertain - a checker cannot verify "
-            ~ "natural-language invariants; review consequential changes against 'iz4 invariants'");
+            ~ "natural-language invariants; review consequential changes against 'iz4 invariants'", '');
 
         say mark(.[0]) ~ ' ' ~ .[1] for @rows;
         say 'checked: file facts only; a passing check never means the system is safe, '
           ~ 'harmless, or keeps its invariants';
         my $crosses = @rows.grep({ .[0] eq '✗' }).elems;
+
+        # The next steps, each once, in the order that clears the most first:
+        # structure, then each cross in checklist order, then a check again.
+        for @rows.grep({ .[0] eq '✗' && .[2] ne '' }).map({ .[2].lines }).flat -> $step {
+            @next.push($step) unless @next.first(* eq $step).defined;
+        }
+        say-next(@next, :then("iz4 check")) if @next;
         if $doc.ok {
             say "OK $name" ~ ($crosses ?? " ($crosses to remedy above)" !! '');
             0;
         }
-        else { 1 }
+        else {
+            say "NOT OK $name: $errors error{$errors == 1 ?? '' !! 's'} - do the next steps above, then 'iz4 check' again";
+            1;
+        }
     }
+}
+
+#| The numbered next steps that clear what a command found, and the one
+#| that confirms it.  A step is a command to run or, where iz4 must not
+#| touch a person's words, what to change by hand.
+sub say-next(@steps, Str :$then) {
+    say 'next:';
+    my $n = 0;
+    say "  {++$n}. $_" for @steps;
+    say "  then: $then again" with $then;
 }
 
 sub short(Str $s --> Str) { $s.chars > 60 ?? $s.substr(0, 57).trim-trailing ~ '...' !! $s }
@@ -777,7 +806,7 @@ multi MAIN('hook', Str $event where 'session-start' | 'pre-edit' | 'stop', Str :
 
 multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$file) {
     attempt {
-        my $path = try resolve-target($file);
+        my IO::Path $path = (try resolve-target($file)) // IO::Path;   # no IZ4 here is a status, not an error
         my $root = $path.defined ?? $path.parent !! $*CWD;
         my %s    = agent-status($path, :$root);
         %s<hooks> = claude-hooks-status(:$root);
@@ -809,6 +838,16 @@ multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$
             }
             else { say "321, an agent launcher, is not installed: agent prompts go to {agent-cmd()} and hooks are wired for Claude Code only" }
             say %s<note>;
+            # the next steps for whatever is not in place, in the order that clears the most first
+            my @next;
+            @next.push('iz4 init') unless %s<iz4><present>;
+            @next.push('iz4 check') if %s<iz4><present> && !%s<iz4><valid>;
+            for expected-integrations(:$root) -> $i {          # the Claude entry points only where Claude is used
+                @next.push(integration-next($i, %s<integrations>{$i})) unless %s<integrations>{$i} eq 'current';
+            }
+            @next.push('iz4 agent install --hooks --strict')
+                if %s<hooks> ne 'strict' && ($bin.defined || $root.add('.claude').d || $root.add('CLAUDE.md').e);
+            say-next(@next, :then('iz4 agent status')) if @next;
         }
         my $fail = !%s<iz4><present> || !%s<iz4><valid>
                 || ?%s<integrations>.values.grep(* eq 'stale' | 'malformed');

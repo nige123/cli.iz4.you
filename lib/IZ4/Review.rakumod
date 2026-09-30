@@ -278,6 +278,14 @@ sub hook-text(--> Str) is export {
 sub install-hook(IO::Path $iz4, Bool :$force = False --> Str) is export {
     my ($rc, $out, $err) = git($iz4, 'rev-parse', '--git-path', 'hooks/pre-push');
     X::IZ4.new(message => 'not in a Git repository; a hook needs one').throw if $rc != 0;
+    # With core.hooksPath set, Git runs hooks from that directory, which is
+    # often shared by every repository on the machine: iz4 never writes
+    # there, since a hook for this repository would then run everywhere.
+    my ($hrc, $hpath, $) = git($iz4, 'config', '--get', 'core.hooksPath');
+    if $hrc == 0 && $hpath.trim ne '' {
+        X::IZ4.new(message => "core.hooksPath is set to {$hpath.trim}, so Git runs hooks from there, not from .git/hooks; "
+            ~ "iz4 does not write into a shared hooks directory.\nnext: add this line to {$hpath.trim}/pre-push yourself: iz4 review --for-push").throw;
+    }
     my $hook = $out.trim.IO;
     $hook = $iz4.parent.add($hook) unless $hook.is-absolute;
     my $text = hook-text();

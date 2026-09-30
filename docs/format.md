@@ -81,6 +81,8 @@ problem with its line number. The document layer then decides:
 | `INVARIANT` with no number | warning: `iz4 number` numbers it |
 
 Only errors fail `iz4 check`; warnings and the checklist's crosses never do.
+Every error and cross has a next step, and `iz4 check` lists them in order
+under `next:` before its verdict.
 
 ## What the format leaves out
 

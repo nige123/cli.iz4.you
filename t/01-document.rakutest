@@ -107,9 +107,19 @@ like $missing.errors».Str.join("\n"), /'missing IS FOR WHAT' .* 'missing IS FOR
 my $wordy = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT five\nx\n"));
 like $wordy.errors[0].Str, /'whole number'/, 'INVARIANT needs a whole number';
 
+
 my $unnumbered = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT\nx y z\n"));
 ok $unnumbered.ok && $unnumbered.warnings[0].Str.contains("'iz4 number'"),
     'an unnumbered INVARIANT is a warning pointing at iz4 number';
+
+# ---- every problem carries its next step ----------------------------------
+like $wordy.errors[0].fix, /"replace 'five' on line " \d+ " with a whole number"/, 'a problem says what to change, and where';
+is $missing.fixes, ('iz4 add for-what "what it is for"', 'iz4 add for-who "who it is for"', 'iz4 foundation --restore'),
+    'fixes are the next steps for the errors, in line order';
+my $twice = IZ4::Document.parse("IZ4\n\nINVARIANT 5\nSomething.\n\nINVARIANT 5\nAgain.\n");
+is $twice.fixes.grep(* eq 'iz4 foundation --restore').elems, 1, 'a step that clears several errors is listed once';
+ok $twice.fixes.first(*.contains('line 6')), 'and the duplicate names its line';
+ok $unnumbered.warnings[0].fix eq 'iz4 number' && !$unnumbered.fixes, 'a warning has a fix too, but fixes lists only the errors';
 is $unnumbered.next-number, 5, 'the next free number is 5';
 
 # old concepts are kept as unknown blocks, and the warning says where they belong
