@@ -3,9 +3,10 @@ unit module IZ4;
 use IZ4::Document;
 use IZ4::Launcher;
 use IZ4::Git;
+use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.8.0';
+constant VERSION is export = '0.9.0';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -244,10 +245,76 @@ sub invariant-text(IO::Path $path, Str $number --> Str) is export {
     with $doc.invariant($n) {
         return invariant-block($n, Str, .text, .because);
     }
+    with withdrawn-in($path, $n) -> $when {
+        return "Invariant $n was withdrawn in commit $when; its number is retired and never reused. 'iz4 diff {$when.words[0]}~1 {$when.words[0]}' shows what it said.\n";
+    }
+    if $n ∈ withdrawn-in-text($path) {
+        return "Invariant $n was withdrawn; its number is retired and never reused. 'iz4 log' shows when, where there is Git history.\n";
+    }
     my @nums = $doc.invariants.map(*.number).grep(*.defined);
     user-error("no invariant $n in {$path.basename}; "
         ~ (@nums ?? "its own are {@nums.join(', ')}, and 0-4 are the foundation"
                  !! "it has none of its own yet, and 0-4 are the foundation"));
+}
+
+# ------------------------------------------------------------- withdraw
+
+#| Take a project invariant out of the file: its INVARIANT block, its
+#| BECAUSE and the blank line before them.  Nothing else is touched, Git
+#| keeps the words, and the number is retired: 'iz4 add' never hands a
+#| number the file has carried to a different invariant (Invariant 13).
+#| The foundation, 0-4, cannot be withdrawn by any project (Invariant 4).
+#| Returns the invariant as it was.  The caller confirms with a person
+#| first: this discards their words only on their say-so (Invariant 11).
+sub withdraw-invariant(IO::Path $path, Int $n --> IZ4::Document::Invariant) is export {
+    user-error("Invariant $n is the foundation's {FOUNDATION[$n]<name>}: Invariants 0-4 bind every project and cannot be withdrawn by one (Invariant 4)")
+        if $n < FIRST-PROJECT-NUMBER;
+    my $doc = IZ4::Document.load($path);
+    my $inv = $doc.invariant($n);
+    without $inv {
+        with withdrawn-in($path, $n) -> $when { user-error("Invariant $n was already withdrawn in commit $when") }
+        user-error("Invariant $n was already withdrawn") if $n ∈ withdrawn-in-text($path);
+        user-error("no invariant $n in {$path.basename}; 'iz4 show invariants' lists its own");
+    }
+    my @lines = $doc.lines;
+    my $from  = $inv.line - 1;
+    my $to    = ($inv.because-line.defined
+        ?? ($doc.blocks.first({ .kind eq 'BECAUSE' && .line == $inv.because-line }).last-line)
+        !! $inv.last-line) - 1;
+    # One comment line stands where it was, so every reader sees why the
+    # number is missing, and so the number stays retired even where there
+    # is no Git history to consult.
+    @lines.splice($from, $to - $from + 1, withdrawn-comment($n));
+    @lines.pop while @lines && @lines[*-1].trim eq '';
+    $path.spurt(@lines.join("\n") ~ "\n");
+    $inv;
+}
+
+sub withdrawn-comment(Int $n --> Str) { "# Invariant $n was withdrawn on {Date.today}; its number is retired." }
+
+#| The numbers a file's own comments say were withdrawn.
+sub withdrawn-in-text(IO::Path $path --> List) is export {
+    $path.slurp.lines.map({ $_ ~~ /^ '#' \h* 'Invariant' \h+ (\d+) \h+ 'was withdrawn' / ?? +$0 !! Empty }).List;
+}
+
+#| The commit in which Invariant $n left the file, as 'HASH (DATE)', or
+#| Str when Git does not show one.
+sub withdrawn-in(IO::Path $path, Int $n --> Str) is export {
+    my ($rc, $log, $) = git($path, 'log', '-p', '--follow', '--date=short', '--format=%x01%h %ad', '--', $path.basename);
+    return Str if $rc != 0;
+    for $log.split("\x01").grep(* ne '') -> $commit {
+        my ($head, @body) = $commit.lines;
+        my $gone = @body.first({ $_ ~~ /^ '-INVARIANT' \h+ $n \h* $/ }).defined;
+        my $back = @body.first({ $_ ~~ /^ '+INVARIANT' \h+ $n \h* $/ }).defined;
+        return "{$head.words[0]} ({$head.words[1]})" if $gone && !$back;
+    }
+    Str;
+}
+
+#| Test files that name Invariant $n, relative to $root: after a
+#| withdrawal they are the next thing to look at.
+sub tests-naming(IO::Path $root, Int $n --> List) is export {
+    test-files($root).grep({ (try .slurp) andthen .match(/ 'Invariant' \h+ $n <!before \d> /) }).map(*.relative($root)).List;
 }
 
 # ---------------------------------------------------------------- check
@@ -299,7 +366,7 @@ sub set-is-for(IO::Path $path, Str $which where 'IS FOR WHAT' | 'IS FOR WHO', St
 #| untracked file, only the current text is known.
 sub highest-ever-number(IO::Path $path --> Int) is export {
     my $doc = IZ4::Document.load($path);
-    my $highest = (-1, |$doc.invariants.map(*.number).grep(*.defined)).max;
+    my $highest = (-1, |$doc.invariants.map(*.number).grep(*.defined), |withdrawn-in-text($path)).max;
     my ($rc, $log, $) = git($path, 'log', '-p', '--follow', '--format=', '--', $path.basename);
     if $rc == 0 {
         for $log.lines -> $l {

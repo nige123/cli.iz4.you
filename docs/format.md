@@ -45,6 +45,10 @@ Job seekers should not acquire another unsolicited inbox.
   questions, written with their question mark, each answered once.
   `INVARIANT n` names a project invariant, numbered from 5. `BECAUSE`
   gives the reason for the invariant directly above it, and only that one.
+- **A number is for good.** Once a file has carried `INVARIANT 7`, no
+  different invariant is ever given 7, even after `iz4 withdraw 7` takes
+  it out: a comment line marks the withdrawal where the block stood, and
+  `iz4 add` checks the Git history as well as the text.
 - **The foundation** is five more blocks every file carries, after IS FOR
   WHO? and before the project's own: `INVARIANT 0 - HUMANS FIRST` to
   `INVARIANT 4 - THE FOUNDATION HOLDS`, each with its BECAUSE, in that

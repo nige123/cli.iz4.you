@@ -4,7 +4,7 @@ use IZ4Test;
 use IZ4;
 use IZ4::Git;
 
-plan 7;
+plan 12;
 
 # outside Git: degrade gracefully
 my $dir = temp-dir;
@@ -36,3 +36,14 @@ ok $rc == 0 && $out.contains('+INVARIANT 5'), 'diff shows working-tree change';
 g('commit', '-q', '-am', 'Add invariant');
 ($rc, $out, $err) = diff-result($file, 'HEAD~1', 'HEAD');
 ok $rc == 0 && $out.contains('+INVARIANT 5'), 'diff between revisions';
+
+# a withdrawn number is retired: Git remembers it, and iz4 says when it went
+add-invariant($file, 'Also true.', :because('Someone relies on it.'));
+g('commit', '-q', '-am', 'Add Invariant 6');
+withdraw-invariant($file, 6);
+g('commit', '-q', '-am', 'Withdraw Invariant 6: no longer needed');
+like withdrawn-in($file, 6), /^ <xdigit>+ ' (' \d**4 '-' \d\d '-' \d\d ')' $/, 'withdrawn-in names the commit and its date';
+nok withdrawn-in($file, 5).defined, 'an invariant still in the file was not withdrawn';
+like invariant-text($file, '6'), /'Invariant 6 was withdrawn in commit' .* 'never reused' .* 'iz4 diff'/, 'show invariant says so';
+is add-invariant($file, 'New.', :because('Why.')), 7, 'the next invariant skips the retired number';
+throws-like { add-invariant($file, 'Again.', :number(6)) }, X::IZ4, message => /'used before'/, 'and 6 cannot be chosen';

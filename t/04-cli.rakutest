@@ -153,4 +153,39 @@ like $out, /"Let's review the strongest one first"/, 'on a terminal it reviews o
 ($rc, $out, $err) = iz4($sug, 'suggest');
 ok $rc == 1 && $err.contains('nothing was added'), 'a failing agent adds nothing and says so';
 
+# ---- withdraw: a person says yes, a script says --force, 0-4 never ------------------
+{
+    my $wd = temp-dir();
+    minimal-iz4(:dir($wd));
+    iz4($wd, 'add', 'invariant', 'Nothing is sold unexplained.', '--because=A confidently wrong price sells work at a loss.');
+    $wd.add('t').mkdir;
+    $wd.add('t/invariant-5.t').spurt("# Invariant 5: nothing is sold unexplained\n");
+    my ($rc, $out, $err) = iz4($wd, 'withdraw', '5');
+    is $rc, 1, 'in a script, withdraw without --force is refused';
+    like $err, /'needs a person' .* '--force'/, 'and says how a script does it';
+    like $wd.add('IZ4').slurp, /'INVARIANT 5'/, 'nothing changed';
+    ($rc, $out, $err) = iz4-talk($wd, "n\n", 'withdraw', '5');
+    is $rc, 0, 'on a terminal it asks';
+    like $out, /'Nothing is sold unexplained.' .* 'Withdraw Invariant 5? [y/N]' .* 'Invariant 5 stays.'/, 'shows the invariant, asks once, and no keeps it';
+    ($rc, $out, $err) = iz4-talk($wd, "y\n", 'withdraw', '5');
+    is $rc, 0, 'yes withdraws';
+    like $out, /'Withdrew Invariant 5' .* "next:\n  1. delete or re-home the tests naming it: t/invariant-5.t\n  2. git commit -am 'Withdraw Invariant 5: ...'" .* 'then: iz4 check again'/,
+        'and the next steps name the test that still cites it, and the commit' or diag $out;
+    unlike $wd.add('IZ4').slurp, /'INVARIANT 5'/, 'the invariant is gone';
+    like $wd.add('IZ4').slurp, /'# Invariant 5 was withdrawn on'/, 'and a comment says so where it stood';
+    ($rc, $out, $err) = iz4($wd, 'show', 'invariant', '5');
+    like $out, /'Invariant 5 was withdrawn' .* 'never reused'/, 'show invariant says it was withdrawn';
+    ($rc, $out, $err) = iz4($wd, 'withdraw', '5', '--force');
+    is $rc, 1, 'withdrawing it again is refused';
+    for 0, 4 -> $n {
+        ($rc, $out, $err) = iz4($wd, 'withdraw', $n.Str, '--force');
+        is $rc, 1, "Invariant $n is refused even with --force";
+        like $err, /'cannot be withdrawn'/, 'because the foundation is not the project\'s';
+    }
+    iz4($wd, 'add', 'invariant', 'Refunds go back the way they came.', '--because=Money should not change shape on the way back.');
+    ($rc, $out, $err) = iz4($wd, 'withdraw', '6', '--force');
+    is $rc, 0, '--force withdraws in a script' or diag $err;
+    like $out, /'Withdrew Invariant 6'/, 'and says so';
+}
+
 done-testing;

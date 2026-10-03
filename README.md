@@ -235,6 +235,17 @@ an invariant. It proposes a few, strongest first, and each one goes through
 the same questions before anything is added. Where the answer depends on
 product intent, you get the question to ask, not an invented answer.
 
+### Withdrawing one
+
+Intent changes. When an invariant no longer must remain true, `iz4
+withdraw 7` shows it, asks you once, and takes it out: the INVARIANT
+block and its BECAUSE, leaving one comment line where they stood that says
+the number was withdrawn and when. Its number is retired for good, so no
+later invariant is ever cited as "Invariant 7" by mistake, and `iz4 show
+invariant 7` says in which commit it went. Git keeps the words.
+Invariants 0 to 4 cannot be withdrawn by any project: they are the
+foundation every IZ4 carries, not the project's to change.
+
 ## Reviewing a change
 
 ```text
@@ -285,6 +296,10 @@ iz4 add for-what|for-who TEXT    set IS FOR WHAT or IS FOR WHO (--replace)
 iz4 because N WHY                say why invariant N must survive
 iz4 because [N] --split          move a reason folded into the invariant's
                                    own text under BECAUSE
+iz4 withdraw N                   take invariant N out, once you confirm; its
+                                   number is retired for good, Git keeps the
+                                   words, and 0-4 cannot be withdrawn (--force
+                                   in a script)
 iz4 review [RANGE|--staged]      which invariants a change touches, your agent's
                                    assessment, and any invariant it reveals
                                    (--offline, --strict, --for-push, --install-hook)

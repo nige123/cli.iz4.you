@@ -41,6 +41,10 @@ sub USAGE() {
       iz4 because N --split            move the reason folded into invariant
                                            N's own text under BECAUSE;
                                            'iz4 because --split' does every one
+      iz4 withdraw N                   take invariant N out, once you confirm:
+                                           its number is retired for good and
+                                           Git keeps its words; 0-4 cannot be
+                                           withdrawn (scripts: --force)
       iz4 review [RANGE] [--staged]    review a change against the invariants:
                                            which ones it touches (offline), then
                                            your agent's assessment and any
@@ -315,6 +319,34 @@ multi MAIN('because', Str $number?, Str $text?, Str :$file, Bool :$replace = Fal
         }
         set-because($path, $n, $text, :$replace);
         say "Set BECAUSE for Invariant $n.";
+        0;
+    }
+}
+
+# ---------------------------------------------------------- withdraw
+
+#| Take a project invariant out, on a person's say-so.  The number is
+#| retired for good; Git keeps the words.  The foundation, 0-4, cannot be
+#| withdrawn.  Scripts pass --force in place of the question.
+multi MAIN('withdraw', Str $number, Str :$file, Bool :$force = False) {
+    attempt {
+        my $path = resolve-target($file);
+        my $name = display-name($path);
+        my $n    = parse-number($number);
+        print invariant-text($path, $number) unless $n < FIRST-PROJECT-NUMBER;   # the refusal below says why for 0-4
+        unless $force {
+            user-error("withdrawing an invariant needs a person: run this on a terminal (a script passes --force)")
+                unless interactive();
+            say "Withdrawing retires the number $n for good (never reused) and takes the words out of $name; Git keeps them.";
+            my $answer = yes-no(ask("Withdraw Invariant $n? [y/N] ") // '', :default(False));
+            unless $answer { say "Invariant $n stays."; return 0 }
+        }
+        my $inv = withdraw-invariant($path, $n);
+        say "Withdrew Invariant $n from $name: {$inv.text}";
+        my @next = ("git commit -am 'Withdraw Invariant $n: ...'  (say why, so the history explains it)",);
+        my @tests = tests-naming($path.parent, $n);
+        @next.unshift("delete or re-home the tests naming it: {@tests.join(', ')}") if @tests;
+        say-next(@next, :then('iz4 check'));
         0;
     }
 }

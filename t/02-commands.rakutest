@@ -66,6 +66,33 @@ like invariant-text($path, 'Invariant 5'), /'INVARIANT 5' \n 'People control'/, 
 throws-like { invariant-text($path, '42') }, X::IZ4, message => /'0-4 are the foundation'/, 'an unknown number explains what exists';
 is show-text($path), $path.slurp, 'show prints the whole file';
 
+# ---- withdraw -------------------------------------------------------------------
+{
+    my $w = minimal-iz4(:dir(temp-dir));
+    add-invariant($w, 'Prices are shown before checkout.', :because('A surprise at the till is a broken promise.'));
+    add-invariant($w, 'Refunds go back the way they came.', :because('Money should not change shape on the way back.'));
+    add-invariant($w, 'Nothing is sold unexplained.');
+    my $before = $w.slurp;
+    my $gone = withdraw-invariant($w, 6);
+    is $gone.text, 'Refunds go back the way they came.', 'withdraw returns the invariant as it was';
+    my $after = check-doc($w);
+    is $after.invariants».number, (5, 7), 'the others keep their numbers';
+    ok $after.ok, 'and the file is still valid';
+    ok !$w.slurp.contains('Refunds') && !$w.slurp.contains('change shape'), 'the INVARIANT and its BECAUSE are gone';
+    is $w.slurp, $before.subst("INVARIANT 6\nRefunds go back the way they came.\n\nBECAUSE\nMoney should not change shape on the way back.\n", "# Invariant 6 was withdrawn on {Date.today}; its number is retired.\n"),
+        'one comment line stands where it was, and nothing else changed';
+    is withdrawn-in-text($w), (6,), 'the comment is how a file without Git history remembers';
+    is add-invariant($w, 'Later.', :because('Why.')), 8, 'so the number is never handed out again';
+    withdraw-invariant($w, 8);
+    withdraw-invariant($w, 7);
+    ok $w.slurp.ends-with("# Invariant 8 was withdrawn on {Date.today}; its number is retired.\n"), 'withdrawing the last one leaves no trailing blank';
+    throws-like { withdraw-invariant($w, 7) }, X::IZ4, message => /'already withdrawn'/, 'twice is refused';
+    for 0..4 -> $n {
+        throws-like { withdraw-invariant($w, $n) }, X::IZ4, message => /'cannot be withdrawn' .* 'Invariant 4'/, "the foundation's $n cannot be withdrawn";
+    }
+    throws-like { withdraw-invariant($w, 9) }, X::IZ4, message => /'no invariant 9'/, 'a number the file never held is refused';
+}
+
 # ---- number -------------------------------------------------------------------
 my $num = temp-dir.add('IZ4');
 $num.spurt("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT\nFirst.\n\nBECAUSE\nWhy one.\n\nINVARIANT 7\nChosen.\n\nINVARIANT\nSecond.\n");
