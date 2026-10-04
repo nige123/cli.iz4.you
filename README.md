@@ -602,7 +602,11 @@ Markdown (paste into README.md):
 ```
 
 The badge is served live by the register and renders the card's current
-evidence, so embedding it claims nothing the card cannot back.
+evidence, so embedding it claims nothing the card cannot back. It does not
+mean the software is safe or that anyone certifies it. It means one thing:
+behind this badge is a registered IZ4 declaration whose current and earlier
+invariants can be inspected. The file states it, the badge identifies it,
+the register proves it.
 
 ## Principles
 
@@ -614,7 +618,9 @@ evidence, so embedding it claims nothing the card cannot back.
 - Offline by default. The only network calls are the register commands you
   ask for, `iz4 update`, and your own agent command behind `iz4 suggest`
   and `iz4 review` if you use it.
-- History comes from Git, not from a versioning scheme we invented.
+- The file says only what must remain true now. Its edit history comes from
+  Git, not from a versioning scheme we invented; the register, if you use
+  it, keeps the registered history. Neither goes into the file.
 - A check reports what it verified and says plainly what it cannot.
 
 This project keeps its own `IZ4`. Read it.

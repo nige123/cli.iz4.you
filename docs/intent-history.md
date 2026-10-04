@@ -117,6 +117,7 @@ beside source code.
 
 - Make a IZ4 directly useful to AI coding tools that simply read it; later, possibly a command that prints a compact context block for them.
 - The wider iz4.com/iz4.you vision (certification, commitments, standards intelligence) is out of scope for this CLI and must not leak into the open format. The register client commands are the one deliberate bridge; the format itself stays registry-free.
+- 2026-10-04 (owner ruling): the file states it, the badge identifies it, the registry proves it. The IZ4 file holds only what must remain true now, with no registry plumbing (no project id, registry, previous, version, history or changelog blocks) unless there is an exceptional reason; it must stay readable without the register. The badge is the binding point between a thing and its registered lineage, stable while the declaration evolves. The register carries time: registrations append, each binding an exact digest to its predecessor, and registered history is never rewritten. Git stays supporting evidence, not the protocol. Do not overbuild: digest, previous registration, timestamp and registrant first; signatures and transparency logs later. Open for the CLI: registration as a deliberate checkpoint versus the per-push evidence 'iz4 report' sends today, and a minimal canonical form for the digest (UTF-8, LF, one final newline), both to be agreed with the register before the CLI changes.
 
 ## references
 
