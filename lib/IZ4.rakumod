@@ -6,7 +6,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.9.1';
+constant VERSION is export = '0.10.0';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -30,6 +30,42 @@ sub sha256-file(IO::Path $f --> Str) is export {
         return $hex.lc if $hex.defined && $hex ~~ /^ <[0..9 A..F a..f]> ** 64 $/;
     }
     user-error('no sha256 tool found (need sha256sum, shasum or openssl)');
+}
+
+#| The one canonicalisation rule the register and the CLI share, so the
+#| same words get the same digest whatever a checkout did to the bytes.
+#| Written once as spec/iz4-digest-1.md in the register; a later rule gets
+#| a new id, this one never changes.
+constant DIGEST-RULE is export = 'iz4-digest/1';
+
+#| iz4-digest/1 of a file: sha256 of its bytes after strict UTF-8
+#| validation (invalid UTF-8 has no canonical digest: Nil), one leading
+#| byte-order mark removed, CRLF then CR made LF, and the trailing LFs
+#| replaced by exactly one.  Nothing else changes: trailing spaces, blank
+#| lines and Unicode forms are the words, and the digest must notice them.
+#| Done on the bytes, not on Str, so no runtime's grapheme handling of
+#| CRLF can get between the rule and the result.
+sub canonical-digest(IO::Path $f --> Str) is export {
+    my $raw = $f.slurp(:bin);
+    return Nil without try $raw.decode('utf8');
+    my @b = $raw.list;
+    @b.splice(0, 3) if @b.elems >= 3 && @b[0] == 0xEF && @b[1] == 0xBB && @b[2] == 0xBF;
+    my @out;
+    my $i = 0;
+    while $i < @b.elems {
+        if @b[$i] == 0x0D {
+            @out.push(0x0A);
+            $i++ if $i + 1 < @b.elems && @b[$i + 1] == 0x0A;
+        }
+        else { @out.push(@b[$i]) }
+        $i++;
+    }
+    @out.pop while @out.elems && @out.tail == 0x0A;
+    @out.push(0x0A);
+    my $tmp = $*TMPDIR.add("iz4-canon-{$*PID}-{(^1_000_000).pick}");
+    LEAVE { try $tmp.unlink }
+    $tmp.spurt(Blob.new(@out));
+    sha256-file($tmp);
 }
 
 # ---------------------------------------------------------------- discovery

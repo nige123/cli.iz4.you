@@ -7,6 +7,7 @@ use IZ4;
 use IZ4::Document;
 use IZ4::Launcher;
 use IZ4::Register;
+use IZ4::Git;
 use IZ4::Agent;
 use IZ4::Coach;
 use IZ4::Review;
@@ -102,7 +103,11 @@ sub USAGE() {
                                            state, and what 321 says each
                                            harness enforces (--strict for CI)
       iz4 register [--url=U --token=T] connect this IZ4 to the IZ4 register
-                     [--github [--force]]  (sign up first: iz4.you)
+                     [--github [--force]]  (sign up first: iz4.you); connected,
+                                           with the card published, a plain
+                                           'iz4 register' records a registration
+                                           checkpoint of the committed
+                                           declaration at HEAD
       iz4 report [--dry-run|--strict]  submit evidence (never the text)
       iz4 badge                        print the card link and badge snippets
       iz4 version                      print the tool version
@@ -921,12 +926,16 @@ multi MAIN('register', Str :$url, Str :$token, Str :$file,
                 say 'No reporting token yet. Mint one on the Connect CI page, then: iz4 register --token=<token> --github';
             }
         }
+        my $rc = 0;
         if !$url.defined && !$token.defined && !$github {
             with register-url($path) -> $u {
                 say "$name reports to $u";
-                say token-for($u).defined
-                    ?? "A reporting token is available. Submit evidence with: iz4 report"
-                    !! "No reporting token yet. Mint one on the project's Connect CI page, then:\n  iz4 register --token=<token>";
+                with token-for($u) -> $t {
+                    $rc = record-checkpoint($path, $u, $t);
+                }
+                else {
+                    say "No reporting token yet. Mint one on the project's Connect CI page, then:\n  iz4 register --token=<token>";
+                }
             }
             else {
                 print qq:to/END/;
@@ -938,6 +947,7 @@ multi MAIN('register', Str :$url, Str :$token, Str :$file,
                   3. Connect this IZ4 (add --github to set up GitHub Actions too):
                        iz4 register --url=<the project's reports URL> --token=<the token>
                   4. Submit evidence: iz4 report
+                  5. Publish the card on iz4.you, then record a checkpoint: iz4 register
 
                 A report carries presence, digest, counts and check outcomes -
                 never the text of your IZ4. Only register and report, and the
@@ -948,8 +958,65 @@ multi MAIN('register', Str :$url, Str :$token, Str :$file,
         }
         say '';
         say trademark-licence-note();
-        0;
+        $rc;
     }
+}
+
+#| A connected 'iz4 register' records a registration checkpoint: this exact
+#| declaration, at this revision, mattered now. Evidence for HEAD goes
+#| first, so the register has something to bind; then the checkpoint, which
+#| the register chains to its predecessor. Every report is evidence for one
+#| revision; only this is a registration. Returns the exit code.
+sub record-checkpoint(IO::Path $path, Str $url, Str $token --> Int) {
+    my ($dirty, $, $) = git($path, 'diff', '--quiet', 'HEAD', '--', $path.basename);
+    if $dirty == 1 {
+        note "{display-name($path)} has uncommitted changes. A checkpoint records the committed declaration, so commit it first, then: iz4 register";
+        return 1;
+    }
+    my %report = collect-report($path);
+    my $rev    = %report<revision>.substr(0, 12);
+    my ($code, $reply) = submit-report($url, $token, json-encode(%report));
+    unless 200 <= $code < 300 {
+        note $code == 0
+            ?? "register unreachable: $reply"
+            !! "register answered $code to the report: {$reply.substr(0, 300)}";
+        note 'No checkpoint recorded: the register needs evidence for this revision first.';
+        return 1;
+    }
+    say "submitted {%report<report_id>} ({display-name($path)} at $rev)";
+
+    ($code, $reply) = submit-checkpoint(registrations-url($url), $token, checkpoint-body(%report));
+    my $seq  = json-field($reply, 'sequence');
+    my $card = json-field($reply, 'card');
+    if $code == 201 {
+        my $pred = json-field($reply, 'predecessor');
+        say "Registered declaration: checkpoint $seq (revision $rev"
+            ~ ($pred.defined ?? ", follows checkpoint $pred)" !! ", the first)");
+        say "card: $card" with $card;
+        return 0;
+    }
+    if $code == 200 {
+        say "Registered declaration: checkpoint $seq already records this declaration; nothing new to record.";
+        say "card: $card" with $card;
+        return 0;
+    }
+    if $code == 0 {
+        note "register unreachable: $reply";
+        note 'No checkpoint recorded. The report went through; run iz4 register again when the register is reachable.';
+        return 1;
+    }
+    my $error = json-field($reply, 'error') // '';
+    my $msg   = json-field($reply, 'message') // $reply.substr(0, 300);
+    note "register answered $code: $msg";
+    note do given $error {
+        when 'not_registered'  { "No checkpoint recorded. Publish the project's card on iz4.you first (the IZ4 Trademark Licence is accepted there, never here), then: iz4 register" }
+        when 'no_evidence'     { "No checkpoint recorded: the register holds no report for revision $rev. Run: iz4 report, then: iz4 register" }
+        when 'no_declaration'  { "No checkpoint recorded: the register's report for this revision carries no declaration digest. Make sure {display-name($path)} is committed, then: iz4 report, then: iz4 register" }
+        when 'digest_mismatch' { "No checkpoint recorded: the register's evidence for revision $rev carries a different digest from this file. Commit the file as it is, then: iz4 report, then: iz4 register" }
+        when 'unauthorized'    { "No checkpoint recorded: the register rejected the token. Mint a new one on the project's Connect CI page, then: iz4 register --token=<token>" }
+        default                { 'No checkpoint recorded.' }
+    }
+    1;
 }
 
 # Printed by every 'iz4 register': what registering includes, and that the

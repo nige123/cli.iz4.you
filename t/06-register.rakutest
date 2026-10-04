@@ -5,7 +5,7 @@ use IZ4;
 use IZ4::Document;
 use IZ4::Register;
 
-plan 54;
+plan 94;
 
 # Everything here is offline: no test ever reaches a real register.
 %*ENV<XDG_CONFIG_HOME> = temp-dir.Str;
@@ -58,17 +58,18 @@ if have-git() {
     run 'git', '-C', $repo.Str, 'commit', '-qm', 'x';
 
     my %r = collect-report($sp, :release('v1'));
-    is %r<schema_version>, 's2r-report/1', 'report declares its schema';
+    is %r<schema_version>, 'iz4-report/2', 'report declares its schema';
     ok %r<revision> ~~ /^ <[0..9a..f]> ** 40 $/, 'revision is the exact commit';
     ok %r<declaration><present>, 'declaration present';
     is %r<declaration><invariant_count>, 1, "the count is the project's own invariants, never the inherited 0-4";
     is %r<declaration><grammar_version>, 'IZ4', 'the grammar label names the current format';
     ok %r<declaration><digest> ~~ /^ <[0..9a..f]> ** 64 $/, 'digest is a sha256';
+    is %r<declaration><canonical_digest>, canonical-digest($sp), 'iz4-digest/1 travels beside the raw digest';
     is %r<checks><syntax><outcome>, 'passed', 'syntax outcome from iz4 itself';
     is %r<release_label>, 'v1', 'release label carried';
 
     my $j = json-encode(%r);
-    like $j, /'"schema_version":"s2r-report/1"'/, 'encodes as JSON';
+    like $j, /'"schema_version":"iz4-report/2"'/, 'encodes as JSON';
     unlike $j, /'Registered things'/, 'the report never carries invariant text';
 
     # CLI: --dry-run prints the report and sends nothing
@@ -77,7 +78,36 @@ if have-git() {
     like $out, /'"revision":"' <[0..9a..f]> ** 40 '"'/, 'dry run prints the payload';
 }
 else {
-    skip 'no git available', 12;
+    skip 'no git available', 13;
+}
+
+# iz4-digest/1: the register's vectors (spec/iz4-digest-1.md), byte for byte
+{
+    my $d = temp-dir;
+    sub vec(Blob $bytes --> Str) { my $f = $d.add('v'); $f.spurt($bytes); canonical-digest($f) }
+    my $same = '1abb269161b7774f833898a6d2b61f40e537c5de5155254b903654b69ca99b89';
+    is vec("IS FOR WHAT?\n".encode), $same, 'LF-terminated text';
+    is vec("IS FOR WHAT?\r\n".encode), $same, 'CRLF is LF';
+    is vec("IS FOR WHAT?".encode), $same, 'a missing final newline is added';
+    is vec(Blob.new(0xEF, 0xBB, 0xBF, |"IS FOR WHAT?\n\n\n".encode.list)), $same, 'one BOM dropped, trailing LFs become one';
+    is vec("IS FOR WHAT?\r".encode), $same, 'a lone CR is LF';
+    is vec("IS FOR WHAT? \n".encode), 'fbc6708acc849d84ef5f7e657f5f8021f5313a94f2935ea016da63c3a5b35fe3', 'a trailing space is kept: it is a change to the words';
+    is vec(Blob.new), '01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b', 'an empty file is one LF';
+    nok vec(Blob.new(0xFF, 0x0A)).defined, 'not UTF-8: no canonical digest';
+    is DIGEST-RULE, 'iz4-digest/1', 'the rule has the id the register wrote';
+}
+
+# the checkpoint request: schema, revision and the digests to compare
+{
+    my %r = revision => 'a' x 40, declaration => %( digest => 'b' x 64, canonical_digest => 'c' x 64 );
+    my $b = checkpoint-body(%r);
+    like $b, /'"schema_version":"iz4-registration/1"'/, 'checkpoint declares its schema';
+    like $b, /'"revision":"' a ** 40 '"'/, 'and the revision';
+    like $b, /'"canonical_digest":"' c ** 64 '"'/, 'and the canonical digest for the register to compare';
+    is registrations-url('https://iz4.you/api/v1/projects/p9/reports'), 'https://iz4.you/api/v1/projects/p9/registrations', 'registrations sit beside reports';
+    is json-field('{"ok":true,"sequence":13,"predecessor":null,"card":"https://iz4.you/p/AB"}', 'sequence'), '13', 'json-field reads a number';
+    nok json-field('{"predecessor":null}', 'predecessor').defined, 'null is Nil';
+    is json-field('{"card":"https://iz4.you/p/AB"}', 'card'), 'https://iz4.you/p/AB', 'and a string';
 }
 
 # CLI: --github writes the workflow and hands the token to gh on stdin
@@ -147,9 +177,78 @@ if have-git() {
     like $err, /'register unreachable' .* 'Failed to connect'/, 'and says so with the reason';
     ($rc, $out, $err) = iz4($repo, 'report', '--strict');
     is $rc, 1, 'report --strict exits 1 on the same failure';
+
+    # a connected 'iz4 register' reports HEAD, then records a checkpoint.
+    # The fake curl answers the reports endpoint 201 and the registrations
+    # endpoint with whatever the test put in reply.status and reply.body.
+    my $status = $bin.add('reply.status');
+    my $body   = $bin.add('reply.body');
+    my $log    = $bin.add('curl.log');
+    $curl.spurt: q:to/SH/.subst('__LOG__', $log.Str, :g).subst('__BODY__', $body.Str).subst('__STATUS__', $status.Str);
+        #!/bin/sh
+        for a; do url="$a"; done
+        cat >> '__LOG__'; echo >> '__LOG__'
+        echo "$url" >> '__LOG__'
+        case "$url" in
+          */registrations) cat '__BODY__'; printf '\n%s' "$(cat '__STATUS__')";;
+          *) printf '{"ok":true}\n201';;
+        esac
+        SH
+    $status.spurt('201');
+    $body.spurt('{"ok":true,"created":1,"sequence":1,"revision":"x","predecessor":null,"card":"https://iz4.you/p/p9"}');
+    ($rc, $out, $err) = iz4($repo, 'register');
+    is $rc, 0, 'a connected register exits 0 when a checkpoint is recorded';
+    like $out, /'submitted'/, 'it submits evidence for HEAD first';
+    like $out, /'Registered declaration: checkpoint 1 (revision ' <[0..9a..f]> ** 12 ', the first)'/, 'then says which checkpoint was recorded';
+    like $out, /'card: https://iz4.you/p/p9'/, 'and where to see it';
+    like $out, /'IZ4 Trademark Licence'/, 'the licence note still closes the output';
+    my @calls = $log.slurp.lines.grep(*.starts-with('http'));
+    like @calls[0], /'/reports' $/, 'the report call comes first';
+    like @calls[1], /'/registrations' $/, 'the checkpoint call second';
+    like $log.slurp, /'"schema_version":"iz4-registration/1"'/, 'with the registration schema';
+    like $log.slurp, /'"schema_version":"iz4-report/2"'/, 'and the report with schema 2';
+    nok $out.contains('prov') || $out.contains('certif') || $out.contains('verif'), 'nothing claims proof, certification or verification';
+
+    $status.spurt('201');
+    $body.spurt('{"ok":true,"created":1,"sequence":14,"predecessor":13,"card":"https://iz4.you/p/p9"}');
+    ($rc, $out, $err) = iz4($repo, 'register');
+    like $out, /'checkpoint 14 (revision ' <[0..9a..f]> ** 12 ', follows checkpoint 13)'/, 'a later checkpoint names its predecessor';
+
+    $status.spurt('200');
+    $body.spurt('{"ok":true,"created":0,"sequence":14,"predecessor":13,"card":"https://iz4.you/p/p9"}');
+    ($rc, $out, $err) = iz4($repo, 'register');
+    is $rc, 0, 'the same declaration again exits 0';
+    like $out, /'checkpoint 14 already records this declaration'/, 'and says nothing new was recorded';
+
+    $status.spurt('409');
+    $body.spurt('{"ok":false,"error":"not_registered","message":"Register the project on its publish page first."}');
+    ($rc, $out, $err) = iz4($repo, 'register');
+    is $rc, 1, 'an unregistered project exits 1';
+    like $err, /'publish page first'/, 'with what the register said';
+    like $err, /'Publish the project' .* 'card on iz4.you first' .* 'Licence is accepted there'/, 'and where the licence is accepted';
+
+    $status.spurt('409');
+    $body.spurt('{"ok":false,"error":"digest_mismatch","message":"The digest differs from the evidence."}');
+    ($rc, $out, $err) = iz4($repo, 'register');
+    is $rc, 1, 'a digest mismatch exits 1';
+    like $err, /'No checkpoint recorded' .* 'different digest' .* 'iz4 report, then: iz4 register'/, 'and says nothing was recorded, and what to do';
+
+    $status.spurt('401');
+    $body.spurt('{"ok":false,"error":"unauthorized","message":"Unknown token."}');
+    ($rc, $out, $err) = iz4($repo, 'register');
+    is $rc, 1, 'a rejected token exits 1';
+    like $err, /'iz4 register --token=<token>'/, 'and says how to mint a new one';
+
+    # an uncommitted IZ4 is never checkpointed under HEAD's revision
+    $repo.add('IZ4').spurt($repo.add('IZ4').slurp ~ "\n# edited\n");
+    my $before = $log.slurp.lines.elems;
+    ($rc, $out, $err) = iz4($repo, 'register');
+    is $rc, 1, 'an uncommitted IZ4 exits 1';
+    like $err, /'uncommitted changes' .* 'commit it first'/, 'and asks for the commit first';
+    is $log.slurp.lines.elems, $before, 'without talking to the register at all';
 }
 else {
-    skip 'no git available', 20;
+    skip 'no git available', 43;
 }
 
 # CLI: an unconnected IZ4 is guided through signing up first

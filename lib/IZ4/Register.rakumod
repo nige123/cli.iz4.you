@@ -11,7 +11,11 @@ use IZ4::Git;
 #| outcomes - never the text of the IZ4.
 
 constant REGISTER-START  is export = 'https://iz4.you/start';
-constant REPORT-SCHEMA   is export = 's2r-report/1';
+constant REPORT-SCHEMA   is export = 'iz4-report/2';
+# A registration checkpoint: the deliberate event a connected 'iz4 register'
+# records, chained by the register to its predecessor. A report is evidence
+# for one revision and is never a registration by itself.
+constant REGISTRATION-SCHEMA is export = 'iz4-registration/1';
 # The licence a project accepts on the register when its card is published.
 # Its identifier is the licence's own, separate from the tool's VERSION and
 # the Foundation digest; nothing in the CLI depends on it.
@@ -178,6 +182,8 @@ sub collect-report(IO::Path $iz4, Str :$release, Str :$run-id --> Hash) is expor
     my %checks;
     if $iz4.f {
         %declaration<digest> = sha256-file($iz4);
+        # iz4-digest/1 beside the raw digest; null when the file is not UTF-8
+        %declaration<canonical_digest> = canonical-digest($iz4);
         my $doc = IZ4::Document.load($iz4);
         # the count is the project's own invariants in the file (the
         # inherited 0-4 are never counted)
@@ -225,6 +231,38 @@ sub json-str(Str $s --> Str) {
 #| POST the report with curl (external, like Git).  Returns (status, body);
 #| status 0 means curl was missing or the register was unreachable.  The
 #| token travels in a 0600 header file, not on the command line.
+#| The registrations endpoint beside a project's reports URL.
+sub registrations-url(Str $reports-url --> Str) is export {
+    $reports-url ~~ m{^ (.*) '/reports' $}
+        or register-error("cannot derive the registrations address from the stored reports URL ($reports-url); "
+            ~ "reconnect with 'iz4 register --url=...'");
+    "$0/registrations";
+}
+
+#| The checkpoint request for one revision: the digests go along so the
+#| register can compare them with its evidence; it never trusts them.
+sub checkpoint-body(%report --> Str) is export {
+    my %body = schema_version => REGISTRATION-SCHEMA, revision => %report<revision>;
+    with %report<declaration> -> %d {
+        %body<digest>           = $_ with %d<digest>;
+        %body<canonical_digest> = $_ with %d<canonical_digest>;
+    }
+    json-encode(%body);
+}
+
+#| One field of a flat JSON reply, without a JSON parser: a string,
+#| a number, or Nil for null, absent or anything nested.
+sub json-field(Str $body, Str $name --> Str) is export {
+    with $body.match(/ '"' $name '"' \s* ':' \s* [ '"' (<-["]>*) '"' | (<[0..9.-]>+) | 'null' ] /) {
+        return .[0].defined ?? .[0].Str !! Nil;
+    }
+    Nil;
+}
+
+sub submit-checkpoint(Str $url, Str $token, Str $body --> List) is export {
+    submit-report($url, $token, $body);
+}
+
 sub submit-report(Str $url, Str $token, Str $body --> List) is export {
     my $dir = $*TMPDIR.add("iz4-{$*PID}-{(^1_000_000).pick}");
     $dir.mkdir;

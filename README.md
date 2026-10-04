@@ -320,7 +320,8 @@ iz4 diff [FILE] [REV [REV]]      what changed, working tree by default
 iz4 agent [install|status]       hand the invariants to a coding agent
 iz4 agent install --hooks        Claude Code hooks: the packet at start and after
                                    compaction (--strict: gate edits and turn end)
-iz4 register / report / badge    connect to the register and submit evidence
+iz4 register / report / badge    connect to the register, submit evidence, record
+                                   a registration checkpoint, print the badge
 ```
 
 In a script or CI nothing ever asks a question: `init` takes `--for-what` and
@@ -587,6 +588,39 @@ and register writes the workflow too, so every push reports.
 
 Reports are advisory. A failed check is submitted honestly, a register error
 still exits 0, and `iz4 report` does not belong in a required merge check.
+
+Two digests travel in a report. One is the sha256 of the file's exact
+bytes. The other follows `iz4-digest/1`, the one rule the register and the
+CLI share: strict UTF-8, one leading byte-order mark dropped, CRLF and CR
+made LF, exactly one final newline, and nothing else changed. A Windows
+checkout and a Linux one then agree on the words, while a trailing space
+or a changed blank line still changes the digest, as it should.
+
+Editing the IZ4 and registering it are different things. Every report is
+evidence for one revision; a report with a new digest is not a
+registration. When the declaration reaches a state that matters, a
+release, a deployment, an approval, a changed invariant, commit it and
+run `iz4 register` with no arguments. It submits evidence for HEAD, then
+asks the register to record a checkpoint: this exact declaration, at this
+revision, now. The register chains each checkpoint to the one before and
+never rewrites one.
+
+```text
+$ iz4 register
+IZ4 reports to https://iz4.you/api/v1/projects/AB12CD/reports
+submitted 3f9a1c2b7d4e-1759600000 (IZ4 at 3f9a1c2b7d4e)
+Registered declaration: checkpoint 13 (revision 3f9a1c2b7d4e, follows checkpoint 12)
+card: https://iz4.you/p/AB12CD
+```
+
+The same declaration twice records nothing new and says so. An uncommitted
+IZ4 is refused, because a checkpoint records the committed declaration. The
+project must first have been published on iz4.you, which is where the IZ4
+Trademark Licence is accepted; the register refuses the checkpoint
+otherwise, and the CLI says what to do. Publishing the card also records a
+checkpoint for its current revision. The register compares the digests the
+CLI sends with the evidence it holds, and never takes the CLI's word for
+them.
 
 Once connected, `iz4 badge` gives you the public card link and the
 paste-ready snippets for your README, derived offline from the stored
