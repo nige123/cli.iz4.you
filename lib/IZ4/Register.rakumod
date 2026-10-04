@@ -12,6 +12,11 @@ use IZ4::Git;
 
 constant REGISTER-START  is export = 'https://iz4.you/start';
 constant REPORT-SCHEMA   is export = 's2r-report/1';
+# The licence a project accepts on the register when its card is published.
+# Its identifier is the licence's own, separate from the tool's VERSION and
+# the Foundation digest; nothing in the CLI depends on it.
+constant TRADEMARK-LICENCE     is export = 'iz4-trademark-licence/1.0-draft';
+constant TRADEMARK-LICENCE-URL is export = 'https://iz4.you/legal/trademark-licence';
 
 # ---------------------------------------------------------- connection
 

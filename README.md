@@ -621,7 +621,22 @@ This project keeps its own `IZ4`. Read it.
 
 ## Licence and trademark
 
-Apache-2.0, see `LICENSE`.
+The code is Apache-2.0, see `LICENSE`. You can use, change and fork it
+without registering anything, and nothing in iz4 needs an account or any
+trademark term: the format and the tool work on their own.
 
-iz4 (tm) is a trademark of [Nige Ltd](https://nigelhamilton.com/#iz4). The
-code is open. The name and marks are Nige Ltd's.
+IZ4 (tm), the IZ4 name and the IZ4 badge are trademarks of
+[Nige Ltd](https://nigelhamilton.com/#iz4). They are protected for one
+reason: so that "IZ4" keeps meaning something. If it carries the IZ4 name,
+the Foundation remains. Fork the code, the format, even the protocol;
+change the Foundation and it is your protocol, under your own name.
+
+Registering a project on [iz4.you](https://iz4.you) includes the standard
+[IZ4 Trademark Licence](https://iz4.you/legal/trademark-licence)
+(`iz4-trademark-licence/1.0-draft`): permission to use the IZ4 name and
+badge while the project keeps Invariants 0-4 intact. You accept it on the
+site when you publish the card, never in the CLI, and `iz4 register` says
+so before you connect. [TRADEMARKS.md](TRADEMARKS.md) is the short version
+of what you may do with the marks, and
+[IZ4-CONFORMANCE.md](IZ4-CONFORMANCE.md) says when a project may call
+itself a conforming IZ4 project.

@@ -5,7 +5,7 @@ use IZ4;
 use IZ4::Document;
 use IZ4::Register;
 
-plan 44;
+plan 48;
 
 # Everything here is offline: no test ever reaches a real register.
 %*ENV<XDG_CONFIG_HOME> = temp-dir.Str;
@@ -127,6 +127,14 @@ my $fresh = temp-dir;
 minimal-iz4(:dir($fresh));
 my ($rc, $out, $err) = iz4($fresh, 'register');
 like $out, /'Sign up first' .* 'https://iz4.you/start'/, 'register guides sign-up first, on iz4.you';
+
+# CLI: register says what registering includes; the acceptance is on the site, never here
+like $out, /'IZ4 Trademark Licence' \s+ '(iz4-trademark-licence/1.0-draft)'/,
+    'register names the trademark licence that registering includes, by its own id';
+like $out, /'accept it on iz4.you when you publish the card, not here'/, 'and says the acceptance happens on the site';
+nok $out.contains('[Y/n]') || $out.contains('[y/n]'), 'without asking anything itself';
+($rc, $out, $err) = iz4($fresh, 'check');
+nok $out.contains('Trademark'), 'check says nothing about the licence: no command is gated on it';
 
 # CLI: report outside Git is a hard, plain error
 my $nogit = temp-dir;

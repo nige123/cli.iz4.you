@@ -6,7 +6,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.9.0';
+constant VERSION is export = '0.9.1';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {

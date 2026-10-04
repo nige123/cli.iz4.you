@@ -946,8 +946,25 @@ multi MAIN('register', Str :$url, Str :$token, Str :$file,
                 END
             }
         }
+        say '';
+        say trademark-licence-note();
         0;
     }
+}
+
+# Printed by every 'iz4 register': what registering includes, and that the
+# acceptance happens on the site. Nothing here is a prompt, and no command
+# is gated on it.
+sub trademark-licence-note(--> Str) {
+    qq:to/END/.chomp;
+    Registering a project on iz4.you includes the IZ4 Trademark Licence
+    ({TRADEMARK-LICENCE}): permission to use the IZ4 name and
+    badge while the project keeps Invariants 0-4, the foundation, intact.
+    You accept it on iz4.you when you publish the card, not here. Your
+    rights under the Apache License 2.0 are unchanged, and nothing in iz4
+    needs registration.
+      {TRADEMARK-LICENCE-URL}
+    END
 }
 
 multi MAIN('badge', Str :$file) {

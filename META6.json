@@ -1,7 +1,7 @@
 {
     "name": "IZ4",
     "description": "iz4: IZ4 means Is For - find the few invariants your software must never accidentally lose",
-    "version": "0.9.0",
+    "version": "0.9.1",
     "auth": "iz4.you",
     "license": "Apache-2.0",
     "perl": "6.d",
