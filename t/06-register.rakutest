@@ -5,7 +5,7 @@ use IZ4;
 use IZ4::Document;
 use IZ4::Register;
 
-plan 48;
+plan 54;
 
 # Everything here is offline: no test ever reaches a real register.
 %*ENV<XDG_CONFIG_HOME> = temp-dir.Str;
@@ -117,9 +117,39 @@ if have-git() {
     is $rc, 1, 'a different existing workflow is never overwritten';
     like $err, /'--force'/, 'the error says how to replace it';
     is $wf.slurp, "name: mine\n", 'and the file is untouched';
+
+    # a gh that fails is reported as an error, never a crash (the sunk Proc throws otherwise)
+    $gh.spurt: qq:to/SH/;
+        #!/bin/sh
+        case "\$1" in --version) echo 'gh version 2'; exit 0;; esac
+        cat >/dev/null
+        echo 'HTTP 401: not logged in' >&2
+        exit 1
+        SH
+    ($rc, $out, $err) = iz4($repo, 'register', '--token=tok-456', '--github', '--force');
+    is $rc, 1, 'a failing gh makes register exit 1';
+    like $err, /'not logged in'/, 'with what gh said';
+    like $err, /'gh auth login'/, 'and what to do about it';
+
+    # a curl that cannot reach the register leaves report advisory: exit 0, reason on stderr
+    my $curl = $bin.add('curl');
+    $curl.spurt: qq:to/SH/;
+        #!/bin/sh
+        cat >/dev/null
+        echo 'curl: (7) Failed to connect' >&2
+        exit 7
+        SH
+    $curl.chmod(0o755);
+    run 'git', '-C', $repo.Str, 'add', '-A';
+    run 'git', '-C', $repo.Str, 'commit', '-qm', 'x';
+    ($rc, $out, $err) = iz4($repo, 'report');
+    is $rc, 0, 'report exits 0 when the register is unreachable';
+    like $err, /'register unreachable' .* 'Failed to connect'/, 'and says so with the reason';
+    ($rc, $out, $err) = iz4($repo, 'report', '--strict');
+    is $rc, 1, 'report --strict exits 1 on the same failure';
 }
 else {
-    skip 'no git available', 14;
+    skip 'no git available', 20;
 }
 
 # CLI: an unconnected IZ4 is guided through signing up first

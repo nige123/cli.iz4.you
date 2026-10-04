@@ -155,7 +155,9 @@ sub set-github-secret(IO::Path $iz4, Str $token --> Str) is export {
     return 'no-gh' unless $probe.exitcode == 0;
     my $p = run 'gh', 'secret', 'set', 'S2R_TOKEN', :in, :out, :err, :cwd($root.Str);
     $p.in.print($token);
-    try $p.in.close;
+    # closing a child's stdin returns the Proc; sunk, a non-zero exit would
+    # throw here. The exit code is read below and reported as a value.
+    my $ = try $p.in.close;
     $p.out.slurp(:close);
     my $err = $p.err.slurp(:close);
     $p.exitcode == 0 ?? 'set' !! ($err.trim || 'gh secret set failed');
@@ -240,7 +242,7 @@ sub submit-report(Str $url, Str $token, Str $body --> List) is export {
         '--data-binary', '@-', $url, :in, :out, :err;
     return (0, 'curl is required to talk to the register and was not found') without $p;
     $p.in.print($body);
-    try $p.in.close;
+    my $ = try $p.in.close;        # same: never let a failed curl throw past the advisory path
     my $out = $p.out.slurp(:close);
     my $err = $p.err.slurp(:close);
     return (0, $err.trim || 'network request failed') if $p.exitcode != 0;
