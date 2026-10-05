@@ -309,7 +309,8 @@ iz4 foundation [--restore FILE]  the foundation as every file carries it; --rest
                                    writes it back where it is missing or altered
 iz4 show [FILE] [PART]           the file, or for-what, for-who or invariants
 iz4 show invariant N             one invariant; 0-4 are the foundation
-iz4 check [FILE]                 ticks for what is true, crosses with remedies
+iz4 check [FILE] [--strict]      ticks for what is true, crosses with remedies
+                                   (--strict: any cross fails, for a gate)
 iz4 number [FILE]                number unnumbered invariants from 5
 iz4 test [N ...] [--list]        a test for each invariant without one: drafted
                                    by your agent for your approval on a terminal,
@@ -412,7 +413,10 @@ OK IZ4 (1 to remedy above)
 ```
 
 A tick is a file fact that was mechanically verified. A cross says how to
-remedy it, and never fails the check; only structural errors do. Whatever
+remedy it, and never fails the check; only structural errors do. A gate
+that should stop on a cross runs `iz4 check --strict`, which exits 1 and
+ends `NOT OK` while anything remains to remedy; the same flag does the
+same for `iz4 agent status` and `iz4 review`. Whatever
 is not in place ends in a numbered `next:` list, one command per step in
 the order that clears the most first, or, where iz4 must not touch your
 words, what to change by hand and on which line. A failing check ends

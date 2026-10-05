@@ -334,12 +334,32 @@ sub integration-next(Str $name, Str $status --> Str) is export {
         !! $cmd;
 }
 
+#| Why a managed section is stale: written by an earlier iz4 (its START
+#| marker carries an older section version) or changed by hand since.  A
+#| file without a marker (the skill) cannot say which.  Either way the
+#| difference is wording: the protocol an agent gets from 'iz4 agent' is
+#| already current, and enforcement comes from hooks, not from this text.
+sub stale-reason(IO::Path $target --> Str) is export {
+    return '' unless $target.e;
+    with $target.slurp.lines.first({ .contains(MARK-TAG) && .contains('START') }) {
+        with .match(/ 'v' (\d+) ' START' /) {
+            my $v = +$_[0];
+            return $v < SECTION-VERSION
+                ?? "section v$v from an earlier iz4, v{SECTION-VERSION} is current"
+                !! 'edited by hand since it was written';
+        }
+    }
+    'written by an earlier iz4 or edited by hand since';
+}
+
 #| One human line per integration, worded so it claims nothing more;
-#| anything short of current says how to remedy it.
-sub integration-line(Str $name, Str $status --> Str) is export {
+#| anything short of current says how to remedy it.  A stale one says
+#| why, and that the refresh changes wording, not what is enforced.
+sub integration-line(Str $name, Str $status, Str :$reason = '' --> Str) is export {
     given $status {
         when 'current'   { "$name: integration installed (current)" }
-        when 'stale'     { "$name: integration installed but stale - {install-hint($name)} to refresh" }
+        when 'stale'     { "$name: integration installed but stale" ~ ($reason ?? " ($reason)" !! '')
+                           ~ " - {install-hint($name)} to refresh the wording; enforcement comes from hooks, not from this text" }
         when 'malformed' { "$name: managed section malformed - fix the markers by hand, or remove them and {install-hint($name)}" }
         when 'absent'    { "$name: file present, no managed section - {install-hint($name)}" }
         default          { "$name: no file - {install-hint($name)}" }

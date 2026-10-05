@@ -53,6 +53,10 @@ like $err, /'iz4 add invariant'/, 'and shows the fast path instead';
 is ($rc, $out), (0, "Added INVARIANT 5.\n"), 'fast path add';
 ($rc, $out, $err) = iz4($dir, 'check');
 is $rc, 0, 'check passes';
+{
+    my ($rc, $out, $err) = iz4($dir, 'check', '--strict');
+    is $rc, 1, '--strict fails while an invariant has no test naming it';
+}
 like $out, /'✓ structure: valid' \n
             '✓ IS FOR WHAT: Helping people find work they love to do.' \n
             '✓ IS FOR WHO: People looking for work.' \n
@@ -70,6 +74,9 @@ like $out, /'✗ BECAUSE: missing for Invariant 6 - write under each why it must
 ok $out.ends-with("OK IZ4 (2 to remedy above)\n"), 'crosses are counted, and never fail the check';
 like $out, /"next:\n  1. iz4 because 6 \"why it must survive\"\n  2. iz4 test 5 6\n  then: iz4 check again\n"/,
     'and the next steps are listed in order, one command each, ending with a check';
+($rc, $out, $err) = iz4($dir, 'check', '--strict');
+is $rc, 1, '--strict, for a gate, fails the check on any cross';
+like $out, /"  then: iz4 check --strict again\nNOT OK IZ4: 2 to remedy above (--strict) - do the next steps above"/, 'and the verdict says so last, after the steps';
 
 # ---- a failing check says what to do next, then that it is not OK ----------------
 {
