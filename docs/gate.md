@@ -228,14 +228,21 @@ What exists in 321 today (cli.321.do, inspected on 2026-10-06): a
 `enforcement` and `run(Cancel, Spec, Control --> Outcome)`, implemented
 by `ClaudeCode` and by `ProcedureAdapter`; shape tables `WorkPackage`
 (with an `approval` pointer to an `Approval` of `proposalRef`,
-`approvalRef`, `approvedBy`, `action`, `target`, `params`, `paramsHash`)
-and `RunReceipt` (`status` including `blocked`, `blockedOn`,
+`approvalRef`, `approvedBy`, `action`, `target`, `params`, `paramsHash`
+and `proposal`, a `DeploymentProposal` carried verbatim: 321's approvals
+are deployment-shaped, and its boundary re-plans the same service and
+target and fails the approval if parameters, manifest digest or deployed
+revision moved) and `RunReceipt` (`status` including `blocked`, `blockedOn`,
 `uncertain`, `evidence.approvalCheck`) in `lib/Do321/Shape.rakumod`; and,
 in `lib/Do321/Run.rakumod`, `apply-iz4-policy` (the packet into the
 prompt), `refresh-iz4-packet` and `check-iz4-report` (`iz4 hook stop`
 after a run, turning a missing per-invariant report into
 `status: blocked`). There is no Codex adapter and nothing in 321 calls a
-gate. None of that is changed by this repository.
+gate. Since 321 0.3.3, `policy.standingApprovals` in `trust.json` lets an
+unattended `321 <agent> go` deploy without a person at the terminal;
+those are deploy-only and approve nothing about an IZ4, so they are not a
+precedent for gate approvals. None of that is changed by this
+repository.
 
 What a 321 integration would be, as work in 321, not done here:
 
@@ -245,12 +252,20 @@ What a 321 integration would be, as work in 321, not done here:
   the proposal, `blocked` to `blocked`, `unassessed` to an `uncertain`
   line; the gate's JSON goes under `evidence`;
 - in `cmd-agent`, when a blocked receipt carries a proposal, show it and,
-  if the operator accepts at the terminal, run `iz4 approve` there, then
-  `--continue` the run; an unattended run leaves the receipt blocked, as
-  `iz4 approve` itself does;
-- a `WorkPackage.approval` whose `proposalRef` is an `iz4-approval/1`
-  document signed by a key the boundary lists is the exact-action
-  approval 123.do could supply; `Control.approval` is the existing seam.
+  if the operator accepts at the terminal, run `iz4 approve` there and
+  resume; today `--continue <receipt.json>` exists only on `321 run`, so
+  this needs continuation added to the agent path or `cmd-agent`
+  re-issuing the same package through the run path. An unattended run
+  leaves the receipt blocked, as `iz4 approve` itself does;
+- carrying an iz4 agreement on a `WorkPackage.approval` is new protocol
+  work in 321, not a fit for what is there: `proposalRef` is a string
+  reference, `proposal` must be a `DeploymentProposal`, and
+  `Control.approval(action, target, params)` is a callback adapters use
+  at execution time to check the package's approval against an external
+  action. An `iz4-approval/1` document would need a new action kind, a
+  non-deployment proposal type in `work-package.v1`, and its own check
+  (the gate's validation, run by the boundary). That is the shape an
+  exact-action approval from 123.do would take.
 
 Any other harness has the same contract and the same two obligations:
 call the gate on the real trees, and hand the proposal to a person
