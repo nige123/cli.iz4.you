@@ -30,7 +30,13 @@ throws-like { add-invariant($iz4, 'Invariant 6: Another.') }, X::IZ4, message =>
 # nor after the invariant it named is gone: numbers grow, they never come back
 if have-git() {
     my $repo = temp-dir;
-    sub g(*@a) { run 'git', '-C', $repo.Str, |@a, :out, :err }
+    sub g(*@a) {
+        my $p = run 'git', '-C', $repo.Str, |@a, :out, :err;
+        my $o = $p.out.slurp(:close);
+        my $e = $p.err.slurp(:close);
+        die "git {@a.join(' ')} failed ({$p.exitcode}): {$e.trim || $o.trim}" if $p.exitcode != 0;
+        $p;
+    }
     g('init', '-q'); g('config', 'user.email', 't@t'); g('config', 'user.name', 'T');
     my $f = minimal-iz4(:dir($repo));
     add-invariant($f, 'Kept.', :because('a'));

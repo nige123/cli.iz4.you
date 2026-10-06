@@ -323,7 +323,9 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
         }
         else {
             %r<outcome> = $p.exitcode == 0 ?? 'passed' !! 'failed';
-            %r<detail>  = $p.exitcode == 0 ?? '' !! (($e ~ $o).trim.lines.grep(*.trim ne '').tail(3).join(' | ')).substr(0, 300);
+            # what went wrong, stderr first: the last lines of a test's standard output are usually its passing ones
+            my @said = ($e.lines.grep(*.trim ne '').tail(3), $o.lines.grep(*.trim ne '').tail(2)).flat;
+            %r<detail>  = $p.exitcode == 0 ?? '' !! @said.join(' | ').substr(0, 400);
         }
         @out.push: %r;
     }
