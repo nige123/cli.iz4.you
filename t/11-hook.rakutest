@@ -89,6 +89,26 @@ if have-git() {
     $settings.unlink;
     # as if 321 were not installed: this pins iz4's own Claude Code wiring
     my %no = IZ4_NO_321 => '1';
+    # by default: the advisory hook where an agent harness is in use, nothing where it is not
+    {
+        my $plain = temp-dir;
+        minimal-iz4(:dir($plain));
+        my ($rc, $o, $e) = iz4($plain, 'agent', 'install', :env(%no));
+        nok $plain.add(SETTINGS-PATH).e, 'a repository with no sign of an agent harness gets no hooks by default';
+        $plain.add('CLAUDE.md').spurt("# notes\n");
+        ($rc, $o, $e) = iz4($plain, 'agent', 'install', '--/hooks', :env(%no));
+        nok $plain.add(SETTINGS-PATH).e, '--/hooks leaves the harness alone';
+        ($rc, $o, $e) = iz4($plain, 'agent', 'install', :env(%no));
+        like $o, /'hooks: installing the advisory set by default'/, 'with a CLAUDE.md, install says it is adding the advisory hooks';
+        is claude-hooks-status(:root($plain)), 'start', 'and writes the session-start hook only: nothing is refused';
+        ($rc, $o, $e) = iz4($plain, 'agent', 'install', '--hooks', '--strict', :env(%no));
+        is claude-hooks-status(:root($plain)), 'strict', '--strict upgrades them';
+        ($rc, $o, $e) = iz4($plain, 'agent', 'install', :env(%no));
+        is claude-hooks-status(:root($plain)), 'strict', 'a later default install never downgrades strict hooks';
+        unlike $o, /'installing the advisory set'/, 'and says nothing about installing any';
+        like $plain.add('AGENTS.md').slurp, /'To the people who own this repository' .* 'iz4 agent install --hooks --strict'/,
+            'the managed section tells the owners the command that enforces';
+    }
     my ($rc, $o, $e) = iz4($repo, 'agent', 'install', '--hooks', '--strict', :env(%no));
     like $o, /'.claude/settings.json: installed' .* 'never that an invariant was honoured'/, 'the CLI installs and says what a hook cannot prove';
     ($rc, $o, $e) = iz4($repo, 'agent', 'status', :env(%no));

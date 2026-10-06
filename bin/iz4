@@ -110,16 +110,20 @@ sub USAGE() {
       iz4 agent [--json]               print the agent packet: the protocol
                                            and the effective invariants
       iz4 agent install [--claude] [--skill] [--hooks [--strict]]
-                                         add a managed section to AGENTS.md
-                                           (--claude: CLAUDE.md too; --skill:
-                                           the portable skill; --hooks: hooks
-                                           that deliver the packet at start and
-                                           after a compaction, wired by 321 into
-                                           every harness it knows, else by iz4
-                                           into Claude Code; --strict: also
-                                           refuse an edit before the packet, and
-                                           a turn that changed files without the
-                                           invariant report)
+                                     add a managed section to AGENTS.md
+                                       (--claude: CLAUDE.md too; --skill:
+                                       the portable skill). Where the
+                                       repository is used with an agent
+                                       harness and has no iz4 hooks yet, the
+                                       advisory hooks are installed too: the
+                                       packet at start and after a compaction,
+                                       wired by 321 into every harness it
+                                       knows, else by iz4 into Claude Code
+                                       (--/hooks: leave the harness alone;
+                                       --hooks: install them anywhere;
+                                       --strict: also refuse an edit before
+                                       the packet, and a turn that changed
+                                       files without the invariant report)
       iz4 hook session-start|pre-edit|stop
                                          the harness-neutral hook: JSON in,
                                            text out, exit 2 to refuse
@@ -826,7 +830,7 @@ multi MAIN('agent', Bool :$json = False, Str :$file) {
     }
 }
 
-multi MAIN('agent', 'install', Bool :$claude = False, Bool :$skill = False, Bool :$hooks = False,
+multi MAIN('agent', 'install', Bool :$claude = False, Bool :$skill = False, Bool :$hooks,
            Bool :$strict = False, Str :$file) {
     attempt {
         my $root = resolve-target($file).parent;
@@ -834,7 +838,19 @@ multi MAIN('agent', 'install', Bool :$claude = False, Bool :$skill = False, Bool
             say "$name: {install-agent-section($root.add($name), :$root)}";
         }
         say "{SKILL-PATH}: {install-skill(:$root)}" if $skill;
-        if $hooks {
+        # Hooks by default where the repository shows an agent harness in
+        # use (a CLAUDE.md or a .claude directory) and has no iz4 hooks
+        # yet: the advisory set, which delivers the packet and refuses
+        # nothing.  Hooks already there are never replaced or downgraded
+        # by a default run; --hooks asks for them outright, --strict adds
+        # the gates, and --/hooks leaves the harness alone.
+        my $by-default = !$hooks.defined && !$strict
+            && ($root.add('CLAUDE.md').e || $root.add('.claude').d)
+            && claude-hooks-status(:$root) eq 'none';
+        my $hooks-now = $hooks // ($strict || $by-default);
+        say "hooks: installing the advisory set by default, since this repository is used with an agent harness (--/hooks to skip, --strict to add the gates)"
+            if $by-default;
+        if $hooks-now {
             with launcher-binary() -> $bin {
                 # 321 knows the harnesses: it writes the wiring and says what each enforces
                 my %h = launcher-hooks($bin, 'install', :$root, :$strict);
@@ -849,7 +865,7 @@ multi MAIN('agent', 'install', Bool :$claude = False, Bool :$skill = False, Bool
             }
         }
         say "These integrations only encourage adherence in tools that load them"
-          ~ ($hooks ?? '; a hook can prove the packet was delivered and a report written, never that an invariant was honoured.' !! '.');
+          ~ ($hooks-now ?? '; a hook can prove the packet was delivered and a report written, never that an invariant was honoured.' !! '.');
         0;
     }
 }

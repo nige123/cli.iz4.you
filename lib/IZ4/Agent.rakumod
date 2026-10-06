@@ -13,7 +13,7 @@ use IZ4::Document;
 
 constant PACKET-SCHEMA   is export = 'iz4-agent-packet/3';
 constant STATUS-SCHEMA   is export = 'iz4-agent-status/3';
-constant SECTION-VERSION is export = 3;
+constant SECTION-VERSION is export = 4;
 
 #| The canonical adherence protocol.  The single source: the packet, the
 #| skill and the instruction-file sections are all generated from it.
@@ -160,6 +160,15 @@ sub managed-block(--> Str) is export {
 
     This section can only encourage adherence in tools that load this
     file.  It is not evidence that any agent read the IZ4 or followed it.
+
+    To the people who own this repository: the lines above only ask.
+    To have the agent harness deliver the packet itself, refuse an edit
+    made before it, and refuse to end a turn that changed files without
+    the per-invariant report, run:
+
+        iz4 agent install --hooks --strict
+
+    'iz4 agent status' says what is wired and what each harness enforces.
     BLOCK
 }
 

@@ -380,7 +380,9 @@ iz4 log [FILE]                   the Git history of your intent
 iz4 diff [FILE] [REV [REV]]      what changed, working tree by default
 iz4 agent [install|status]       hand the invariants to a coding agent
 iz4 agent install --hooks        Claude Code hooks: the packet at start and after
-                                   compaction (--strict: gate edits and turn end)
+                                   compaction (--strict: gate edits and turn end);
+                                   the advisory hook is the default where an agent
+                                   harness is in use (--/hooks to skip)
 iz4 register / report / badge    connect to the register, submit evidence, record
                                    a registration checkpoint, print the badge
 ```
@@ -602,9 +604,15 @@ the same and exits 0. A packet proves neither that an agent read it nor
 that the software conforms.
 
 A managed section can be ignored, and a compaction summary drops the
-packet. `iz4 agent install --hooks` makes the harness deliver it instead: a
-Claude Code hook prints the packet at session start, on resume and after
-every compaction. `--strict` adds two gates: an edit before the packet has
+packet. Hooks make the harness deliver it instead: a Claude Code hook
+prints the packet at session start, on resume and after every compaction.
+`iz4 agent install` writes that advisory hook by default where the
+repository is used with an agent harness (it has a `CLAUDE.md` or a
+`.claude` directory) and has no iz4 hooks yet; it never replaces or
+downgrades hooks already there, `--/hooks` leaves the harness alone, and
+`--hooks` installs them anywhere. The managed section ends by telling the
+repository's owners the one command that enforces rather than asks.
+`--strict` adds two gates: an edit before the packet has
 been delivered is refused once, with the packet, and a turn that changed
 files cannot end without the per-invariant report. A hook can prove the
 packet was delivered and a report written, never that an invariant was
