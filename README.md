@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="https://iz4.you"><img src="docs/brand/iz4-lockup.png" alt="iz4" width="320"></a>
+</p>
+
 # iz4
 
 **IZ4 means Is For. It helps you find the few truths your software must never
@@ -728,8 +732,9 @@ The code is Apache-2.0, see `LICENSE`. You can use, change and fork it
 without registering anything, and nothing in iz4 needs an account or any
 trademark term: the format and the tool work on their own.
 
-IZ4 (tm), the IZ4 name and the IZ4 badge are trademarks of
-[Nige Ltd](https://nigelhamilton.com/#iz4). They are protected for one
+IZ4 (tm), the IZ4 name, the IZ4 logo at the top of this page and the IZ4
+badge are trademarks of [Nige Ltd](https://nigelhamilton.com/#iz4); the
+logo files in `docs/brand` are not covered by the Apache licence. They are protected for one
 reason: so that "IZ4" keeps meaning something. If it carries the IZ4 name,
 the Foundation remains. Fork the code, the format, even the protocol;
 change the Foundation and it is your protocol, under your own name.
