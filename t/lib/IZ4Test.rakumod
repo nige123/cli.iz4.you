@@ -1,5 +1,16 @@
 unit module IZ4Test;
 
+# A hermetic Git for every test: the machine's own global configuration,
+# a core.hooksPath that runs the iz4 gate on every commit say, must never
+# reach a test's temporary repositories.
+INIT {
+    my $cfg = $*TMPDIR.add("iz4-test-gitconfig-{$*PID}");
+    $cfg.spurt('') unless $cfg.e;
+    %*ENV<GIT_CONFIG_GLOBAL>   = $cfg.Str;
+    %*ENV<GIT_CONFIG_NOSYSTEM> = '1';
+    END { try $cfg.unlink }
+}
+
 use IZ4::Document;
 
 #| A fresh temporary directory; removed at process exit.

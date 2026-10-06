@@ -591,8 +591,11 @@ evidence, apparently consistent, uncertain or conflicting.
 `iz4 agent install` writes a short managed section into `AGENTS.md`, and
 `CLAUDE.md` with `--claude`. `--skill` adds a portable skill that carries the
 protocol and the foundation for places the CLI cannot reach.
-`iz4 agent status --strict` is the version for CI. A packet proves neither
-that an agent read it nor that the software conforms.
+`iz4 agent status --strict` is the version for CI. On every command that
+has it, `--strict` means one thing: exit 1 while anything remains to
+remedy, which for status includes hooks not installed; the plain run says
+the same and exits 0. A packet proves neither that an agent read it nor
+that the software conforms.
 
 A managed section can be ignored, and a compaction summary drops the
 packet. `iz4 agent install --hooks` makes the harness deliver it instead: a
