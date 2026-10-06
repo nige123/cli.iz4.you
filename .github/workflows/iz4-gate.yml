@@ -18,12 +18,15 @@ jobs:
           fetch-depth: 0
       - name: fetch approvals (detached, outside every tree)
         run: git fetch origin 'refs/iz4/approvals/*:refs/iz4/approvals/*' || true
-      - uses: actions/cache@v4
+      - uses: Raku/setup-raku@v1
         with:
-          path: ~/.rakubrew
-          key: iz4-runtime-${{ runner.os }}
-      - name: install iz4 from main (a published file would do once a release carries the gate)
-        run: IZ4_SOURCE=1 sh -c 'curl -fsSL https://raw.githubusercontent.com/nige123/cli.iz4.you/main/install | sh'
+          raku-version: latest
+      - name: iz4 from main, outside the tree under review (a published file will do once a release carries the gate)
+        run: |
+          git clone --quiet --depth 1 https://github.com/nige123/cli.iz4.you "$RUNNER_TEMP/iz4"
+          printf '#!/bin/sh\nexec raku -I "%s/lib" "%s/bin/iz4" "$@"\n' "$RUNNER_TEMP/iz4" "$RUNNER_TEMP/iz4" > "$RUNNER_TEMP/iz4-bin"
+          chmod +x "$RUNNER_TEMP/iz4-bin"
+          "$RUNNER_TEMP/iz4-bin" version
       - name: allowed signers, from a repository variable, never from the tree
         run: |
           printf '%s\n' "${{ vars.IZ4_ALLOWED_SIGNERS }}" > "$RUNNER_TEMP/allowed_signers"
@@ -36,4 +39,4 @@ jobs:
             BASE="${{ github.event.before }}"
             case "$BASE" in 0000000000000000000000000000000000000000|'') BASE=none;; esac
           fi
-          ~/.local/bin/iz4 gate --candidate=HEAD --base="$BASE" --enforce --approvers="$RUNNER_TEMP/allowed_signers"
+          "$RUNNER_TEMP/iz4-bin" gate --candidate=HEAD --base="$BASE" --enforce --approvers="$RUNNER_TEMP/allowed_signers"
