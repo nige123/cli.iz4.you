@@ -8,6 +8,9 @@ INIT {
     $cfg.spurt('') unless $cfg.e;
     %*ENV<GIT_CONFIG_GLOBAL>   = $cfg.Str;
     %*ENV<GIT_CONFIG_NOSYSTEM> = '1';
+    # and an identity, so a test's commits work on a machine with none set
+    %*ENV<GIT_AUTHOR_NAME>  = %*ENV<GIT_COMMITTER_NAME>  = 'iz4 test';
+    %*ENV<GIT_AUTHOR_EMAIL> = %*ENV<GIT_COMMITTER_EMAIL> = 't@test';
     END { try $cfg.unlink }
 }
 
