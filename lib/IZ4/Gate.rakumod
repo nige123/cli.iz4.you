@@ -125,14 +125,18 @@ sub export-tree(IO::Path $root, Str $tree --> IO::Path) is export {
     my $dir   = $*TMPDIR.add($tag);
     my $index = $*TMPDIR.add("$tag.index");
     $dir.mkdir;
-    {
-        temp %*ENV<GIT_INDEX_FILE> = $index.Str;
-        my ($rc, $, $err) = g($root, 'read-tree', $tree);
-        gate-error("cannot read tree $tree: {$err.trim.lines.head // ''}") if $rc != 0;
-        ($rc, $, $err) = g($root, 'checkout-index', '-a', '-f', '--prefix=' ~ $dir.Str ~ '/');
-        gate-error("cannot check out tree $tree: {$err.trim.lines.head // ''}") if $rc != 0;
-    }
-    try $index.unlink;
+    # GIT_INDEX_FILE points git at the temporary index for these two calls
+    # only. Restored by hand: 'temp' on a key that did not exist leaves it
+    # present and empty, and every later git command in a linked test then
+    # fails to write its own index.
+    my $had   = %*ENV<GIT_INDEX_FILE>:exists;
+    my $was   = %*ENV<GIT_INDEX_FILE>;
+    %*ENV<GIT_INDEX_FILE> = $index.Str;
+    LEAVE { if $had { %*ENV<GIT_INDEX_FILE> = $was } else { %*ENV<GIT_INDEX_FILE>:delete }; try $index.unlink }
+    my ($rc, $, $err) = g($root, 'read-tree', $tree);
+    gate-error("cannot read tree $tree: {$err.trim.lines.head // ''}") if $rc != 0;
+    ($rc, $, $err) = g($root, 'checkout-index', '-a', '-f', '--prefix=' ~ $dir.Str ~ '/');
+    gate-error("cannot check out tree $tree: {$err.trim.lines.head // ''}") if $rc != 0;
     $dir;
 }
 

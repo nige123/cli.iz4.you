@@ -240,6 +240,15 @@ is $rc, 0, 'a changed linked test that still names, quotes and passes is not a c
 like $out, /'(Invariant 5: tests/invariant-5.sh changed; its check runs below)'/, 'but is pointed out';
 g($r, 'checkout', 'HEAD', '--', 'tests/invariant-5.sh'); g($r, 'reset', '-q', 'tests');
 
+# a linked test that uses git itself must find a working git: the gate's own
+# temporary index must not leak into the checks it runs
+$r.add('tests/invariant-5.sh').spurt("#!/bin/sh\n# Invariant 5: People control whether their profile is visible.\n"
+    ~ "d=\$(mktemp -d) && cd \"\$d\" && git init -q && echo x > a && git add -A && git -c user.email=t\@t -c user.name=t commit -qm x && cd / && rm -rf \"\$d\"\n");
+g($r, 'add', 'tests');
+($rc, $out, $err) = gate($r, '--staged', '--enforce');
+is $rc, 0, 'a linked test that runs git itself passes: no GIT_INDEX_FILE leaks from the gate' or diag $out;
+g($r, 'checkout', 'HEAD', '--', 'tests/invariant-5.sh'); g($r, 'reset', '-q', 'tests');
+
 # ---- a code-only violation of a tested invariant is blocked --------------
 $r.add('lib/profile.txt').spurt("visible: public\n");
 g($r, 'add', 'lib');
