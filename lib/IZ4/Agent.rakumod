@@ -42,7 +42,9 @@ constant AGENT-PROTOCOL is export = q:to/END/;
     4.  Only the project owner decides what must remain true.  When they
         ask you to change it, edit the IZ4 before the code and let Git keep
         the history.  Never weaken an invariant, remove a check or redefine
-        success to make an implementation acceptable.
+        success to make an implementation acceptable.  'iz4 gate' shows
+        what a change commits to; agreement to it is a person's act at
+        'iz4 approve', never yours to supply or assume.
     5.  Keep the IZ4 small.  Do not add requirements, behaviours, plans,
         tasks, acceptance criteria or implementation detail to it.  An
         observed behaviour, a passing test or a repeated pattern is not

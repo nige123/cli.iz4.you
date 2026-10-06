@@ -8,6 +8,7 @@ use IZ4::Document;
 use IZ4::Launcher;
 use IZ4::Register;
 use IZ4::Git;
+use IZ4::Gate;
 use IZ4::Agent;
 use IZ4::Coach;
 use IZ4::Review;
@@ -55,6 +56,29 @@ sub USAGE() {
                                            --for-push: what is about to be pushed;
                                            --install-hook [--force]: advisory
                                            pre-push hook)
+      iz4 gate [--staged | --candidate=REV [--base=REV|none]]
+                                     does the change alter a commitment? Compares
+                                       two trees (never the working directory):
+                                       the IZ4 and the tests naming invariants,
+                                       and runs those tests from the candidate.
+                                       Outcome: pass, agreement-required,
+                                       blocked, unassessed, error. Advisory
+                                       unless --enforce, which makes the outcome
+                                       the exit code (0, 2, 3, 4, 1). --json;
+                                       --approval=FILE, --approvers=FILE (allowed
+                                       signers); --no-checks; --timeout=S;
+                                       --check-cmd='... \{file\}';
+                                       --install-hook [--enforce] [--force]: a
+                                       pre-commit hook on the staged tree
+      iz4 approve [--staged | --candidate=REV [--base=REV|none]]
+                                     show the proposal (exact before/after, the
+                                       protections touched, what the agreement
+                                       covers) and let a person accept, reject or
+                                       revise it. Accepting records a detached
+                                       approval under refs/iz4/approvals/<tree>;
+                                       --sign=KEY --by=PRINCIPAL signs it for an
+                                       acceptance boundary. A script never gets a
+                                       yes here: without a terminal it exits 2
       iz4 suggest                      ask an agent (through 321 when it is
                                            installed, else IZ4_AGENT_CMD,
                                            default 'claude -p') for a few
@@ -1045,6 +1069,156 @@ sub trademark-licence-note(--> Str) {
     needs registration.
       {TRADEMARK-LICENCE-URL}
     END
+}
+
+# ------------------------------------------------------------------ gate
+
+sub gate-root(Str $file --> IO::Path) {
+    my $path = resolve-target($file);
+    user-error("the gate works on a repository root IZ4; {display-name($path)} is not named {ROOT-NAME}") unless $path.basename eq ROOT-NAME;
+    my ($rc, $out, $) = git($path, 'rev-parse', '--show-toplevel');
+    user-error('not in a Git repository; the gate compares Git trees') if $rc != 0;
+    my $root = $out.trim.IO;
+    user-error("{display-name($path)} is not at the repository root ({$root})") unless $path.parent.resolve eq $root.resolve;
+    $root;
+}
+
+sub gate-lines(%r --> List) {
+    my @l;
+    my $b = %r<base> eq 'none' ?? 'no base (initial)' !! "base {%r<base>.substr(0, 12)} ({%r<base_ref>})";
+    @l.push: "gate: candidate tree {%r<candidate>.substr(0, 12)} ({%r<candidate_ref>}) against $b, {%r<mode>}";
+    if %r<iz4><candidate_present> || %r<iz4><base_present> {
+        my %p = changes => %r<changes>, protections => %r<protections>;
+        my @pl = proposal-lines(%p);
+        @l.push: 'commitments and protections: ' ~ (@pl ?? '' !! 'unchanged');
+        @l.push: "  $_" for @pl;
+        for |%r<protections>.grep({ .<kind> eq 'protection-changed' }) { @l.push: "  (Invariant {.<number>}: {.<detail>})" }
+        if %r<checks> {
+            @l.push: 'checks, run from the candidate tree:';
+            for |%r<checks> -> %c {
+                my $mark = %c<outcome> eq 'passed' ?? '✓' !! %c<outcome> eq 'failed' ?? '✗' !! '?';
+                @l.push: "  $mark {%c<file>} (Invariant {%c<invariants>.join(', ')}) {%c<outcome>}" ~ (%c<detail> ?? ": {%c<detail>}" !! '');
+            }
+        }
+        else { @l.push: 'checks: no test names an invariant, so nothing was run' }
+        @l.push: "touches, by their own words (for a person to look at, not a finding): Invariant {%r<touches>.map(*.<number>).join(', ')}" if %r<touches>;
+        given %r<approval><status> {
+            when 'valid'   { @l.push: "approval: valid ({%r<approval><level>}) by {%r<approval><approved_by>} at {%r<approval><approved_at>}" ~ (%r<approval><reasons> ?? "; {%r<approval><reasons>.join('; ')}" !! '') }
+            when 'invalid' { @l.push: "approval: invalid - {%r<approval><reasons>.join('; ')}" }
+            when 'missing' { @l.push: 'approval: none for this candidate tree' }
+        }
+    }
+    @l.push: "  note: $_" for |%r<notes>;
+    my %why =
+        pass => 'no commitment or protection changed, and every check that could run passed',
+        'agreement-required' => 'a commitment or protection changes; a person has to agree',
+        blocked => 'a definite finding that no approval can lift',
+        unassessed => 'a check could not be run, so this is not a pass';
+    @l.push: "outcome: {%r<outcome>} - {%why{%r<outcome>} // ''}";
+    @l;
+}
+
+multi MAIN('gate', Bool :$install-hook!, Bool :$enforce = False, Bool :$force = False, Str :$file) {
+    attempt {
+        my $path = resolve-target($file);
+        my $state = install-hook($path, :$force, :hook<pre-commit>, :text(gate-hook-text(:$enforce)),
+                                 :mark(GATE-HOOK-MARK), :manual('iz4 gate --staged'));
+        say "pre-commit hook: $state (" ~ ($enforce
+            ?? 'enforce: a commit whose gate outcome is not pass is refused here; git commit --no-verify skips it, which a protected boundary catches'
+            !! 'advisory: the gate speaks and never refuses; --enforce to make it refuse') ~ ')';
+        0;
+    }
+}
+
+multi MAIN('gate', Str :$base, Str :$candidate, Bool :$staged = False, Bool :$enforce = False, Bool :$json = False,
+           Bool :$checks = True, Int :$timeout = 300, Str :$check-cmd = %*ENV<IZ4_CHECK_CMD> // Str,
+           Str :$approval, Str :$approvers = %*ENV<IZ4_APPROVERS> // Str, Str :$file) {
+    attempt { gate-command(:$base, :$candidate, :$enforce, :$json, :$checks, :$timeout, :$check-cmd, :$approval, :$approvers, :$file) }
+}
+
+sub gate-command(Str :$base, Str :$candidate, Bool :$enforce, Bool :$json, Bool :$checks, Int :$timeout, Str :$check-cmd,
+                 Str :$approval, Str :$approvers, Str :$file --> Int) {
+    {
+        my $root = gate-root($file);
+        my %r;
+        my $failure = Nil;
+        try {
+            %r = run-gate($root, :staged(!$candidate.defined), :$base, :$candidate, :$enforce, :$checks, :$timeout,
+                          :$check-cmd, :approval-file($approval.defined ?? $approval.IO !! IO::Path),
+                          :approvers($approvers.defined ?? $approvers.IO !! IO::Path));
+            CATCH { default { $failure = $_ } }
+        }
+        with $failure {
+            %r = schema => GATE-SCHEMA, outcome => 'error', mode => ($enforce ?? 'enforce' !! 'advisory'),
+                 detail => .message, exit_code => 1, next => ('fix the cause above, then run iz4 gate again',).List;
+            if $json { say json-encode(%r) } else { note "gate: error - {.message}"; note 'outcome: error - the check could not complete, so this is not a pass' }
+            return 1;
+        }
+        if $json { say json-encode(%r) }
+        else {
+            say $_ for gate-lines(%r);
+            my $again = 'iz4 gate' ~ ($candidate.defined ?? " --candidate=$candidate" !! ' --staged') ~ ($enforce ?? ' --enforce' !! '');
+            say-next(%r<next>, :then($again)) if %r<next>;
+            say $enforce ?? "exit {%r<exit_code>}" !! 'advisory: this run refuses nothing; --enforce makes the outcome the exit code';
+        }
+        %r<exit_code>;
+    }
+}
+
+multi MAIN('approve', Str :$base, Str :$candidate, Bool :$staged = False, Str :$sign, Str :$by, Str :$out, Str :$note = '', Str :$file) {
+    attempt { approve-command(:$base, :$candidate, :$sign, :$by, :$out, :$note, :$file) }
+}
+
+sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out, Str :$note = '', Str :$file --> Int) {
+    {
+        my $root = gate-root($file);
+        user-error('--sign needs --by=<principal>, the name the allowed-signers file knows the key by') if $sign.defined && !$by.defined;
+        # the checks run here too: a person is only ever shown a proposal for a tree that is not blocked
+        my %r = run-gate($root, :staged(!$candidate.defined), :$base, :$candidate);
+        my %p = changes => %r<changes>, protections => %r<protections>;
+        if %r<outcome> eq 'blocked' {
+            say $_ for proposal-lines(%p);
+            say "  ✗ {.<file>} (Invariant {.<invariants>.join(', ')}) failed" ~ (.<detail> ?? ": {.<detail>}" !! '') for %r<checks>.grep({ .<outcome> eq 'failed' });
+            say 'Nothing to approve: a blocked finding is not a proposal. Fix it first.';
+            return %EXIT-CODE<blocked>;
+        }
+        unless needs-agreement(%p) {
+            say "Nothing needs agreement for candidate tree {%r<candidate>.substr(0, 12)}: no commitment or protection changed.";
+            return 0;
+        }
+        say "Proposal for candidate tree {%r<candidate>.substr(0, 12)} ({%r<candidate_ref>}) against "
+          ~ (%r<base> eq 'none' ?? 'no base' !! "base {%r<base>.substr(0, 12)} ({%r<base_ref>})") ~ ':';
+        say "  $_" for proposal-lines(%p);
+        say '';
+        say "Agreement covers exactly: repository {%r<repository>.substr(0, 12)}, base {%r<base>.substr(0, 12)}, candidate tree {%r<candidate>.substr(0, 12)},";
+        say "proposal digest {%r<proposal_digest>.substr(0, 12)}. Any change to the tree, the base or the proposal needs a new agreement.";
+        unless interactive() {
+            say '';
+            say 'pending: agreement needs a person at a terminal. Run iz4 approve there (with --sign=<key> --by=<principal> for an acceptance boundary).';
+            say 'Nothing was recorded.';
+            return %EXIT-CODE<agreement-required>;
+        }
+        my $answer = (ask('Accept, reject, or revise? [a/r/v] ') // '').trim.lc;
+        if $answer.starts-with('a') {
+            my $who = $by // do {
+                my ($rc, $o, $) = git($root.add(ROOT-NAME), 'config', 'user.email');
+                $rc == 0 && $o.trim ne '' ?? $o.trim !! (%*ENV<USER> // 'someone at this terminal');
+            };
+            my %snap = repository => %r<repository>, base => (%r<base> eq 'none' ?? Str !! %r<base>), candidate => %r<candidate>;
+            my %a = approval-body(%snap, %r<proposal_digest>, :by($who), :method($sign.defined ?? 'ssh-signature' !! 'terminal'), :$note);
+            %a<signature> = sign-approval(%a, $sign.IO) if $sign.defined;
+            my $ref = store-approval($root, %a);
+            if $out.defined { $out.IO.spurt(json-encode(%a) ~ "\n"); say "approval written to $out" }
+            say "Recorded: {%a<method>} approval by $who for tree {%r<candidate>.substr(0, 12)} at $ref";
+            say $sign.defined
+                ?? "An acceptance boundary accepts it once $who is in its allowed-signers file: git push origin $ref"
+                !! 'A terminal approval counts for local checks only; an acceptance boundary needs --sign=<key> --by=<principal>.';
+            return 0;
+        }
+        if $answer.starts-with('r') { say 'Rejected: nothing recorded. The gate still requires agreement for this tree.'; return %EXIT-CODE<agreement-required> }
+        say 'Revise the IZ4 or the tests, stage the result, and run iz4 approve again. Nothing recorded.';
+        %EXIT-CODE<agreement-required>;
+    }
 }
 
 multi MAIN('badge', Str :$file) {

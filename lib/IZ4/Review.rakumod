@@ -275,8 +275,9 @@ sub hook-text(--> Str) is export {
 
 #| Write the hook.  Refuses to replace a hook that is not ours unless
 #| :force.  Returns 'installed', 'unchanged' or 'updated'.
-sub install-hook(IO::Path $iz4, Bool :$force = False --> Str) is export {
-    my ($rc, $out, $err) = git($iz4, 'rev-parse', '--git-path', 'hooks/pre-push');
+sub install-hook(IO::Path $iz4, Bool :$force = False, Str :$hook = 'pre-push', Str :$text = hook-text(),
+                 Str :$mark = HOOK-MARK, Str :$manual = 'iz4 review --for-push' --> Str) is export {
+    my ($rc, $out, $err) = git($iz4, 'rev-parse', '--git-path', "hooks/$hook");
     X::IZ4.new(message => 'not in a Git repository; a hook needs one').throw if $rc != 0;
     # With core.hooksPath set, Git runs hooks from that directory, which is
     # often shared by every repository on the machine: iz4 never writes
@@ -284,22 +285,21 @@ sub install-hook(IO::Path $iz4, Bool :$force = False --> Str) is export {
     my ($hrc, $hpath, $) = git($iz4, 'config', '--get', 'core.hooksPath');
     if $hrc == 0 && $hpath.trim ne '' {
         X::IZ4.new(message => "core.hooksPath is set to {$hpath.trim}, so Git runs hooks from there, not from .git/hooks; "
-            ~ "iz4 does not write into a shared hooks directory.\nnext: add this line to {$hpath.trim}/pre-push yourself: iz4 review --for-push").throw;
+            ~ "iz4 does not write into a shared hooks directory.\nnext: add this line to {$hpath.trim}/$hook yourself: $manual").throw;
     }
-    my $hook = $out.trim.IO;
-    $hook = $iz4.parent.add($hook) unless $hook.is-absolute;
-    my $text = hook-text();
-    if $hook.e {
-        my $current = $hook.slurp;
+    my $file = $out.trim.IO;
+    $file = $iz4.parent.add($file) unless $file.is-absolute;
+    if $file.e {
+        my $current = $file.slurp;
         return 'unchanged' if $current eq $text;
-        X::IZ4.new(message => "{$hook} exists and is not the iz4 hook; pass --force to replace it, or call iz4 review --for-push from it").throw
-            unless $current.contains(HOOK-MARK) || $force;
-        $hook.spurt($text);
-        $hook.chmod(0o755);
+        X::IZ4.new(message => "{$file} exists and is not the iz4 hook; pass --force to replace it, or call $manual from it").throw
+            unless $current.contains($mark) || $force;
+        $file.spurt($text);
+        $file.chmod(0o755);
         return 'updated';
     }
-    $hook.parent.mkdir;
-    $hook.spurt($text);
-    $hook.chmod(0o755);
+    $file.parent.mkdir;
+    $file.spurt($text);
+    $file.chmod(0o755);
     'installed';
 }

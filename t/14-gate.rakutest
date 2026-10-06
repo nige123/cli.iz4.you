@@ -1,0 +1,309 @@
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+use IZ4::Document;
+use IZ4::Register;
+use IZ4::Gate;
+
+# The gate compares two Git trees and says whether a change alters a
+# commitment, needs a person's agreement, is blocked, or could not be
+# assessed.  Every scenario here is offline and hermetic.
+
+
+
+unless have-git() { skip-rest 'no git available'; exit }
+
+my %hermetic = GIT_CONFIG_GLOBAL => temp-dir().add('gitconfig').Str, GIT_CONFIG_NOSYSTEM => '1';
+%hermetic<GIT_CONFIG_GLOBAL>.IO.spurt('');
+%*ENV{.key} = .value for %hermetic;
+%*ENV<IZ4_APPROVERS>:delete;
+%*ENV<IZ4_CHECK_CMD>:delete;
+%*ENV<IZ4_INTERACTIVE> = '0';
+
+sub repo(--> IO::Path) {
+    my $r = temp-dir;
+    run 'git', '-C', $r.Str, 'init', '-q';
+    run 'git', '-C', $r.Str, 'config', 'user.email', 't@test';
+    run 'git', '-C', $r.Str, 'config', 'user.name', 'Test';
+    $r;
+}
+sub g(IO::Path $r, *@a) { my $p = run 'git', '-C', $r.Str, |@a, :out, :err; my $o = $p.out.slurp(:close); $p.err.slurp(:close); $o.trim }
+sub gate(IO::Path $r, *@a) { iz4($r, 'gate', |@a) }
+# the top-level field: the last occurrence, since nested checks carry an 'outcome' too
+sub json($out, $k) { my @m = $out.match(/ '"' $k '"' \s* ':' \s* [ '"' (<-["]>*) '"' | (<[0..9.-]>+) | 'null' ] /, :g); @m ?? (@m.tail[0].defined ?? @m.tail[0].Str !! Str) !! Str }
+
+# a project: an IZ4 with Invariant 5, a shell test that names and quotes
+# it and checks a file in the tree, so the test can be made to fail by a
+# code-only change
+my $r = repo;
+my $sp = minimal-iz4(:dir($r));
+add-invariant($sp, 'People control whether their profile is visible.', :because('Privacy.'));
+$r.add('lib').mkdir; $r.add('tests').mkdir;
+$r.add('lib/profile.txt').spurt("visible: private\n");
+$r.add('tests/invariant-5.sh').spurt("#!/bin/sh\n# Invariant 5: People control whether their profile is visible.\ngrep -q 'visible: private' lib/profile.txt\n");
+g($r, 'add', '-A');
+
+# ---- an initial tree: everything in it is a new commitment -----------------
+my ($rc, $out, $err) = gate($r, '--staged', '--json');
+is $rc, 0, 'advisory gate exits 0 whatever the outcome';
+is json($out, 'schema'), 'iz4-gate/1', 'the result is versioned';
+is json($out, 'outcome'), 'agreement-required', 'an initial IZ4 is a commitment change: agreement required';
+is json($out, 'base'), 'none', 'with no base, since HEAD is unborn';
+is json($out, 'selection'), 'staged', 'the staged tree was compared';
+like $out, /'"kind":"added"' .* '"number":5'/, 'Invariant 5 is reported as added';
+like $out, /'"kind":"purpose"'/, 'and so is IS FOR WHAT';
+($rc, $out, $err) = gate($r, '--staged', '--enforce');
+is $rc, 2, 'under --enforce agreement-required is exit 2';
+like $out, /'Invariant 5 added: People control whether their profile is visible.'/, 'the proposal shows the exact wording';
+like $out, /'✓ tests/invariant-5.sh (Invariant 5) passed'/, 'the linked test was run from the candidate tree';
+like $out, /"next:\n  1. iz4 approve --staged"/, 'and the next step is a person approving';
+g($r, 'commit', '-qm', 'init');
+
+# ---- a routine change passes without anyone being asked -------------------
+$r.add('README.md').spurt("hello\n");
+g($r, 'add', 'README.md');
+($rc, $out, $err) = gate($r, '--staged', '--enforce');
+is $rc, 0, 'a routine change passes under --enforce';
+like $out, /'commitments and protections: unchanged'/, 'nothing committed to changed';
+like $out, /'outcome: pass'/, 'outcome pass';
+($rc, $out, $err) = gate($r, '--staged', '--json');
+is json($out, 'outcome'), 'pass', 'and in JSON';
+is json($out, 'exit_code'), '0', 'exit code 0 in the result';
+g($r, 'commit', '-qm', 'readme');
+
+# ---- the working directory never substitutes for the staged tree ----------
+$sp.spurt($sp.slurp ~ "\nINVARIANT 6\nUnstaged words.\n\nBECAUSE\nNot staged.\n");
+($rc, $out, $err) = gate($r, '--staged', '--json');
+is json($out, 'outcome'), 'pass', 'an unstaged IZ4 edit is not in the candidate tree, so nothing changed';
+g($r, 'checkout', '--', 'IZ4');
+
+# ---- a new invariant needs agreement; a revision and a removal too --------
+add-invariant($sp, 'Employers cannot contact someone first.', :because('No new inbox.'));
+g($r, 'add', 'IZ4');
+($rc, $out, $err) = gate($r, '--staged', '--enforce');
+is $rc, 2, 'a new project invariant requires agreement';
+like $out, /'Invariant 6 added: Employers cannot contact someone first.' \n \s+ 'BECAUSE No new inbox.'/, 'with its BECAUSE';
+like $out, /'approval: none for this candidate tree'/, 'and no approval exists yet';
+my $tree6 = json(gate($r, '--staged', '--json')[1], 'candidate');
+
+# approving is a person's act: a script gets a pending state and nothing is recorded
+($rc, $out, $err) = iz4($r, 'approve', '--staged');
+is $rc, 2, 'approve without a terminal exits 2: pending';
+like $out, /'pending: agreement needs a person at a terminal'/, 'and says so';
+like $out, /'Nothing was recorded'/, 'recording nothing';
+is g($r, 'for-each-ref', 'refs/iz4/approvals/'), '', 'no approval ref was written';
+
+# a person at a terminal rejects: nothing recorded
+($rc, $out, $err) = iz4-talk($r, "r\n", 'approve', '--staged');
+is $rc, 2, 'a rejection exits 2';
+like $out, /'Rejected: nothing recorded'/, 'and records nothing';
+is g($r, 'for-each-ref', 'refs/iz4/approvals/'), '', 'still no approval ref';
+
+# a person at a terminal accepts: a terminal approval, bound to this exact tree
+($rc, $out, $err) = iz4-talk($r, "a\n", 'approve', '--staged');
+is $rc, 0, 'an acceptance exits 0';
+like $out, /'Agreement covers exactly: repository ' <xdigit>+ ', base ' <xdigit>+ ', candidate tree ' <xdigit>+/, 'the proposal says exactly what agreement covers';
+like $out, /'Recorded: terminal approval by t@test for tree ' <xdigit>**12 ' at refs/iz4/approvals/' <xdigit>+/, 'and where the approval went';
+like $out, /'counts for local checks only'/, 'a terminal approval says what it is good for';
+like g($r, 'for-each-ref', 'refs/iz4/approvals/'), /'refs/iz4/approvals/' $tree6/, 'the approval ref names the candidate tree';
+like g($r, 'cat-file', '-p', "refs/iz4/approvals/$tree6"), /'"schema":"iz4-approval/1"'/, 'and holds an iz4-approval/1 document';
+is g($r, 'ls-files', '--error-unmatch', 'approval.json'), '', 'nothing about the approval is inside the tree it approves';
+
+($rc, $out, $err) = gate($r, '--staged', '--json');
+is json($out, 'outcome'), 'pass', 'advisory: the terminal approval satisfies the agreement';
+like $out, /'"level":"terminal"'/, 'and is labelled terminal';
+($rc, $out, $err) = gate($r, '--staged', '--enforce');
+is $rc, 2, 'enforce: a terminal approval is not accepted at an acceptance boundary';
+like $out, /'approval: invalid - a terminal approval by t@test is not accepted under --enforce'/, 'and says why';
+like $out, /'iz4 approve --staged --sign=<key> --by=<principal>'/, 'and how to get one that is';
+
+# ---- a signed approval, verified against an allowed-signers file ----------
+my $have-ssh = so (try run 'ssh-keygen', '-Y', 'sign', :out, :err).defined;
+if $have-ssh {
+    my $keys = temp-dir;
+    my $key  = $keys.add('key');
+    run 'ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', $key.Str, :out, :err;
+    my $signers = $keys.add('allowed_signers');
+    $signers.spurt("owner\@example.com {$key.IO.extension('pub', :parts(0)).slurp}");
+    ($rc, $out, $err) = iz4-talk($r, "a\n", 'approve', '--staged', "--sign={$key}", '--by=owner@example.com');
+    is $rc, 0, 'a signed approval is recorded' or diag $err;
+    like $out, /'Recorded: ssh-signature approval by owner@example.com'/, 'and named as such';
+    ($rc, $out, $err) = gate($r, '--staged', '--enforce', "--approvers={$signers}");
+    is $rc, 0, 'enforce: a signed approval by an allowed signer passes';
+    like $out, /'approval: valid (signed) by owner@example.com'/, 'and is labelled signed';
+    ($rc, $out, $err) = gate($r, '--staged', '--enforce');
+    is $rc, 2, 'enforce with no allowed-signers file does not accept even a signed approval';
+    like $out, /'no allowed-signers file was given'/, 'and says so';
+    my $others = $keys.add('others');
+    my $key2 = $keys.add('key2');
+    run 'ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', $key2.Str, :out, :err;
+    $others.spurt("owner\@example.com {$key2.IO.extension('pub', :parts(0)).slurp}");
+    ($rc, $out, $err) = gate($r, '--staged', '--enforce', "--approvers={$others}");
+    is $rc, 2, 'a signature by a key the boundary does not list is refused';
+    like $out, /'signature does not verify'/, 'and says so';
+    # a forged approval: the stored document edited after signing
+    my $forged = temp-dir.add('forged.json');
+    $forged.spurt(g($r, 'cat-file', '-p', "refs/iz4/approvals/$tree6").subst('"method":"ssh-signature"', '"method":"ssh-signature","note":"edited"'));
+    ($rc, $out, $err) = gate($r, '--staged', '--enforce', "--approvers={$signers}", "--approval={$forged}");
+    is $rc, 2, 'an approval edited after signing is refused';
+    like $out, /'signature does not verify'/, 'because its signature no longer verifies';
+}
+else { skip 'ssh-keygen -Y not available', 10 }
+
+# a malformed approval never passes anything
+my $bad = temp-dir.add('bad.json');
+$bad.spurt("approved\n");
+($rc, $out, $err) = gate($r, '--staged', '--enforce', "--approval={$bad}");
+is $rc, 2, 'a file that merely says approved is not an approval';
+like $out, /'approval: invalid - approval is not an iz4-approval/1 document'/, 'and the gate says what it got';
+
+# editing the staged tree after approval invalidates it
+$r.add('README.md').spurt("hello again\n");
+g($r, 'add', 'README.md');
+($rc, $out, $err) = gate($r, '--staged', '--json');
+is json($out, 'outcome'), 'agreement-required', 'a different candidate tree has no approval';
+like $out, /'"status":"missing"'/, 'the approval for the earlier tree does not transfer';
+g($r, 'checkout', 'HEAD', '--', 'README.md');
+g($r, 'reset', '-q', 'README.md');
+($rc, $out, $err) = gate($r, '--staged', '--json');
+is json($out, 'outcome'), 'pass', 'restoring the exact tree restores the approval';
+g($r, 'commit', '-qm', 'invariant 6');
+
+# ---- the same gate over revisions: a bypassed local hook is caught later ---
+($rc, $out, $err) = gate($r, '--candidate=HEAD', '--enforce', '--json');
+is json($out, 'outcome'), 'agreement-required', 'the committed change still needs agreement when checked by revision';
+is json($out, 'selection'), 'revisions', 'revision selection';
+is json($out, 'base_ref'), 'HEAD^1', 'the base defaults to the first parent';
+($rc, $out, $err) = gate($r, '--candidate=HEAD', '--base=HEAD~2', '--json');
+like $out, /'"kind":"added"' .* '"number":6'/, 'an explicit base covers several commits at once';
+my $root = g($r, 'rev-list', '--max-parents=0', 'HEAD');
+($rc, $out, $err) = gate($r, "--candidate=$root", '--base=none', '--json');
+is json($out, 'base'), 'none', 'an initial commit is gated against no base';
+is json($out, 'outcome'), 'agreement-required', 'and its whole IZ4 is a new commitment';
+($rc, $out, $err) = gate($r, '--candidate=nonsense', '--json');
+is $rc, 1, 'an unknown revision is an operational error, exit 1 even in advisory mode';
+is json($out, 'outcome'), 'error', 'reported as error, never pass';
+
+# an approval made by revision is bound to that commit's tree and base
+($rc, $out, $err) = iz4-talk($r, "a\n", 'approve', '--candidate=HEAD');
+is $rc, 0, 'approving by revision works';
+($rc, $out, $err) = gate($r, '--candidate=HEAD', '--json');
+is json($out, 'outcome'), 'pass', 'and satisfies the gate for that revision';
+($rc, $out, $err) = gate($r, '--candidate=HEAD', '--base=HEAD~2', '--json');
+is json($out, 'outcome'), 'agreement-required', 'but not with another base';
+like $out, /'rebased or merged, so agree again'/, 'which the gate explains';
+
+# ---- a revision, a removal, a weakened protection -------------------------
+$sp.spurt($sp.slurp.subst('Employers cannot contact someone first.', 'Employers may contact anyone.'));
+g($r, 'add', 'IZ4');
+($rc, $out, $err) = gate($r, '--staged', '--enforce');
+is $rc, 2, 'revising an invariant requires agreement';
+like $out, /'Invariant 6 revised' \n \s+ 'before: Employers cannot contact someone first.' .* \n \s+ 'after:  Employers may contact anyone.'/, 'with exact before and after';
+g($r, 'checkout', 'HEAD', '--', 'IZ4'); g($r, 'reset', '-q', 'IZ4');
+
+($rc, $out, $err) = iz4($r, 'withdraw', '6', '--force');
+g($r, 'add', 'IZ4');
+($rc, $out, $err) = gate($r, '--staged', '--json');
+is json($out, 'outcome'), 'agreement-required', 'withdrawing an invariant requires agreement';
+like $out, /'"kind":"removed"' .* '"number":6'/, 'as a removal';
+g($r, 'commit', '-qm', 'withdraw 6');
+
+# a retired number coming back is blocked, not approvable
+$sp.spurt($sp.slurp ~ "\nINVARIANT 6\nSomething else entirely.\n\nBECAUSE\nReasons.\n");
+g($r, 'add', 'IZ4');
+($rc, $out, $err) = gate($r, '--staged', '--enforce');
+is $rc, 3, 'reusing a withdrawn number is blocked';
+like $out, /'BLOCKED: Invariant 6 was withdrawn before'/, 'and says why';
+g($r, 'checkout', 'HEAD', '--', 'IZ4'); g($r, 'reset', '-q', 'IZ4');
+
+# the linked test deleted: protection removed
+g($r, 'rm', '-q', 'tests/invariant-5.sh');
+($rc, $out, $err) = gate($r, '--staged', '--enforce');
+is $rc, 2, 'removing the test that names an invariant requires agreement';
+like $out, /'Protection of Invariant 5: removed'/, 'as a protection removal';
+g($r, 'checkout', 'HEAD', '--', 'tests/invariant-5.sh'); g($r, 'reset', '-q', 'tests');
+
+# a skip line added to the linked test: weakened, suspected
+$r.add('tests/invariant-5.sh').spurt($r.add('tests/invariant-5.sh').slurp.subst("grep", "exit 0 # skip for now\ngrep"));
+g($r, 'add', 'tests');
+($rc, $out, $err) = gate($r, '--staged', '--enforce');
+is $rc, 2, 'a new skip line in the linked test requires agreement';
+like $out, /'Protection of Invariant 5: weakened'/, 'as a suspected weakening';
+g($r, 'checkout', 'HEAD', '--', 'tests/invariant-5.sh'); g($r, 'reset', '-q', 'tests');
+
+# a harmless edit to the linked test is noted, not gated
+$r.add('tests/invariant-5.sh').spurt($r.add('tests/invariant-5.sh').slurp ~ "# a comment\n");
+g($r, 'add', 'tests');
+($rc, $out, $err) = gate($r, '--staged', '--enforce');
+is $rc, 0, 'a changed linked test that still names, quotes and passes is not a commitment change';
+like $out, /'(Invariant 5: tests/invariant-5.sh changed; its check runs below)'/, 'but is pointed out';
+g($r, 'checkout', 'HEAD', '--', 'tests/invariant-5.sh'); g($r, 'reset', '-q', 'tests');
+
+# ---- a code-only violation of a tested invariant is blocked --------------
+$r.add('lib/profile.txt').spurt("visible: public\n");
+g($r, 'add', 'lib');
+($rc, $out, $err) = gate($r, '--staged', '--enforce');
+is $rc, 3, 'a failing linked test blocks, with the IZ4 untouched';
+like $out, /'✗ tests/invariant-5.sh (Invariant 5) failed'/, 'naming the test and the invariant';
+like $out, /'outcome: blocked'/, 'outcome blocked';
+($rc, $out, $err) = gate($r, '--staged', '--json');
+is json($out, 'outcome'), 'blocked', 'in advisory mode the outcome is the same';
+is $rc, 0, 'and the exit code is still 0 there';
+# an approval cannot lift a blocked outcome
+($rc, $out, $err) = iz4-talk($r, "a\n", 'approve', '--staged');
+is $rc, 3, 'approve refuses a blocked candidate';
+like $out, /'Nothing to approve: a blocked finding is not a proposal'/, 'and says so';
+g($r, 'checkout', 'HEAD', '--', 'lib/profile.txt'); g($r, 'reset', '-q', 'lib');
+
+# ---- the foundation cannot be weakened by any project ---------------------
+$sp.spurt($sp.slurp.subst('Help people thrive, on their own terms.', 'Help people thrive, mostly.'));
+g($r, 'add', 'IZ4');
+($rc, $out, $err) = gate($r, '--staged', '--enforce');
+is $rc, 3, 'altering Invariants 0-4 is blocked';
+like $out, /'no project approval can change them (Invariant 4)'/, 'and the gate says no approval can lift it';
+like $out, /"next:\n  1. iz4 foundation --restore"/, 'with the restore as the next step';
+g($r, 'checkout', 'HEAD', '--', 'IZ4'); g($r, 'reset', '-q', 'IZ4');
+
+# ---- checks that cannot complete are unassessed, never a pass --------------
+my $have-timeout = so (try run 'timeout', '--version', :out, :err).?exitcode == 0;
+$r.add('lib/profile.txt').spurt("visible: private\n# touched\n");
+g($r, 'add', 'lib');
+if $have-timeout {
+    my $slow = temp-dir.add('slow.sh');
+    $slow.spurt("#!/bin/sh\nsleep 3\nexit 0\n");
+    ($rc, $out, $err) = gate($r, '--staged', '--enforce', '--timeout=1', "--check-cmd=sh {$slow} \{file\}");
+    is $rc, 4, 'a check that times out makes the outcome unassessed, exit 4';
+    like $out, /'? tests/invariant-5.sh (Invariant 5) timeout'/, 'and names the test';
+}
+else { skip 'no timeout utility', 2 }
+($rc, $out, $err) = gate($r, '--staged', '--enforce', '--check-cmd=no-such-runner-here {file}');
+is $rc, 4, 'a runner that cannot be found makes the outcome unassessed';
+like $out, /'outcome: unassessed - a check could not be run, so this is not a pass'/, 'and the outcome says it is not a pass';
+($rc, $out, $err) = gate($r, '--staged', '--enforce', '--/checks');
+is $rc, 4, 'skipping the checks when linked tests exist is unassessed, not pass';
+like $out, /'checks were not run'/, 'and says so';
+g($r, 'checkout', 'HEAD', '--', 'lib/profile.txt'); g($r, 'reset', '-q', 'lib');
+
+# ---- the pre-commit hook ---------------------------------------------------
+($rc, $out, $err) = gate($r, '--install-hook');
+like $out, /'pre-commit hook: installed (advisory'/, 'the advisory hook installs' or diag $err;
+my $hook = $r.add('.git/hooks/pre-commit');
+like $hook.slurp, /'iz4 gate --staged; exit 0'/, 'and never refuses';
+($rc, $out, $err) = gate($r, '--install-hook', '--enforce');
+like $out, /'pre-commit hook: updated (enforce'/, 'the enforcing hook replaces it';
+like $hook.slurp, /'iz4 gate --staged --enforce'/, 'and refuses on any outcome but pass';
+$hook.spurt("#!/bin/sh\necho mine\n");
+($rc, $out, $err) = gate($r, '--install-hook');
+is $rc, 1, 'a hook that is not ours is never overwritten';
+like $err, /'--force'/, 'without --force';
+is $hook.slurp, "#!/bin/sh\necho mine\n", 'and is left alone';
+
+# ---- no IZ4 anywhere: nothing to gate --------------------------------------
+my $plain = repo;
+$plain.add('README.md').spurt("x\n");
+g($plain, 'add', '-A');
+($rc, $out, $err) = gate($plain, '--staged', '--json');
+is $rc, 1, 'a repository without an IZ4 is told so (the gate needs one to find the root)';
+
+done-testing;

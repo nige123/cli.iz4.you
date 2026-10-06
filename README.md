@@ -285,6 +285,52 @@ add there instead), and the workflow `iz4 register --github` writes runs the off
 every push. A conflict is the agent's reading of the diff, shown with its
 evidence: you decide.
 
+## The gate: commitments change only by agreement
+
+Routine commits should move freely. A new, revised or withdrawn project
+invariant, a change to what the software is for or who it serves, or a
+weakened test that protects an invariant should not pass on an agent's
+say-so. `iz4 gate` compares two Git trees, the staged index against HEAD
+by default or two revisions for CI, never the working directory, and says
+in one of five words what it found:
+
+```text
+$ iz4 gate --staged
+gate: candidate tree 9882b2ce7c93 (index) against base b782ea6ec478 (HEAD), advisory
+commitments and protections:
+  Invariant 6 added: Employers cannot contact someone first.
+    BECAUSE No new inbox.
+checks, run from the candidate tree:
+  ✓ tests/invariant-5.sh (Invariant 5) passed
+approval: none for this candidate tree
+outcome: agreement-required - a commitment or protection changes; a person has to agree
+next:
+  1. iz4 approve --staged
+```
+
+`pass` (nothing committed to changed, the checks that exist passed),
+`agreement-required`, `blocked` (a failing test that names an invariant,
+an invalid IZ4, Invariants 0-4 altered, a withdrawn number reused: no
+approval lifts these), `unassessed` (a check could not run, which is
+never a pass) and `error`. The tests that name invariants are run from
+the candidate tree. Without `--enforce` the gate is advisory and exits 0;
+with it the outcome is the exit code (0, 2, 3, 4, 1) and only `pass`
+accepts. `--json` gives the result as `iz4-gate/1`.
+
+`iz4 approve` shows the proposal, the exact before and after wording and
+what the agreement covers, and lets a person accept, reject or revise it
+at a terminal. A script gets `pending` and exit 2; there is no `--yes`.
+Accepting records a detached approval under `refs/iz4/approvals/<tree>`,
+bound to the repository, the base, the exact candidate tree and the
+proposal, so it cannot sit inside the tree it approves and stops applying
+the moment any of them changes. A terminal yes counts for local checks;
+`--sign=KEY --by=PRINCIPAL` signs it with an SSH key, and
+`iz4 gate --enforce --approvers=FILE` at a protected boundary accepts only
+that. `iz4 gate --install-hook` writes a pre-commit hook, advisory or
+`--enforce`, and never over a hook that is not its own. What each tier is
+worth, the CI step, and the contract a harness such as 321 calls:
+[docs/gate.md](docs/gate.md).
+
 ## Commands
 
 ```text
@@ -300,6 +346,16 @@ iz4 withdraw N                   take invariant N out, once you confirm; its
                                    number is retired for good, Git keeps the
                                    words, and 0-4 cannot be withdrawn (--force
                                    in a script)
+iz4 gate [--staged|--candidate=REV [--base=REV|none]]
+                                 does the change alter a commitment? two trees
+                                   compared, the tests naming invariants run:
+                                   pass, agreement-required, blocked, unassessed
+                                   or error (--enforce: the exit code; --json;
+                                   --approvers=FILE; --install-hook [--enforce])
+iz4 approve [--staged|--candidate=REV]
+                                 the proposal, for a person to accept, reject or
+                                   revise; a detached approval for that exact
+                                   tree (--sign=KEY --by=PRINCIPAL to sign it)
 iz4 review [RANGE|--staged]      which invariants a change touches, your agent's
                                    assessment, and any invariant it reveals
                                    (--offline, --strict, --for-push, --install-hook)
