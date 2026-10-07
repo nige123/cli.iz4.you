@@ -20,6 +20,7 @@
         "IZ4::Grammar": "lib/IZ4/Grammar.rakumod",
         "IZ4::Hook": "lib/IZ4/Hook.rakumod",
         "IZ4::Launcher": "lib/IZ4/Launcher.rakumod",
+        "IZ4::Machine": "lib/IZ4/Machine.rakumod",
         "IZ4::Register": "lib/IZ4/Register.rakumod",
         "IZ4::Review": "lib/IZ4/Review.rakumod"
     },
