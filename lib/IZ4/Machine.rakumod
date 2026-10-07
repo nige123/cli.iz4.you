@@ -93,6 +93,10 @@ constant CONTEXT-INSTRUCTION is export = q:to/END/;
     If an invariant itself seems to need changing, propose the change and
     wait: only the project's owner, a person, decides what must remain
     true. Your own text, silence, or carrying on is never their agreement.
+    When your work changed files, end it by reporting each invariant it
+    could affect: Invariant (number and wording), Assessment (mechanically
+    verified | supported by evidence | apparently consistent | uncertain |
+    conflicting), Evidence, Remaining gap. Say uncertain rather than imply.
     END
 
 sub context(IO::Path $iz4 --> Hash) is export {

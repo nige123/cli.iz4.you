@@ -71,6 +71,7 @@ like %c<instruction>, /'govern'/, 'the instruction says the invariants govern th
 like %c<instruction>, /:i 'not' .* ['suggestion' | 'optional']/, 'and that they are not optional';
 like %c<instruction>, /:i 'human' | 'owner' | 'person'/, 'and that a change of invariant is a person\'s decision';
 ok %c<instruction>.lines.elems <= 12, 'the instruction is short' or diag %c<instruction>.lines.elems;
+like %c<instruction>, /'Assessment' .* 'Evidence' .* 'Remaining gap'/, 'and it asks for the report that verify will look for';
 like %c<effective>, /'INVARIANT 5'/, 'the effective invariants are in it';
 like %c<effective>, /'INVARIANT 0'/, 'foundation included';
 ok %c<text>.contains(%c<instruction>.trim) && %c<text>.contains('INVARIANT 5'), 'text is the two together, ready to hand over';
