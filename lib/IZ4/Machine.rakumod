@@ -369,7 +369,7 @@ sub verify(IO::Path $root, Str :$transcript, Str :$summary, *%opts --> Hash) is 
         my $last = $summary.defined ?? $summary.IO.slurp !! last-assistant-text($transcript);
         @uncertain = report-uncertain($last);
         if !$changed { @parts.push: %( part => 'report', result => PASS, detail => 'nothing changed, so no report is owed' ) }
-        elsif $last ~~ /:i 'invariant' .* 'assessment' .* [ 'evidence' | 'remaining gap' ] / {
+        elsif carries-report($last) {
             @parts.push: %( part => 'report', result => PASS, detail => 'the work ends with a per-invariant report' );
         }
         else {
@@ -388,6 +388,18 @@ sub verify(IO::Path $root, Str :$transcript, Str :$summary, *%opts --> Hash) is 
     %evidence<gate> = %change<evidence><gate> if %change;
     result-doc('verify', $worst, $reason, ($iz4.f ?? $iz4 !! IO::Path), :invariants(@inv), :%evidence, :$proposed,
         :limits('a report that is present is not thereby true, and an invariant no test names is not verified by this; parts marked not_checked were not run'));
+}
+
+#| Whether text carries a per-invariant report: an invariant named, an
+#| assessment of it (the label, or one of the five values an assessment
+#| takes), and evidence or a remaining gap.  It is recognised by what it
+#| says, not by its layout, so a report written as a sentence counts.
+#| That it is present says nothing about whether it is true.
+sub carries-report(Str $text --> Bool) is export {
+    my $t = $text.lc;
+    return False unless $t ~~ / 'invariant' /;
+    return False unless $t ~~ / 'assessment' | 'mechanically verified' | 'supported by evidence' | 'apparently consistent' | 'uncertain' | 'conflicting' /;
+    so $t ~~ / 'evidence' | 'remaining gap' /;
 }
 
 #| The invariants a per-invariant report itself marks uncertain or

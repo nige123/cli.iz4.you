@@ -214,6 +214,17 @@ ok %v<result> eq 'pass' && %v<evidence><report><uncertain>.join eq 'Invariant 5 
 ($rc, $out, $err) = iz4($r, 'verify', '--worktree', '--summary=/no/such/file', '--json');
 is $rc, 1, 'a summary file that is not there is an error, never a pass';
 
+# a report is recognised by what it says, not by its layout
+$words.spurt("Created the file.\nIZ4 invariants this change could affect:\n- Invariant 5 (profiles): supported by evidence. Only a file was added. Remaining gap: not read back.\n");
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$words", '--json');
+is doc($out)<result>, 'pass', 'a report written as a sentence, with an assessment value and a remaining gap, counts';
+$words.spurt("I checked Invariant 5 and it is fine.\n");
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$words", '--json');
+is doc($out)<result>, 'block', 'naming an invariant without assessing it does not';
+$words.spurt("This is uncertain and there is no evidence.\n");
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$words", '--json');
+is doc($out)<result>, 'block', 'nor does an assessment that names no invariant';
+
 # an invalid IZ4 never verifies
 $sp.spurt("IZ4\n\nnonsense\n");
 ($rc, $out, $err) = iz4($r, 'verify', '--worktree', '--json');
