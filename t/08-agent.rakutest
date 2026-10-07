@@ -118,7 +118,7 @@ $dir.add(SKILL-PATH).spurt("tampered\n");
 ($rc, $out, $err) = iz4($dir, 'agent', 'status', '--strict', :env(%( IZ4_NO_321 => '1' )));
 is $rc, 1, 'strict exits 1 on a stale integration';
 like $out, /"next:\n" .* "iz4 agent install --skill\n" .* "  then: iz4 agent status again\n"/, 'and status says what to run next';
-like $out, /"next:\n  1. install 321 0.4.0 or later (the environment driver), then: iz4 agent install --hooks --strict\n  2. iz4 agent install --skill\n"/,
+like $out, /"next:\n  1. install 321 0.4.0 or later (the environment driver), then: 321 iz4 install\n  2. iz4 agent install --skill\n"/,
     'the step that enforces anything comes before the wording refreshes, and with no driver it starts with getting one';
 like $out, /'SKILL.md: integration installed but stale (written by an earlier iz4 or edited by hand since)' .* 'enforcement comes from hooks, not from this text'/,
     'a stale integration says why it is stale and that the refresh is wording only';

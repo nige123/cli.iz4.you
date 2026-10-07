@@ -74,20 +74,23 @@ if have-git() {
         is $rc, 0, 'a default install with no driver still succeeds';
         nok $plain.add('.claude/settings.json').e, 'and writes no harness configuration, whatever the repository looks like';
         unlike $o, /'installing the advisory set'/, 'it does not claim to be installing hooks';
+        like $o, /'hooks: none installed. Driving an agent harness is 321\'s job' .* '321 iz4 install'/, 'and says in one line whose job that is, and how to get it done';
         ($rc, $o, $e) = iz4($plain, 'agent', 'install', '--hooks', :env(%no));
-        is $rc, 1, 'asked outright for hooks with no driver, it fails rather than pretend';
-        like $o, /'iz4 does not install itself into agent environments'/, 'and says why';
-        like $o, /'321 is the reference driver' .* '321 iz4 install'/, 'what would do it';
-        like $o, /'iz4 context' .* 'iz4 check action' .* 'iz4 verify'/, 'and how any other environment can drive iz4 itself';
+        is $rc, 0, 'asked for hooks with no driver, the rest of the install stands';
+        like $e, /'hooks: not installed.'/, 'with a warning that none were installed';
+        like $e, /'IZ4 defines the invariant checks but does not install' \s+ 'agent-environment hooks directly'/, 'and why';
+        like $e, /'No environment driver is available' .* 'then run: 321 iz4 install'/, 'what would do it';
+        like $e, /'iz4 context' .* 'iz4 check action' .* 'iz4 verify'/, 'and how any other environment can drive iz4 itself';
         nok $plain.add('.claude/settings.json').e, 'still writing nothing';
         ($rc, $o, $e) = iz4($plain, 'agent', 'install', '--hooks', '--strict', :env(%no));
-        is $rc, 1, '--strict with no driver fails the same way';
+        is $rc, 1, '--strict with no driver fails rather than pretend';
         ($rc, $o, $e) = iz4($plain, 'agent', 'status', :env(%no));
-        like $o, /'no hooks are wired' .* 'iz4 leaves agent environments to a driver'/, 'status says no hooks are wired, and whose job that is';
+        like $o, /'iz4 finds no hooks of its own here' .* 'iz4 leaves agent environments to a driver'/, 'status says it finds none of its own, and whose job wiring is';
         ($rc, $o, $e) = iz4($plain, 'agent', 'status', '--json', :env(%no));
-        like $o, /'"hooks":"unknown"'/, 'and in JSON the hooks are unknown: iz4 read no harness configuration to find out';
-        like $plain.add('AGENTS.md').slurp, /'To the people who own this repository' .* 'iz4 agent install --hooks --strict'/,
-            'the managed section tells the owners the command that enforces';
+        like $o, /'"hooks":"unknown"'/, 'and in JSON the hooks are unknown: iz4 looked only for its own';
+        my $section = $plain.add('AGENTS.md').slurp;
+        like $section, /'To the people who own this repository' .* '321 iz4 install'/, 'the managed section tells the owners the command that wires the checks in';
+        unlike $section, /'iz4 agent install --hooks'/, 'and no longer one that installs nothing';
     }
     nok $repo.add('.claude/settings.json').e, 'nothing in this file ever wrote a harness\'s settings';
     my ($hrc, $hout, $herr) = iz4-talk($repo, '{"session_id":"z9","tool_input":{"file_path":"lib/Y.pm"}}', 'hook', 'pre-edit');
@@ -95,7 +98,7 @@ if have-git() {
     like $herr, /'IZ4 agent packet'/, 'with the packet on standard error';
 }
 else {
-    skip 'git not available', 31;
+    skip 'git not available', 34;
 }
 
 done-testing;

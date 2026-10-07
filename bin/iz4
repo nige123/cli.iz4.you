@@ -877,6 +877,13 @@ multi MAIN('agent', 'install', Bool :$claude = False, Bool :$skill = False, Bool
         say "hooks: installing the advisory set by default, since an agent harness is in use here (--/hooks to skip, --strict to add the gates)"
             if $by-default;
         my $failed = False;
+        # A plain install with no driver wires nothing; where the repository
+        # is set up for an agent, one line says whose job that is.
+        if !$hooks-now && !$hooks.defined && !$driver.defined {
+            my @legacy = legacy-hooks(:$root);
+            if @legacy { say "hooks: the Claude Code hooks an earlier iz4 wrote ({@legacy.join(', ')}) are untouched and still active; 321 {DRIVER-MIN-VERSION} or later can adopt them (321 iz4 install)" }
+            elsif expected-integrations(:$root).elems > 1 { say "hooks: none installed. Driving an agent harness is 321's job: with 321 {DRIVER-MIN-VERSION} or later ({LAUNCHER-RELEASES}), run 321 iz4 install" }
+        }
         if $hooks-now {
             with $driver -> $bin {
                 my %h = driver($bin, 'install', :$root, :advisory(!$strict));
@@ -885,24 +892,40 @@ multi MAIN('agent', 'install', Bool :$claude = False, Bool :$skill = False, Bool
                 $failed = so @(%h<harnesses> // []).grep({ (.<action> // '') eq 'failed' });
             }
             else {
-                $failed = True;
-                say no-driver-lines().join("\n");
+                # Nothing here knows a harness.  Asked with --strict that is a
+                # failure; asked without, it is a warning and the rest stands.
+                $failed = $strict;
+                note no-driver-lines(:$root).join("\n");
             }
         }
         say "These integrations only encourage adherence in tools that load them"
-          ~ ($hooks-now ?? '; a hook can prove the packet was delivered and a report written, never that an invariant was honoured.' !! '.');
+          ~ ($hooks-now && $driver.defined ?? '; a hook can prove the packet was delivered and a report written, never that an invariant was honoured.' !! '.');
         $failed ?? 1 !! 0;
     }
 }
 
 #| What is said when hooks are asked for and nothing here knows a harness.
-sub no-driver-lines(--> List) {
+sub no-driver-lines(IO::Path :$root! --> List) {
     my $bin = launcher-binary();
-    my $have = $bin.defined ?? " (the 321 here is {launcher-version($bin)})" !! '';
-    ("hooks: not installed. iz4 does not install itself into agent environments: that takes something that knows the environment.",
-     "  321 is the reference driver. With 321 {DRIVER-MIN-VERSION} or later$have, 'iz4 agent install --hooks' or '321 iz4 install'",
-     "  wires iz4 into every harness 321 knows, and '321 iz4 status' says how strongly it is enforced.",
-     "  Any other environment can drive iz4 itself: iz4 context, iz4 check action, iz4 check change, iz4 verify (docs/drivers.md).");
+    my @legacy = legacy-hooks(:$root);
+    my @l = "hooks: not installed.",
+            "  IZ4 defines the invariant checks but does not install agent-environment hooks directly.",
+            ($bin.defined
+                ?? "  No environment driver is available: the 321 here is {launcher-version($bin)}, and wiring a harness needs {DRIVER-MIN-VERSION} or later."
+                !! "  No environment driver is available."),
+            "  Install 321 {DRIVER-MIN-VERSION} or later ({LAUNCHER-RELEASES}), then run: 321 iz4 install",
+            "  Any other environment can call iz4 itself: iz4 context, iz4 check action, iz4 check change, iz4 verify (docs/drivers.md).";
+    @l.push("  The Claude Code hooks an earlier iz4 wrote here ({@legacy.join(', ')}) are untouched and still active.") if @legacy;
+    @l.List;
+}
+
+#| How the hooks an earlier iz4 wrote can be handed to a driver, given
+#| what is installed here.
+sub legacy-migration(--> Str) {
+    my $bin = launcher-binary();
+    return "321 {launcher-version(driver-binary())} can adopt this wiring: 321 iz4 install" if driver-binary().defined;
+    return "321 {DRIVER-MIN-VERSION} or later can adopt this wiring; the 321 here is {launcher-version($bin)}. Nothing needs doing until then." if $bin.defined;
+    "321 {DRIVER-MIN-VERSION} or later can adopt this wiring; no 321 is installed. Nothing needs doing until then.";
 }
 
 # ------------------------------------------------------------ hook
@@ -934,7 +957,12 @@ multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$
         # harness's configuration.
         my $driver = driver-binary();
         my %enf = $driver.defined ?? ((try driver($driver, 'status', :$root)) // %()) !! %();
-        %s<hooks> = %enf ?? driver-level(%enf) !! 'unknown';
+        # The one thing iz4 does read is wiring an earlier iz4 wrote itself,
+        # so that hooks still firing are never reported as absent.
+        my @legacy = legacy-hooks(:$root);
+        %s<hooks> = %enf ?? driver-level(%enf) !! @legacy ?? 'aware' !! 'unknown';
+        %s<legacy_hooks> = %( harness => 'claude_code', file => LEGACY-SETTINGS, events => [ |@legacy ],
+            managed_by => 'legacy iz4 wiring', enforcement => 'aware', migration => legacy-migration() ) if @legacy;
         %s<enforcement> = %enf if %enf;
         if $json { say json-encode(%s) }
         else {
@@ -956,9 +984,14 @@ multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$
             }
             elsif $driver.defined { say "321 is installed at $driver but '321 iz4 status' failed" }
             elsif $bin.defined {
-                say "321 {%s<launcher><version>} is installed, but wiring a harness needs {DRIVER-MIN-VERSION} or later: hooks are not wired, and iz4 wires none itself";
+                say "321 {%s<launcher><version>} is installed, but wiring a harness needs {DRIVER-MIN-VERSION} or later"
+                  ~ (@legacy ?? '' !! ": iz4 finds no hooks of its own here, and wires none itself");
             }
-            else { say "321, an agent launcher, is not installed: agent prompts go to {agent-cmd()}, and no hooks are wired (iz4 leaves agent environments to a driver: docs/drivers.md)" }
+            else {
+                say "321, an agent launcher, is not installed: agent prompts go to {agent-cmd()}"
+                  ~ (@legacy ?? '' !! ", and iz4 finds no hooks of its own here (iz4 leaves agent environments to a driver: docs/drivers.md)");
+            }
+            if @legacy { .say for legacy-hooks-lines(@legacy, :migration(legacy-migration())) }
             say %s<note>;
             # the next steps for whatever is not in place, in the order that
             # clears the most first: a file to work on, then the hooks, which
@@ -968,15 +1001,15 @@ multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$
             # With no driver nothing can be enforced; where the repository is
             # set up for an agent, getting one is the first step.
             my $want-driver = !$driver.defined && expected-integrations(:$root).elems > 1;
-            my $driver-step = "install 321 {DRIVER-MIN-VERSION} or later (the environment driver), then: iz4 agent install --hooks --strict";
+            my $driver-step = "install 321 {DRIVER-MIN-VERSION} or later (the environment driver), then: 321 iz4 install";
             @next.push('iz4 init') unless %s<iz4><present>;
             @next.push('iz4 check') if %s<iz4><present> && !%s<iz4><valid>;
-            @next.push('iz4 agent install --hooks --strict') if $want-hooks && %s<iz4><present>;
+            @next.push('321 iz4 install') if $want-hooks && %s<iz4><present>;
             @next.push($driver-step) if $want-driver && %s<iz4><present>;
             for expected-integrations(:$root) -> $i {          # the Claude entry points only where Claude is used
                 @next.push(integration-next($i, %s<integrations>{$i})) unless %s<integrations>{$i} eq 'current';
             }
-            @next.push('iz4 agent install --hooks --strict') if $want-hooks && !%s<iz4><present>;
+            @next.push('321 iz4 install') if $want-hooks && !%s<iz4><present>;
             say-next(@next, :then('iz4 agent status')) if @next;
         }
         my $fail = !%s<iz4><present> || !%s<iz4><valid>

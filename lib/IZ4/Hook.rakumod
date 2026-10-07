@@ -142,3 +142,51 @@ sub last-assistant-text(Str $path --> Str) is export {
     }
     $text;
 }
+
+# ------------------------------------------- wiring an earlier iz4 wrote
+
+#| Until 0.15.0 iz4 wrote its own hook commands into Claude Code's
+#| project settings.  It writes none now: an environment driver does.
+#| The entries it left are still there and still fire, so status has to
+#| be able to say so.  This only reads, and looks only for iz4's own
+#| commands: it is how an old installation is recognised and left alone,
+#| not a way to make a new one.
+constant LEGACY-SETTINGS is export = '.claude/settings.json';
+constant LEGACY-EVENTS = ('session-start', 'pre-edit', 'stop');
+
+#| The iz4 hook events an earlier iz4 left wired here, in the order they
+#| fire.  Empty when there are none or the file cannot be read.
+sub legacy-hooks(IO::Path :$root! --> List) is export {
+    my $target = $root.add(LEGACY-SETTINGS);
+    return () unless $target.f;
+    my $parsed = try Rakudo::Internals::JSON.from-json($target.slurp);
+    return () unless $parsed ~~ Associative && $parsed<hooks> ~~ Associative;
+    my %seen;
+    for $parsed<hooks>.values -> $entries {
+        next unless $entries ~~ Positional;
+        for @$entries -> $entry {
+            next unless $entry ~~ Associative && $entry<hooks> ~~ Positional;
+            for @($entry<hooks>) -> $h {
+                next unless $h ~~ Associative && ($h<command> // '') ~~ Str;
+                my $cmd = $h<command>.trim;
+                for LEGACY-EVENTS -> $e {
+                    %seen{$e} = True if $cmd eq "iz4 hook $e" || $cmd.ends-with("/iz4 hook $e") || $cmd.ends-with(" iz4 hook $e");
+                }
+            }
+        }
+    }
+    LEGACY-EVENTS.grep({ %seen{$_} }).List;
+}
+
+#| What that wiring does, said for a person.  It counts as AWARE and no
+#| more: it delivers the packet and looks for a report, and puts neither
+#| an action nor the change to a check.
+sub legacy-hooks-lines(@events, Str :$migration! --> List) is export {
+    my @does = 'the packet is delivered at session start';
+    @does.push('one edit made before it is refused') if @events.grep('pre-edit');
+    @does.push('one turn end without a report is refused') if @events.grep('stop');
+    ("Claude Code hooks: active ({@events.join(', ')})",
+     "  Managed by: legacy IZ4 wiring ({LEGACY-SETTINGS}, written by an earlier iz4; left exactly as it is)",
+     "  Enforcement: AWARE ({@does.join('; ')}; no action and no change is checked)",
+     "  Migration: $migration").List;
+}

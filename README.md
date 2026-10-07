@@ -643,10 +643,17 @@ nothing is refused, and with `--strict` everything the harness can enforce.
 Where 321 finds a harness in use with nothing wired, a plain
 `iz4 agent install` asks for the advisory set; it never replaces or
 downgrades what is there, and `--/hooks` leaves the harness alone. The
-managed section ends by telling the repository's owners the one command
-that enforces rather than asks. `iz4 agent status` quotes what the driver
-says is really enforced: aware, checked or guarded, and what the harness
-cannot intercept at all.
+managed section ends by telling the repository's owners the command that
+enforces rather than asks: `321 iz4 install`. `iz4 agent status` quotes
+what the driver says is really enforced: aware, checked or guarded, and
+what the harness cannot intercept at all. With no 321 of 0.4.0 or later,
+`--hooks` warns that nothing was installed and says what to install, and
+`--hooks --strict` fails.
+
+Hooks that an earlier iz4 wrote into `.claude/settings.json` keep working
+untouched. `iz4 agent status` reports them as active, managed by legacy IZ4
+wiring, at AWARE, and `321 iz4 install` adopts them without duplicating a
+hook or disturbing anything else in the file.
 
 iz4 stays independent of 321. Any environment can call the same five
 commands itself: `iz4 discover`, `iz4 context`, `iz4 check action`,

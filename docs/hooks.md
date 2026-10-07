@@ -48,8 +48,29 @@ the harness allows, verifies it, and keeps up with the harness as it
 changes. Without `--strict` it wires the context only, so nothing is
 refused; with it, everything the harness can enforce. `iz4 agent status`
 quotes what 321 says is enforced, so nobody reads a written hook as an
-enforced one. With no 321 (or `IZ4_NO_321=1`), iz4 says that it wires
-nothing itself and writes no harness's configuration.
+enforced one. With no 321 new enough (0.4.0 or later), or with
+`IZ4_NO_321=1`, iz4 says that it defines the checks and installs no hooks,
+names what to install, and writes no harness's configuration: a warning for
+`--hooks`, a failure for `--hooks --strict`.
+
+### Hooks an earlier iz4 wrote
+
+Before 0.15.0 iz4 wrote `iz4 hook session-start`, `iz4 hook pre-edit` and
+`iz4 hook stop` into `.claude/settings.json` itself. Those entries keep
+working exactly as they are; iz4 never removes or rewrites them, and
+`iz4 agent status` reports them whatever 321 is or is not installed:
+
+```text
+Claude Code hooks: active (session-start, pre-edit, stop)
+  Managed by: legacy IZ4 wiring (.claude/settings.json, written by an earlier iz4; left exactly as it is)
+  Enforcement: AWARE (the packet is delivered at session start; one edit made before it is refused; one turn end without a report is refused; no action and no change is checked)
+  Migration: 321 0.4.0 or later can adopt this wiring; no 321 is installed. Nothing needs doing until then.
+```
+
+Recognising its own old commands is how iz4 stays truthful across the
+change; it is not a way to install new ones. `321 iz4 install` adopts the
+old wiring: each old command is replaced by 321's command for the same
+moment, once, with every other hook and setting left alone.
 
 The hooks 321 writes call 321, not iz4:
 

@@ -1,7 +1,7 @@
 # 321.do, an agent launcher, under iz4: when it is installed, agent
 # prompts go through it as read-only runs, hooks are wired by it for every
 # harness it knows, and status quotes what it enforces; when it is not,
-# iz4 falls back to its own command and its own Claude Code wiring.  321
+# iz4 falls back to its own command, and wires no harness itself.  321
 # is a stand-in script here: iz4 only runs it and reads its answers.
 use lib $?FILE.IO.parent.add('lib').Str;
 use Test;
@@ -9,6 +9,7 @@ use IZ4Test;
 use IZ4;
 use IZ4::Document;
 use IZ4::Launcher;
+use IZ4::Hook;
 use IZ4::Register;
 
 #| A stand-in 321 that records what it was asked and answers from files
@@ -139,9 +140,76 @@ sub receipt-line(Str $status, Str :$summary = '', Str :$blocked = '' --> Str) {
 
     # a 321 too old to drive a harness is not treated as a driver
     ($rc, $out, $err) = iz4($dir, 'agent', 'install', '--hooks', :env(%( |%env, STUB_321_VERSION => '0.3.4' )));
-    ok $rc == 1 && $out.contains('iz4 does not install itself') && $out.contains('the 321 here is 0.3.4'), 'an older 321 is named, and nothing is wired' or diag "$rc $out";
+    ok $rc == 0 && $err.contains('does not install agent-environment hooks directly') && $err.contains('the 321 here is 0.3.4'), 'an older 321 is named, nothing is wired, and without --strict that is a warning' or diag "$rc $err";
+    ($rc, $out, $err) = iz4($dir, 'agent', 'install', '--hooks', '--strict', :env(%( |%env, STUB_321_VERSION => '0.3.4' )));
+    is $rc, 1, 'with --strict it is a failure';
     ($rc, $out, $err) = iz4($dir, 'agent', 'status', :env(%( |%env, STUB_321_VERSION => '0.3.4' )));
     like $out, /'321 0.3.4 is installed, but wiring a harness needs 0.4.0 or later'/, 'and status says what it would take';
+}
+
+# ---- hooks an earlier iz4 wrote: recognised, never touched ---------------------------
+# Before 0.15.0 iz4 wrote its own commands into Claude Code's settings.
+# They still fire.  Whatever 321 is or is not here, status says they are
+# active, and nothing iz4 does changes the file.
+{
+    my $dir = temp-dir();
+    minimal-iz4(:$dir);
+    $dir.add('.claude').mkdir;
+    my $settings = $dir.add('.claude/settings.json');
+    $settings.spurt(q:to/JSON/);
+        {"model":"opus","hooks":{
+          "SessionStart":[{"matcher":"startup|resume|compact","hooks":[{"type":"command","command":"iz4 hook session-start"}]}],
+          "PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"my-own-lint --check"}]},
+                        {"matcher":"Edit|Write|MultiEdit|NotebookEdit","hooks":[{"type":"command","command":"iz4 hook pre-edit"}]}],
+          "Stop":[{"hooks":[{"type":"command","command":"/home/x/.local/bin/iz4 hook stop"}]}]}}
+        JSON
+    my $bytes = $settings.slurp;
+    is legacy-hooks(:root($dir)).join(','), 'session-start,pre-edit,stop', 'iz4 recognises the hook commands an earlier iz4 wrote, and only those';
+
+    # no 321
+    my %none = IZ4_NO_321 => '1';
+    my ($rc, $out, $err) = iz4($dir, 'agent', 'status', :env(%none));
+    like $out, /'Claude Code hooks: active (session-start, pre-edit, stop)'/, 'no 321: the old hooks are reported as active';
+    like $out, /'Managed by: legacy IZ4 wiring'/, 'managed by the legacy wiring';
+    like $out, /'Enforcement: AWARE'/, 'counted as aware and no more';
+    like $out, /'Migration: 321 0.4.0 or later can adopt this wiring; no 321 is installed'/, 'with what would adopt it';
+    unlike $out, /'no hooks' | 'not wired'/, 'and nowhere said to be absent';
+    ($rc, $out, $err) = iz4($dir, 'agent', 'status', '--json', :env(%none));
+    my $j = Rakudo::Internals::JSON.from-json($out);
+    is $j<hooks>, 'aware', 'in JSON the hooks are aware, not unknown';
+    is $j<legacy_hooks><managed_by>, 'legacy iz4 wiring', 'with who manages them';
+    is $j<legacy_hooks><events>.join(','), 'session-start,pre-edit,stop', 'and which fire';
+    ($rc, $out, $err) = iz4($dir, 'agent', 'install', '--hooks', '--strict', :env(%none));
+    ok $rc == 1 && $err.contains('are untouched and still active'), 'asked to install with no driver, iz4 fails and says the old hooks still stand' or diag "$rc $err";
+    ($rc, $out, $err) = iz4($dir, 'agent', 'install', :env(%none));
+    is $settings.slurp, $bytes, 'no status and no install changed a byte of the settings';
+
+    # a 321 too old to drive a harness
+    my $bin = stub-launcher();
+    my %old = IZ4_321 => $bin.Str, STUB_321_VERSION => '0.3.4';
+    ($rc, $out, $err) = iz4($dir, 'agent', 'status', :env(%old));
+    like $out, /'Claude Code hooks: active'/, '321 before 0.4.0: the old hooks are still reported as active';
+    like $out, /'Migration: 321 0.4.0 or later can adopt this wiring; the 321 here is 0.3.4'/, 'and the migration names the version here';
+    unlike $out, /'no hooks' | 'not wired'/, 'never as absent';
+    ($rc, $out, $err) = iz4($dir, 'agent', 'status', '--json', :env(%old));
+    is Rakudo::Internals::JSON.from-json($out)<hooks>, 'aware', 'aware in JSON too';
+    ok !$bin.parent.add('calls').slurp.lines.grep(*.starts-with('iz4 ')), 'a 321 that old is never asked to wire or report on a harness';
+    is $settings.slurp, $bytes, 'the settings are untouched';
+
+    # a 321 that can drive a harness: it reports, and it is the one to adopt
+    my %new = IZ4_321 => $bin.Str;
+    $bin.parent.add('DRIVER').spurt('{"schema":"enforcement-report.v1","controller":"iz4","harnesses":[{"harness":"claude_code","detected":true,"headline":"AWARE","levels":["aware"],"managedBy":"legacy iz4 wiring","warnings":["Context injection is wired the old way"]}]}' ~ "\n");
+    $bin.parent.add('calls').spurt('');
+    ($rc, $out, $err) = iz4($dir, 'agent', 'status', :env(%new));
+    like $out, /'claude_code:' .* 'enforcement AWARE'/, '321 0.4.0: the driver says what is enforced';
+    like $out, /'Claude Code hooks: active' .* 'Managed by: legacy IZ4 wiring'/, 'and iz4 still names its old wiring';
+    like $out, /'Migration: 321 0.4.0 can adopt this wiring: 321 iz4 install'/, 'with the command that adopts it';
+    like $out, /'next:' .* '321 iz4 install'/, 'which is also the next step';
+    ($rc, $out, $err) = iz4($dir, 'agent', 'install', :env(%new));
+    ok !$bin.parent.add('calls').slurp.lines.grep(*.starts-with('iz4 install')), 'a default install does not migrate anything unasked';
+    is $settings.slurp, $bytes, 'and iz4 itself still wrote nothing: adopting is the driver\'s act';
+    ($rc, $out, $err) = iz4($dir, 'agent', 'install', '--hooks', '--strict', :env(%new));
+    ok $bin.parent.add('calls').slurp.lines.grep(*.starts-with('iz4 install --workspace')), 'asked outright, iz4 hands the adoption to the driver';
 }
 
 # ---- without 321 -----------------------------------------------------------------
@@ -149,10 +217,17 @@ sub receipt-line(Str $status, Str :$summary = '', Str :$blocked = '' --> Str) {
     my $dir = temp-dir();
     minimal-iz4(:$dir);
     my %env = IZ4_321 => temp-dir().add('missing').Str, PATH => temp-dir().Str ~ ':' ~ %*ENV<PATH>.split(':').grep({ !.IO.add('321').e }).join(':');
-    my ($rc, $out, $err) = iz4($dir, 'agent', 'install', '--hooks', :env(%env));
-    is $rc, 1, 'without 321, agent install --hooks fails: nothing here knows a harness' or diag $err;
-    ok $out.contains('iz4 does not install itself into agent environments') && !$dir.add('.claude').e, 'iz4 says so and writes no wiring of its own';
+    my ($rc, $out, $err) = iz4($dir, 'agent', 'install', '--hooks', '--strict', :env(%env));
+    is $rc, 1, 'without 321, agent install --hooks --strict fails: nothing here knows a harness' or diag $err;
+    ok $err.contains('IZ4 defines the invariant checks but does not install agent-environment hooks directly')
+        && $err.contains('No environment driver is available.') && $err.contains('then run: 321 iz4 install') && !$dir.add('.claude').e,
+        'iz4 says so, says what to install, and writes no wiring of its own' or diag $err;
+    ($rc, $out, $err) = iz4($dir, 'agent', 'install', '--hooks', :env(%env));
+    ok $rc == 0 && $err.contains('hooks: not installed.') && !$dir.add('.claude').e, 'without --strict the same is said as a warning, and the rest of the install stands' or diag "$rc $err";
+    unlike $out, /'a hook can prove'/, 'and nothing is claimed about hooks that were not installed';
     ($rc, $out, $err) = iz4($dir, 'agent', 'status', :env(%env));
+    ok $out.contains('iz4 finds no hooks of its own here') && !$out.contains('Claude Code hooks: active'), 'a new repository with no hooks and no 321: status says none of its own are here' or diag $out;
+    like $out, /'install 321 0.4.0 or later (the environment driver), then: 321 iz4 install'/ , 'and the next step names the real command' if $dir.add('CLAUDE.md').e;
     ok $out.contains('321, an agent launcher, is not installed'), 'and status says 321 is not there' or diag $out;
     temp %*ENV<IZ4_321> = temp-dir().add('missing').Str;
     temp %*ENV<PATH> = temp-dir().Str;

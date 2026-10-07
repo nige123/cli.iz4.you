@@ -209,8 +209,13 @@ harness exposes, which is exactly the knowledge a driver exists to hold.
 ```
 
 `iz4 agent install --hooks` asks 321 to do this (`--strict` for everything
-the harness can enforce; without it, the context only). With no 321, iz4
-says that it installs itself into no environment, and writes nothing.
+the harness can enforce; without it, the context only). With no 321 of
+0.4.0 or later, iz4 says that it defines the checks and installs no hooks,
+names what to install, and writes nothing.
+
+Hooks an earlier iz4 wrote into Claude Code's settings keep working and are
+reported by `iz4 agent status` as legacy wiring; `321 iz4 install` adopts
+them ([hooks.md](hooks.md)).
 
 ## The older hook
 
