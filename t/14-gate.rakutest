@@ -340,6 +340,14 @@ if $have-timeout {
 else { skip 'no timeout utility', 2 }
 ($rc, $out, $err) = gate($r, '--staged', '--enforce', '--check-cmd=no-such-runner-here {file}');
 is $rc, 4, 'a runner that cannot be found makes the outcome unassessed';
+{
+    # the same on a system with no 'timeout' utility, as macOS is by default
+    my ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', '--check-cmd=no-such-runner-here {file}', :env(IZ4_NO_TIMEOUT => '1'));
+    is $rc, 4, 'without a timeout utility a missing runner is still unassessed, never blocked' or diag $out;
+    like $out, /'could not run no-such-runner-here: not found'/, 'and named';
+    ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', :env(IZ4_NO_TIMEOUT => '1'));
+    is $rc, 0, 'and a check that passes still passes there' or diag $out;
+}
 like $out, /'outcome: unassessed - a check could not be run, so this is not a pass'/, 'and the outcome says it is not a pass';
 ($rc, $out, $err) = gate($r, '--staged', '--enforce', '--/checks');
 is $rc, 4, 'skipping the checks when linked tests exist is unassessed, not pass';

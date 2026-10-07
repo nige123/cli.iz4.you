@@ -342,7 +342,25 @@ sub missing-dependency(Str $output --> Str) is export {
 
 sub text-of(Blob $b --> Str) { (try $b.decode('utf8')) // $b.decode('latin-1') }
 
+#| Is this command there to run?  A name with a slash is a path; a bare
+#| name is looked for along PATH (with the usual suffixes on Windows).
+#| Asked before a check is started, so that a runner that is not installed
+#| is reported as exactly that on every system, whatever its shell or
+#| 'timeout' would have made of it.
+sub have-command(Str $name --> Bool) is export {
+    my @suffix = $*DISTRO.is-win ?? ('', '.exe', '.cmd', '.bat') !! ('',);
+    if $name.contains('/') || $name.contains('\\') {
+        return so @suffix.grep({ ($name ~ $_).IO.f });     # grep, not first: the matching suffix may be ''
+    }
+    my $sep = $*DISTRO.is-win ?? ';' !! ':';
+    for (%*ENV<PATH> // '').split($sep).grep(*.chars) -> $dir {
+        return True if @suffix.grep({ $dir.IO.add($name ~ $_).f });
+    }
+    False;
+}
+
 sub have-timeout(--> Bool) {
+    return False if %*ENV<IZ4_NO_TIMEOUT>;      # macOS ships none; this lets any system take that path
     my $p = try run 'timeout', '--version', :out, :err;
     return False without $p;
     $p.out.slurp(:close); $p.err.slurp(:close);
@@ -376,6 +394,12 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
         if !@argv {
             %r<outcome> = 'unassessed';
             %r<detail>  = "no runner known for $lang tests; set IZ4_CHECK_CMD, e.g. 'npm test -- \{file\}'";
+            @out.push: %r;
+            next;
+        }
+        unless have-command(@argv[0]) {
+            %r<outcome> = 'unassessed';
+            %r<detail>  = "could not run {@argv[0]}: not found";
             @out.push: %r;
             next;
         }
