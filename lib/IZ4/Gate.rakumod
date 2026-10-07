@@ -126,7 +126,7 @@ sub tree-file(IO::Path $root, Str $tree, Str $path --> Str) is export {
 
 #| A tree checked out into a fresh temporary directory, through a
 #| temporary index, so nothing in the working directory is read.
-sub export-tree(IO::Path $root, Str $tree --> IO::Path) is export {
+sub export-tree(IO::Path $root, Str $tree, Bool :$tests-only = False --> IO::Path) is export {
     my $tag   = "iz4-gate-{$*PID}-{(^1_000_000).pick}";
     my $dir   = $*TMPDIR.add($tag);
     my $index = $*TMPDIR.add("$tag.index");
@@ -139,8 +139,20 @@ sub export-tree(IO::Path $root, Str $tree --> IO::Path) is export {
     my $was   = %*ENV<GIT_INDEX_FILE>;
     %*ENV<GIT_INDEX_FILE> = $index.Str;
     LEAVE { if $had { %*ENV<GIT_INDEX_FILE> = $was } else { %*ENV<GIT_INDEX_FILE>:delete }; try $index.unlink }
-    my ($rc, $, $err) = g($root, 'read-tree', $tree);
+    my ($rc, $out, $err) = g($root, 'read-tree', $tree);
     gate-error("cannot read tree $tree: {$err.trim.lines.head // ''}") if $rc != 0;
+    if $tests-only {
+        # Only the files that could be tests: enough to see which invariants
+        # have a test naming them, without writing a whole tree to disk.
+        ($rc, $out, $err) = g($root, 'ls-tree', '-r', '--name-only', $tree);
+        gate-error("cannot list tree $tree: {$err.trim.lines.head // ''}") if $rc != 0;
+        my @paths = $out.lines.grep({ is-test-path($_) });
+        for @paths.rotor(200, :partial) -> @some {
+            ($rc, $, $err) = g($root, 'checkout-index', '-f', '--prefix=' ~ $dir.Str ~ '/', '--', |@some);
+            gate-error("cannot check out test files of $tree: {$err.trim.lines.head // ''}") if $rc != 0;
+        }
+        return $dir;
+    }
     ($rc, $, $err) = g($root, 'checkout-index', '-a', '-f', '--prefix=' ~ $dir.Str ~ '/');
     gate-error("cannot check out tree $tree: {$err.trim.lines.head // ''}") if $rc != 0;
     $dir;
@@ -654,19 +666,27 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
     my @touches;
     {
         LEAVE { rm-tree($_) with $base-dir; rm-tree($_) with $cand-dir }
-        $cand-dir = export-tree($root, %snap<candidate>);
-        $linked = link-environment($root, $cand-dir);
+        # First only the test files of each tree: enough to see which
+        # invariants have a test naming them and what happened to those
+        # tests.  The whole candidate tree is written out only when there
+        # is a check to run in it.
+        $cand-dir = export-tree($root, %snap<candidate>, :tests-only);
         if %snap<base>.defined && $base-doc.defined && $cand-doc.defined {
-            $base-dir = export-tree($root, %snap<base>);
+            $base-dir = export-tree($root, %snap<base>, :tests-only);
             @protections = protection-changes($base-doc, $base-dir, $cand-doc, $cand-dir);
         }
-        if $checks && $cand-doc.defined && $cand-doc.ok {
+        my $named = $cand-doc.defined && $cand-doc.ok
+            ?? +evidence-for($cand-doc, $cand-dir)<state>.values.grep(* eq 'named') !! 0;
+        if $checks && $named {
+            rm-tree($cand-dir);
+            $cand-dir = export-tree($root, %snap<candidate>);
+            $linked = link-environment($root, $cand-dir);
             @checks = run-checks($cand-doc, $cand-dir, :$timeout, :cmd($check-cmd));
         }
-        elsif $cand-doc.defined && $cand-doc.ok {
+        elsif !$checks {
             # --no-checks: how many linked tests went unrun, so that skipping
             # nothing is a pass and skipping something is never one
-            $skipped = +evidence-for($cand-doc, $cand-dir)<state>.values.grep(* eq 'named');
+            $skipped = $named;
         }
         if %snap<base>.defined && $cand-doc.defined {
             my ($rc, $diff, $) = g($root, 'diff', '--no-color', %snap<base>, %snap<candidate>);

@@ -42,6 +42,16 @@ my @TEST-DIRS  = <t test tests spec specs __tests__ features>;
 my regex test-file-name { [ '_test' | '.test' | '.spec' | '_spec' | 'Test' ] '.' \w+ $ | '.t' $ | '.rakutest' $ }
 my @SKIP-DIRS  = <.git node_modules local vendor dist target .precomp build .venv venv>;
 
+#| Would test-files count this repository-relative path as a test file?
+#| The same rule, for a path that is not on disk yet (a Git tree listing).
+sub is-test-path(Str $rel --> Bool) is export {
+    my @parts = $rel.split('/');
+    return False if @parts > 8;
+    return False if so @parts.head(*-1).first({ $_ eq any(@SKIP-DIRS) });
+    return False if @parts.tail.starts-with('.');
+    so @parts.head(*-1).first({ $_ eq any(@TEST-DIRS) }) || so(@parts.tail ~~ &test-file-name);
+}
+
 #| Every test file under $root, to a sane depth.
 sub test-files(IO::Path $root --> List) is export {
     my @out;
