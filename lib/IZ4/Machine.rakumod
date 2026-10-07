@@ -323,10 +323,10 @@ my %RANK = PASS, 0, 'not_checked', 0, WARN, 1, NEEDS-HUMAN, 2, BLOCK, 3;
 
 #| What can be established about finished work: the IZ4 is well formed,
 #| the change alters no commitment without agreement, and, when the
-#| driver hands over the agent's last words, that they carry the
-#| per-invariant report.  Each part says what it found; a part that was
+#| driver hands over the agent's last words (:summary, a file of plain
+#| text), that they carry the per-invariant report.  Each part says what it found; a part that was
 #| not run says so and is never counted as a pass.
-sub verify(IO::Path $root, Str :$transcript, *%opts --> Hash) is export {
+sub verify(IO::Path $root, Str :$transcript, Str :$summary, *%opts --> Hash) is export {
     my $iz4 = $root.add(ROOT-NAME);
     my @parts;
     my @inv;
@@ -356,8 +356,13 @@ sub verify(IO::Path $root, Str :$transcript, *%opts --> Hash) is export {
     else { @parts.push: %( part => 'change', result => 'not_checked', detail => 'not checked: the IZ4 is invalid' ) }
 
     my @uncertain;
-    with $transcript {
-        my $last = last-assistant-text($transcript);
+    # The agent's last words: plain text in a file (--summary), which any
+    # driver can supply, or a Claude Code transcript (--transcript), kept
+    # for the hook that predates the drivers.
+    my $given = $summary.defined || $transcript.defined;
+    if $given {
+        machine-error("--summary: {$summary}: no such file") if $summary.defined && !$summary.IO.f;
+        my $last = $summary.defined ?? $summary.IO.slurp !! last-assistant-text($transcript);
         @uncertain = report-uncertain($last);
         if !$changed { @parts.push: %( part => 'report', result => PASS, detail => 'nothing changed, so no report is owed' ) }
         elsif $last ~~ /:i 'invariant' .* 'assessment' .* [ 'evidence' | 'remaining gap' ] / {
@@ -368,7 +373,7 @@ sub verify(IO::Path $root, Str :$transcript, *%opts --> Hash) is export {
                             detail => 'files changed and the work ends with no per-invariant report (Invariant, Assessment, Evidence, Remaining gap)' );
         }
     }
-    else { @parts.push: %( part => 'report', result => 'not_checked', detail => 'no transcript was given, so the report was not looked for' ) }
+    else { @parts.push: %( part => 'report', result => 'not_checked', detail => 'the agent\'s last words were not given, so the report was not looked for' ) }
 
     my $worst = @parts.map(*<result>).max({ %RANK{$_} // 0 });
     $worst = PASS if $worst eq 'not_checked';

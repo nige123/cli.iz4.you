@@ -1197,12 +1197,12 @@ multi MAIN('check', 'change', Bool :$staged = False, Bool :$worktree = False, St
     }
 }
 
-multi MAIN('verify', Bool :$staged = False, Bool :$worktree = False, Str :$base, Str :$candidate, Str :$transcript,
+multi MAIN('verify', Bool :$staged = False, Bool :$worktree = False, Str :$base, Str :$candidate, Str :$transcript, Str :$summary,
            Bool :$json = False, Bool :$checks = True, Int :$timeout = 300, Str :$check-cmd = %*ENV<IZ4_CHECK_CMD> // Str,
            Str :$approval, Str :$approvers = %*ENV<IZ4_APPROVERS> // Str, Str :$file) {
     attempt {
         my %o = change-options(:$staged, :$worktree, :$base, :$candidate, :$checks, :$timeout, :$check-cmd, :$approval, :$approvers);
-        say-check(verify(gate-root($file), :$transcript, |%o), $json);
+        say-check(verify(gate-root($file), :$transcript, :$summary, |%o), $json);
     }
 }
 

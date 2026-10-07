@@ -201,6 +201,18 @@ $t.spurt(json-encode(%( type => 'assistant', message => %( content => [ %( type 
 ($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--transcript=$t", '--json');
 is doc($out)<evidence><report><uncertain>.join('|'), 'Invariant 6 x: conflicting', 'consistent ones are not listed; conflicting ones are';
 
+# the same from plain text, which is what a driver that is not Claude Code has
+my $words = temp-dir.add('summary.txt');
+$words.spurt("All done.\n");
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$words", '--json');
+is doc($out)<result>, 'block', 'a plain-text summary with no report blocks';
+$words.spurt("Invariant: 5 People control\nAssessment: uncertain\nEvidence: read it\nRemaining gap: untested\n");
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$words", '--json');
+%v = doc($out);
+ok %v<result> eq 'pass' && %v<evidence><report><uncertain>.join eq 'Invariant 5 People control: uncertain', 'a plain-text summary with the report verifies, and its uncertain invariants are carried' or diag $out;
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', '--summary=/no/such/file', '--json');
+is $rc, 1, 'a summary file that is not there is an error, never a pass';
+
 # an invalid IZ4 never verifies
 $sp.spurt("IZ4\n\nnonsense\n");
 ($rc, $out, $err) = iz4($r, 'verify', '--worktree', '--json');
