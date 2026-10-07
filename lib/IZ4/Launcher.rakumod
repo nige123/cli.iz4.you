@@ -104,12 +104,26 @@ sub ask-via-launcher(Str $bin, Str $prompt, IO::Path :$root = $*CWD --> Str) is 
     }
 }
 
-#| Hooks through 321: install, status or remove for the workspace, as the
-#| hooks.v1 document 321 prints.
-sub launcher-hooks(Str $bin, Str $action, IO::Path :$root!, Bool :$strict = False --> Hash) is export {
-    my ($rc, $out, $err) = launcher-run($bin, 'hooks', $action, '--workspace', $root.Str, '--command', 'iz4 hook', |($strict ?? ('--strict',) !! ()), '--json');
+#| The first 321 that can drive iz4 in an agent environment: it detects
+#| harnesses, wires and verifies iz4 in them (`321 iz4 install | status |
+#| remove`) and translates their events for iz4's machine interface.
+constant DRIVER-MIN-VERSION is export = '0.4.0';
+
+#| The environment driver: a 321 new enough to wire a harness, or Str.
+#| iz4 knows no harness itself; what knows one is a driver.
+sub driver-binary(--> Str) is export {
+    my $bin = launcher-binary();
+    return Str without $bin;
+    version-at-least(launcher-version($bin), DRIVER-MIN-VERSION) ?? $bin !! Str;
+}
+
+#| Ask the driver to install, report on or remove iz4's wiring in every
+#| harness it knows; its answer is an enforcement-report.v1 document.
+#| :advisory wires only the context, so nothing is refused.
+sub driver(Str $bin, Str $action, IO::Path :$root!, Bool :$advisory = False --> Hash) is export {
+    my ($rc, $out, $err) = launcher-run($bin, 'iz4', $action, '--workspace', $root.Str, |($advisory ?? ('--advisory',) !! ()), '--json');
     my $doc = parse-json($out);
-    die "321 hooks $action failed: {$err.trim || $out.trim}" unless $rc == 0 && $doc ~~ Associative;
+    die "321 iz4 $action failed: {$err.trim || $out.trim}" unless $doc ~~ Associative;
     %$doc;
 }
 
@@ -121,18 +135,27 @@ sub launcher-doctor(Str $bin --> Hash) is export {
     %$doc;
 }
 
-#| One line per harness from a hooks.v1 document, saying what is wired
-#| and what that enforces.
-sub hooks-lines(%doc --> List) is export {
+#| What the driver reports, a harness at a time: what it did, the
+#| enforcement that is really in place, and its warnings.
+sub driver-lines(%doc --> List) is export {
     my @out;
     for @(%doc<harnesses> // []) -> %h {
-        my @wired = <session-start pre-edit stop>.grep({ (%h<events>{$_} // '') eq 'wired' });
-        my $line = "{%h<harness>}" ~ (%h<available> ?? '' !! ' (not on PATH here)') ~ ((%h<action> // '') ne '' ?? ": {%h<action>}" !! ': ')
-            ~ (@wired ?? " {@wired.join(', ')} wired" !! ' nothing wired')
-            ~ "; enforced: {@(%h<enforced> // []).join(', ') || 'nothing'}; advisory: {@(%h<advisory> // []).join(', ') || 'nothing'}";
-        @out.push($line.subst(': :', ':'));
+        @out.push(%h<harness> ~ (%h<detected> ?? '' !! ' (not detected here)')
+            ~ ((%h<action> // '') ne '' ?? ": {%h<action>};" !! ':')
+            ~ " enforcement {%h<headline> // 'NONE'}"
+            ~ (@(%h<levels> // []) ?? " ({@(%h<levels>).join(', ')})" !! ''));
+        @out.push("  ! {%h<error>}") if (%h<error> // '') ne '';
+        @out.push("  $_") for @(%h<warnings> // []);
     }
     @out;
+}
+
+#| The strongest protection the driver reports across harnesses: guarded,
+#| checked, aware or none.
+sub driver-level(%doc --> Str) is export {
+    my @h = @(%doc<harnesses> // []).map({ (.<headline> // 'NONE').lc });
+    for <guarded checked aware> -> $l { return $l if @h.grep($l) }
+    'none';
 }
 
 #| How an agent is reached, in words for a message: the person's own

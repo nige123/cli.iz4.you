@@ -61,58 +61,35 @@ if have-git() {
     ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd3', transcript_path => $report.Str ));
     is $exit, ALLOW, 'a reply that carries the report may end';
 
-    # ---- the Claude Code adapter --------------------------------------------
-    is install-claude-hooks(:root($repo)), 'installed', 'hooks install into .claude/settings.json';
-    my $settings = $repo.add('.claude/settings.json');
-    like $settings.slurp, /'"SessionStart"' .* '"iz4 hook session-start"' .* '"startup|resume|compact"'/, 'the session-start hook fires on startup, resume and compaction';
-    unlike $settings.slurp, /'PreToolUse' | '"Stop"'/, 'without --strict there are no blocking hooks';
-    is claude-hooks-status(:root($repo)), 'start', 'status says so';
-    is install-claude-hooks(:root($repo)), 'unchanged', 'reinstalling changes nothing';
-
-    $settings.spurt('{"permissions":{"allow":["Bash(ls)"]},"hooks":{"Stop":[{"hooks":[{"type":"command","command":"echo mine"}]}]}}');
-    is install-claude-hooks(:root($repo), :strict), 'updated', '--strict adds the gates to an existing file';
-    my $text = $settings.slurp;
-    ok $text.contains('"Bash(ls)"') && $text.contains('"echo mine"'), 'other settings and other hooks are kept';
-    like $text, /'"iz4 hook pre-edit"' .* '"Edit|Write|MultiEdit|NotebookEdit"'/, 'the edit gate covers the editing tools';
-    like $text, /'"iz4 hook stop"'/, 'and the stop gate is there';
-    is claude-hooks-status(:root($repo)), 'strict', 'status says strict';
-    is install-claude-hooks(:root($repo), :strict), 'unchanged', 'strict reinstall is idempotent';
-    is install-claude-hooks(:root($repo)), 'updated', 'reinstalling without --strict removes the gates';
-    is claude-hooks-status(:root($repo)), 'start', 'and leaves the session-start hook';
-    is $settings.slurp.comb('echo mine').elems, 1, 'never duplicating anyone else\'s hook';
-
-    $settings.spurt('{ not json' ~ "\n");
-    throws-like { install-claude-hooks(:root($repo)) }, X::IZ4, message => /'not valid JSON'/, 'a file that cannot be parsed is refused';
-    is $settings.slurp, '{ not json' ~ "\n", 'and left untouched';
-
-    # ---- through the CLI --------------------------------------------------
-    $settings.unlink;
-    # as if 321 were not installed: this pins iz4's own Claude Code wiring
+    # ---- iz4 installs itself into no agent environment -----------------------
+    # A driver that knows the environment does that.  Here there is none:
+    # iz4 says so, writes nothing, and never guesses at a harness's files.
     my %no = IZ4_NO_321 => '1';
-    # by default: the advisory hook where an agent harness is in use, nothing where it is not
     {
         my $plain = temp-dir;
         minimal-iz4(:dir($plain));
-        my ($rc, $o, $e) = iz4($plain, 'agent', 'install', :env(%no));
-        nok $plain.add(SETTINGS-PATH).e, 'a repository with no sign of an agent harness gets no hooks by default';
         $plain.add('CLAUDE.md').spurt("# notes\n");
-        ($rc, $o, $e) = iz4($plain, 'agent', 'install', '--/hooks', :env(%no));
-        nok $plain.add(SETTINGS-PATH).e, '--/hooks leaves the harness alone';
-        ($rc, $o, $e) = iz4($plain, 'agent', 'install', :env(%no));
-        like $o, /'hooks: installing the advisory set by default'/, 'with a CLAUDE.md, install says it is adding the advisory hooks';
-        is claude-hooks-status(:root($plain)), 'start', 'and writes the session-start hook only: nothing is refused';
+        $plain.add('.claude').mkdir;
+        my ($rc, $o, $e) = iz4($plain, 'agent', 'install', :env(%no));
+        is $rc, 0, 'a default install with no driver still succeeds';
+        nok $plain.add('.claude/settings.json').e, 'and writes no harness configuration, whatever the repository looks like';
+        unlike $o, /'installing the advisory set'/, 'it does not claim to be installing hooks';
+        ($rc, $o, $e) = iz4($plain, 'agent', 'install', '--hooks', :env(%no));
+        is $rc, 1, 'asked outright for hooks with no driver, it fails rather than pretend';
+        like $o, /'iz4 does not install itself into agent environments'/, 'and says why';
+        like $o, /'321 is the reference driver' .* '321 iz4 install'/, 'what would do it';
+        like $o, /'iz4 context' .* 'iz4 check action' .* 'iz4 verify'/, 'and how any other environment can drive iz4 itself';
+        nok $plain.add('.claude/settings.json').e, 'still writing nothing';
         ($rc, $o, $e) = iz4($plain, 'agent', 'install', '--hooks', '--strict', :env(%no));
-        is claude-hooks-status(:root($plain)), 'strict', '--strict upgrades them';
-        ($rc, $o, $e) = iz4($plain, 'agent', 'install', :env(%no));
-        is claude-hooks-status(:root($plain)), 'strict', 'a later default install never downgrades strict hooks';
-        unlike $o, /'installing the advisory set'/, 'and says nothing about installing any';
+        is $rc, 1, '--strict with no driver fails the same way';
+        ($rc, $o, $e) = iz4($plain, 'agent', 'status', :env(%no));
+        like $o, /'no hooks are wired' .* 'iz4 leaves agent environments to a driver'/, 'status says no hooks are wired, and whose job that is';
+        ($rc, $o, $e) = iz4($plain, 'agent', 'status', '--json', :env(%no));
+        like $o, /'"hooks":"unknown"'/, 'and in JSON the hooks are unknown: iz4 read no harness configuration to find out';
         like $plain.add('AGENTS.md').slurp, /'To the people who own this repository' .* 'iz4 agent install --hooks --strict'/,
             'the managed section tells the owners the command that enforces';
     }
-    my ($rc, $o, $e) = iz4($repo, 'agent', 'install', '--hooks', '--strict', :env(%no));
-    like $o, /'.claude/settings.json: installed' .* 'never that an invariant was honoured'/, 'the CLI installs and says what a hook cannot prove';
-    ($rc, $o, $e) = iz4($repo, 'agent', 'status', :env(%no));
-    like $o, /'settings.json: hooks installed'/, 'status reports the hooks';
+    nok $repo.add('.claude/settings.json').e, 'nothing in this file ever wrote a harness\'s settings';
     my ($hrc, $hout, $herr) = iz4-talk($repo, '{"session_id":"z9","tool_input":{"file_path":"lib/Y.pm"}}', 'hook', 'pre-edit');
     is $hrc, 2, 'iz4 hook pre-edit exits 2 to refuse';
     like $herr, /'IZ4 agent packet'/, 'with the packet on standard error';

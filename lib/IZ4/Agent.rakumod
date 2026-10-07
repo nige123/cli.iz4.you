@@ -12,7 +12,7 @@ use IZ4::Document;
 #| conforms - the wording keeps that distinction everywhere.
 
 constant PACKET-SCHEMA   is export = 'iz4-agent-packet/3';
-constant STATUS-SCHEMA   is export = 'iz4-agent-status/3';
+constant STATUS-SCHEMA   is export = 'iz4-agent-status/4';
 constant SECTION-VERSION is export = 4;
 
 #| The canonical adherence protocol.  The single source: the packet, the

@@ -394,10 +394,19 @@ iz4 update [--check]             bring iz4 to the latest published version
 iz4 log [FILE]                   the Git history of your intent
 iz4 diff [FILE] [REV [REV]]      what changed, working tree by default
 iz4 agent [install|status]       hand the invariants to a coding agent
-iz4 agent install --hooks        Claude Code hooks: the packet at start and after
-                                   compaction (--strict: gate edits and turn end);
-                                   the advisory hook is the default where an agent
-                                   harness is in use (--/hooks to skip)
+iz4 agent install --hooks        ask an environment driver (321) to wire iz4 into
+                                   the agent harnesses here: the context only, or
+                                   with --strict everything the harness can enforce;
+                                   iz4 writes no harness configuration itself
+iz4 discover [--json]            does an IZ4 govern this directory?
+iz4 context [--json]             what to tell an agent before it works
+iz4 check action [--json]        one consequential action, as JSON on stdin
+iz4 check change [--worktree|--staged|--candidate=REV] [--json]
+                                 does the change alter a commitment?
+iz4 verify [--worktree] [--summary=FILE] [--json]
+                                 what can be established about finished work
+                                   (these five are the machine interface a driver
+                                   calls: pass | warn | block | needs_human)
 iz4 register / report / badge    connect to the register, submit evidence, record
                                    a registration checkpoint, print the badge
 ```
@@ -619,21 +628,36 @@ the same and exits 0. A packet proves neither that an agent read it nor
 that the software conforms.
 
 A managed section can be ignored, and a compaction summary drops the
-packet. Hooks make the harness deliver it instead: a Claude Code hook
-prints the packet at session start, on resume and after every compaction.
-`iz4 agent install` writes that advisory hook by default where the
-repository is used with an agent harness (it has a `CLAUDE.md` or a
-`.claude` directory) and has no iz4 hooks yet; it never replaces or
-downgrades hooks already there, `--/hooks` leaves the harness alone, and
-`--hooks` installs them anywhere. The managed section ends by telling the
-repository's owners the one command that enforces rather than asks.
-`--strict` adds two gates: an edit before the packet has
-been delivered is refused once, with the packet, and a turn that changed
-files cannot end without the per-invariant report. A hook can prove the
-packet was delivered and a report written, never that an invariant was
-honoured. The hooks are one harness-neutral command, `iz4 hook`, with a
-thin Claude Code adapter; [docs/hooks.md](docs/hooks.md) has the contract
-and what other harnesses offer.
+packet. A harness can be made to deliver the context itself, to put each
+write and shell command to iz4 before it runs, and to refuse to finish
+without the per-invariant report. That wiring is not iz4's to do.
+
+**321 knows how the harness works. IZ4 knows what must remain true.**
+
+iz4 does not install itself into agent environments. Claude Code, Codex, Pi
+and the rest each keep configuration somewhere different and change it
+often; an *environment driver* holds that knowledge. 321 is the reference
+multi-harness driver and installs and drives iz4 wherever 321 is used.
+`iz4 agent install --hooks` asks it to: the context only by default, so
+nothing is refused, and with `--strict` everything the harness can enforce.
+Where 321 finds a harness in use with nothing wired, a plain
+`iz4 agent install` asks for the advisory set; it never replaces or
+downgrades what is there, and `--/hooks` leaves the harness alone. The
+managed section ends by telling the repository's owners the one command
+that enforces rather than asks. `iz4 agent status` quotes what the driver
+says is really enforced: aware, checked or guarded, and what the harness
+cannot intercept at all.
+
+iz4 stays independent of 321. Any environment can call the same five
+commands itself: `iz4 discover`, `iz4 context`, `iz4 check action`,
+`iz4 check change` and `iz4 verify`, each answering in JSON with one of
+pass, warn, block or needs_human. Adding support for a new agent
+environment should normally mean teaching a driver about that environment,
+not changing iz4. [docs/drivers.md](docs/drivers.md) is the contract, and
+the minimum a driver has to do; [docs/hooks.md](docs/hooks.md) is the older
+direct hook. A check can prove that the context was delivered, that a
+change alters no commitment, and that a report was written; never that an
+invariant was honoured.
 
 ## 321.do, an agent launcher
 
@@ -641,19 +665,24 @@ Everything agentic in iz4 goes through [321](https://321.do) when it is
 installed: `iz4 suggest`, `iz4 review` and the test drafting in `iz4 test`
 become read-only runs of 321's prompt package, on whatever harness 321
 picks and can hold to the package's limits (no writes, no shell, no
-network beyond the model), answered in text. `iz4 agent install --hooks`
-asks 321 to wire `iz4 hook` into every harness it knows, and `iz4 agent
-status` quotes what 321 says each harness enforces, so nobody reads a
-written hook as an enforced one. Under 321, the IZ4 protocol is also a
-policy on the run itself: the packet goes into the prompt, and a run that
-changed files ends blocked without the per-invariant report.
+network beyond the model), answered in text. 321 is also the environment
+driver: `iz4 agent install --hooks` asks it to wire iz4 into every harness
+it knows, and `iz4 agent status` quotes what it says is enforced, so nobody
+reads a written hook as an enforced one. A run 321 launches in a repository
+that keeps an IZ4 is governed without anything being installed: the context
+goes into the prompt, the harness's interception points are used for that
+run alone, the finished work is put to `iz4 verify`, and the receipt
+records the IZ4's digest, each check, and how strongly the run was really
+governed. Work that would change an invariant ends blocked on a person's
+decision.
 
 The installer fetches 321 beside iz4 ("install 321.do, an agent
 launcher") unless one is already there or `IZ4_NO_321=1`, and `iz4 update`
 keeps the one it installed current. iz4 works without it: `IZ4_AGENT_CMD`
 still names your own agent command and takes precedence, the default
-without either is `claude -p`, and the Claude Code hooks are written by
-iz4 itself. `IZ4_321` names the executable when it is not on PATH, and
+without either is `claude -p`. What it does not do without a driver is
+wire a harness: iz4 writes no harness's configuration. `IZ4_321` names the
+executable when it is not on PATH, and
 `IZ4_NO_321=1` makes iz4 act as if 321 were not installed.
 
 ## Register your IZ4

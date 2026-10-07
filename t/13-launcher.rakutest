@@ -12,7 +12,7 @@ use IZ4::Launcher;
 use IZ4::Register;
 
 #| A stand-in 321 that records what it was asked and answers from files
-#| beside it: REPLY for a prompt run, HOOKS for hooks --json.
+#| beside it: REPLY for a prompt run, DRIVER for iz4 install|status --json.
 sub stub-launcher(IO::Path :$dir = temp-dir() --> IO::Path) {
     my $bin = $dir.add('321');
     $bin.spurt(q:to/SH/);
@@ -20,16 +20,16 @@ sub stub-launcher(IO::Path :$dir = temp-dir() --> IO::Path) {
         here=$(dirname "$0")
         printf '%s\n' "$*" >> "$here/calls"
         case "$*" in
-          version) echo "321 0.3.1"; exit 0 ;;
+          version) echo "321 ${STUB_321_VERSION:-0.4.0}"; exit 0 ;;
           "packages builtin prompt") mkdir -p "$here/pkg"; echo "$here/pkg"; exit 0 ;;
           *"prompt -"*) cat > "$here/prompt.txt"; cat "$here/REPLY"; exit 0 ;;
-          "hooks install"*|"hooks status"*|"hooks remove"*) cat "$here/HOOKS"; exit 0 ;;
+          "iz4 install"*|"iz4 status"*|"iz4 remove"*) cat "$here/DRIVER"; exit 0 ;;
           "doctor --json") echo '{"schema":"doctor.v1","adapters":[{"name":"claude_code","available":true,"enforces":{"tool_allowlist":true},"hooks":{"pre-edit":"refuses","stop":"refuses","session-start":"advises"}}]}'; exit 0 ;;
           *) echo "stub: unknown $*" >&2; exit 64 ;;
         esac
         SH
     $bin.chmod(0o755);
-    $dir.add('HOOKS').spurt('{"schema":"hooks.v1","harnesses":[{"harness":"claude_code","available":true,"action":"installed","events":{"session-start":"wired","pre-edit":"wired","stop":"wired"},"enforced":["pre-edit","stop"],"advisory":["session-start"]}]}' ~ "\n");
+    $dir.add('DRIVER').spurt('{"schema":"enforcement-report.v1","controller":"iz4","harnesses":[{"harness":"claude_code","detected":true,"action":"installed","headline":"GUARDED","levels":["aware","checked","guarded"],"warnings":["Network interception is not available in claude_code: this harness cannot intercept it."]}]}' ~ "\n");
     $bin;
 }
 
@@ -44,7 +44,8 @@ sub receipt-line(Str $status, Str :$summary = '', Str :$blocked = '' --> Str) {
     temp %*ENV<IZ4_321> = $bin.Str;
     temp %*ENV<IZ4_AGENT_CMD>; %*ENV<IZ4_AGENT_CMD>:delete;
     is launcher-binary(), $bin.Str, 'IZ4_321 names the launcher';
-    is launcher-version($bin.Str), '0.3.1', 'and its version is read';
+    is launcher-version($bin.Str), '0.4.0', 'and its version is read';
+    is driver-binary(), $bin.Str, 'a 321 this new is an environment driver';
     ok agent-label().contains('321, an agent launcher'), 'the label says prompts go through 321';
 
     $bin.parent.add('REPLY').spurt(receipt-line('completed', :summary("The answer.\nSecond line.")));
@@ -84,23 +85,63 @@ sub receipt-line(Str $status, Str :$summary = '', Str :$blocked = '' --> Str) {
     ok %s<strong>[0]<text>.contains('Private profiles'), 'the candidate text';
 }
 
-# hooks and status through 321, via the CLI
+# iz4 hands the harness to the driver, via the CLI
 {
     my $bin = stub-launcher();
     my $dir = temp-dir();
     minimal-iz4(:$dir);
     my %env = IZ4_321 => $bin.Str;
+    my $calls = $bin.parent.add('calls');
     my ($rc, $out, $err) = iz4($dir, 'agent', 'install', '--hooks', '--strict', :env(%env));
-    is $rc, 0, 'agent install --hooks exits 0' or diag $err;
-    ok $out.contains('hooks via 321 0.3.1') && $out.contains('claude_code: installed') && $out.contains('enforced: pre-edit, stop') && $out.contains('advisory: session-start'), 'hooks are wired by 321 and the line says what is enforced' or diag $out;
-    ok $bin.parent.add('calls').slurp.lines.grep(*.contains("hooks install --workspace {$dir.resolve} --command iz4 hook --strict --json")), '321 was asked to install, strict' or diag $bin.parent.add('calls').slurp;
-    ok !$dir.add('.claude/settings.json').e, 'iz4 wrote no settings of its own';
+    is $rc, 0, 'agent install --hooks --strict exits 0' or diag $err;
+    ok $out.contains('hooks via 321 0.4.0') && $out.contains('claude_code: installed; enforcement GUARDED (aware, checked, guarded)'), 'the driver wires the harness and iz4 quotes what is enforced' or diag $out;
+    ok $out.contains('Network interception is not available'), 'with the driver\'s warnings';
+    ok $calls.slurp.lines.grep(*.contains("iz4 install --workspace {$dir.resolve} --json")), 'the driver was asked to install, in full' or diag $calls.slurp;
+    ok !$calls.slurp.lines.grep(*.contains('--advisory')), 'not the advisory set';
+    ok !$dir.add('.claude').e, 'iz4 wrote no harness configuration of its own';
+
+    $calls.spurt('');
+    ($rc, $out, $err) = iz4($dir, 'agent', 'install', '--hooks', :env(%env));
+    ok $calls.slurp.lines.grep(*.contains("iz4 install --workspace {$dir.resolve} --advisory --json")), 'without --strict the driver is asked for the advisory set' or diag $calls.slurp;
+
     ($rc, $out, $err) = iz4($dir, 'agent', 'status', :env(%env));
     is $rc, 0, 'agent status exits 0' or diag $err;
-    ok $out.contains('321 0.3.1, an agent launcher, is installed') && $out.contains('claude_code:') && $out.contains('enforced: pre-edit, stop'), 'status quotes 321' or diag $out;
+    ok $out.contains('321 0.4.0, an agent launcher, is installed') && $out.contains('claude_code:') && $out.contains('enforcement GUARDED'), 'status quotes the driver' or diag $out;
     ($rc, $out, $err) = iz4($dir, 'agent', 'status', '--json', :env(%env));
     my $j = Rakudo::Internals::JSON.from-json($out);
-    is $j<launcher><version>, '0.3.1', 'and the JSON carries the launcher';
+    is $j<launcher><version>, '0.4.0', 'the JSON carries the launcher';
+    is $j<hooks>, 'guarded', 'the strongest protection the driver reports';
+    is $j<enforcement><schema>, 'enforcement-report.v1', 'and the driver\'s own document, verbatim';
+
+    # by default: the advisory set where a harness is here with nothing wired, and never a downgrade
+    $bin.parent.add('DRIVER').spurt('{"schema":"enforcement-report.v1","harnesses":[{"harness":"claude_code","detected":true,"headline":"NONE","levels":[],"warnings":[]}]}' ~ "\n");
+    $calls.spurt('');
+    ($rc, $out, $err) = iz4($dir, 'agent', 'install', :env(%env));
+    like $out, /'hooks: installing the advisory set by default'/, 'a default install says it is adding the advisory hooks';
+    ok $calls.slurp.lines.grep(*.contains('iz4 install') && *.contains('--advisory')), 'and asks the driver for them';
+    $calls.spurt('');
+    ($rc, $out, $err) = iz4($dir, 'agent', 'install', '--/hooks', :env(%env));
+    ok !$calls.slurp.lines.grep(*.starts-with('iz4 install')), '--/hooks leaves the harness alone';
+    $bin.parent.add('DRIVER').spurt('{"schema":"enforcement-report.v1","harnesses":[{"harness":"claude_code","detected":true,"headline":"GUARDED","levels":["aware","checked","guarded"],"warnings":[]}]}' ~ "\n");
+    $calls.spurt('');
+    ($rc, $out, $err) = iz4($dir, 'agent', 'install', :env(%env));
+    ok !$calls.slurp.lines.grep(*.starts-with('iz4 install')), 'a later default install never downgrades what is wired';
+    unlike $out, /'installing the advisory set'/, 'and says nothing about installing any';
+    $bin.parent.add('DRIVER').spurt('{"schema":"enforcement-report.v1","harnesses":[{"harness":"claude_code","detected":false,"headline":"NONE","levels":[],"warnings":[]}]}' ~ "\n");
+    $calls.spurt('');
+    ($rc, $out, $err) = iz4($dir, 'agent', 'install', :env(%env));
+    ok !$calls.slurp.lines.grep(*.starts-with('iz4 install')), 'where the driver finds no harness, a default install wires nothing';
+
+    # a failed wiring is a failed install
+    $bin.parent.add('DRIVER').spurt('{"schema":"enforcement-report.v1","harnesses":[{"harness":"claude_code","detected":true,"action":"failed","error":"settings.json is not a JSON object","headline":"NONE","levels":[],"warnings":[]}]}' ~ "\n");
+    ($rc, $out, $err) = iz4($dir, 'agent', 'install', '--hooks', :env(%env));
+    ok $rc == 1 && $out.contains('! settings.json is not a JSON object'), 'when the driver cannot wire the harness, iz4 says so and fails' or diag "$rc $out";
+
+    # a 321 too old to drive a harness is not treated as a driver
+    ($rc, $out, $err) = iz4($dir, 'agent', 'install', '--hooks', :env(%( |%env, STUB_321_VERSION => '0.3.4' )));
+    ok $rc == 1 && $out.contains('iz4 does not install itself') && $out.contains('the 321 here is 0.3.4'), 'an older 321 is named, and nothing is wired' or diag "$rc $out";
+    ($rc, $out, $err) = iz4($dir, 'agent', 'status', :env(%( |%env, STUB_321_VERSION => '0.3.4' )));
+    like $out, /'321 0.3.4 is installed, but wiring a harness needs 0.4.0 or later'/, 'and status says what it would take';
 }
 
 # ---- without 321 -----------------------------------------------------------------
@@ -109,8 +150,8 @@ sub receipt-line(Str $status, Str :$summary = '', Str :$blocked = '' --> Str) {
     minimal-iz4(:$dir);
     my %env = IZ4_321 => temp-dir().add('missing').Str, PATH => temp-dir().Str ~ ':' ~ %*ENV<PATH>.split(':').grep({ !.IO.add('321').e }).join(':');
     my ($rc, $out, $err) = iz4($dir, 'agent', 'install', '--hooks', :env(%env));
-    is $rc, 0, 'without 321, agent install --hooks still works' or diag $err;
-    ok $out.contains('.claude/settings.json: installed'), 'writing the Claude Code wiring itself';
+    is $rc, 1, 'without 321, agent install --hooks fails: nothing here knows a harness' or diag $err;
+    ok $out.contains('iz4 does not install itself into agent environments') && !$dir.add('.claude').e, 'iz4 says so and writes no wiring of its own';
     ($rc, $out, $err) = iz4($dir, 'agent', 'status', :env(%env));
     ok $out.contains('321, an agent launcher, is not installed'), 'and status says 321 is not there' or diag $out;
     temp %*ENV<IZ4_321> = temp-dir().add('missing').Str;

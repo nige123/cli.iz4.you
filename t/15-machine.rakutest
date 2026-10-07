@@ -52,6 +52,8 @@ is %d<sha256>, sha256-file($sp), 'with its content identity';
 ok %d<valid>, 'and it is valid';
 is %d<invariants>.map(*<number>).join(','), '0,1,2,3,4,5', 'the effective invariants are listed by number';
 ok %d<invariants>[0]<foundation> && !%d<invariants>[5]<foundation>, 'the foundation is told apart from the project\'s own';
+is %d<invariants>[0]<summary>, 'HUMANS FIRST', 'a foundation invariant is summarised by its title';
+like %d<invariants>[5]<summary>, /'People control'/, 'a project invariant by its opening words';
 
 my $bare = temp-dir;
 ($rc, $out, $err) = iz4($bare, 'discover', '--json');

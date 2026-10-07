@@ -115,25 +115,45 @@ sub USAGE() {
       iz4 agent install [--claude] [--skill] [--hooks [--strict]]
                                      add a managed section to AGENTS.md
                                        (--claude: CLAUDE.md too; --skill:
-                                       the portable skill). Where the
-                                       repository is used with an agent
-                                       harness and has no iz4 hooks yet, the
-                                       advisory hooks are installed too: the
-                                       packet at start and after a compaction,
-                                       wired by 321 into every harness it
-                                       knows, else by iz4 into Claude Code
-                                       (--/hooks: leave the harness alone;
-                                       --hooks: install them anywhere;
-                                       --strict: also refuse an edit before
-                                       the packet, and a turn that changed
-                                       files without the invariant report)
+                                       the portable skill). iz4 wires no
+                                       harness itself: --hooks asks an
+                                       environment driver (321) to, the
+                                       context only, or with --strict
+                                       everything the harness can enforce.
+                                       Where the driver finds a harness in
+                                       use with nothing wired, the advisory
+                                       set is asked for by default
+                                       (--/hooks: leave the harness alone)
+      iz4 discover [--json] [--dir=D]  does an IZ4 govern this directory?
+      iz4 context [--json]             what to tell an agent before it works:
+                                         a short instruction and the
+                                         effective invariants
+      iz4 check action [--json]        one consequential action, as JSON on
+                                         standard input (operation, target,
+                                         parameters, ...): does it need a
+                                         person's decision?
+      iz4 check change [--worktree | --staged | --candidate=REV [--base=REV|none]]
+                                     does the change alter a commitment? The
+                                       gate, in the check vocabulary;
+                                       --worktree looks at uncommitted work
+                                       and touches no index
+      iz4 verify [--worktree | --staged | --candidate=REV] [--summary=FILE]
+                                     what can be established about finished
+                                       work: structure, change, and, given
+                                       the agent's last words, its report.
+                                       These five are the machine interface
+                                       an environment driver calls (--json;
+                                       result pass | warn | block |
+                                       needs_human, exit 0 | 0 | 3 | 2);
+                                       docs/drivers.md
       iz4 hook session-start|pre-edit|stop
                                          the harness-neutral hook: JSON in,
                                            text out, exit 2 to refuse
       iz4 agent status [--json] [--strict]
                                          report spec validity and integration
-                                           state, and what 321 says each
-                                           harness enforces (--strict for CI)
+                                           state, and what the driver (321)
+                                           says is enforced in each harness
+                                           (--strict for CI)
       iz4 register [--url=U --token=T] connect this IZ4 to the IZ4 register
                      [--github [--force]]  (sign up first: iz4.you); connected,
                                            with the card published, a plain
@@ -842,36 +862,47 @@ multi MAIN('agent', 'install', Bool :$claude = False, Bool :$skill = False, Bool
             say "$name: {install-agent-section($root.add($name), :$root)}";
         }
         say "{SKILL-PATH}: {install-skill(:$root)}" if $skill;
-        # Hooks by default where the repository shows an agent harness in
-        # use (a CLAUDE.md or a .claude directory) and has no iz4 hooks
-        # yet: the advisory set, which delivers the packet and refuses
-        # nothing.  Hooks already there are never replaced or downgraded
-        # by a default run; --hooks asks for them outright, --strict adds
-        # the gates, and --/hooks leaves the harness alone.
-        my $by-default = !$hooks.defined && !$strict
-            && ($root.add('CLAUDE.md').e || $root.add('.claude').d)
-            && claude-hooks-status(:$root) eq 'none';
+        # Hooks are wired by an environment driver: something that knows
+        # the agent harness.  iz4 knows none, and writes into none.  By
+        # default, where the driver finds a harness here with nothing wired,
+        # it is asked for the advisory set, which delivers the context and
+        # refuses nothing.  Wiring already there is never replaced or
+        # downgraded by a default run; --hooks asks outright, --strict asks
+        # for everything the harness can enforce, --/hooks leaves it alone.
+        my $driver = driver-binary();
+        my %before = $driver.defined ?? ((try driver($driver, 'status', :$root)) // %()) !! %();
+        my $here   = so @(%before<harnesses> // []).grep({ .<detected> });
+        my $by-default = !$hooks.defined && !$strict && $here && driver-level(%before) eq 'none';
         my $hooks-now = $hooks // ($strict || $by-default);
-        say "hooks: installing the advisory set by default, since this repository is used with an agent harness (--/hooks to skip, --strict to add the gates)"
+        say "hooks: installing the advisory set by default, since an agent harness is in use here (--/hooks to skip, --strict to add the gates)"
             if $by-default;
+        my $failed = False;
         if $hooks-now {
-            with launcher-binary() -> $bin {
-                # 321 knows the harnesses: it writes the wiring and says what each enforces
-                my %h = launcher-hooks($bin, 'install', :$root, :$strict);
+            with $driver -> $bin {
+                my %h = driver($bin, 'install', :$root, :advisory(!$strict));
                 say "hooks via 321 {launcher-version($bin)}, for every harness it knows:";
-                say "  $_" for hooks-lines(%h);
+                say "  $_" for driver-lines(%h);
+                $failed = so @(%h<harnesses> // []).grep({ (.<action> // '') eq 'failed' });
             }
             else {
-                say "{SETTINGS-PATH}: {install-claude-hooks(:$root, :$strict)} ("
-                  ~ ($strict ?? 'session-start, pre-edit and stop hooks: the packet is delivered, nothing is edited before it, and a turn that changed files ends with the invariant report'
-                             !! 'session-start hook: the packet is delivered at start, resume and after a compaction; --strict adds the blocking hooks')
-                  ~ ')';
+                $failed = True;
+                say no-driver-lines().join("\n");
             }
         }
         say "These integrations only encourage adherence in tools that load them"
           ~ ($hooks-now ?? '; a hook can prove the packet was delivered and a report written, never that an invariant was honoured.' !! '.');
-        0;
+        $failed ?? 1 !! 0;
     }
+}
+
+#| What is said when hooks are asked for and nothing here knows a harness.
+sub no-driver-lines(--> List) {
+    my $bin = launcher-binary();
+    my $have = $bin.defined ?? " (the 321 here is {launcher-version($bin)})" !! '';
+    ("hooks: not installed. iz4 does not install itself into agent environments: that takes something that knows the environment.",
+     "  321 is the reference driver. With 321 {DRIVER-MIN-VERSION} or later$have, 'iz4 agent install --hooks' or '321 iz4 install'",
+     "  wires iz4 into every harness 321 knows, and '321 iz4 status' says how strongly it is enforced.",
+     "  Any other environment can drive iz4 itself: iz4 context, iz4 check action, iz4 check change, iz4 verify (docs/drivers.md).");
 }
 
 # ------------------------------------------------------------ hook
@@ -897,9 +928,14 @@ multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$
         my IO::Path $path = (try resolve-target($file)) // IO::Path;   # no IZ4 here is a status, not an error
         my $root = $path.defined ?? $path.parent !! $*CWD;
         my %s    = agent-status($path, :$root);
-        %s<hooks> = claude-hooks-status(:$root);
         my $bin = launcher-binary();
         with $bin { %s<launcher> = %( binary => $_, version => launcher-version($_) ) }
+        # What is wired into a harness is the driver's to say; iz4 reads no
+        # harness's configuration.
+        my $driver = driver-binary();
+        my %enf = $driver.defined ?? ((try driver($driver, 'status', :$root)) // %()) !! %();
+        %s<hooks> = %enf ?? driver-level(%enf) !! 'unknown';
+        %s<enforcement> = %enf if %enf;
         if $json { say json-encode(%s) }
         else {
             if %s<iz4><present> {
@@ -913,30 +949,30 @@ multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$
                 my $status = %s<integrations>{$i};
                 say integration-line($i, $status, :reason($status eq 'stale' ?? stale-reason($root.add($i)) !! ''));
             }
-            say "{SETTINGS-PATH}: " ~ do given %s<hooks> {
-                when 'strict' { 'hooks installed (packet delivered, edits and turn end gated)' }
-                when 'start'  { "session-start hook installed ('iz4 agent install --hooks --strict' adds the gates)" }
-                default       { "no hooks ('iz4 agent install --hooks')" }
-            };
-            with $bin {
-                my %h = try launcher-hooks($_, 'status', :$root);
-                if %h {
-                    say "321 {%s<launcher><version>}, an agent launcher, is installed: agent runs, suggest, review and test drafting go through it,";
-                    say "and it wires hooks into every harness it knows and says what each enforces:";
-                    say "  $_" for hooks-lines(%h);
-                }
-                else { say "321 is installed at $_ but 'hooks status' failed: {$!.message.lines.head}" }
+            if %enf {
+                say "321 {%s<launcher><version>}, an agent launcher, is installed: agent runs, suggest, review and test drafting go through it,";
+                say "and it drives iz4 in every harness it knows and says how strongly it is enforced:";
+                say "  $_" for driver-lines(%enf);
             }
-            else { say "321, an agent launcher, is not installed: agent prompts go to {agent-cmd()} and hooks are wired for Claude Code only" }
+            elsif $driver.defined { say "321 is installed at $driver but '321 iz4 status' failed" }
+            elsif $bin.defined {
+                say "321 {%s<launcher><version>} is installed, but wiring a harness needs {DRIVER-MIN-VERSION} or later: hooks are not wired, and iz4 wires none itself";
+            }
+            else { say "321, an agent launcher, is not installed: agent prompts go to {agent-cmd()}, and no hooks are wired (iz4 leaves agent environments to a driver: docs/drivers.md)" }
             say %s<note>;
             # the next steps for whatever is not in place, in the order that
             # clears the most first: a file to work on, then the hooks, which
             # are the one step that enforces anything, then the wording
             my @next;
-            my $want-hooks = %s<hooks> ne 'strict' && ($bin.defined || $root.add('.claude').d || $root.add('CLAUDE.md').e);
+            my $want-hooks = $driver.defined && %s<hooks> ne 'guarded' && so @(%enf<harnesses> // []).grep({ .<detected> });
+            # With no driver nothing can be enforced; where the repository is
+            # set up for an agent, getting one is the first step.
+            my $want-driver = !$driver.defined && expected-integrations(:$root).elems > 1;
+            my $driver-step = "install 321 {DRIVER-MIN-VERSION} or later (the environment driver), then: iz4 agent install --hooks --strict";
             @next.push('iz4 init') unless %s<iz4><present>;
             @next.push('iz4 check') if %s<iz4><present> && !%s<iz4><valid>;
             @next.push('iz4 agent install --hooks --strict') if $want-hooks && %s<iz4><present>;
+            @next.push($driver-step) if $want-driver && %s<iz4><present>;
             for expected-integrations(:$root) -> $i {          # the Claude entry points only where Claude is used
                 @next.push(integration-next($i, %s<integrations>{$i})) unless %s<integrations>{$i} eq 'current';
             }

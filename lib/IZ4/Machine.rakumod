@@ -80,7 +80,13 @@ sub effective-list(IZ4::Document $doc --> Array) {
         @out.push: %( number => $inv.number, foundation => $inv.number < 5, summary => first-sentence($inv.text) );
     }
     unless @out.grep(*<foundation>) {
-        @out.unshift: %( number => $_, foundation => True, summary => 'inherited foundation' ) for (0..4).reverse;
+        # The foundation is inherited whether or not the file repeats it;
+        # its titles come from the one text every IZ4 carries.
+        my %title;
+        for FOUNDATION-TEXT.lines -> $l {
+            %title{+$0} = ~$1 if $l ~~ /^ 'Invariant ' (\d) ' - ' (<-[:]>+) ':' /;
+        }
+        @out.unshift: %( number => $_, foundation => True, summary => (%title{$_} // 'inherited foundation') ) for (0..4).reverse;
     }
     @out.sort(*<number>).Array;
 }

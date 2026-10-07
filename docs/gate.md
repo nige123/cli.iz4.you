@@ -255,49 +255,28 @@ document it is given. A harness never fabricates an approval: an
 `iz4-approval/1` document without a signature a boundary lists is a
 terminal approval and is treated as one.
 
-What exists in 321 today (cli.321.do, inspected on 2026-10-06): a
-`role Adapter` (`lib/Do321/Adapter.rakumod`) with `name`, `detect`,
-`enforcement` and `run(Cancel, Spec, Control --> Outcome)`, implemented
-by `ClaudeCode` and by `ProcedureAdapter`; shape tables `WorkPackage`
-(with an `approval` pointer to an `Approval` of `proposalRef`,
-`approvalRef`, `approvedBy`, `action`, `target`, `params`, `paramsHash`
-and `proposal`, a `DeploymentProposal` carried verbatim: 321's approvals
-are deployment-shaped, and its boundary re-plans the same service and
-target and fails the approval if parameters, manifest digest or deployed
-revision moved) and `RunReceipt` (`status` including `blocked`, `blockedOn`,
-`uncertain`, `evidence.approvalCheck`) in `lib/Do321/Shape.rakumod`; and,
-in `lib/Do321/Run.rakumod`, `apply-iz4-policy` (the packet into the
-prompt), `refresh-iz4-packet` and `check-iz4-report` (`iz4 hook stop`
-after a run, turning a missing per-invariant report into
-`status: blocked`). There is no Codex adapter and nothing in 321 calls a
-gate. Since 321 0.3.3, `policy.standingApprovals` in `trust.json` lets an
-unattended `321 <agent> go` deploy without a person at the terminal;
-those are deploy-only and approve nothing about an IZ4, so they are not a
-precedent for gate approvals. None of that is changed by this
-repository.
+What 321 does with this (since 321 0.4.0): it is the reference
+[environment driver](drivers.md). Where a workspace keeps an IZ4, a
+model-driven run gets iz4's context in its prompt, the harness's own
+interception points call `iz4 check action` through 321's glue, and the
+finished work is put to `iz4 verify --worktree`, which includes this gate
+over the working directory. `needs_human` (the gate's
+`agreement-required`) and `block` end the run with `status: blocked`, the
+proposal or the reason in `blockedOn`; `warn` (`unassessed`) is an
+`uncertain` line; and `evidence.controllers` on the receipt records the
+IZ4's digest, every check and its result, and how strongly the run was
+really governed. 321 never records an agreement.
 
-What a 321 integration would be, as work in 321, not done here:
+Two things remain as they were, and are not built:
 
-- after `fill` and beside `check-iz4-report` in `Session.drive`, run
-  `iz4 gate --staged --enforce --json` (or over the run's commits) and
-  map `agreement-required` to `status: blocked` with `blockedOn` carrying
-  the proposal, `blocked` to `blocked`, `unassessed` to an `uncertain`
-  line; the gate's JSON goes under `evidence`;
-- in `cmd-agent`, when a blocked receipt carries a proposal, show it and,
-  if the operator accepts at the terminal, run `iz4 approve` there and
-  resume; today `--continue <receipt.json>` exists only on `321 run`, so
-  this needs continuation added to the agent path or `cmd-agent`
-  re-issuing the same package through the run path. An unattended run
-  leaves the receipt blocked, as `iz4 approve` itself does;
-- carrying an iz4 agreement on a `WorkPackage.approval` is new protocol
-  work in 321, not a fit for what is there: `proposalRef` is a string
-  reference, `proposal` must be a `DeploymentProposal`, and
-  `Control.approval(action, target, params)` is a callback adapters use
-  at execution time to check the package's approval against an external
-  action. An `iz4-approval/1` document would need a new action kind, a
-  non-deployment proposal type in `work-package.v1`, and its own check
-  (the gate's validation, run by the boundary). That is the shape an
-  exact-action approval from 123.do would take.
+- resuming a blocked run from the terminal once a person has run
+  `iz4 approve`: `--continue <receipt.json>` exists only on `321 run`, not
+  on `321 <agent>`;
+- carrying an iz4 agreement on a `WorkPackage.approval`: 321's approvals
+  are deployment-shaped (`proposal` is a `DeploymentProposal`, checked by
+  re-planning the same service and target), so an `iz4-approval/1` there
+  would be new protocol work. 321's `policy.standingApprovals` are
+  deploy-only and approve nothing about an IZ4.
 
 Any other harness has the same contract and the same two obligations:
 call the gate on the real trees, and hand the proposal to a person
