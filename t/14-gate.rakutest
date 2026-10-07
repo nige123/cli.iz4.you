@@ -355,6 +355,18 @@ like $out, /'checks were not run (--no-checks): 1 invariant has a test naming it
 }
 g($r, 'checkout', 'HEAD', '--', 'lib/profile.txt'); g($r, 'reset', '-q', 'lib');
 
+# ---- the check command: flag, then IZ4_CHECK_CMD, then git config ---------
+{
+    g($r, 'config', 'iz4.checkCmd', 'false {file}');
+    my ($rc, $out, $err) = gate($r, '--staged', '--enforce');
+    is $rc, 3, "the repository's own git config iz4.checkCmd names the command that runs a check" or diag $out;
+    ($rc, $out, $err) = gate($r, '--staged', '--enforce', '--check-cmd=true {file}');
+    is $rc, 0, 'and --check-cmd takes precedence over it';
+    ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', :env(IZ4_CHECK_CMD => 'true {file}'));
+    is $rc, 0, 'as does IZ4_CHECK_CMD';
+    g($r, 'config', '--unset', 'iz4.checkCmd');
+}
+
 # ---- the pre-commit hook ---------------------------------------------------
 ($rc, $out, $err) = gate($r, '--install-hook');
 like $out, /'pre-commit hook: installed (advisory'/, 'the advisory hook installs' or diag $err;

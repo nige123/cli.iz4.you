@@ -1,25 +1,43 @@
 {
     "name": "IZ4",
     "description": "iz4: IZ4 means Is For - find the few invariants your software must never accidentally lose",
-    "version": "0.13.1",
-    "auth": "iz4.you",
+    "version": "0.14.0",
+    "auth": "zef:nige123",
+    "api": "1",
+    "authors": [
+        "Nigel Hamilton"
+    ],
     "license": "Apache-2.0",
-    "perl": "6.d",
+    "raku": "6.d",
     "provides": {
         "IZ4": "lib/IZ4.rakumod",
-        "IZ4::Document": "lib/IZ4/Document.rakumod",
-        "IZ4::Grammar": "lib/IZ4/Grammar.rakumod",
-        "IZ4::Git": "lib/IZ4/Git.rakumod",
-        "IZ4::Register": "lib/IZ4/Register.rakumod",
         "IZ4::Agent": "lib/IZ4/Agent.rakumod",
         "IZ4::Coach": "lib/IZ4/Coach.rakumod",
-        "IZ4::Review": "lib/IZ4/Review.rakumod",
+        "IZ4::Document": "lib/IZ4/Document.rakumod",
+        "IZ4::Evidence": "lib/IZ4/Evidence.rakumod",
+        "IZ4::Gate": "lib/IZ4/Gate.rakumod",
+        "IZ4::Git": "lib/IZ4/Git.rakumod",
+        "IZ4::Grammar": "lib/IZ4/Grammar.rakumod",
         "IZ4::Hook": "lib/IZ4/Hook.rakumod",
-        "IZ4::Evidence": "lib/IZ4/Evidence.rakumod"
+        "IZ4::Launcher": "lib/IZ4/Launcher.rakumod",
+        "IZ4::Register": "lib/IZ4/Register.rakumod",
+        "IZ4::Review": "lib/IZ4/Review.rakumod"
     },
     "depends": [],
     "test-depends": [],
     "resources": [],
-    "tags": ["cli", "intent", "documentation", "iz4"],
-    "source-url": ""
+    "tags": [
+        "cli",
+        "intent",
+        "invariants",
+        "agents",
+        "documentation",
+        "iz4"
+    ],
+    "source-url": "https://github.com/nige123/cli.iz4.you.git",
+    "support": {
+        "source": "https://github.com/nige123/cli.iz4.you",
+        "bugtracker": "https://github.com/nige123/cli.iz4.you/issues"
+    },
+    "meta-version": "0"
 }

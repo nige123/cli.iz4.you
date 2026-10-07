@@ -58,8 +58,12 @@ the invariant's opening words, the same convention `iz4 check` uses):
 
 Checks: every test naming an invariant is run from the candidate tree,
 with the repository's own runner (Raku, Perl, Python, Ruby, Go or a
-shell script, by the same detection `iz4 test` uses) or the command in
-`--check-cmd` / `IZ4_CHECK_CMD` with `{file}` in it, under a timeout where
+shell script, by the same detection `iz4 test` uses) or a command with
+`{file}` in it: `--check-cmd`, else `IZ4_CHECK_CMD`, else the repository's
+own `git config iz4.checkCmd`, which lives in `.git/config`, outside every
+tree, so a candidate cannot set it. (A Raku project whose tests also pass
+under Raku++ can set `git config iz4.checkCmd 'rakupp -I lib {file}'` and
+have its commit gate finish in seconds.) Each runs under a timeout where
 the system has `timeout`. A failing check is a definite finding. A check
 that times out, has no known runner or cannot start is unassessed, never
 passed.

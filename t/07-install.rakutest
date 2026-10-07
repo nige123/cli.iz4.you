@@ -3,7 +3,6 @@ use Test;
 use IZ4Test;
 use IZ4;
 
-plan 32;
 
 my $repo-root = $?FILE.IO.parent.parent.resolve;
 
@@ -17,6 +16,38 @@ like $out, /^ 'iz4 ' \d+ '.' \d+ '.' \d+ [' (' <xdigit>+ ')']? \s* $/, 'prints t
 # raku is already present here, so no runtime is ever fetched. The installer
 # installs the Raku source, so it needs a Rakudo runtime: a CI runner testing
 # only a compiled iz4 may have none, and then this part is skipped.
+# ---- the distribution: what zef installs from raku.land -------------------
+{
+    my $meta = $repo-root.add('META6.json').slurp;
+    my @modules = $repo-root.add('lib').dir.sort.map({ .d ?? |.dir.sort !! $_ }).grep({ .extension eq 'rakumod' });
+    ok @modules > 5, 'the modules are found';
+    for @modules -> $f {
+        my $rel = $f.relative($repo-root);
+        ok $meta.contains("\"$rel\""), "META6 provides lists $rel: zef installs only what is listed";
+    }
+    my @listed = $meta.match(/ '"lib/' <-["]>+ '"' /, :g).map({ .Str.substr(1, *-1) });
+    ok $repo-root.add($_).f, "META6 provides $_, which exists" for @listed;
+    like $meta, /'"auth"' \s* ':' \s* '"zef:'/, 'auth is a zef: identity, as raku.land requires';
+    like $meta, /'"version"' \s* ':' \s* '"' $(VERSION) '"'/, 'META6 and the tool agree on the version';
+    like $meta, /'"source-url"' \s* ':' \s* '"https://github.com/'/, 'source-url says where the code is';
+}
+
+# ---- iz4 update, where a package manager installed the script ---------------
+{
+    # a copy of the script outside any checkout: neither a checkout nor a
+    # standalone file, as when zef installs it
+    my $away = temp-dir;
+    $away.add('bin').mkdir;
+    $repo-root.add('bin/iz4').copy($away.add('bin/iz4'));
+    my $before = $away.add('bin/iz4').slurp;
+    my $p = run $*EXECUTABLE, '-I', $repo-root.add('lib').Str, $away.add('bin/iz4').Str, 'update', :out, :err,
+        :env(%( |%*ENV, IZ4_NO_321 => '1', IZ4_RELEASE_URL => 'file:///nonexistent' ));
+    my $o = $p.out.slurp(:close); my $e = $p.err.slurp(:close);
+    is $p.exitcode, 0, 'update of a package-installed script exits 0' or diag "$o\n$e";
+    like $o, /'installed as a Raku distribution; update it with: zef upgrade IZ4'/, 'and says whose job the update is';
+    is $away.add('bin/iz4').slurp, $before, 'and never replaces the script with a downloaded file';
+}
+
 sub have-raku(--> Bool) {
     my $p = try run 'sh', '-c', 'command -v raku || test -x "$HOME/.rakubrew/shims/raku"', :out, :err;
     $p.defined && $p.exitcode == 0;
@@ -40,6 +71,28 @@ if have-git() && have-raku() {
     like $launcher.slurp, /'"' $($fake.add('share/cli/bin/iz4').Str) '"'/,
         'launcher runs iz4 from the installed checkout';
     like $o1, /'installed:'/, 'installer reports success';
+
+    # Raku++: where it is installed and runs this iz4, the launcher prefers it
+    # and still runs the checkout's own source; IZ4_RUNTIME=raku keeps Rakudo
+    my $have-rakupp = so (try run 'sh', '-c', 'command -v rakupp', :out, :err).?exitcode == 0;
+    if $have-rakupp {
+        like $o1, /'Raku++ is installed and runs this iz4'/, 'the installer says it will use Raku++';
+        like $launcher.slurp, /'exec rakupp -I "' $($fake.add('share/cli/lib').Str) '" "' $($fake.add('share/cli/bin/iz4').Str) '"'/,
+            'the launcher runs the same source under Raku++';
+        like $launcher.slurp, /'exec "' <-["]>+ 'raku" "' $($fake.add('share/cli/bin/iz4').Str) '"'/, 'with Rakudo as the fallback';
+        my $v = run $launcher.Str, 'version', :out, :err, :env(%env);
+        like $v.out.slurp(:close), /^ 'iz4 ' \d/, 'and it runs'; $v.err.slurp(:close);
+        my $r = run $launcher.Str, 'version', :out, :err, :env(%( |%env, IZ4_RUNTIME => 'raku' ));
+        like $r.out.slurp(:close), /^ 'iz4 ' \d/, 'IZ4_RUNTIME=raku runs it under Rakudo'; $r.err.slurp(:close);
+    }
+    else { skip 'rakupp is not installed', 5 }
+    {
+        my $plain = temp-dir;
+        my %e = %env, IZ4_HOME => $plain.add('share').Str, IZ4_BIN => $plain.add('bin').Str, IZ4_RUNTIME => 'raku';
+        my $p = run 'sh', $repo-root.add('install').Str, :out, :err, :env(%e);
+        $p.out.slurp(:close); $p.err.slurp(:close);
+        unlike $plain.add('bin/iz4').slurp, /rakupp/, 'installed with IZ4_RUNTIME=raku, the launcher is Rakudo only';
+    }
 
     my $p2 = run 'sh', $repo-root.add('install').Str, :out, :err, :env(%env);
     $p2.out.slurp(:close);
@@ -176,3 +229,5 @@ if have-git() && have-raku() {
 else {
     skip 'needs git and a Rakudo runtime', 29;
 }
+
+done-testing;

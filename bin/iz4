@@ -67,7 +67,9 @@ sub USAGE() {
                                        the exit code (0, 2, 3, 4, 1). --json;
                                        --approval=FILE, --approvers=FILE (allowed
                                        signers); --no-checks; --timeout=S;
-                                       --check-cmd='... \{file\}';
+                                       --check-cmd='... \{file\}' (or
+                                       IZ4_CHECK_CMD, or git config
+                                       iz4.checkCmd);
                                        --install-hook [--enforce] [--force]: a
                                        pre-commit hook on the staged tree
       iz4 approve [--staged | --candidate=REV [--base=REV|none]]
@@ -802,6 +804,7 @@ multi MAIN('update', Bool :$check = False) {
             when 'current'  { say "iz4 is up to date ({VERSION}, {%u<from>})."; 0 }
             when 'behind'   { say "iz4 is {%u<n>} commit{%u<n> == 1 ?? '' !! 's'} behind; 'iz4 update' fetches:"; commits(); 0 }
             when 'updated'  { say "Updated iz4 from {%u<from>} to {%u<to>} ({%u<n>} commit{%u<n> == 1 ?? '' !! 's'}):"; commits(); 0 }
+            when 'managed'  { say %u<note>; 0 }
             default         { note %u<note>; 1 }
         };
         # 321, when iz4 installed it, is kept current too; one someone else installed is left alone.
@@ -1156,11 +1159,19 @@ sub gate-command(Str :$base, Str :$candidate, Bool :$enforce, Bool :$json, Bool 
                  Str :$approval, Str :$approvers, Str :$file --> Int) {
     {
         my $root = gate-root($file);
+        # the command that runs one linked test: the flag, then IZ4_CHECK_CMD,
+        # then this repository's own 'git config iz4.checkCmd' (in .git/config,
+        # outside every tree, so a candidate cannot set it), then the default
+        # for the repository's test language
+        my $cmd = $check-cmd // do {
+            my ($rc, $out, $) = git($root.add(ROOT-NAME), 'config', '--get', 'iz4.checkCmd');
+            $rc == 0 && $out.trim ne '' ?? $out.trim !! Str;
+        };
         my %r;
         my $failure = Nil;
         try {
             %r = run-gate($root, :staged(!$candidate.defined), :$base, :$candidate, :$enforce, :$checks, :$timeout,
-                          :$check-cmd, :approval-file($approval.defined ?? $approval.IO !! IO::Path),
+                          :check-cmd($cmd), :approval-file($approval.defined ?? $approval.IO !! IO::Path),
                           :approvers($approvers.defined ?? $approvers.IO !! IO::Path));
             CATCH { default { $failure = $_ } }
         }

@@ -86,6 +86,21 @@ shell installer falls back to installing from source: the code into your
 home directory plus Rakudo if you lack it, with Git as the only
 prerequisite. `IZ4_SOURCE=1` asks for that on purpose. A source install
 updates with the same `iz4 update`, which fast-forwards its checkout.
+Its launcher runs that source directly, so it is always the code that is
+there. Where [Raku++](https://github.com/ash/rakupp) is installed and the
+installer has seen it run this iz4, the launcher prefers it, and the same
+source starts in milliseconds; Rakudo remains the fallback, and
+`IZ4_RUNTIME=raku` forces it.
+
+With Rakudo and zef you can also install it as a Raku distribution, from
+[raku.land](https://raku.land/zef:nige123/IZ4):
+
+```text
+zef install IZ4
+```
+
+That copy is zef's to keep current (`zef upgrade IZ4`); `iz4 update` says
+so and replaces nothing.
 
 Rather see every step?
 

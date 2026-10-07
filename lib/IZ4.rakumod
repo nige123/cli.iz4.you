@@ -6,7 +6,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.13.1';
+constant VERSION is export = '0.14.0';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -684,6 +684,21 @@ sub own-checkout(--> IO::Path) is export {
     $root.defined && $root.add('.git').e && $root.add('bin').add('iz4').e ?? $root !! Nil;
 }
 
+#| Is the file this process was started from a standalone executable
+#| (ELF, Mach-O or PE, by its first bytes)?  Anything else is a script
+#| something else installed and owns: zef's wrapper, a copy of bin/iz4.
+sub program-is-binary(--> Bool) is export {
+    my $self = try $*PROGRAM.resolve;
+    return False without $self;
+    my $head = try { my $fh = $self.open(:bin); LEAVE { .close with $fh }; $fh.read(4) };
+    return False unless $head.defined && $head.elems == 4;
+    my @b = $head.list;
+    so  (@b[0] == 0x7F && @b[1] == 0x45 && @b[2] == 0x4C && @b[3] == 0x46)      # ELF
+     || (@b[0] == 0x4D && @b[1] == 0x5A)                                         # PE (MZ)
+     || (@b eqv [0xCF, 0xFA, 0xED, 0xFE]) || (@b eqv [0xFE, 0xED, 0xFA, 0xCF])   # Mach-O, either order
+     || (@b eqv [0xCA, 0xFE, 0xBA, 0xBE]) || (@b eqv [0xBE, 0xBA, 0xFE, 0xCA]);  # universal Mach-O
+}
+
 #| Where the standalone files are published, and the file for this machine.
 constant RELEASES is export = 'https://github.com/nige123/cli.iz4.you/releases';
 constant RELEASES-API is export = 'https://api.github.com/repos/nige123/cli.iz4.you/releases/latest';
@@ -772,6 +787,13 @@ sub binary-update(Bool :$check = False --> Hash) is export {
 #| fast-forwards from its own remote; a standalone file downloads the
 #| newest published file for this machine and replaces itself.
 sub self-update(Bool :$check = False --> Hash) is export {
+    # Neither a checkout nor a standalone executable: a script some
+    # package manager installed (zef, from raku.land).  Replacing it with a
+    # downloaded file would corrupt that installation, so say whose job the
+    # update is and touch nothing.
+    return %( state => 'managed', from => VERSION,
+              note => "this iz4 was installed as a Raku distribution; update it with: zef upgrade IZ4" )
+        if !own-checkout().defined && !program-is-binary();
     my $root = own-checkout() // return binary-update(:$check);
     my $marker = $root.add('bin').add('iz4');
     my sub g(*@a) { git($marker, |@a) }

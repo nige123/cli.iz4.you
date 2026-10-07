@@ -161,13 +161,32 @@ if [ -z "$RAKU" ]; then
 fi
 
 # -- the command --------------------------------------------------------------
+# The launcher runs the checkout's source, so it is always the code that is
+# there. Where Raku++ is installed and runs this iz4 (proved here, now), the
+# launcher prefers it: the same source starts in milliseconds instead of
+# seconds. Rakudo stays the fallback, and IZ4_RUNTIME=raku forces it.
 mkdir -p "$BIN_DIR"
 rm -f "$BIN_DIR/iz4"    # replace, never write through an existing symlink
-cat > "$BIN_DIR/iz4" <<LAUNCH
+RAKUPP="$(command -v rakupp 2>/dev/null || true)"
+if [ -n "$RAKUPP" ] && [ "${IZ4_RUNTIME:-}" != raku ] \
+   && [ "$("$RAKUPP" -I "$CHECKOUT/lib" "$CHECKOUT/bin/iz4" version 2>/dev/null | cut -d' ' -f1)" = iz4 ]; then
+    say "Raku++ is installed and runs this iz4: the launcher will use it (IZ4_RUNTIME=raku for Rakudo)"
+    cat > "$BIN_DIR/iz4" <<LAUNCH
+#!/bin/sh
+# iz4 launcher, written by the iz4 installer; iz4 update keeps it current.
+# Runs the source in $CHECKOUT: under Raku++ while it is installed, else Rakudo.
+if [ "\${IZ4_RUNTIME:-}" != raku ] && command -v rakupp >/dev/null 2>&1; then
+    exec rakupp -I "$CHECKOUT/lib" "$CHECKOUT/bin/iz4" "\$@"
+fi
+exec "$RAKU" "$CHECKOUT/bin/iz4" "\$@"
+LAUNCH
+else
+    cat > "$BIN_DIR/iz4" <<LAUNCH
 #!/bin/sh
 # iz4 launcher, written by the iz4 installer; iz4 update keeps it current.
 exec "$RAKU" "$CHECKOUT/bin/iz4" "\$@"
 LAUNCH
+fi
 chmod +x "$BIN_DIR/iz4"
 
 say "checking the installation (the first run compiles; about half a minute) ..."
