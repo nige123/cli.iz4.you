@@ -14,6 +14,7 @@ use IZ4::Coach;
 use IZ4::Review;
 use IZ4::Hook;
 use IZ4::Evidence;
+use IZ4::Machine;
 
 my %*SUB-MAIN-OPTS = :named-anywhere;
 $*OUT.out-buffer = False;   # a closed pipe fails at the write, leaving nothing to flush at exit
@@ -1135,6 +1136,74 @@ sub gate-lines(%r --> List) {
         unassessed => 'a check could not be run, so this is not a pass';
     @l.push: "outcome: {%r<outcome>} - {%why{%r<outcome>} // ''}";
     @l;
+}
+
+# ------------------------------------------------- the machine interface
+# What an environment driver calls.  iz4 knows no harness: a driver (321,
+# a native hook, a Git hook, CI) knows its environment and calls these.
+
+multi MAIN('discover', Bool :$json = False, Str :$dir) {
+    attempt {
+        my %d = discover($dir.defined ?? $dir.IO !! $*CWD);
+        if $json { say json-encode(%d) }
+        elsif !%d<present> { say 'no IZ4 governs this directory' }
+        else {
+            say "IZ4: {%d<file>}";
+            say "sha256: {%d<sha256>}";
+            say %d<valid> ?? 'valid' !! "invalid: {%d<errors>.join('; ')}";
+            say "invariants: {%d<invariants>.map(*<number>).join(', ')}";
+        }
+        0;
+    }
+}
+
+multi MAIN('context', Bool :$json = False, Str :$file) {
+    attempt {
+        my %c = context(resolve-target($file));
+        print $json ?? json-encode(%c) ~ "\n" !! %c<text>;
+        0;
+    }
+}
+
+sub say-check(%r, Bool $json --> Int) {
+    if $json { say json-encode(%r) } else { .say for check-lines(%r) }
+    %r<exit_code>;
+}
+
+multi MAIN('check', 'action', Bool :$json = False, Str :$action, Str :$dir) {
+    attempt {
+        my $text = $action // $*IN.slurp;
+        my $parsed = try Rakudo::Internals::JSON.from-json($text);
+        user-error('check action reads one JSON object describing the action: operation, target, and optionally parameters, resource, repository, recipient, context')
+            unless $parsed ~~ Associative;
+        say-check(check-action(%$parsed, :dir($dir.defined ?? $dir.IO !! $*CWD)), $json);
+    }
+}
+
+sub change-options(Bool :$staged, Bool :$worktree, Str :$base, Str :$candidate, Bool :$checks, Int :$timeout, Str :$check-cmd,
+                   Str :$approval, Str :$approvers --> Hash) {
+    user-error('choose one of --worktree, --staged or --candidate=REV') if ($worktree, $staged, $candidate.defined).grep(?*).elems > 1;
+    %( staged => $staged, worktree => $worktree, base => $base, candidate => $candidate, checks => $checks, timeout => $timeout,
+       check-cmd => $check-cmd, approval-file => ($approval.defined ?? $approval.IO !! IO::Path),
+       approvers => ($approvers.defined ?? $approvers.IO !! IO::Path) );
+}
+
+multi MAIN('check', 'change', Bool :$staged = False, Bool :$worktree = False, Str :$base, Str :$candidate, Bool :$json = False,
+           Bool :$checks = True, Int :$timeout = 300, Str :$check-cmd = %*ENV<IZ4_CHECK_CMD> // Str,
+           Str :$approval, Str :$approvers = %*ENV<IZ4_APPROVERS> // Str, Str :$file) {
+    attempt {
+        my %o = change-options(:$staged, :$worktree, :$base, :$candidate, :$checks, :$timeout, :$check-cmd, :$approval, :$approvers);
+        say-check(check-change(gate-root($file), |%o), $json);
+    }
+}
+
+multi MAIN('verify', Bool :$staged = False, Bool :$worktree = False, Str :$base, Str :$candidate, Str :$transcript,
+           Bool :$json = False, Bool :$checks = True, Int :$timeout = 300, Str :$check-cmd = %*ENV<IZ4_CHECK_CMD> // Str,
+           Str :$approval, Str :$approvers = %*ENV<IZ4_APPROVERS> // Str, Str :$file) {
+    attempt {
+        my %o = change-options(:$staged, :$worktree, :$base, :$candidate, :$checks, :$timeout, :$check-cmd, :$approval, :$approvers);
+        say-check(verify(gate-root($file), :$transcript, |%o), $json);
+    }
 }
 
 multi MAIN('gate', Bool :$install-hook!, Bool :$enforce = False, Bool :$force = False, Str :$file) {

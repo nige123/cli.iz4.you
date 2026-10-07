@@ -1,0 +1,224 @@
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+use IZ4::Document;
+use IZ4::Register;
+
+# The machine interface: what an environment driver (321, a native hook, a
+# Git hook, CI) calls.  Five operations, stable JSON, one result vocabulary:
+# pass | warn | block | needs_human.  Nothing here knows any harness, and
+# nothing here needs 321.
+
+unless have-git() { skip-rest 'no git available'; exit }
+
+my %hermetic = GIT_CONFIG_GLOBAL => temp-dir().add('gitconfig').Str, GIT_CONFIG_NOSYSTEM => '1';
+%hermetic<GIT_CONFIG_GLOBAL>.IO.spurt('');
+%*ENV{.key} = .value for %hermetic;
+%*ENV<IZ4_APPROVERS>:delete;
+%*ENV<IZ4_CHECK_CMD>:delete;
+%*ENV<IZ4_INTERACTIVE> = '0';
+%*ENV<IZ4_NO_321> = '1';          # nothing in this file may lean on a launcher
+
+sub repo(--> IO::Path) {
+    my $r = temp-dir;
+    run 'git', '-C', $r.Str, 'init', '-q';
+    run 'git', '-C', $r.Str, 'config', 'user.email', 't@test';
+    run 'git', '-C', $r.Str, 'config', 'user.name', 'Test';
+    $r;
+}
+sub g(IO::Path $r, *@a) { my $p = run 'git', '-C', $r.Str, |@a, :out, :err; my $o = $p.out.slurp(:close); $p.err.slurp(:close); $o.trim }
+sub doc($out) { Rakudo::Internals::JSON.from-json($out) }
+sub act(IO::Path $r, %action) { iz4-talk($r, json-encode(%action), 'check', 'action', '--json') }
+
+# a project with one invariant and a test that names and quotes it
+my $r = repo;
+my $sp = minimal-iz4(:dir($r));
+add-invariant($sp, 'People control whether their profile is visible.', :because('Privacy.'));
+$r.add('lib').mkdir; $r.add('tests').mkdir;
+$r.add('lib/profile.txt').spurt("visible: private\n");
+$r.add('tests/invariant-5.sh').spurt("#!/bin/sh\n# Invariant 5: People control whether their profile is visible.\ngrep -q 'visible: private' lib/profile.txt\n");
+g($r, 'add', '-A');
+g($r, 'commit', '-qm', 'init');
+
+# ---- discover ---------------------------------------------------------------
+my ($rc, $out, $err) = iz4($r.add('lib'), 'discover', '--json');
+is $rc, 0, 'discover exits 0';
+my %d = doc($out);
+is %d<schema>, 'iz4-discover/1', 'discover is versioned';
+ok %d<present>, 'an IZ4 up the tree is found';
+is %d<file>, $sp.Str, 'by its path';
+is %d<sha256>, sha256-file($sp), 'with its content identity';
+ok %d<valid>, 'and it is valid';
+is %d<invariants>.map(*<number>).join(','), '0,1,2,3,4,5', 'the effective invariants are listed by number';
+ok %d<invariants>[0]<foundation> && !%d<invariants>[5]<foundation>, 'the foundation is told apart from the project\'s own';
+
+my $bare = temp-dir;
+($rc, $out, $err) = iz4($bare, 'discover', '--json');
+is $rc, 0, 'discover exits 0 where there is no IZ4';
+%d = doc($out);
+ok !%d<present>, 'and says none is present, without inventing one';
+($rc, $out, $err) = iz4($bare, 'discover');
+like $out, /'no IZ4'/, 'the plain form says so too';
+
+# ---- context ----------------------------------------------------------------
+($rc, $out, $err) = iz4($r, 'context', '--json');
+is $rc, 0, 'context exits 0';
+my %c = doc($out);
+is %c<schema>, 'iz4-context/1', 'context is versioned';
+is %c<sha256>, sha256-file($sp), 'it names the file it came from';
+like %c<instruction>, /'govern'/, 'the instruction says the invariants govern the work';
+like %c<instruction>, /:i 'not' .* ['suggestion' | 'optional']/, 'and that they are not optional';
+like %c<instruction>, /:i 'human' | 'owner' | 'person'/, 'and that a change of invariant is a person\'s decision';
+ok %c<instruction>.lines.elems <= 12, 'the instruction is short' or diag %c<instruction>.lines.elems;
+like %c<effective>, /'INVARIANT 5'/, 'the effective invariants are in it';
+like %c<effective>, /'INVARIANT 0'/, 'foundation included';
+ok %c<text>.contains(%c<instruction>.trim) && %c<text>.contains('INVARIANT 5'), 'text is the two together, ready to hand over';
+($rc, $out, $err) = iz4($bare, 'context', '--json');
+isnt $rc, 0, 'context where there is no IZ4 is an error, not an empty success';
+
+# ---- check action -----------------------------------------------------------
+# an ordinary write: nothing to decide, and it says what it did not assess
+($rc, $out, $err) = act($r, %( operation => 'write', target => 'lib/profile.txt', parameters => %( content => 'visible: private' ) ));
+is $rc, 0, 'an ordinary action exits 0';
+my %a = doc($out);
+is %a<schema>, 'iz4-check/1', 'a check is versioned';
+is %a<check>, 'action', 'and says which check it is';
+is %a<result>, 'pass', 'an ordinary write passes';
+ok %a<limits> ~~ Str && %a<limits>.chars > 0, 'and says what was not established';
+ok %a<invariants_considered> ~~ Positional, 'invariants considered is a list';
+ok !%a<proposed_invariant_change>.defined, 'no invariant change is proposed';
+is %a<iz4><sha256>, sha256-file($sp), 'the IZ4 that applied is identified';
+
+# an action whose words meet an invariant's: still a pass, but it is named
+($rc, $out, $err) = act($r, %( operation => 'write', target => 'lib/visibility.txt', parameters => %( content => 'profile visible to everyone; people cannot control it' ) ));
+%a = doc($out);
+ok %a<invariants_considered>.grep(5), 'an invariant whose own words turn up is listed as considered' or diag $out;
+
+# editing the IZ4 itself: only a person can agree to that
+($rc, $out, $err) = act($r, %( operation => 'write', target => 'IZ4' ));
+is $rc, 2, 'an edit to the IZ4 exits 2';
+%a = doc($out);
+is %a<result>, 'needs_human', 'and needs a person';
+ok %a<proposed_invariant_change>.defined, 'the proposed invariant change is described';
+like %a<reason>, /:i 'person' | 'owner'/, 'the reason says whose decision it is';
+($rc, $out, $err) = act($r, %( operation => 'delete', target => $sp.Str ));
+is doc($out)<result>, 'needs_human', 'an absolute path to the IZ4 is recognised, and so is deleting it';
+($rc, $out, $err) = act($r, %( operation => 'read', target => 'IZ4' ));
+is doc($out)<result>, 'pass', 'reading the IZ4 is not a decision';
+
+# changing the test that protects an invariant: surfaced, not silently allowed
+($rc, $out, $err) = act($r, %( operation => 'edit', target => 'tests/invariant-5.sh' ));
+is $rc, 0, 'a warning exits 0';
+%a = doc($out);
+is %a<result>, 'warn', 'editing the test that names an invariant is a warning';
+is %a<invariants_considered>.join(','), '5', 'naming the invariant it protects';
+
+# a shell command that removes the IZ4 is the same decision in other clothes
+($rc, $out, $err) = act($r, %( operation => 'execute', target => 'shell', parameters => %( command => 'rm -f IZ4 && git add -A' ) ));
+is doc($out)<result>, 'needs_human', 'a command that names the IZ4 destructively needs a person';
+($rc, $out, $err) = act($r, %( operation => 'execute', target => 'shell', parameters => %( command => 'cat IZ4' ) ));
+is doc($out)<result>, 'pass', 'a command that only reads it does not';
+
+# no IZ4: nothing governs, and that is said
+($rc, $out, $err) = act($bare, %( operation => 'write', target => 'x.txt' ));
+is $rc, 0, 'no IZ4: exit 0';
+%a = doc($out);
+ok %a<result> eq 'pass' && %a<reason>.contains('no IZ4'), 'and the reason says no IZ4 governs here';
+
+# garbage in is an error, never a pass
+($rc, $out, $err) = iz4-talk($r, 'not json', 'check', 'action', '--json');
+is $rc, 1, 'input that is not a JSON object is exit 1';
+
+# ---- check change -----------------------------------------------------------
+# a normal change in the working directory, nothing staged
+$r.add('README.md').spurt("hello\n");
+($rc, $out, $err) = iz4($r, 'check', 'change', '--worktree', '--json');
+is $rc, 0, 'a normal change exits 0';
+my %ch = doc($out);
+is %ch<check>, 'change', 'check change';
+is %ch<result>, 'pass', 'a normal change passes';
+is %ch<evidence><gate><schema>, 'iz4-gate/1', 'the gate\'s own document is the evidence';
+is %ch<evidence><gate><candidate_ref>, 'worktree', 'and it looked at the working directory';
+is g($r, 'diff', '--cached', '--name-only'), '', 'the caller\'s index was not touched';
+
+# a change that breaks what an invariant's test checks
+$r.add('lib/profile.txt').spurt("visible: public\n");
+($rc, $out, $err) = iz4($r, 'check', 'change', '--worktree', '--json');
+is $rc, 3, 'a failing protecting test exits 3';
+%ch = doc($out);
+is %ch<result>, 'block', 'and blocks';
+ok %ch<invariants_considered>.grep(5), 'naming the invariant' or diag $out;
+$r.add('lib/profile.txt').spurt("visible: private\n");
+
+# a change that rewrites an invariant
+my $before = $sp.slurp;
+$sp.spurt($before.subst('People control whether their profile is visible.', 'Staff control whether a profile is visible.'));
+($rc, $out, $err) = iz4($r, 'check', 'change', '--worktree', '--json');
+is $rc, 2, 'an invariant-changing change exits 2';
+%ch = doc($out);
+is %ch<result>, 'needs_human', 'and needs a person';
+ok %ch<proposed_invariant_change>.defined, 'with the proposed change';
+ok %ch<proposed_invariant_change><changes>.elems >= 1, 'listing what changes' or diag $out;
+like %ch<proposed_invariant_change><agree_with>, /'iz4 approve'/, 'and how a person agrees';
+ok %ch<proposed_invariant_change><proposal_digest>, 'bound to a proposal digest';
+is g($r, 'for-each-ref', 'refs/iz4/approvals'), '', 'nothing was approved by asking';
+$sp.spurt($before);
+
+# the staged and revision selections still work through the same door
+($rc, $out, $err) = iz4($r, 'check', 'change', '--staged', '--json');
+is doc($out)<result>, 'pass', 'check change --staged';
+($rc, $out, $err) = iz4($r, 'check', 'change', '--candidate=HEAD', '--json');
+is doc($out)<check>, 'change', 'check change --candidate';
+
+# ---- verify -----------------------------------------------------------------
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', '--json');
+is $rc, 0, 'verify exits 0 on a sound tree';
+my %v = doc($out);
+is %v<schema>, 'iz4-check/1', 'verify shares the check document';
+is %v<check>, 'verify', 'verify';
+is %v<result>, 'pass', 'a sound tree verifies';
+ok %v<evidence><parts>.grep({ .<part> eq 'structure' && .<result> eq 'pass' }), 'the structure part ran';
+ok %v<evidence><parts>.grep({ .<part> eq 'change' && .<result> eq 'pass' }), 'the change part ran';
+ok %v<evidence><parts>.grep({ .<part> eq 'report' && .<result> eq 'not_checked' }), 'and with no transcript the report is not claimed';
+like %v<limits>, /:i 'not'/, 'verify says what it did not establish';
+
+# with a transcript: the report is checked
+my $t = temp-dir.add('t.jsonl');
+$t.spurt(json-encode(%( type => 'assistant', message => %( content => [ %( type => 'text', text => 'Done.' ), ] ) )) ~ "\n");
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--transcript=$t", '--json');
+is $rc, 3, 'files changed and no report: exit 3';
+%v = doc($out);
+is %v<result>, 'block', 'blocked';
+ok %v<evidence><parts>.grep({ .<part> eq 'report' && .<result> eq 'block' }), 'by the report part';
+$t.spurt(json-encode(%( type => 'assistant', message => %( content => [ %( type => 'text', text => "Invariant: 5\nAssessment: uncertain\nEvidence: read\nRemaining gap: none tested" ), ] ) )) ~ "\n");
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--transcript=$t", '--json');
+%v = doc($out);
+is %v<result>, 'pass', 'with the report the run verifies';
+ok %v<evidence><parts>.grep({ .<part> eq 'report' && .<result> eq 'pass' }), 'the report part passed';
+
+# an invalid IZ4 never verifies
+$sp.spurt("IZ4\n\nnonsense\n");
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', '--json');
+is doc($out)<result>, 'block', 'an invalid IZ4 blocks verification';
+$sp.spurt($before);
+
+# ---- the plain forms, for people ----------------------------------------------
+($rc, $out, $err) = iz4($r, 'check', 'change', '--worktree');
+like $out, /'result: pass'/, 'the plain form of a check states the result';
+($rc, $out, $err) = iz4($r, 'context');
+like $out, /'INVARIANT 5'/, 'the plain form of context is the text itself';
+
+# ---- stable output: the keys an integration reads are always there ------------
+for (('check', 'change', '--worktree', '--json'), ('verify', '--worktree', '--json')) -> @cmd {
+    ($rc, $out, $err) = iz4($r, |@cmd);
+    my %x = doc($out);
+    ok all(<schema check result reason invariants_considered evidence proposed_invariant_change iz4 limits tool>.map({ %x{$_}:exists })),
+        "{@cmd.head(2).join(' ')} carries every documented key" or diag %x.keys.sort.join(' ');
+}
+($rc, $out, $err) = act($r, %( operation => 'write', target => 'a.txt' ));
+my %x = doc($out);
+ok all(<schema check result reason invariants_considered evidence proposed_invariant_change iz4 limits tool>.map({ %x{$_}:exists })), 'check action carries every documented key';
+is $out.lines.elems, 1, 'a JSON result is one line';
+
+done-testing;
