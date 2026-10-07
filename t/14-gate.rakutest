@@ -249,6 +249,51 @@ g($r, 'add', 'tests');
 is $rc, 0, 'a linked test that runs git itself passes: no GIT_INDEX_FILE leaks from the gate' or diag $out;
 g($r, 'checkout', 'HEAD', '--', 'tests/invariant-5.sh'); g($r, 'reset', '-q', 'tests');
 
+# ---- the environment: ignored files are linked into the candidate ---------
+# A dependency the project keeps out of Git (an installed library, local
+# configuration) must be there when the linked test runs, and must survive
+# the gate's clean-up untouched.
+{
+    $r.add('.gitignore').spurt("deps/\n");
+    $r.add('deps').mkdir;
+    $r.add('deps/needed.txt').spurt("installed\n");
+    my $keep = $r.add('tests/invariant-5.sh').slurp;
+    $r.add('tests/invariant-5.sh').spurt($keep ~ "grep -q installed deps/needed.txt\n");
+    g($r, 'add', '.gitignore', 'tests');
+    ($rc, $out, $err) = gate($r, '--staged', '--enforce');
+    is $rc, 0, 'a linked test finds the ignored dependency: the checkout is the environment' or diag $out;
+    ok $r.add('deps/needed.txt').f, 'and the gate leaves the real dependency in place when it cleans up';
+    is $r.add('deps/needed.txt').slurp, "installed\n", 'unchanged';
+    ($rc, $out, $err) = gate($r, '--staged', '--json');
+    like $out, /'"environment_links":1'/, 'the result says how many ignored entries were linked';
+
+    # an untracked file that is NOT ignored is no part of the candidate, or its environment
+    $r.add('new-code.txt').spurt("not staged\n");
+    $r.add('tests/invariant-5.sh').spurt($keep ~ "test ! -e new-code.txt\n");
+    g($r, 'add', 'tests');
+    ($rc, $out, $err) = gate($r, '--staged', '--enforce');
+    is $rc, 0, 'an untracked, unignored file is not linked in: a commit would not carry it' or diag $out;
+    $r.add('new-code.txt').unlink;
+
+    # a test that cannot start for want of a dependency is unassessed, not a failure
+    $r.add('tests/invariant-5.sh').spurt($keep ~ 'echo "Can\'t locate Some/Module.pm in @INC (you may need to install it)" >&2; exit 2' ~ "\n");
+    g($r, 'add', 'tests');
+    ($rc, $out, $err) = gate($r, '--staged', '--enforce');
+    is $rc, 4, 'a missing dependency makes the check unassessed (exit 4), never blocked' or diag $out;
+    like $out, /'? tests/invariant-5.sh (Invariant 5) unassessed: could not run: Can\'t locate Some/Module.pm'/, 'and says what could not be found';
+    like $out, /"install the project's dependencies so tests/invariant-5.sh can run"/, 'with the next step';
+
+    # output that is not UTF-8 never stops the gate
+    $r.add('tests/invariant-5.sh').spurt($keep ~ "printf 'price \\243 5\\n'; exit 1\n");
+    g($r, 'add', 'tests');
+    ($rc, $out, $err) = gate($r, '--staged', '--enforce');
+    is $rc, 3, 'a failing test whose output is not UTF-8 is still reported as failed' or diag $out ~ $err;
+
+    $r.add('tests/invariant-5.sh').spurt($keep);
+    g($r, 'add', 'tests');
+    g($r, 'commit', '-qm', 'gitignore for deps');
+}
+
 # ---- a code-only violation of a tested invariant is blocked --------------
 $r.add('lib/profile.txt').spurt("visible: public\n");
 g($r, 'add', 'lib');
@@ -291,7 +336,16 @@ is $rc, 4, 'a runner that cannot be found makes the outcome unassessed';
 like $out, /'outcome: unassessed - a check could not be run, so this is not a pass'/, 'and the outcome says it is not a pass';
 ($rc, $out, $err) = gate($r, '--staged', '--enforce', '--/checks');
 is $rc, 4, 'skipping the checks when linked tests exist is unassessed, not pass';
-like $out, /'checks were not run'/, 'and says so';
+like $out, /'checks were not run (--no-checks): 1 invariant has a test naming it'/, 'and says so, with the count';
+{
+    # with no test naming any invariant there is nothing to skip: that is a pass
+    my $bare = repo;
+    minimal-iz4(:dir($bare));
+    g($bare, 'add', '-A'); g($bare, 'commit', '-qm', 'init');
+    $bare.add('x').spurt("y\n"); g($bare, 'add', 'x');
+    my ($rc, $out, $err) = gate($bare, '--staged', '--enforce', '--/checks');
+    is $rc, 0, '--no-checks with no linked tests is a pass: nothing was left unrun' or diag $out;
+}
 g($r, 'checkout', 'HEAD', '--', 'lib/profile.txt'); g($r, 'reset', '-q', 'lib');
 
 # ---- the pre-commit hook ---------------------------------------------------

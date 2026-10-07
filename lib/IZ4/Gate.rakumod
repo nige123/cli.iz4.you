@@ -28,6 +28,12 @@ unit module IZ4::Gate;
 #| file, which the candidate cannot edit.  The foundation, Invariants
 #| 0-4, is never approvable: altering it is blocked.
 #|
+#| The checks run in an export of the candidate tree with the checkout's
+#| ignored files (installed dependencies, local configuration) linked in:
+#| tracked content from the snapshot, environment from the machine.  A
+#| test that cannot start for want of a dependency is unassessed, never a
+#| failure: the gate reports what it could not look at as exactly that.
+#|
 #| Trust boundary: everything here runs with the caller's authority.  A
 #| local hook can be skipped and a local approval can be written by
 #| whoever has the shell, so the gate's word is only as trustworthy as
@@ -140,10 +146,42 @@ sub export-tree(IO::Path $root, Str $tree --> IO::Path) is export {
     $dir;
 }
 
+#| Remove an exported tree.  A symbolic link is only ever unlinked, never
+#| followed: the links made by link-environment point into the real
+#| checkout, and nothing there may be touched.
 sub rm-tree(IO::Path $dir) is export {
+    return if $dir.l;                 # never descend through a link, whatever called us
     return unless $dir.e;
-    for $dir.dir -> $e { $e.d && !$e.l ?? rm-tree($e) !! (try $e.unlink) }
+    for $dir.dir -> $e {
+        if $e.l        { try $e.unlink }
+        elsif $e.d     { rm-tree($e) }
+        else           { try $e.unlink }
+    }
     try $dir.rmdir;
+}
+
+#| The candidate's environment.  An exported tree holds the tracked files
+#| and nothing else, so a test there finds no installed dependencies, no
+#| local configuration, none of what .gitignore keeps out of Git.  Those
+#| ignored files are not part of any candidate, they are the machine's
+#| environment, so each is linked into the exported tree from the checkout:
+#| the tracked files come from the snapshot, the environment from here.
+#| Untracked files that are not ignored are left out on purpose: a commit
+#| would not carry them either.  Returns how many were linked.
+sub link-environment(IO::Path $root, IO::Path $dir --> Int) is export {
+    my ($rc, $out, $) = g($root, 'ls-files', '--others', '--ignored', '--exclude-standard', '--directory');
+    return 0 if $rc != 0;
+    my $n = 0;
+    for $out.lines.head(2000) -> $line {
+        my $rel = $line.subst(/ '/' $/, '');
+        next if $rel eq '' || $rel eq '.git' || $rel.starts-with('.git/');
+        my $src = $root.add($rel);
+        my $dst = $dir.add($rel);
+        next if $dst.e || $dst.l || !$src.e;
+        try $dst.parent.mkdir;
+        $n++ if try $src.absolute.IO.symlink($dst);
+    }
+    $n;
 }
 
 # ----------------------------------------------------------- commitments
@@ -263,10 +301,10 @@ sub protection-changes(IZ4::Document $base, IO::Path $base-dir, IZ4::Document $c
 #| How to run one test file, by the repository's test language.  Empty
 #| when no runner is known: the check is then reported as unassessed
 #| rather than skipped, and IZ4_CHECK_CMD (with {file}) names one.
-sub runner-for(Str $lang, Str $file --> List) {
+sub runner-for(Str $lang, Str $file, IO::Path $dir --> List) {
     given $lang {
         when 'raku'   { ('raku', '-I', 'lib', $file) }
-        when 'perl'   { ('perl', '-Ilib', $file) }
+        when 'perl'   { ('perl', '-Ilib', |($dir.add('local/lib/perl5').d ?? ('-Ilocal/lib/perl5',) !! ()), $file) }
         when 'python' { ('python3', '-m', 'pytest', '-q', $file) }
         when 'ruby'   { ('ruby', '-Ilib', '-Itest', $file) }
         when 'go'     { ('go', 'test', './' ~ $file.IO.parent.Str) }
@@ -274,6 +312,23 @@ sub runner-for(Str $lang, Str $file --> List) {
         default       { () }
     }
 }
+
+#| The line that says a test could not start for want of a dependency, in
+#| the languages the gate runs; Nil when the output shows nothing of the kind.
+sub missing-dependency(Str $output --> Str) is export {
+    for $output.lines -> $l {
+        return $l.trim.substr(0, 160) if $l ~~ /
+            "Can't locate " \S+ ' in @INC'               # Perl
+          | 'Could not find ' \S+ ' in:'                  # Raku
+          | 'ModuleNotFoundError' | 'No module named '    # Python
+          | 'Cannot find module'                          # Node
+          | 'cannot load such file'                       # Ruby
+        /;
+    }
+    Str;
+}
+
+sub text-of(Blob $b --> Str) { (try $b.decode('utf8')) // $b.decode('latin-1') }
 
 sub have-timeout(--> Bool) {
     my $p = try run 'timeout', '--version', :out, :err;
@@ -299,7 +354,7 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
     for %by-file.keys.sort -> $f {
         my @argv = $cmd.defined
             ?? $cmd.subst('{file}', $f, :g).words
-            !! runner-for($lang, $f);
+            !! runner-for($lang, $f, $cand-dir);
         my %r = file => $f, invariants => %by-file{$f}.sort.List, timeout_applied => $has-timeout;
         if !@argv {
             %r<outcome> = 'unassessed';
@@ -308,15 +363,16 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
             next;
         }
         my @run = $has-timeout ?? ('timeout', $timeout.Str, |@argv) !! @argv;
-        my $p = try run |@run, :cwd($cand-dir.Str), :out, :err;
+        my $p = try run |@run, :cwd($cand-dir.Str), :out, :err, :bin;
         without $p {
             %r<outcome> = 'unassessed';
             %r<detail>  = "could not run {@argv[0]}: not found";
             @out.push: %r;
             next;
         }
-        my $o = $p.out.slurp(:close);
-        my $e = $p.err.slurp(:close);
+        # a test may print anything; bytes that are not UTF-8 must not stop the gate
+        my $o = text-of($p.out.slurp(:close));
+        my $e = text-of($p.err.slurp(:close));
         if $has-timeout && $p.exitcode == 124 {
             %r<outcome> = 'timeout';
             %r<detail>  = "no result within {$timeout}s";
@@ -324,6 +380,12 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
         elsif $p.exitcode == 127 || ($p.exitcode != 0 && $o eq '' && $e.contains('not found')) {
             %r<outcome> = 'unassessed';
             %r<detail>  = "could not run {@argv[0]}: " ~ ($e.trim.lines.head // 'not found');
+        }
+        elsif $p.exitcode != 0 && missing-dependency($e ~ $o) -> $why {
+            # the test never ran: its environment is incomplete.  That is a
+            # gap in what the gate could look at, not a finding about the code.
+            %r<outcome> = 'unassessed';
+            %r<detail>  = "could not run: $why - install the project's dependencies where the gate runs";
         }
         else {
             %r<outcome> = $p.exitcode == 0 ?? 'passed' !! 'failed';
@@ -580,18 +642,26 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
 
     my @changes = commitment-changes($base-doc, $cand-doc, :base-source($base-src // ''));
     my ($base-dir, $cand-dir);
+    my $linked = 0;
+    my $skipped = 0;
     my @protections;
     my @checks;
     my @touches;
     {
         LEAVE { rm-tree($_) with $base-dir; rm-tree($_) with $cand-dir }
         $cand-dir = export-tree($root, %snap<candidate>);
+        $linked = link-environment($root, $cand-dir);
         if %snap<base>.defined && $base-doc.defined && $cand-doc.defined {
             $base-dir = export-tree($root, %snap<base>);
             @protections = protection-changes($base-doc, $base-dir, $cand-doc, $cand-dir);
         }
         if $checks && $cand-doc.defined && $cand-doc.ok {
             @checks = run-checks($cand-doc, $cand-dir, :$timeout, :cmd($check-cmd));
+        }
+        elsif $cand-doc.defined && $cand-doc.ok {
+            # --no-checks: how many linked tests went unrun, so that skipping
+            # nothing is a pass and skipping something is never one
+            $skipped = +evidence-for($cand-doc, $cand-dir)<state>.values.grep(* eq 'named');
         }
         if %snap<base>.defined && $cand-doc.defined {
             my ($rc, $diff, $) = g($root, 'diff', '--no-color', %snap<base>, %snap<candidate>);
@@ -605,14 +675,15 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
     %r<checks>      = @checks.List;
     %r<touches>     = @touches.List;
     %r<proposal_digest> = $digest;
+    %r<environment_links> = $linked;
 
     my @notes;
     my @next;
     my $blocked    = is-blocked(%p) || ?@checks.grep({ .<outcome> eq 'failed' });
     my $agree      = needs-agreement(%p);
     my $unassessed = ?@checks.grep({ .<outcome> eq any(<timeout unassessed>) });
-    if !$checks && $cand-doc.defined && $cand-doc.ok {
-        @notes.push: 'checks were not run (--no-checks): the tests naming invariants are unassessed';
+    if $skipped {
+        @notes.push: "checks were not run (--no-checks): $skipped invariant{$skipped == 1 ?? ' has' !! 's have'} a test naming {$skipped == 1 ?? 'it' !! 'them'}, unassessed here";
         $unassessed = True;
     }
 
@@ -654,7 +725,9 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
         }
         when 'unassessed' {
             for @checks.grep({ .<outcome> eq any(<timeout unassessed>) }) {
-                @next.push: .<outcome> eq 'timeout' ?? "run {.<file>} yourself, or raise --timeout" !! "set IZ4_CHECK_CMD or --check-cmd so {.<file>} can run";
+                @next.push: .<outcome> eq 'timeout' ?? "run {.<file>} yourself, or raise --timeout"
+                    !! .<detail>.starts-with('could not run: ') ?? "install the project's dependencies so {.<file>} can run"
+                    !! "set IZ4_CHECK_CMD or --check-cmd so {.<file>} can run";
             }
             @next.push: 'run iz4 gate without --no-checks' unless $checks;
         }

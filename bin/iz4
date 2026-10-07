@@ -1104,9 +1104,9 @@ sub gate-lines(%r --> List) {
     my $b = %r<base> eq 'none' ?? 'no base (initial)' !! "base {%r<base>.substr(0, 12)} ({%r<base_ref>})";
     @l.push: "gate: candidate tree {%r<candidate>.substr(0, 12)} ({%r<candidate_ref>}) against $b, {%r<mode>}";
     if %r<iz4><candidate_present> || %r<iz4><base_present> {
-        my %p = changes => %r<changes>, protections => %r<protections>;
+        my %p = changes => %r<changes>, protections => %r<protections>.grep({ .<kind> ne 'protection-changed' }).List;
         my @pl = proposal-lines(%p);
-        @l.push: 'commitments and protections: ' ~ (@pl ?? '' !! 'unchanged');
+        @l.push: 'commitments and protections:' ~ (@pl ?? '' !! ' unchanged');
         @l.push: "  $_" for @pl;
         for |%r<protections>.grep({ .<kind> eq 'protection-changed' }) { @l.push: "  (Invariant {.<number>}: {.<detail>})" }
         if %r<checks> {

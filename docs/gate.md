@@ -64,6 +64,18 @@ the system has `timeout`. A failing check is a definite finding. A check
 that times out, has no known runner or cannot start is unassessed, never
 passed.
 
+The checks run in an export of the candidate tree, so tracked content
+always comes from the snapshot. The checkout's ignored files (installed
+dependencies such as `local/` or `node_modules/`, local configuration)
+are linked into that export, because they are the machine's environment
+and no part of any candidate; untracked files that are not ignored are
+left out, since a commit would not carry them. Perl tests get
+`-Ilocal/lib/perl5` when the project has one. A test that cannot start for
+want of a dependency (`Can't locate ... in @INC`, `ModuleNotFoundError`,
+`Cannot find module` and the like) is unassessed, not failed: the gate
+could not look, and says so. At a CI boundary a fresh clone has no ignored
+files, so install the project's dependencies before the gate runs.
+
 Touches: which invariants the diff mentions by their own words, from
 `iz4 review`'s offline layer. A pointer for a person, never a finding.
 
@@ -173,6 +185,22 @@ reported as `uncertain` in the agent protocol.
 |---|---|---|
 | local hook | `iz4 gate --install-hook` writes a pre-commit hook that runs `iz4 gate --staged` (advisory) or `--staged --enforce`; it never overwrites a hook that is not iz4's | timely feedback for the developer or agent at the keyboard; `git commit --no-verify`, an edited hook, a changed `core.hooksPath` or a different tool all skip it |
 | protected boundary | the same `iz4 gate --candidate=HEAD --base=<merge base> --enforce --approvers=FILE` run by CI on the protected branch, or by a server-side hook, from an iz4 installation and an allowed-signers file the candidate cannot change | the check the first tier cannot be trusted for, repeated where the candidate has no authority, with human agreement validated independently |
+
+With a hooks directory shared by every repository on a machine
+(`core.hooksPath`), `iz4 gate --install-hook` refuses to write and prints
+the line to add. Make a shared hook opt-in per repository, so it never
+fires in a temporary repository some test suite creates:
+
+```sh
+#!/bin/sh
+[ "$(git config --local --get iz4.gate 2>/dev/null)" = enforce ] || exit 0
+command -v iz4 >/dev/null 2>&1 || exit 0
+[ -f IZ4 ] || exit 0
+exec iz4 gate --staged --enforce
+```
+
+and opt a repository in with `git config iz4.gate enforce`. The setting
+lives in `.git/config`, outside every tree, so a commit cannot change it.
 
 The candidate tree may contain proposed changes to tests and controls;
 that is what the gate reports. It cannot approve them: approval is a
