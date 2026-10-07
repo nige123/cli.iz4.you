@@ -247,6 +247,13 @@ $r.add('tests/invariant-5.sh').spurt("#!/bin/sh\n# Invariant 5: People control w
 g($r, 'add', 'tests');
 ($rc, $out, $err) = gate($r, '--staged', '--enforce');
 is $rc, 0, 'a linked test that runs git itself passes: no GIT_INDEX_FILE leaks from the gate' or diag $out;
+{
+    # inside a hook Git exports GIT_INDEX_FILE; the checks must not inherit it
+    my $before = g($r, 'write-tree');
+    my ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', :env(GIT_INDEX_FILE => $r.add('.git/index').absolute));
+    is $rc, 0, 'with GIT_INDEX_FILE exported, as in a hook, the git-using check still passes' or diag $out;
+    is g($r, 'write-tree'), $before, 'and it did not write into this repository\'s index';
+}
 g($r, 'checkout', 'HEAD', '--', 'tests/invariant-5.sh'); g($r, 'reset', '-q', 'tests');
 
 # ---- the environment: ignored files are linked into the candidate ---------

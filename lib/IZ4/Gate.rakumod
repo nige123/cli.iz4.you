@@ -350,6 +350,11 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
     }
     my $lang = detect-language($cand-dir);
     my $has-timeout = have-timeout();
+    # Inside a Git hook, Git exports where its index and repository are
+    # (GIT_INDEX_FILE and friends).  A test that runs git itself must not
+    # inherit them: it would read or write this repository's index.
+    my %clean = %*ENV.grep({ .key ne any(<GIT_INDEX_FILE GIT_DIR GIT_WORK_TREE GIT_PREFIX GIT_COMMON_DIR
+                                           GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE>) });
     my @out;
     for %by-file.keys.sort -> $f {
         my @argv = $cmd.defined
@@ -363,7 +368,7 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
             next;
         }
         my @run = $has-timeout ?? ('timeout', $timeout.Str, |@argv) !! @argv;
-        my $p = try run |@run, :cwd($cand-dir.Str), :out, :err, :bin;
+        my $p = try run |@run, :cwd($cand-dir.Str), :env(%clean), :out, :err, :bin;
         without $p {
             %r<outcome> = 'unassessed';
             %r<detail>  = "could not run {@argv[0]}: not found";
