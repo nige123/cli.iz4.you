@@ -39,6 +39,18 @@ sub result-exit(Str $result --> Int) is export {
 
 sub machine-error(Str $message) { X::IZ4.new(:$message).throw }
 
+#| What is said when the report is missing.  It goes back to the agent
+#| through whatever drove the check, so it must say exactly what to write.
+constant REPORT-WANTED is export = q:to/END/;
+    files changed in a project that keeps an IZ4, and the work ends with no per-invariant report. Before finishing, report each invariant the change could affect:
+        Invariant:     its number and wording
+        Assessment:    mechanically verified | supported by evidence | apparently consistent | uncertain | conflicting
+        Evidence:      what was actually run or reviewed, and what was only suggested
+        Remaining gap: what has not been established
+    Say 'uncertain' rather than imply conformance.
+    END
+
+
 # ---------------------------------------------------------------- discover
 
 #| Does an IZ4 govern this directory?  Never an error: no IZ4 is an
@@ -373,8 +385,7 @@ sub verify(IO::Path $root, Str :$transcript, Str :$summary, *%opts --> Hash) is 
             @parts.push: %( part => 'report', result => PASS, detail => 'the work ends with a per-invariant report' );
         }
         else {
-            @parts.push: %( part => 'report', result => BLOCK,
-                            detail => 'files changed and the work ends with no per-invariant report (Invariant, Assessment, Evidence, Remaining gap)' );
+            @parts.push: %( part => 'report', result => BLOCK, detail => REPORT-WANTED.trim-trailing );
         }
     }
     else { @parts.push: %( part => 'report', result => 'not_checked', detail => 'the agent\'s last words were not given, so the report was not looked for' ) }

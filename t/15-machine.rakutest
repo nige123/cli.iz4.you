@@ -207,6 +207,7 @@ my $words = temp-dir.add('summary.txt');
 $words.spurt("All done.\n");
 ($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$words", '--json');
 is doc($out)<result>, 'block', 'a plain-text summary with no report blocks';
+like doc($out)<reason>, /'Assessment:' .* 'mechanically verified' .* 'Remaining gap:'/, 'and the reason says exactly what to write, since it goes back to the agent';
 $words.spurt("Invariant: 5 People control\nAssessment: uncertain\nEvidence: read it\nRemaining gap: untested\n");
 ($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$words", '--json');
 %v = doc($out);
