@@ -355,8 +355,10 @@ sub verify(IO::Path $root, Str :$transcript, *%opts --> Hash) is export {
     }
     else { @parts.push: %( part => 'change', result => 'not_checked', detail => 'not checked: the IZ4 is invalid' ) }
 
+    my @uncertain;
     with $transcript {
         my $last = last-assistant-text($transcript);
+        @uncertain = report-uncertain($last);
         if !$changed { @parts.push: %( part => 'report', result => PASS, detail => 'nothing changed, so no report is owed' ) }
         elsif $last ~~ /:i 'invariant' .* 'assessment' .* [ 'evidence' | 'remaining gap' ] / {
             @parts.push: %( part => 'report', result => PASS, detail => 'the work ends with a per-invariant report' );
@@ -373,10 +375,25 @@ sub verify(IO::Path $root, Str :$transcript, *%opts --> Hash) is export {
     my $reason = $worst eq PASS
         ?? 'every part that ran found nothing to stop on'
         !! @parts.grep({ .<result> eq $worst }).map(*<detail>).join('; ');
-    my %evidence = parts => @parts.Array;
+    my %evidence = parts => @parts.Array, report => %( uncertain => @uncertain.Array );
     %evidence<gate> = %change<evidence><gate> if %change;
     result-doc('verify', $worst, $reason, ($iz4.f ?? $iz4 !! IO::Path), :invariants(@inv), :%evidence, :$proposed,
         :limits('a report that is present is not thereby true, and an invariant no test names is not verified by this; parts marked not_checked were not run'));
+}
+
+#| The invariants a per-invariant report itself marks uncertain or
+#| conflicting, in the report's own words.
+sub report-uncertain(Str $text --> List) is export {
+    my @out;
+    my $current = '';
+    for $text.lines -> $l {
+        if $l ~~ /^ \s* 'Invariant:' \s* (\S .*?) \s* $/ { $current = ~$0 }
+        elsif $l ~~ /^ \s* 'Assessment:' \s* ('uncertain' | 'conflicting') / && $current ne '' {
+            @out.push("Invariant $current: {~$0}");
+            $current = '';
+        }
+    }
+    @out.List;
 }
 
 # ----------------------------------------------------------------- people

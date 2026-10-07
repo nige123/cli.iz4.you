@@ -196,6 +196,10 @@ $t.spurt(json-encode(%( type => 'assistant', message => %( content => [ %( type 
 %v = doc($out);
 is %v<result>, 'pass', 'with the report the run verifies';
 ok %v<evidence><parts>.grep({ .<part> eq 'report' && .<result> eq 'pass' }), 'the report part passed';
+is %v<evidence><report><uncertain>.join('|'), 'Invariant 5: uncertain', 'what the report itself calls uncertain is carried, in its own words';
+$t.spurt(json-encode(%( type => 'assistant', message => %( content => [ %( type => 'text', text => "Invariant: 5 People control\nAssessment: apparently consistent\nEvidence: read\nRemaining gap: none\nInvariant: 6 x\nAssessment: conflicting\nEvidence: y" ), ] ) )) ~ "\n");
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--transcript=$t", '--json');
+is doc($out)<evidence><report><uncertain>.join('|'), 'Invariant 6 x: conflicting', 'consistent ones are not listed; conflicting ones are';
 
 # an invalid IZ4 never verifies
 $sp.spurt("IZ4\n\nnonsense\n");
