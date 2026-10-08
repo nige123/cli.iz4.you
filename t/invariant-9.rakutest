@@ -10,6 +10,7 @@ use IZ4Test;
 use IZ4;
 use IZ4::Document;
 use IZ4::Agent;
+use IZ4::Integrations;
 
 my $dir = temp-dir;
 my $iz4 = minimal-iz4(:$dir);

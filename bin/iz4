@@ -3,18 +3,26 @@
 # invariants that must remain true to keep serving them.
 
 use lib $*PROGRAM.resolve.parent(2).add('lib').Str;   # run from a checkout without installing
+# The core: intent, its evidence, the gate, a person's agreement, and the
+# machine interface a driver calls.  It knows no agent harness and never
+# runs 321.
 use IZ4;
 use IZ4::Document;
-use IZ4::Launcher;
 use IZ4::Register;
 use IZ4::Git;
 use IZ4::Gate;
 use IZ4::Agent;
 use IZ4::Coach;
 use IZ4::Review;
-use IZ4::Hook;
 use IZ4::Evidence;
 use IZ4::Machine;
+# The conveniences: they may ask 321, the environment driver and agent
+# launcher, and are the only things here that do.
+use IZ4::Launcher;
+use IZ4::Assist;
+use IZ4::Integrations;
+# Compatibility for wiring an earlier iz4 left behind; deprecated.
+use IZ4::LegacyHook;
 
 my %*SUB-MAIN-OPTS = :named-anywhere;
 $*OUT.out-buffer = False;   # a closed pipe fails at the write, leaving nothing to flush at exit
@@ -82,11 +90,9 @@ sub USAGE() {
                                        --sign=KEY --by=PRINCIPAL signs it for an
                                        acceptance boundary. A script never gets a
                                        yes here: without a terminal it exits 2
-      iz4 suggest                      ask an agent (through 321 when it is
-                                           installed, else IZ4_AGENT_CMD,
-                                           default 'claude -p') for a few
-                                           candidate invariants, then review
-                                           them
+      iz4 suggest                      ask an agent (through 321, or your own
+                                           IZ4_AGENT_CMD) for a few candidate
+                                           invariants, then review them
       iz4 invariants [FILE]            the effective invariants: the foundation
                                            0-4 and this project's own
       iz4 foundation [--restore FILE]  the foundation every IZ4 carries word for
@@ -147,8 +153,12 @@ sub USAGE() {
                                        needs_human, exit 0 | 0 | 3 | 2);
                                        docs/drivers.md
       iz4 hook session-start|pre-edit|stop
-                                         the harness-neutral hook: JSON in,
-                                           text out, exit 2 to refuse
+                                         DEPRECATED, compatibility only: the
+                                           hook an iz4 before 0.15 wired into
+                                           Claude Code. It still answers so
+                                           that wiring keeps working until a
+                                           driver adopts it (321 iz4 install);
+                                           nothing new is wired to it
       iz4 agent status [--json] [--strict]
                                          report spec validity and integration
                                            state, and what the driver (321)
@@ -177,14 +187,73 @@ sub USAGE() {
 }
 
 # Run a command body; user errors become one-line messages and exit 1.
-sub attempt(&body) {
+constant INACTIVE-NOTE = 'The IZ4 intent is recorded, but harness enforcement is currently inactive.';
+
+sub attempt(&body, Bool :$intent = False) {
+    # A command that changes intent is followed, when it succeeded and
+    # really changed something, by making sure enforcement is in place.
+    my $*IZ4-INTENT-CHANGED = False;
+    my $before = $intent ?? intent-digest() !! '';
     my $rc = body() // 0;
+    if $intent && $rc == 0 && ($*IZ4-INTENT-CHANGED || intent-digest() ne $before) {
+        try { activate-enforcement(); CATCH { default { note "enforcement: {.message.lines.head}"; note INACTIVE-NOTE } } }
+    }
     exit $rc;
     CATCH {
         when X::IZ4 { note .message; exit 1 }
         # A closed pipe (iz4 ... | head) is normal, never a stack trace.
         when *.message.contains('Broken pipe') { try $*OUT.close; exit 0 }
     }
+}
+
+# ------------------------------------------------------------ enforcement
+
+#| The nearest IZ4's content identity, or '' when there is none: how a
+#| command that may or may not have changed the file is told apart.
+sub intent-digest(--> Str) {
+    my $path = try resolve-target(Str);
+    return '' without $path;
+    $path.f ?? (try sha256-file($path)) // '' !! '';
+}
+
+#| After a successful change of intent: make sure the environment driver
+#| is there (installing the official 321 when it is not), ask it to
+#| activate enforcement, and report what is really in place.  Nothing
+#| here can undo the change that was just made, and nothing is called
+#| active until 321 has wired it and read it back.
+sub activate-enforcement() {
+    return if enforcement-disabled();
+    my $path = try resolve-target(Str);
+    return without $path;
+    my $root = $path.parent;
+    my %r = ensure-enforcement(:$root);
+    my %d = %r<driver>;
+    given %d<state> {
+        when 'installed' { say "321 {%d<version>} installed at {%d<path>}: the environment driver iz4 uses to activate enforcement." }
+        when 'updated'   { say "321 updated from {%d<from>} to {%d<version>} at {%d<path>}." }
+    }
+    my @legacy = legacy-hooks(:$root);
+    my $still = @legacy ?? " The Claude Code hooks an earlier iz4 wrote ({@legacy.join(', ')}) are untouched and still active." !! '';
+    if %d<state> eq any(<failed too-old foreign>) {
+        my $why = %d<state> eq 'failed'  ?? "321 could not be installed ({%d<note>})"
+               !! %d<state> eq 'too-old' ?? "{%d<note>}"
+               !!                           "321 was left alone ({%d<note>})";
+        note "$why, so agent enforcement could not be activated.";
+        note INACTIVE-NOTE ~ $still;
+        return;
+    }
+    with %r<error> {
+        note "321 {%d<version>} could not activate enforcement ($_).";
+        note INACTIVE-NOTE ~ $still;
+        return;
+    }
+    if !%r<detected> {
+        say "enforcement: 321 {%d<version>} found no agent harness here, so there is nothing to wire." ~ $still;
+        return;
+    }
+    say "enforcement, as 321 {%d<version>} wired it and read it back:";
+    say "  $_" for driver-lines(%r<report>);
+    note INACTIVE-NOTE if !%r<active>;
 }
 
 # ------------------------------------------------------------ conversation
@@ -249,7 +318,7 @@ sub coach-into(IO::Path $path, Str :$candidate, Str :$suggested-because --> Int)
 # ------------------------------------------------------------ init
 
 multi MAIN('init', Str :$for-what, Str :$for-who, Bool :$agent, Bool :$agents) {
-    attempt {
+    attempt :intent, {
         user-error("IZ4 already exists here; not overwriting") if $*CWD.add('IZ4').e;
         note "init no longer drafts a specification from the repository; after init, 'iz4 suggest' proposes a few candidate invariants"
             if $agent === True;
@@ -292,7 +361,7 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Bool :$agent, Bool :$agents) {
 
 multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Int :$number,
            Bool :$replace = False, Bool :$force = False) {
-    attempt {
+    attempt :intent, {
         my $path = resolve-target($file);
         my $k = ($kind // 'invariant').lc;
         given $k {
@@ -351,7 +420,7 @@ sub fast-add(IO::Path $path, Str $text, Str :$because, Int :$number, Bool :$forc
 # ------------------------------------------------------------ because
 
 multi MAIN('because', Str $number?, Str $text?, Str :$file, Bool :$replace = False, Bool :$split = False) {
-    attempt {
+    attempt :intent, {
         my $path = resolve-target($file);
         my $name = display-name($path);
         if $split {
@@ -386,7 +455,7 @@ multi MAIN('because', Str $number?, Str $text?, Str :$file, Bool :$replace = Fal
 #| retired for good; Git keeps the words.  The foundation, 0-4, cannot be
 #| withdrawn.  Scripts pass --force in place of the question.
 multi MAIN('withdraw', Str $number, Str :$file, Bool :$force = False) {
-    attempt {
+    attempt :intent, {
         my $path = resolve-target($file);
         my $name = display-name($path);
         my $n    = parse-number($number);
@@ -623,7 +692,9 @@ multi MAIN('test', *@numbers, Str :$file, Str :$lang, Bool :$list = False, Bool 
         # With an agent and a person present, draft the real test and ask;
         # a draft is written only on a yes, and is marked for review.
         my @drafted;
-        if $draft && interactive() {
+        say "No agent to draft with (321, or your own IZ4_AGENT_CMD): writing scaffolds for you to fill in."
+            if $draft && interactive() && !agent-reachable();
+        if $draft && interactive() && agent-reachable() {
             my $layout = gather-context($root);
             for $doc.invariants.grep(*.number.defined) -> $inv {
                 my $n = $inv.number;
@@ -869,6 +940,16 @@ multi MAIN('agent', 'install', Bool :$claude = False, Bool :$skill = False, Bool
         # refuses nothing.  Wiring already there is never replaced or
         # downgraded by a default run; --hooks asks outright, --strict asks
         # for everything the harness can enforce, --/hooks leaves it alone.
+        # Asked for hooks outright, iz4 first makes sure its environment
+        # driver is there, installing the official 321 when it is not.
+        if (($hooks // False) || $strict) && !driver-binary().defined {
+            my %d = ensure-driver();
+            given %d<state> {
+                when 'installed' { say "321 {%d<version>} installed at {%d<path>}: the environment driver iz4 uses to wire a harness." }
+                when 'updated'   { say "321 updated from {%d<from>} to {%d<version>} at {%d<path>}." }
+                when 'failed' | 'too-old' | 'foreign' { note "321: {%d<note>}" }
+            }
+        }
         my $driver = driver-binary();
         my %before = $driver.defined ?? ((try driver($driver, 'status', :$root)) // %()) !! %();
         my $here   = so @(%before<harnesses> // []).grep({ .<detected> });
@@ -988,7 +1069,9 @@ multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$
                   ~ (@legacy ?? '' !! ": iz4 finds no hooks of its own here, and wires none itself");
             }
             else {
-                say "321, an agent launcher, is not installed: agent prompts go to {agent-cmd()}"
+                say "321, an agent launcher, is not installed: "
+                  ~ (%*ENV<IZ4_AGENT_CMD> ?? "agent prompts go to your IZ4_AGENT_CMD ({%*ENV<IZ4_AGENT_CMD>})"
+                                          !! "suggest, review and test drafting need it, or your own IZ4_AGENT_CMD")
                   ~ (@legacy ?? '' !! ", and iz4 finds no hooks of its own here (iz4 leaves agent environments to a driver: docs/drivers.md)");
             }
             if @legacy { .say for legacy-hooks-lines(@legacy, :migration(legacy-migration())) }
@@ -1266,12 +1349,12 @@ multi MAIN('check', 'change', Bool :$staged = False, Bool :$worktree = False, St
     }
 }
 
-multi MAIN('verify', Bool :$staged = False, Bool :$worktree = False, Str :$base, Str :$candidate, Str :$transcript, Str :$summary,
+multi MAIN('verify', Bool :$staged = False, Bool :$worktree = False, Str :$base, Str :$candidate, Str :$summary,
            Bool :$json = False, Bool :$checks = True, Int :$timeout = 300, Str :$check-cmd = %*ENV<IZ4_CHECK_CMD> // Str,
            Str :$approval, Str :$approvers = %*ENV<IZ4_APPROVERS> // Str, Str :$file) {
     attempt {
         my %o = change-options(:$staged, :$worktree, :$base, :$candidate, :$checks, :$timeout, :$check-cmd, :$approval, :$approvers);
-        say-check(verify(gate-root($file), :$transcript, :$summary, |%o), $json);
+        say-check(verify(gate-root($file), :$summary, |%o), $json);
     }
 }
 
@@ -1331,7 +1414,7 @@ sub gate-command(Str :$base, Str :$candidate, Bool :$enforce, Bool :$json, Bool 
 }
 
 multi MAIN('approve', Str :$base, Str :$candidate, Bool :$staged = False, Str :$sign, Str :$by, Str :$out, Str :$note = '', Str :$file) {
-    attempt { approve-command(:$base, :$candidate, :$sign, :$by, :$out, :$note, :$file) }
+    attempt :intent, { approve-command(:$base, :$candidate, :$sign, :$by, :$out, :$note, :$file) }
 }
 
 sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out, Str :$note = '', Str :$file --> Int) {
@@ -1375,6 +1458,7 @@ sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out
             my $ref = store-approval($root, %a);
             if $out.defined { $out.IO.spurt(json-encode(%a) ~ "\n"); say "approval written to $out" }
             say "Recorded: {%a<method>} approval by $who for tree {%r<candidate>.substr(0, 12)} at $ref";
+            $*IZ4-INTENT-CHANGED = True;      # a person agreed to a change of intent: enforcement is made sure of
             say $sign.defined
                 ?? "An acceptance boundary accepts it once $who is in its allowed-signers file: git push origin $ref"
                 !! 'A terminal approval counts for local checks only; an acceptance boundary needs --sign=<key> --by=<principal>.';

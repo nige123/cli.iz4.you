@@ -1,8 +1,14 @@
-# Hooks: what a harness can insist on
+# The older hook (deprecated, compatibility only)
+
+> `iz4 hook` is what an iz4 before 0.15 wired into Claude Code itself. It
+> is kept so that wiring keeps working until an environment driver adopts
+> it (`321 iz4 install`), and nothing new is wired to it. New integrations
+> use the five operations in [drivers.md](drivers.md): iz4 holds no
+> harness knowledge in its core, and wires no harness.
 
 A model cannot be made to obey prose. A harness can be made to refuse to
-let the mechanical steps be skipped. `iz4 hook` is the harness-neutral
-core; each harness needs only a thin adapter that calls it.
+let the mechanical steps be skipped. This page records what the old hook
+does at each of three moments, which is unchanged.
 
 ## The three moments
 

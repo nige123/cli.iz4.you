@@ -5,7 +5,7 @@ use lib $?FILE.IO.parent.add('lib').Str;
 use Test;
 use IZ4Test;
 use IZ4;
-use IZ4::Hook;
+use IZ4::LegacyHook;
 
 %*ENV<XDG_CACHE_HOME> = temp-dir.Str;
 

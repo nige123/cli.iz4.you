@@ -19,6 +19,36 @@ another launcher can call the same five commands. Adding support for a new
 agent environment should normally mean teaching a driver about that
 environment, not changing iz4.
 
+## Who owns what
+
+- **IZ4 owns intent.** What the software is for, who for, the invariants,
+  their evidence, the gate, and a person's agreement.
+- **321 owns environment knowledge.** Which harnesses exist, where each
+  keeps its settings, what it can intercept, how to wire and verify it.
+- **Drivers translate** environment events into the stable interface on
+  this page, and its results back into the environment's own terms.
+- **Only a person approves a change to intent.**
+
+At run time the calls go one way:
+
+```text
+iz4 conveniences   suggest, review, test drafting, agent install --hooks, agent status
+       |
+       v
+      321          the environment driver and agent launcher
+       |
+       v
+   iz4 core        the file, check, the gate, approve, the agent packet,
+                   discover, context, check action, check change, verify
+```
+
+The core never runs or imports 321 and holds no harness's settings, hook
+formats or event shapes; iz4's own tests fail if it starts to
+(`t/16-layering.rakutest`). 321 calls nothing of iz4 but the five commands
+here and reads only their JSON. Both projects keep an IZ4 file and each
+can gate changes to the other's repository, but that is governance of
+source code, not a dependency between running programs.
+
 ```text
 your environment            a driver                         iz4
 ----------------            --------                         ---
@@ -145,6 +175,24 @@ uncertain or conflicting, in its own words.
 
 Exit 1 means the check could not run. Treat it as a gap, never as a pass.
 
+## When iz4 cannot be run
+
+"Could not run" is any of: the `iz4` command is missing or will not start,
+it exits 1, it is killed or times out, it prints no document or one that
+does not parse, or the exit code and the `result` disagree. None of these
+is a result, and what a driver does next depends on what the control it
+is serving can do:
+
+| The control | When iz4 cannot be run |
+|---|---|
+| **advisory** (it can only tell: context at session start, a note after a tool) | let the work proceed, show a clear warning where a person will see it, and say that IZ4 did **not** check this |
+| **enforcing / guarded** (it can stop the thing: a pre-tool guard, an end-of-turn check) | **stop** the intercepted action and report that IZ4 enforcement could not be performed; never downgrade silently to advisory |
+
+A control is reported as guarded only when the check behind it really ran.
+A driver gives each call a time limit, so that a hung check is a failure
+it can report and not a session that never ends. If the environment can
+only advise, say so: context in a prompt is not interception.
+
 Always read `limits`. A check never claims more than it established: a
 `pass` means "nothing here needs an invariant decision", not "this honours
 the invariants". Whether code keeps a natural-language invariant is for
@@ -195,6 +243,12 @@ boundary; see [gate.md](gate.md)), and stop when it has none.
 5. **Say what you could not do.** If your environment cannot intercept
    writes, shell commands or network use, report that. Context in a prompt
    is not interception; never present one as the other.
+6. **Own your hooks.** A hook a driver installs into a harness calls the
+   driver, which calls iz4. It never calls iz4 directly, so that when the
+   harness changes its events only the driver changes.
+7. **Fail the right way.** When iz4 cannot be run, an advisory control
+   lets the work through with a visible warning and an enforcing control
+   stops it (above).
 
 Steps 1, 2 and 4 are possible in any environment. Step 3 depends on what the
 harness exposes, which is exactly the knowledge a driver exists to hold.
@@ -209,19 +263,54 @@ harness exposes, which is exactly the knowledge a driver exists to hold.
 ```
 
 `iz4 agent install --hooks` asks 321 to do this (`--strict` for everything
-the harness can enforce; without it, the context only). With no 321 of
-0.4.0 or later, iz4 says that it defines the checks and installs no hooks,
-names what to install, and writes nothing.
+the harness can enforce; without it, the context only).
+
+**iz4 may bootstrap its driver, and still knows no harness.** After a
+successful change of intent (`iz4 init`, `add`, `because`, `withdraw`, an
+approval given at `iz4 approve`), and when hooks are asked for outright,
+iz4 makes sure a suitable 321 is there and then runs `321 iz4 install`:
+
+```text
+a change of intent succeeds
+        |
+        v
+is a 321 that can drive a harness here?  --yes-->  321 iz4 install
+        |no                                             |
+        v                                               v
+install or update the official 321  ------------>  report what 321 says
+        |                                          is really in place
+        v (it cannot be installed)
+the change stands; iz4 says enforcement is inactive
+```
+
+What iz4 knows: that 321 is the reference driver, the minimum version it
+needs, and where the official 321 is published. What it does not know, and
+never will: any harness's settings format, event names, paths or hook
+syntax. The installation is the one `iz4 update` already uses: only the
+official release, its checksum verified, proved to run and to state its
+version; a 321, or any file named 321, that iz4 did not install is never
+replaced; it is idempotent; and nothing is reported as enforced until 321
+has wired it and read it back. `IZ4_ENFORCE=0` or `IZ4_NO_321=1` switches
+the step off. The commands 321 calls (the five above) never call 321, so
+the calls still go one way.
 
 Hooks an earlier iz4 wrote into Claude Code's settings keep working and are
 reported by `iz4 agent status` as legacy wiring; `321 iz4 install` adopts
 them ([hooks.md](hooks.md)).
 
-## The older hook
+## The older hook: deprecated, compatibility only
 
-`iz4 hook session-start | pre-edit | stop` ([hooks.md](hooks.md)) predates
-this interface and still works: it delivers the packet, refuses one edit
-made before the packet, and refuses one turn end that changed files without
-a report. It reads Claude Code's event shape directly, which is why new
-integrations should use the operations above and keep harness shapes in the
-driver.
+`iz4 hook session-start | pre-edit | stop` ([hooks.md](hooks.md)) is the
+hook an iz4 before 0.15 wired into Claude Code itself. It reads that
+harness's event shape directly, which the core no longer does, so it lives
+apart from the core (`IZ4::LegacyHook`) and nothing new is ever wired to
+it. It is kept, behaving exactly as it did, for one reason: a repository
+wired by an earlier iz4 must keep the enforcement it has until a driver
+adopts that wiring. `321 iz4 install` replaces each old command with the
+driver's own for the same moment, once. Until then `iz4 agent status`
+reports the hooks as active, managed by legacy IZ4 wiring.
+
+The safe order is therefore: iz4 0.15 first (it adds this interface and
+still answers the old commands), then 321 0.4 or later (it needs this
+interface and adopts the old wiring). At no point does a wired command
+name something that is not there.

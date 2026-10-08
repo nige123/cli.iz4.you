@@ -18,6 +18,14 @@ my %env = %*ENV;
 %env<PATH> = "{$bin}:{$*EXECUTABLE.IO.parent}";
 %env<IZ4_AGENT_CMD> = 'false';
 %env<IZ4_REGISTER_TOKEN>:delete;
+# The step that follows a change of intent (fetch the environment driver
+# if it is missing, switch enforcement on) is left ON here, with no driver
+# anywhere and nowhere to get one: the core has to work regardless.
+%env<IZ4_ENFORCE> = '1';
+%env<IZ4_NO_321>:delete;
+%env<IZ4_321>:delete;
+%env<IZ4_BIN> = temp-dir.Str;
+%env<HOME> = temp-dir.Str;
 my $root = $?FILE.IO.resolve.parent(2);
 sub offline(*@args) {
     my $p = run $*EXECUTABLE, '-I', $root.add('lib').Str, $root.add('bin/iz4').Str, |@args, :cwd($dir.Str), :out, :err, :env(%env);
@@ -26,20 +34,26 @@ sub offline(*@args) {
 }
 nok $bin.add('curl').e, 'curl is not on the PATH these commands get';
 is offline('init', '--for-what=Offline.', '--for-who=Anyone.', '--/agents')[0], 0, 'init works with no network tool';
-is offline('add', 'invariant', 'The file is the source.', '--because=Nothing else is.')[0], 0, 'add works';
+my ($arc, $aout, $aerr) = offline('add', 'invariant', 'The file is the source.', '--because=Nothing else is.');
+is $arc, 0, 'add works';
+like $aerr, /'so agent enforcement could not be activated.' \n 'The IZ4 intent is recorded, but harness enforcement is currently inactive.'/,
+    'with no connection the driver cannot be fetched, and iz4 says enforcement is inactive: the change stands all the same';
+nok %env<IZ4_BIN>.IO.add('321').e, 'and nothing was installed';
 is offline('check')[0], 0, 'check works';
 like offline('invariants')[1], /'INVARIANT 0 - HUMANS FIRST (foundation)' .* 'INVARIANT 5'/, 'the foundation is available with no account';
 is offline('agent')[0], 0, 'the agent packet works';
 is offline('number')[0], 0, 'number works';
 ok $dir.add('IZ4').slurp.contains('The file is the source.'), 'and the file, plain text, holds it all';
 
-# Nothing in the core modules reaches the network; only the explicit
-# opt-ins do (register, report, update, and the agent behind suggest and
-# review), and each is named as such in the README.
-for <Document Grammar Coach Evidence Hook Agent> -> $m {
+# Nothing in the core modules reaches the network.  What does is named in
+# the README: the register commands, update, an agent behind suggest and
+# review, and fetching the environment driver once after a change of
+# intent, which the core does not depend on (above).
+for <Document Grammar Coach Evidence Agent Git Gate Machine Review LegacyHook Integrations> -> $m {
     my $src = $root.add("lib/IZ4/$m.rakumod").slurp;
     unlike $src, /'curl' | 'http://' | 'https://iz4.you/api' | 'IO::Socket'/, "IZ4::$m makes no network call";
 }
-like $root.add('README.md').slurp, /'Offline by default'/, 'the README says so';
+like $root.add('README.md').slurp, /'The core needs no network, ever'/, 'the README says so';
+like $root.add('README.md').slurp, /'Offline, the change still' \s+ 'stands and iz4 says enforcement is inactive'/, 'and says what happens to the one automatic fetch when there is no connection';
 
 done-testing;

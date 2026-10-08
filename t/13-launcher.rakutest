@@ -8,8 +8,9 @@ use Test;
 use IZ4Test;
 use IZ4;
 use IZ4::Document;
+use IZ4::Assist;
 use IZ4::Launcher;
-use IZ4::Hook;
+use IZ4::LegacyHook;
 use IZ4::Register;
 
 #| A stand-in 321 that records what it was asked and answers from files
@@ -233,7 +234,13 @@ sub receipt-line(Str $status, Str :$summary = '', Str :$blocked = '' --> Str) {
     temp %*ENV<PATH> = temp-dir().Str;
     temp %*ENV<IZ4_AGENT_CMD>; %*ENV<IZ4_AGENT_CMD>:delete;
     ok !launcher-binary().defined, 'no launcher';
-    is agent-label(), 'claude -p', 'the default command stands';
+    is agent-label(), 'no agent runner', 'and iz4 names no agent harness of its own as a default';
+    throws-like { ask-agent('hello') }, Exception, message => /'no agent runner' .* 'Install 321' .* 'IZ4_AGENT_CMD'/,
+        'asking an agent with neither 321 nor IZ4_AGENT_CMD says what is needed, and runs nothing';
+    {
+        temp %*ENV<IZ4_AGENT_CMD> = 'cat >/dev/null; echo own-command-reply';
+        is ask-agent('hello').trim, 'own-command-reply', "the person's own IZ4_AGENT_CMD still works without 321";
+    }
 }
 {
     # IZ4_NO_321=1 hides an installed 321

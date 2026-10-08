@@ -183,26 +183,28 @@ is %v<check>, 'verify', 'verify';
 is %v<result>, 'pass', 'a sound tree verifies';
 ok %v<evidence><parts>.grep({ .<part> eq 'structure' && .<result> eq 'pass' }), 'the structure part ran';
 ok %v<evidence><parts>.grep({ .<part> eq 'change' && .<result> eq 'pass' }), 'the change part ran';
-ok %v<evidence><parts>.grep({ .<part> eq 'report' && .<result> eq 'not_checked' }), 'and with no transcript the report is not claimed';
+ok %v<evidence><parts>.grep({ .<part> eq 'report' && .<result> eq 'not_checked' }), 'and with no last words given the report is not claimed';
 like %v<limits>, /:i 'not'/, 'verify says what it did not establish';
 
-# with a transcript: the report is checked
-my $t = temp-dir.add('t.jsonl');
-$t.spurt(json-encode(%( type => 'assistant', message => %( content => [ %( type => 'text', text => 'Done.' ), ] ) )) ~ "\n");
-($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--transcript=$t", '--json');
+# with the agent's last words handed over as plain text: the report is checked
+my $t = temp-dir.add('last-words.txt');
+$t.spurt("Done.\n");
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$t", '--json');
 is $rc, 3, 'files changed and no report: exit 3';
 %v = doc($out);
 is %v<result>, 'block', 'blocked';
 ok %v<evidence><parts>.grep({ .<part> eq 'report' && .<result> eq 'block' }), 'by the report part';
-$t.spurt(json-encode(%( type => 'assistant', message => %( content => [ %( type => 'text', text => "Invariant: 5\nAssessment: uncertain\nEvidence: read\nRemaining gap: none tested" ), ] ) )) ~ "\n");
-($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--transcript=$t", '--json');
+$t.spurt("Invariant: 5\nAssessment: uncertain\nEvidence: read\nRemaining gap: none tested\n");
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$t", '--json');
 %v = doc($out);
 is %v<result>, 'pass', 'with the report the run verifies';
 ok %v<evidence><parts>.grep({ .<part> eq 'report' && .<result> eq 'pass' }), 'the report part passed';
 is %v<evidence><report><uncertain>.join('|'), 'Invariant 5: uncertain', 'what the report itself calls uncertain is carried, in its own words';
-$t.spurt(json-encode(%( type => 'assistant', message => %( content => [ %( type => 'text', text => "Invariant: 5 People control\nAssessment: apparently consistent\nEvidence: read\nRemaining gap: none\nInvariant: 6 x\nAssessment: conflicting\nEvidence: y" ), ] ) )) ~ "\n");
-($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--transcript=$t", '--json');
+$t.spurt("Invariant: 5 People control\nAssessment: apparently consistent\nEvidence: read\nRemaining gap: none\nInvariant: 6 x\nAssessment: conflicting\nEvidence: y\n");
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$t", '--json');
 is doc($out)<evidence><report><uncertain>.join('|'), 'Invariant 6 x: conflicting', 'consistent ones are not listed; conflicting ones are';
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', '--transcript=/nonexistent.jsonl', '--json');
+isnt $rc, 0, 'a harness transcript is not something verify takes: that shape is the driver\'s to know';
 
 # the same from plain text, which is what a driver that is not Claude Code has
 my $words = temp-dir.add('summary.txt');
@@ -251,5 +253,51 @@ for (('check', 'change', '--worktree', '--json'), ('verify', '--worktree', '--js
 my %x = doc($out);
 ok all(<schema check result reason invariants_considered evidence proposed_invariant_change iz4 limits tool>.map({ %x{$_}:exists })), 'check action carries every documented key';
 is $out.lines.elems, 1, 'a JSON result is one line';
+
+# ---- the contract a driver codes against: stable until the schema id changes -
+# One JSON document per call, on one line; these keys; this vocabulary;
+# these exit codes.  A change here is a change to every driver.
+{
+    my $c = repo;
+    my $sp = minimal-iz4(:dir($c));
+    add-invariant($sp, 'People control whether their profile is visible.', :because('Privacy.'));
+    g($c, 'add', '-A'); g($c, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'init');
+    my sub keys-of($out) { doc($out).keys.sort.join(' ') }
+    my sub one-doc($out, $what) { is $out.trim.lines.elems, 1, "$what prints exactly one line: one JSON document" }
+
+    my ($rc, $out, $err) = iz4($c, 'discover', '--json');
+    one-doc($out, 'discover');
+    is doc($out)<schema>, 'iz4-discover/1', 'discover: schema id';
+    is keys-of($out), 'errors file invariants present schema sha256 tool valid', 'discover: keys';
+    is doc($out)<invariants>[0].keys.sort.join(' '), 'foundation number summary', 'discover: an invariant entry';
+
+    ($rc, $out, $err) = iz4($c, 'context', '--json');
+    one-doc($out, 'context');
+    is doc($out)<schema>, 'iz4-context/1', 'context: schema id';
+    is keys-of($out), 'effective file instruction note schema sha256 text tool', 'context: keys';
+
+    my $check-keys = 'check evidence exit_code invariants_considered iz4 limits proposed_invariant_change reason result schema tool';
+    for ('check', 'action', '--action={"operation":"write","target":"lib/a.txt"}', '--json'),
+        ('check', 'change', '--worktree', '--json'),
+        ('verify', '--worktree', '--json') -> @argv {
+        my $name = @argv.grep({ !.starts-with('--') }).join(' ');
+        ($rc, $out, $err) = iz4($c, |@argv);
+        one-doc($out, $name);
+        is doc($out)<schema>, 'iz4-check/1', "$name: schema id";
+        is keys-of($out), $check-keys, "$name: keys";
+        is doc($out)<iz4>.keys.sort.join(' '), 'file sha256', "$name: which IZ4 applied";
+        is $rc, doc($out)<exit_code>, "$name: the exit code is the one the document states";
+        ok doc($out)<limits>.chars > 20, "$name: limits always says what was not established";
+    }
+    # the vocabulary and its exit codes
+    use IZ4::Machine;
+    is (PASS, WARN, NEEDS-HUMAN, BLOCK).join(' '), 'pass warn needs_human block', 'the four results, spelled as drivers read them';
+    is (PASS, WARN, NEEDS-HUMAN, BLOCK).map({ result-exit($_) }).join(' '), '0 0 2 3', 'and their exit codes';
+    # a check that cannot run is exit 1 and not a result document
+    my $nowhere = temp-dir;
+    ($rc, $out, $err) = iz4($nowhere, 'check', 'change', '--worktree', '--json');
+    is $rc, 1, 'a check that cannot run exits 1';
+    nok $out.contains('"result":"pass"'), 'and never prints a pass';
+}
 
 done-testing;

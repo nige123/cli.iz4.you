@@ -1,20 +1,23 @@
-unit module IZ4::Hook;
+unit module IZ4::LegacyHook;
 
-#| Harness hooks: the parts of the protocol a harness can insist on.
+#| COMPATIBILITY ONLY, DEPRECATED.  The hook command iz4 shipped up to
+#| 0.14: 'iz4 hook session-start | pre-edit | stop', and the reading of the
+#| wiring those versions wrote into Claude Code's project settings.
 #|
-#| A model cannot be made to obey prose, but a harness that runs a
-#| command before a session starts, before a tool call and before a turn
-#| ends can refuse to let the mechanical steps be skipped: the packet is
-#| loaded, nothing is edited before it is, and a turn that changed files
-#| does not end without the per-invariant report.  None of that proves
-#| an invariant was honoured; it proves the agent had the packet and
-#| wrote the report.
+#| iz4 installs itself into no agent environment any more and holds no
+#| harness knowledge in its core: a driver (321) does that, and calls the
+#| machine interface (IZ4::Machine).  This module is what is left so that
+#| repositories wired by an earlier iz4 keep exactly the enforcement they
+#| had until a driver adopts the wiring ('321 iz4 install'): the old
+#| commands still answer, and status can still say they are there.  It
+#| reads one harness's event shape and settings file, which is why it is
+#| kept apart: nothing in the core uses it, nothing new is ever wired to
+#| it, and it goes once the transition is over.
 #|
-#| The core is harness-neutral: 'iz4 hook <event>' reads the harness's
-#| JSON on standard input, prints for the model on standard output, and
-#| refuses with exit code 2 and a reason on standard error.  Claude Code
-#| speaks exactly this contract; an adapter for another harness only has
-#| to call the same command.
+#| What the old commands do is unchanged: the packet is delivered at
+#| session start, one edit made before it is refused, and one turn end
+#| that changed files without the per-invariant report is refused.  None
+#| of that proves an invariant was honoured.
 
 use IZ4;
 use IZ4::Document;

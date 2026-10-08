@@ -2,8 +2,9 @@ unit module IZ4::Machine;
 
 #| The machine interface: the five operations an environment driver
 #| calls, as documents.  A driver is whatever knows an agent environment:
-#| 321 for the harnesses it supports, a native hook, a Git hook, a CI job,
-#| an IDE.  None of that knowledge lives here.  This module knows only
+#| a multi-harness launcher, a native hook, a Git hook, a CI job, an IDE.
+#| None of that knowledge lives here, and nothing here runs a driver: the
+#| calls only ever come in.  This module knows only
 #| the IZ4: whether one governs a place, what to tell an agent, and what
 #| can honestly be said about a proposed action, a change, and a finished
 #| piece of work.
@@ -20,7 +21,6 @@ use IZ4::Gate;
 use IZ4::Agent;
 use IZ4::Evidence;
 use IZ4::Review;
-use IZ4::Hook;
 
 constant DISCOVER-SCHEMA is export = 'iz4-discover/1';
 constant CONTEXT-SCHEMA  is export = 'iz4-context/1';
@@ -348,7 +348,7 @@ my %RANK = PASS, 0, 'not_checked', 0, WARN, 1, NEEDS-HUMAN, 2, BLOCK, 3;
 #| driver hands over the agent's last words (:summary, a file of plain
 #| text), that they carry the per-invariant report.  Each part says what it found; a part that was
 #| not run says so and is never counted as a pass.
-sub verify(IO::Path $root, Str :$transcript, Str :$summary, *%opts --> Hash) is export {
+sub verify(IO::Path $root, Str :$summary, *%opts --> Hash) is export {
     my $iz4 = $root.add(ROOT-NAME);
     my @parts;
     my @inv;
@@ -378,13 +378,13 @@ sub verify(IO::Path $root, Str :$transcript, Str :$summary, *%opts --> Hash) is 
     else { @parts.push: %( part => 'change', result => 'not_checked', detail => 'not checked: the IZ4 is invalid' ) }
 
     my @uncertain;
-    # The agent's last words: plain text in a file (--summary), which any
-    # driver can supply, or a Claude Code transcript (--transcript), kept
-    # for the hook that predates the drivers.
-    my $given = $summary.defined || $transcript.defined;
+    # The agent's last words: plain text in a file (--summary).  Where a
+    # harness keeps a transcript, and which part of it is the final answer,
+    # is the driver's knowledge, not this module's.
+    my $given = $summary.defined;
     if $given {
-        machine-error("--summary: {$summary}: no such file") if $summary.defined && !$summary.IO.f;
-        my $last = $summary.defined ?? $summary.IO.slurp !! last-assistant-text($transcript);
+        machine-error("--summary: {$summary}: no such file") unless $summary.IO.f;
+        my $last = $summary.IO.slurp;
         @uncertain = report-uncertain($last);
         if !$changed { @parts.push: %( part => 'report', result => PASS, detail => 'nothing changed, so no report is owed' ) }
         elsif carries-report($last) {

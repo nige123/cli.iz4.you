@@ -1,7 +1,6 @@
 unit module IZ4;
 
 use IZ4::Document;
-use IZ4::Launcher;
 use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
@@ -551,9 +550,6 @@ sub number-lines(@lines, Int :$from --> List) is export {
 
 # ---------------------------------------------------------------- suggest
 
-#| The agent command behind `iz4 suggest`: overridable, external, optional.
-sub agent-cmd(--> Str) is export { %*ENV<IZ4_AGENT_CMD> // 'claude -p' }
-
 #| The prompt for repository analysis.  Its job is to keep IZ4 small.
 sub suggest-prompt(Str :$current = '', Str :$evidence = '' --> Str) is export {
     q:to/END/ ~ ($current.trim || '(none yet)') ~ "\n\nEvidence from the codebase:\n" ~ $evidence ~ "\n";
@@ -629,15 +625,6 @@ sub parse-suggestions(Str $reply, Int :$cap = 5 --> Hash) is export {
     %s<strong>   = [%s<strong>.head($cap)];
     %s<possible> = [%s<possible>.head($cap)];
     %s;
-}
-
-#| One agent pass over the repository.  Dies when the agent fails; a
-#| reply with no usable lines is an honest 'nothing found'.
-
-sub agent-suggest(IO::Path $dir = $*CWD, Str :$cmd, Str :$current = '' --> Hash) is export {
-    my $prompt = suggest-prompt(:$current, evidence => gather-context($dir));
-    note "asking agent ({$cmd // agent-label()}) for candidate invariants in {$dir.resolve} ...";
-    parse-suggestions(ask-agent($prompt, :root($dir), :$cmd));
 }
 
 #| Bounded evidence for the agent: the codebase's own account of itself

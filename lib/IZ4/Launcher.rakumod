@@ -7,11 +7,19 @@ unit module IZ4::Launcher;
 #| the agent, and comes back with a receipt.  When it is on the machine,
 #| iz4 uses it for everything agentic - suggest, review, test drafting -
 #| and for wiring hooks into whatever harnesses 321 knows, and quotes what
-#| 321 says each of them enforces.  When it is not, iz4 falls back to its
-#| own agent command, so the core CLI works alone (Invariant 5), and wires
-#| no harness: that is a driver's job.  Nothing here parses an IZ4 through 321:
-#| 321 runs iz4 for that.
+#| 321 says each of them enforces.  When it is not, the core CLI still
+#| works alone (Invariant 5); the agent conveniences take the person's
+#| own IZ4_AGENT_CMD or say that an agent runner is needed, and no harness
+#| is wired: that is a driver's job.  Nothing here parses an IZ4 through
+#| 321: 321 runs iz4 for that.
+#|
+#| CONVENIENCE LAYER, and the only module in iz4 that names or runs 321.
+#| No core module may use it (t/16-layering.rakutest holds that).
 
+
+#| Where 321 is published.
+constant LAUNCHER-RELEASES is export = 'https://github.com/nige123/cli.321.do/releases';
+constant LAUNCHER-API      is export = 'https://api.github.com/repos/nige123/cli.321.do/releases/latest';
 
 #| The first 321 this runtime needs: hooks, doctor --json, the prompt
 #| package and a request from stdin arrived in 0.3.1.
@@ -26,6 +34,11 @@ sub launcher-binary(--> Str) is export {
     return Str if (%*ENV<IZ4_NO_321> // '') ne '' && (%*ENV<IZ4_NO_321> // '') ne '0';
     my @candidates;
     with %*ENV<IZ4_321> { @candidates.push($_) if $_.IO.f }
+    # The 321 iz4 installed itself is used wherever it was put, on PATH or not.
+    with launcher-owner-dir() {
+        my $own = .add($*DISTRO.is-win ?? '321.exe' !! '321');
+        @candidates.push($own.Str) if $own.f;
+    }
     my $sep = $*DISTRO.is-win ?? ';' !! ':';
     for (%*ENV<PATH> // '').split($sep).grep(* ne '') -> $d {
         for '321', |($*DISTRO.is-win ?? ('321.exe',) !! ()) -> $n {
@@ -159,24 +172,37 @@ sub driver-level(%doc --> Str) is export {
 }
 
 #| How an agent is reached, in words for a message: the person's own
-#| command when IZ4_AGENT_CMD is set, else 321 when it is installed, else
-#| the default command.
+#| command when IZ4_AGENT_CMD is set, else 321 when it is installed.
+#| iz4 names no agent harness of its own.
 sub agent-label(--> Str) is export {
-    return %*ENV<IZ4_AGENT_CMD> if %*ENV<IZ4_AGENT_CMD>;
+    return %*ENV<IZ4_AGENT_CMD> if (%*ENV<IZ4_AGENT_CMD> // '').trim ne '';
     with launcher-binary() { return "321, an agent launcher ({$_})" }
-    'claude -p';
+    'no agent runner';
 }
+
+#| Is there anything to ask: a command given, the person's own
+#| IZ4_AGENT_CMD (an empty one is no command), or 321?
+sub agent-reachable(Str :$cmd --> Bool) is export {
+    ($cmd // %*ENV<IZ4_AGENT_CMD> // '').trim ne '' || launcher-binary().defined;
+}
+
+#| What to say when nothing here can reach an agent.
+constant NO-AGENT-RUNNER is export =
+    "no agent runner: iz4 runs no agent harness itself. Install 321, an agent launcher ({LAUNCHER-RELEASES}), "
+    ~ "or set IZ4_AGENT_CMD to a command of your own that reads the prompt on standard input and prints the reply";
 
 #| Ask an agent and get its reply as text.  With IZ4_AGENT_CMD (or an
 #| explicit :cmd) the prompt goes to that command on standard input and
 #| its standard output is the reply; otherwise, when 321 is installed, the
-#| prompt is a read-only run through it, on whatever harness it picks;
-#| otherwise `claude -p`.  Dies with what went wrong.
+#| prompt is a read-only run through it, on whatever harness it picks.
+#| With neither there is nobody to ask: iz4 holds no harness's command
+#| line.  Dies with what went wrong.
 sub ask-agent(Str $prompt, IO::Path :$root = $*CWD, Str :$cmd --> Str) is export {
     my $command = $cmd // %*ENV<IZ4_AGENT_CMD>;
+    $command = Str if ($command // '').trim eq '';       # an empty command is no command
     if !$command.defined {
         with launcher-binary() { return ask-via-launcher($_, $prompt, :$root) }
-        $command = 'claude -p';
+        die NO-AGENT-RUNNER;
     }
     my $proc = run '/bin/sh', '-c', $command, :in, :out, :cwd($root.Str);
     $proc.in.print($prompt);
@@ -188,8 +214,6 @@ sub ask-agent(Str $prompt, IO::Path :$root = $*CWD, Str :$cmd --> Str) is export
 
 # ------------------------------------------------------------------ install
 
-constant LAUNCHER-RELEASES is export = 'https://github.com/nige123/cli.321.do/releases';
-constant LAUNCHER-API      is export = 'https://api.github.com/repos/nige123/cli.321.do/releases/latest';
 
 #| The 321 release file built for this operating system and processor.
 sub launcher-asset(--> Str) is export {
@@ -242,6 +266,8 @@ sub launcher-marker(IO::Path $bin-dir --> IO::Path) is export { $bin-dir.add('.3
 #| launcher script, which runs the checkout's bin/iz4).
 sub launcher-owner-dir(--> IO::Path) is export {
     my @dirs = $*PROGRAM.resolve.parent;
+    with %*ENV<IZ4_BIN> { @dirs.push(.IO) if $_ ne '' }
+    with %*ENV<HOME> // %*ENV<USERPROFILE> { @dirs.push(.IO.add('.local').add('bin')) }
     my $sep = $*DISTRO.is-win ?? ';' !! ':';
     for (%*ENV<PATH> // '').split($sep).grep(* ne '') -> $d {
         my $f = $d.IO.add($*DISTRO.is-win ?? 'iz4.exe' !! 'iz4');
@@ -260,6 +286,10 @@ sub launcher-install(IO::Path :$bin-dir!, Bool :$check = False --> Hash) is expo
         return %( state => 'skipped', note => "321 is already installed at $_, not by iz4; left as is" )
             unless $ours && $_.IO.resolve.Str eq $target.resolve.Str;
     }
+    # A file named 321 that iz4 did not put there is somebody else's, even
+    # when it is not a 321 this runtime can use: it is never replaced.
+    return %( state => 'skipped', note => "a file named 321 is at $target and iz4 did not put it there; left as is" )
+        if ($target.e || $target.l) && !$ours;
     my $asset = launcher-asset() // return %( state => 'failed', note => "no published 321 for {$*KERNEL.name} on {$*KERNEL.hardware}" );
     my $tag = launcher-latest-tag() // return %( state => 'failed', note => "could not find the latest 321 release at {LAUNCHER-RELEASES}" );
     my $have = $target.e ?? launcher-version($target.Str) !! '';
@@ -284,4 +314,92 @@ sub launcher-install(IO::Path :$bin-dir!, Bool :$check = False --> Hash) is expo
     $tmp.add($asset).move($target);
     launcher-marker($bin-dir).spurt("installed by iz4\n");
     %( state => ($have eq '' ?? 'installed' !! 'updated'), from => $have, version => $v, path => $target.Str );
+}
+
+
+# ---------------------------------------------------------------- bootstrap
+#
+# iz4 may bring in its environment driver, and still knows no harness.
+# Fetching the official 321 is not harness knowledge; configuring Claude
+# Code or any other agent environment is, and stays 321's.  So after a
+# person changes their intent, iz4 makes sure a 321 that can drive a
+# harness is there, installing or updating the one it owns when it is not,
+# and asks it to activate enforcement.  If that cannot be done the intent
+# change still stands, and iz4 says plainly that enforcement is not active.
+#
+# Safeguards: only the official published 321 (LAUNCHER-RELEASES), with its
+# checksum verified and proved to run and to say its version; a 321, or
+# any file named 321, that iz4 did not install is never replaced; and
+# nothing is called enforced until 321 has wired it and read it back.
+
+#| Is the automatic step switched off?  IZ4_NO_321=1 (act as if there is
+#| no 321) and IZ4_ENFORCE=0 both do it: for scripts, for CI, for anyone
+#| who wants iz4 to touch nothing but the file.
+sub enforcement-disabled(--> Bool) is export {
+    ((%*ENV<IZ4_NO_321> // '') ne '' && (%*ENV<IZ4_NO_321> // '') ne '0') || (%*ENV<IZ4_ENFORCE> // '') eq '0';
+}
+
+#| Where iz4 would put a 321 it installs: beside one it already owns, else
+#| IZ4_BIN (the installer's own setting), else beside the iz4 on PATH,
+#| else ~/.local/bin, which is where the installer puts both.
+sub driver-bin-dir(--> IO::Path) is export {
+    with launcher-owner-dir() { return $_ }
+    with %*ENV<IZ4_BIN> { return .IO if $_ ne '' }
+    my $sep = $*DISTRO.is-win ?? ';' !! ':';
+    for (%*ENV<PATH> // '').split($sep).grep(* ne '') -> $d {
+        my $f = $d.IO.add($*DISTRO.is-win ?? 'iz4.exe' !! 'iz4');
+        return $f.parent if $f.f;
+    }
+    with %*ENV<HOME> // %*ENV<USERPROFILE> { return .IO.add('.local').add('bin') }
+    IO::Path;
+}
+
+#| Make sure a 321 that can drive a harness is here.  Returns a hash:
+#|   state    ready | installed | updated   a suitable driver is there
+#|            too-old     the newest published 321 cannot drive a harness yet
+#|            foreign     a 321 iz4 did not install is here and is too old; left alone
+#|            failed      it could not be fetched, verified or run
+#|            disabled    the automatic step is switched off
+#|   binary, version, from, path, note as apply.
+sub ensure-driver(--> Hash) is export {
+    return %( state => 'disabled' ) if enforcement-disabled();
+    with driver-binary() { return %( state => 'ready', binary => $_, version => launcher-version($_) ) }
+    my $bin-dir = driver-bin-dir();
+    return %( state => 'failed', note => 'there is nowhere to install it (no HOME, no iz4 on PATH, no IZ4_BIN)' ) without $bin-dir;
+    my %l = try launcher-install(:$bin-dir);
+    return %( state => 'failed', note => $!.message.lines.head ) if $!;
+    given %l<state> {
+        when 'installed' | 'updated' | 'current' {
+            with driver-binary() {
+                return %( state => (%l<state> eq 'current' ?? 'ready' !! %l<state>), binary => $_, version => launcher-version($_),
+                          from => (%l<from> // ''), path => (%l<path> // $_) );
+            }
+            my $v = %l<version> // '';
+            return %( state => 'too-old', version => $v, path => (%l<path> // ''),
+                      note => "321 {$v || '(unknown version)'} is the newest published, and driving an agent harness needs {DRIVER-MIN-VERSION} or later" );
+        }
+        when 'skipped' {
+            my $here = launcher-binary();
+            return %( state => 'foreign',
+                      note => %l<note> ~ ($here.defined ?? "; it is {launcher-version($here)}, and driving an agent harness needs {DRIVER-MIN-VERSION} or later" !! '') );
+        }
+        default { return %( state => 'failed', note => (%l<note> // 'the published 321 could not be installed') ) }
+    }
+}
+
+#| The whole step: ensure the driver, then ask it to wire and verify iz4 in
+#| every harness it finds.  Returns driver (ensure-driver's hash), and when
+#| the driver was asked: report (its enforcement-report.v1), level
+#| (guarded, checked, aware or none), and error when asking it failed.
+#| 'active' is true only for what 321 wired and read back.
+sub ensure-enforcement(IO::Path :$root! --> Hash) is export {
+    my %d = ensure-driver();
+    return %( driver => %d, active => False ) unless %d<state> eq any(<ready installed updated>);
+    my %e = try driver(%d<binary>, 'install', :$root);
+    return %( driver => %d, active => False, error => $!.message.lines.head ) if $!;
+    my @h = @(%e<harnesses> // []);
+    my $failed = so @h.grep({ (.<action> // '') eq 'failed' });
+    my $level = driver-level(%e);
+    %( driver => %d, report => %e, level => $level, failed => $failed, detected => so(@h.grep({ .<detected> })),
+       active => !$failed && $level ne 'none' );
 }

@@ -248,7 +248,7 @@ Let's review the strongest one first.
 ```
 
 `iz4 suggest` hands your README and file layout to an agent command
-(`IZ4_AGENT_CMD`, default `claude -p`), told to make IZ4 small rather than
+(through 321, or your own `IZ4_AGENT_CMD`), told to make IZ4 small rather than
 complete: an observed behaviour, a passing test or a framework choice is not
 an invariant. It proposes a few, strongest first, and each one goes through
 the same questions before anything is added. Where the answer depends on
@@ -288,7 +288,7 @@ Consider it? [Y/n/q]
 Two layers. The offline one reads the diff and says which invariants it
 touches, by their own words turning up in the changed lines, and claims
 nothing more. The agent layer hands the diff and the effective invariants to
-your own agent command (`IZ4_AGENT_CMD`, default `claude -p`; on your
+an agent (through 321, or your own command in `IZ4_AGENT_CMD`; on your
 machine, on your account) and asks for two things: an assessment of each
 invariant the change could affect, in the five honesty levels, with the
 lines it relied on; and, only when the change reveals enduring intent the
@@ -448,8 +448,8 @@ as evidence. A mention of `Invariant 5` in some other test, or in prose
 outside the test directories, never counts. `iz4 test --list` shows the
 state of each invariant, and `iz4 test 6` writes one.
 
-On a terminal, `iz4 test` first asks your own agent (`IZ4_AGENT_CMD`,
-default `claude -p`, the same command `iz4 review` uses) to draft the real
+On a terminal, `iz4 test` first asks an agent (through 321, or your own
+`IZ4_AGENT_CMD`, the same way `iz4 review` does) to draft the real
 test: it is given the invariant, its BECAUSE, the repository layout and one
 of your existing tests as the example, and asked for a file whose assertion
 would fail if the invariant stopped being true, or for `CANNOT:` and a
@@ -458,7 +458,7 @@ The draft is shown in full, and written only when you say yes:
 
 ```text
 Invariant 6: Codes expire within ten minutes.
-asking agent (claude -p) for a test (javascript, test/invariant-6.test.js) ...
+asking agent (321, an agent launcher) for a test (javascript, test/invariant-6.test.js) ...
 
     // Invariant 6: Codes expire within ten minutes.
     // BECAUSE A stale code in an inbox is a key under the mat.
@@ -646,9 +646,41 @@ downgrades what is there, and `--/hooks` leaves the harness alone. The
 managed section ends by telling the repository's owners the command that
 enforces rather than asks: `321 iz4 install`. `iz4 agent status` quotes
 what the driver says is really enforced: aware, checked or guarded, and
-what the harness cannot intercept at all. With no 321 of 0.4.0 or later,
-`--hooks` warns that nothing was installed and says what to install, and
-`--hooks --strict` fails.
+what the harness cannot intercept at all.
+
+**iz4 brings its driver with it.** You should not have to remember
+"install 321, then `321 iz4 install`". After a change of intent that
+succeeds (`iz4 init`, `add`, `because`, `withdraw`, an `approve` you give),
+iz4 makes sure a 321 that can drive a harness is there, installing or
+updating the official one when it is not, then asks it to activate
+enforcement and reports what 321 says is really in place:
+
+```text
+$ iz4 add invariant "Employers cannot contact someone first." --because "No new inbox."
+Added INVARIANT 6.
+321 0.4.0 installed at ~/.local/bin/321: the environment driver iz4 uses to activate enforcement.
+enforcement, as 321 0.4.0 wired it and read it back:
+  claude_code: installed; enforcement GUARDED (aware, checked, guarded)
+```
+
+Fetching 321 is not harness knowledge, and iz4 still has none: what a
+harness's settings look like, which events it has and how a hook is
+written stay 321's. iz4 installs only the official published 321, checks
+its checksum and that it runs and says its version, and never replaces a
+321, or any file named 321, that it did not install itself. Nothing is
+called enforced until 321 has wired it and read it back. If 321 cannot be
+installed, your change still stands and iz4 says so plainly:
+
+```text
+Added INVARIANT 6.
+321 could not be installed (could not find the latest 321 release ...), so agent enforcement could not be activated.
+The IZ4 intent is recorded, but harness enforcement is currently inactive.
+```
+
+`IZ4_ENFORCE=0` switches the step off (for scripts and CI), as does
+`IZ4_NO_321=1`. `iz4 agent install --hooks` does the same bootstrap when
+asked outright; where no driver can be had, it says what was not installed,
+and with `--strict` it fails.
 
 Hooks that an earlier iz4 wrote into `.claude/settings.json` keep working
 untouched. `iz4 agent status` reports them as active, managed by legacy IZ4
@@ -668,6 +700,21 @@ invariant was honoured.
 
 ## 321.do, an agent launcher
 
+IZ4 owns intent. 321 owns environment knowledge. Drivers translate an
+environment's events into IZ4's stable interface. Only a person approves a
+change to intent.
+
+```text
+iz4 conveniences  ->  321  ->  iz4 core
+```
+
+The calls go one way. iz4's core (the file, `check`, the gate, `approve`,
+the agent packet and the machine interface) never runs 321 and knows no
+agent harness; its conveniences (suggest, review, test drafting,
+`agent install --hooks`, `agent status`) may ask 321; and 321 calls only
+the core. Hooks that 321 installs call 321, which calls iz4, so a harness
+changing its events changes 321 and nothing here.
+
 Everything agentic in iz4 goes through [321](https://321.do) when it is
 installed: `iz4 suggest`, `iz4 review` and the test drafting in `iz4 test`
 become read-only runs of 321's prompt package, on whatever harness 321
@@ -685,10 +732,13 @@ decision.
 
 The installer fetches 321 beside iz4 ("install 321.do, an agent
 launcher") unless one is already there or `IZ4_NO_321=1`, and `iz4 update`
-keeps the one it installed current. iz4 works without it: `IZ4_AGENT_CMD`
-still names your own agent command and takes precedence, the default
-without either is `claude -p`. What it does not do without a driver is
-wire a harness: iz4 writes no harness's configuration. `IZ4_321` names the
+keeps the one it installed current. iz4's core works without it: the
+file, `check`, the gate, `approve`, the agent packet and the machine
+interface need nothing but Git. `IZ4_AGENT_CMD` still names your own agent
+command and takes precedence for suggest, review and test drafting; with
+neither, those say that an agent runner is needed and run nothing, since
+iz4 holds no agent harness's command line. What it never does is wire a
+harness: iz4 writes no harness's configuration. `IZ4_321` names the
 executable when it is not on PATH, and
 `IZ4_NO_321=1` makes iz4 act as if 321 were not installed.
 
@@ -775,9 +825,13 @@ the register proves it.
   it never adds an invariant on its own.
 - The format and the tool are useful on their own, with no service attached.
   The file belongs to your project.
-- Offline by default. The only network calls are the register commands you
-  ask for, `iz4 update`, and your own agent command behind `iz4 suggest`
-  and `iz4 review` if you use it.
+- The core needs no network, ever: the file, `check`, the gate, `approve`
+  and the machine interface. The network calls are the register commands
+  you ask for, `iz4 update`, an agent behind `iz4 suggest` and `iz4 review`
+  if you use them, and, after you change your intent, fetching the official
+  321 once if it is missing so enforcement can be switched on
+  (`IZ4_ENFORCE=0` to keep iz4 from doing that). Offline, the change still
+  stands and iz4 says enforcement is inactive.
 - The file says only what must remain true now. Its edit history comes from
   Git, not from a versioning scheme we invented; the register, if you use
   it, keeps the registered history. Neither goes into the file.

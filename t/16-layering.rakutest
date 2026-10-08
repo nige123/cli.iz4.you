@@ -1,0 +1,374 @@
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+use IZ4::Document;
+use IZ4::Launcher;
+use IZ4::Register;
+
+# The layering rule, held mechanically.
+#
+#     iz4 conveniences  ->  321 (the environment driver)  ->  iz4 core
+#
+# IZ4 owns intent.  321 owns environment knowledge.  The core never runs
+# or imports 321 and holds no agent harness's settings, hook formats or
+# event shapes; only the conveniences may ask 321, and only through one
+# module.  What an earlier iz4 wired stays answerable, apart from both.
+
+my $root = $?FILE.IO.parent.parent.resolve;
+my $lib  = $root.add('lib');
+
+# ---- every module is in exactly one layer --------------------------------
+my @CORE        = <IZ4 IZ4::Grammar IZ4::Document IZ4::Git IZ4::Evidence IZ4::Review IZ4::Gate
+                   IZ4::Machine IZ4::Agent IZ4::Register IZ4::Coach>;
+my @CONVENIENCE = <IZ4::Launcher IZ4::Assist IZ4::Integrations>;
+my @LEGACY      = <IZ4::LegacyHook>;
+
+sub file-of(Str $module --> IO::Path) { $lib.add($module.subst('::', '/', :g) ~ '.rakumod') }
+sub modules-on-disk(--> List) {
+    my @out;
+    my sub walk(IO::Path $d) { for $d.dir.sort -> $e { $e.d ?? walk($e) !! (@out.push($e) if $e.extension eq 'rakumod') } }
+    walk($lib);
+    @out.map({ .relative($lib).subst(/ '.rakumod' $/, '').subst('/', '::', :g) }).sort.List;
+}
+sub uses(Str $module --> List) {
+    file-of($module).lines.map({ .match(/^ \s* 'use' \s+ ('IZ4' ['::' \w+]*) \s* ';' /) }).grep(*.defined).map({ ~.[0] }).List;
+}
+
+my @all = modules-on-disk();
+is @all.join(' '), (|@CORE, |@CONVENIENCE, |@LEGACY).sort.join(' '),
+    'every module under lib is named in exactly one layer: a new one has to be placed before this passes';
+
+# ---- the core imports only the core ---------------------------------------
+for @CORE -> $m {
+    my @outside = uses($m).grep({ $_ ne any(@CORE) });
+    is @outside.join(' '), '', "core $m uses no module outside the core";
+}
+for (|@CORE, |@CONVENIENCE) -> $m {
+    nok uses($m).grep('IZ4::LegacyHook'), "$m does not use the legacy hook module";
+}
+
+# ---- the core holds no harness knowledge and never names the driver -------
+my @HARNESS = 'claude', '.claude', 'settings.json', 'PreToolUse', 'PostToolUse', 'SessionStart', 'hook_event_name',
+              'tool_input', 'tool_name', 'transcript_path', 'stop_hook_active', 'permissionDecision',
+              'codex', 'gemini', 'cursor', 'copilot', 'AGENTS.md';
+for @CORE -> $m {
+    my $src = file-of($m).slurp;
+    my @found = @HARNESS.grep({ $src.lc.contains(.lc) });
+    is @found.join(' '), '', "core $m holds no agent harness's names, settings, hook formats or event shapes";
+    nok $src ~~ / <!after <[\w.]>> '321' <!before \d> /, "core $m never names 321";
+    nok $src ~~ / 'launcher-' | 'driver-binary' | 'ask-agent' | 'IZ4_321' /, "core $m calls nothing of the launcher's";
+}
+
+# ---- one module, and only one, runs 321 -----------------------------------
+for (|@CORE, 'IZ4::Assist', 'IZ4::Integrations', 'IZ4::LegacyHook') -> $m {
+    nok file-of($m).slurp ~~ / 'IZ4_321' | "run '321'" | 'run "321"' /, "$m does not run 321 itself";
+}
+like file-of('IZ4::Launcher').slurp, / 'IZ4_321' /, 'IZ4::Launcher is where 321 is found and run';
+ok uses('IZ4::Assist').grep('IZ4::Launcher'), 'the agent conveniences reach an agent through IZ4::Launcher';
+
+unless have-git() { skip-rest 'no git available'; done-testing; exit }
+
+# ---- behaviour: no core command ever runs 321 -----------------------------
+# A stand-in 321, first on PATH and named by IZ4_321, that records every
+# time it is run.  It claims a version new enough for everything.
+my $bin = temp-dir;
+my $log = $bin.add('321.log');
+my $stand-in = $bin.add('321');
+$stand-in.spurt: q:to/SH/.subst('__LOG__', $log.Str, :g);
+    #!/bin/sh
+    echo "$@" >> '__LOG__'
+    case "$1" in
+      version|--version) echo '321 0.4.0'; exit 0;;
+      iz4) echo '{"schema":"enforcement-report.v1","harnesses":[]}'; exit 0;;
+      doctor) echo '{"schema":"doctor.v1","harnesses":[]}'; exit 0;;
+    esac
+    exit 0
+    SH
+$stand-in.chmod(0o755);
+my %with = PATH => "{$bin}:{%*ENV<PATH>}", IZ4_321 => $stand-in.Str, IZ4_INTERACTIVE => '0', IZ4_ENFORCE => '1';
+my %without = IZ4_NO_321 => '1', IZ4_INTERACTIVE => '0';
+sub driver-was-run(--> Bool) { $log.e && $log.slurp.trim ne '' }
+sub forget()          { $log.unlink if $log.e }
+
+sub fresh-repo(--> IO::Path) {
+    my $r = temp-dir;
+    run 'git', '-C', $r.Str, 'init', '-q';
+    my $sp = minimal-iz4(:dir($r));
+    add-invariant($sp, 'People control whether their profile is visible.', :because('Privacy.'));
+    $r.add('tests').mkdir;
+    $r.add('tests/invariant-5.sh').spurt("#!/bin/sh\n# Invariant 5: People control whether their profile is visible.\nexit 0\n");
+    $r;
+}
+sub g(IO::Path $r, *@a) { my $p = run 'git', '-C', $r.Str, |@a, :out, :err; my $o = $p.out.slurp(:close); $p.err.slurp(:close); $o.trim }
+
+# Every command of the core that reads, checks or answers a driver, as
+# argv; each is run with a 321 in reach (and the enforcement step switched
+# ON) and with none.  These are the commands 321 itself may call, so none
+# of them may ever call 321 back.  (The commands that change intent are
+# followed by the enforcement step, which asks 321: they are below.)
+my @core-commands =
+    ('version',),
+    ('show',), ('show', 'invariant', '5'), ('invariants',), ('foundation',), ('number',),
+    ('check',), ('check', '--strict'),
+    ('test', '--list'), ('test', '--/draft'),
+    ('agent',), ('agent', '--json'),
+    ('discover', '--json'), ('context', '--json'),
+    ('check', 'action', '--action={"operation":"write","target":"lib/x.txt"}', '--json'),
+    ('check', 'change', '--worktree', '--json'), ('check', 'change', '--staged', '--json'),
+    ('verify', '--worktree', '--json'),
+    ('gate', '--staged'), ('gate', '--staged', '--enforce', '--json'),
+    ('approve', '--staged'),
+    ('review', '--staged', '--offline'),
+    ('log',), ('diff',),
+    ('hook', 'session-start'), ('hook', 'pre-edit'), ('hook', 'stop');
+
+for (%with, %without) -> %env {
+    my $r = fresh-repo;
+    my $which = %env<IZ4_NO_321> ?? 'with no 321 installed' !! 'with a 321 in reach';
+    forget;
+    for @core-commands -> @argv {
+        g($r, 'add', '-A');
+        # the old hook commands read an event on standard input; give them one
+        my ($rc, $out, $err) = @argv[0] eq 'hook'
+            ?? iz4-talk($r, '{"session_id":"layering-' ~ (^1_000_000).pick ~ '"}', |@argv, :env(%( |%env, IZ4_INTERACTIVE => '0' )))
+            !! iz4($r, |@argv, :%env);
+        my $name = @argv.grep({ !.starts-with('--action') }).join(' ');
+        ok $rc == any(0, 1, 2, 3, 4) && !$err.contains('Usage:') && !($err ~ $out).contains('No such method') && !($err ~ $out).contains('Undefined routine'),
+            "core command 'iz4 $name' runs $which (exit $rc)" or diag "$out\n$err";
+        if !%env<IZ4_NO_321> {
+            nok driver-was-run(), "and 'iz4 $name' never ran 321" or diag $log.slurp;
+            forget;
+        }
+    }
+}
+
+# the stand-in is real: a convenience command does reach it
+{
+    my $r = fresh-repo;
+    forget;
+    my ($rc, $out, $err) = iz4($r, 'agent', 'status', :env(%with));
+    ok driver-was-run(), "a convenience command ('iz4 agent status') does ask 321, so the checks above could have caught a call";
+    forget;
+    ($rc, $out, $err) = iz4($r, 'agent', 'install', '--hooks', '--strict', :env(%with));
+    like $log.slurp, / ^^ 'iz4 install' /, "'iz4 agent install --hooks' hands the wiring to 321 ('321 iz4 install')";
+    nok $r.add('.claude/settings.json').e, 'and iz4 itself writes no harness settings';
+}
+
+# ---- a change of intent is followed by enforcement, through 321 -------------
+# IZ4 owns intent; when a person changes it, iz4 asks its environment driver
+# to activate enforcement and reports what 321 says is really in place.
+{
+    my $r = fresh-repo;
+    forget;
+    my ($rc, $out, $err) = iz4($r, 'add', 'invariant', 'Employers cannot contact someone first.', '--because=No new inbox.', :env(%with));
+    is $rc, 0, 'the invariant is added';
+    like $log.slurp, / ^^ 'iz4 install --workspace ' \S+ ' --json' $$ /, "and iz4 then asks 321 to activate enforcement ('321 iz4 install')";
+    is $log.lines.grep(*.starts-with('iz4 install')).elems, 1, 'once';
+    like $out, /'enforcement: 321 0.4.0 found no agent harness here'/, 'and reports what 321 found (this stand-in knows no harness)';
+    nok $r.add('.claude').e, 'iz4 itself wrote nothing for any harness';
+
+    # a command that changed nothing is followed by nothing
+    forget;
+    ($rc, $out, $err) = iz4($r, 'add', 'invariant', 'We use PostgreSQL.', :env(%with));
+    nok driver-was-run(), 'a refused candidate changes no intent, so 321 is not asked' or diag $log.slurp;
+    ($rc, $out, $err) = iz4($r, 'approve', '--staged', :env(%with));
+    nok driver-was-run(), 'an approval that was not given (no terminal) changes nothing either';
+
+    # each intent command, when it does change something
+    for ('because', '5', 'Privacy is a right.', '--replace'), ('withdraw', '6', '--force') -> @argv {
+        forget;
+        ($rc, $out, $err) = iz4($r, |@argv, :env(%with));
+        ok $rc == 0 && $log.e && $log.lines.grep(*.starts-with('iz4 install')).elems == 1, "'iz4 {@argv.head}' is followed by the enforcement step" or diag "$rc $out $err";
+    }
+    my $fresh = temp-dir;
+    run 'git', '-C', $fresh.Str, 'init', '-q';
+    forget;
+    ($rc, $out, $err) = iz4($fresh, 'init', '--for-what=Demo.', '--for-who=Testers.', '--/agents', :env(%with));
+    ok $rc == 0 && $log.e && $log.lines.grep(*.starts-with('iz4 install')).elems == 1, "'iz4 init' is followed by the enforcement step" or diag "$rc $out $err";
+
+    # switched off, nothing is asked and nothing is said
+    for (IZ4_ENFORCE => '0'), (IZ4_NO_321 => '1') -> $off {
+        forget;
+        ($rc, $out, $err) = iz4($r, 'add', 'invariant', "Nobody is shown another person's address ({$off.key}).", '--because=Safety.', :env(%( |%with, $off )));
+        ok $rc == 0 && !driver-was-run() && !($out ~ $err).contains('enforcement'), "with {$off.key}={$off.value} the step is off: the file changes and nothing else happens";
+    }
+}
+
+# ---- iz4 may bootstrap its driver: the official 321, verified, never a stranger's ----
+{
+    # a published release, as a directory: latest.txt, the file for this system, its checksum
+    my sub release(Str $version, Str :$install-doc = '{"schema":"enforcement-report.v1","controller":"iz4","harnesses":[{"harness":"claude_code","detected":true,"action":"installed","headline":"GUARDED","levels":["aware","checked","guarded"],"warnings":[]}]}', Bool :$bad-sum = False --> IO::Path) {
+        my $rel = temp-dir;
+        my $asset = launcher-asset();
+        $rel.add('latest.txt').spurt("v$version\n");
+        $rel.add($asset).spurt: q:to/SH/.subst('__V__', $version).subst('__DOC__', $install-doc);
+            #!/bin/sh
+            case "$1" in
+              version|--version) echo '321 __V__'; exit 0;;
+              iz4) echo '__DOC__'; exit 0;;
+            esac
+            exit 0
+            SH
+        my $sum = $bad-sum ?? ('0' x 64) !! sha256-file($rel.add($asset));
+        $rel.add("$asset.sha256").spurt("$sum  $asset\n");
+        $rel;
+    }
+    my sub env-for(IO::Path $bindir, IO::Path $rel, *%more) {
+        %( PATH => "/usr/bin:/bin", IZ4_BIN => $bindir.Str, IZ4_321_RELEASE_URL => "file://{$rel}", IZ4_ENFORCE => '1', IZ4_INTERACTIVE => '0', |%more )
+    }
+    my $n = 0;
+    my sub add-one(IO::Path $r, %env) { iz4($r, 'add', 'invariant', "A lasting commitment number {++$n} stays true.", '--because=People rely on it.', :%env) }
+
+    if launcher-asset().defined {
+        # no 321 anywhere: iz4 installs the published one, then asks it
+        my $r = fresh-repo; my $bindir = temp-dir; my $rel = release('0.4.0');
+        my ($rc, $out, $err) = add-one($r, env-for($bindir, $rel));
+        is $rc, 0, 'with no 321 installed, the intent change succeeds';
+        ok $bindir.add('321').f && $bindir.add('321').x, 'and iz4 installed the published 321' or diag "$out\n$err";
+        ok $bindir.add('.321-from-iz4').e, 'marking it as its own, so it may keep it current';
+        like $out, /'321 0.4.0 installed at ' \S+ ': the environment driver iz4 uses to activate enforcement'/, 'saying what version it installed and where';
+        like $out, /'enforcement, as 321 0.4.0 wired it and read it back:' \n \s+ 'claude_code: installed; enforcement GUARDED (aware, checked, guarded)'/,
+            'and reporting enforcement only as 321 says it is, after 321 wired it';
+        nok $r.add('.claude').e, 'iz4 itself still wrote nothing for any harness';
+        # again: nothing is reinstalled
+        my $stamp = $bindir.add('321').modified;
+        ($rc, $out, $err) = add-one($r, env-for($bindir, $rel));
+        ok $rc == 0 && !$out.contains('installed at') && $bindir.add('321').modified == $stamp, 'a second change reinstalls nothing: the step is idempotent';
+        like $out, /'enforcement, as 321 0.4.0 wired it'/, 'and still reports the status';
+
+        # the newest published 321 is too old to drive a harness: said, not claimed
+        $r = fresh-repo; $bindir = temp-dir;
+        ($rc, $out, $err) = add-one($r, env-for($bindir, release('0.3.4')));
+        is $rc, 0, 'a 321 too old to drive a harness does not undo the change';
+        like $err, /'321 0.3.4 is the newest published' .* 'needs 0.4.0 or later, so agent enforcement could not be activated'/, 'iz4 says why enforcement is not active';
+        like $err, /'The IZ4 intent is recorded, but harness enforcement is currently inactive.'/, 'in so many words';
+        like $r.add('IZ4').slurp, /'A lasting commitment number'/, 'and the invariant is in the file';
+        nok $out.contains('enforcement, as 321'), 'nothing is reported as enforced';
+
+        # the release cannot be reached
+        $r = fresh-repo; $bindir = temp-dir;
+        ($rc, $out, $err) = add-one($r, env-for($bindir, temp-dir.add('nowhere')));
+        ok $rc == 0 && $r.add('IZ4').slurp.contains('A lasting commitment number'), 'offline, the intent change still stands';
+        like $err, /'321 could not be installed (' .* '), so agent enforcement could not be activated.' \n 'The IZ4 intent is recorded, but harness enforcement is currently inactive.'/,
+            'and iz4 says exactly that';
+        nok $bindir.add('321').e, 'nothing was installed';
+
+        # a download that does not match its checksum is never installed
+        $r = fresh-repo; $bindir = temp-dir;
+        ($rc, $out, $err) = add-one($r, env-for($bindir, release('0.4.0', :bad-sum)));
+        ok $rc == 0 && !$bindir.add('321').e, 'a 321 whose checksum does not match is not installed';
+        like $err, /'checksum mismatch' .* 'could not be activated'/, 'and iz4 says so';
+
+        # a 321 somebody else installed is never replaced, however old
+        $r = fresh-repo; $bindir = temp-dir;
+        my $theirs = $bindir.add('321');
+        $theirs.spurt("#!/bin/sh\ncase \"\$1\" in version) echo '321 0.3.4';; esac\n"); $theirs.chmod(0o755);
+        my $their-bytes = $theirs.slurp;
+        ($rc, $out, $err) = add-one($r, env-for($bindir, release('0.4.0'), PATH => "{$bindir}:/usr/bin:/bin"));
+        is $theirs.slurp, $their-bytes, "a 321 iz4 did not install is left exactly as it is";
+        like $err, /'321 was left alone (' .* 'not by iz4' .* '0.3.4' .* 'needs 0.4.0 or later), so agent enforcement could not be activated'/, 'and iz4 says it left it alone, and why that leaves enforcement inactive';
+
+        # nor is some other program that happens to be called 321
+        $r = fresh-repo; $bindir = temp-dir;
+        my $stranger = $bindir.add('321');
+        $stranger.spurt("#!/bin/sh\necho 'I am a different program'\n"); $stranger.chmod(0o755);
+        ($rc, $out, $err) = add-one($r, env-for($bindir, release('0.4.0')));
+        is $stranger.slurp, "#!/bin/sh\necho 'I am a different program'\n", 'a different program named 321 is never overwritten';
+        like $err, /'iz4 did not put it there' .* 'could not be activated'/, 'and iz4 says so';
+
+        # 321 is there and says the wiring failed: iz4 does not call that enforcement
+        $r = fresh-repo; $bindir = temp-dir;
+        ($rc, $out, $err) = add-one($r, env-for($bindir, release('0.4.0',
+            :install-doc('{"schema":"enforcement-report.v1","controller":"iz4","harnesses":[{"harness":"claude_code","detected":true,"action":"failed","error":"settings unreadable","headline":"NONE","levels":[],"warnings":[]}]}'))));
+        like $out, /'claude_code: failed; enforcement NONE'/, 'when 321 says the wiring failed, iz4 quotes it';
+        like $err, /'harness enforcement is currently inactive'/, 'and says enforcement is inactive, never that it succeeded';
+
+        # asked for hooks outright with no 321: the same bootstrap, then the wiring
+        $r = fresh-repo; $bindir = temp-dir;
+        ($rc, $out, $err) = iz4($r, 'agent', 'install', '--hooks', '--strict', :env(env-for($bindir, release('0.4.0'))));
+        ok $rc == 0 && $bindir.add('321').f, "'iz4 agent install --hooks' installs the driver when it is missing" or diag "$rc\n$out\n$err";
+        like $out, /'hooks via 321 0.4.0'/, 'and hands the wiring to it';
+    }
+    else { skip 'no 321 is published for this system', 1 }
+}
+
+# ---- an agent runner is 321 or the person's own command, never a built-in --
+{
+    my $r = fresh-repo;
+    my %none = |%without, PATH => %*ENV<PATH>;
+    %none<IZ4_AGENT_CMD>:delete;
+    my ($rc, $out, $err) = iz4($r, 'suggest', :env(%( |%none, IZ4_AGENT_CMD => '' )));
+    like $out ~ $err, / 'no agent runner' .* 'Install 321' /, 'with no 321 and no IZ4_AGENT_CMD, suggest says an agent runner is needed and names 321';
+}
+
+# ---- wiring an earlier iz4 left: still answered, recognised, never extended -
+# Exactly what iz4 0.14.1 wrote into Claude Code's project settings with
+# 'iz4 agent install --hooks --strict'.
+{
+    my $r = fresh-repo;
+    g($r, 'add', '-A'); g($r, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'init');
+    $r.add('.claude').mkdir;
+    my $settings = $r.add('.claude/settings.json');
+    my $legacy = q:to/JSON/;
+        {
+          "hooks": {
+            "PreToolUse": [ { "hooks": [ { "command": "iz4 hook pre-edit", "type": "command" } ], "matcher": "Edit|Write|MultiEdit|NotebookEdit" } ],
+            "SessionStart": [ { "hooks": [ { "command": "iz4 hook session-start", "type": "command" } ], "matcher": "startup|resume|compact" } ],
+            "Stop": [ { "hooks": [ { "command": "iz4 hook stop", "type": "command" } ] } ]
+          }
+        }
+        JSON
+    $settings.spurt($legacy);
+    my @wired = $legacy.match(/ '"command": "' (<-["]>+) '"' /, :g).map({ ~.[0] });
+    is @wired.elems, 3, 'three commands are wired by the earlier iz4';
+
+    # no wired command points at something this iz4 no longer answers
+    for @wired -> $cmd {
+        my @argv = $cmd.words.skip(1);
+        my $sid = 'upgrade-' ~ (^1_000_000).pick;
+        my ($rc, $out, $err) = iz4-talk($r, json-encode(%( session_id => $sid, tool_input => %( file_path => 'lib/x.raku' ) )), |@argv, :env(%without));
+        ok $rc == any(0, 2) && !$err.contains('Usage:'), "'$cmd' is still a command this iz4 answers (exit $rc): no dead hook" or diag $err;
+    }
+    my $sid = 'upgrade-' ~ (^1_000_000).pick;
+    my ($rc, $out, $err) = iz4-talk($r, json-encode(%( session_id => $sid )), 'hook', 'pre-edit', :env(%without));
+    is $rc, 2, 'the old pre-edit hook still refuses one edit made before the packet';
+    like $err, /'IZ4 agent packet'/, 'and delivers the packet in the refusal, as it always did';
+    ($rc, $out, $err) = iz4-talk($r, json-encode(%( session_id => $sid )), 'hook', 'pre-edit', :env(%without));
+    is $rc, 0, 'and lets the next one through';
+    ($rc, $out, $err) = iz4-talk($r, json-encode(%( session_id => 'upgrade-s2' ~ (^1_000_000).pick )), 'hook', 'session-start', :env(%without));
+    ok $rc == 0 && $out.contains('IZ4 agent packet'), 'the old session-start hook still delivers the packet';
+
+    # status says the truth about it, with and without a driver
+    for (%without, %with) -> %env {
+        my $which = %env<IZ4_NO_321> ?? 'with no 321' !! 'with a driver present';
+        ($rc, $out, $err) = iz4($r, 'agent', 'status', :%env);
+        like $out, /'Claude Code hooks: active (session-start, pre-edit, stop)'/, "status $which reports the hooks as active";
+        like $out, /'Managed by: legacy IZ4 wiring'/, 'and who manages them';
+        like $out, /'Migration: ' .* '321' .* 'adopt'/, 'and that 321 can adopt them';
+        unlike $out, /'no hooks' | 'finds no hooks of its own'/, 'never as absent';
+        ($rc, $out, $err) = iz4($r, 'agent', 'status', '--json', :%env);
+        like $out, /'"legacy_hooks":' .* '"events":["session-start","pre-edit","stop"]'/, 'the JSON carries the same';
+    }
+
+    # and no iz4 command rewrites it or wires anything new to the old commands
+    for ('agent', 'install'), ('agent', 'install', '--hooks'), ('agent', 'install', '--hooks', '--strict'), ('agent', 'install', '--claude', '--skill') -> @argv {
+        for (%without, %with) -> %env {
+            ($rc, $out, $err) = iz4($r, |@argv, :%env);
+            is $settings.slurp, $legacy, "'iz4 {@argv.join(' ')}' leaves the earlier wiring byte for byte ({%env<IZ4_NO_321> ?? 'no 321' !! '321 present'})";
+        }
+    }
+    ($rc, $out, $err) = iz4($r, 'agent', 'install', '--hooks', '--strict', :env(%without));
+    is $rc, 1, 'asked for strict hooks with no driver, iz4 exits 1';
+    like $err, /'does not install agent-environment hooks directly' .* '321 iz4 install'/, 'saying whose job it is and the command';
+    ($rc, $out, $err) = iz4($r, 'agent', 'install', '--hooks', :env(%without));
+    is $rc, 0, 'asked without --strict, the same is a warning and the rest of the install stands';
+}
+
+# ---- no new wiring is ever generated for the old commands ------------------
+for (|@CORE, |@CONVENIENCE) -> $m {
+    nok file-of($m).slurp ~~ / 'iz4 hook session-start' | 'iz4 hook pre-edit' | 'iz4 hook stop' /,
+        "$m contains no hook command to write into a harness";
+}
+
+done-testing;
