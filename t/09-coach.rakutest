@@ -7,6 +7,9 @@ use IZ4Test;
 use IZ4;
 use IZ4::Coach;
 
+# No test here inherits a namespace from the machine it runs on.
+%*ENV<IZ4_NAMESPACE>:delete;
+
 #| Run the coach with scripted answers; returns (result, transcript).
 sub coach(@answers, *%opts) {
     my @said;
@@ -73,6 +76,10 @@ is $r<outcome>, 'add', 'a genuine invariant is added';
 like $said, /'rewritten tomorrow'/, 'after the golden test';
 like $said, /:i 'people looking for work'/, 'and a BECAUSE question that traces back to who it is for';
 is $r<because>, 'A hidden search for work can cost someone their current job.', 'BECAUSE kept';
+nok $r<name>.defined || $r<id>.defined || $r<number>.defined, 'the coach settles the words; it never makes up a name';
+($r, $said) = coach(['y', 'A hidden search for work can cost someone their current job.', 'y'],
+    candidate => 'Private profiles never appear in public search.', name => 'private-profiles.shop.example.com');
+like $said, /'Add it as INVARIANT private-profiles.shop.example.com? [Y/n]'/, 'a name already chosen is shown whole at the confirmation';
 
 ($r, $said) = coach(['n'], candidate => 'Profile photos are square.');
 is $r<outcome>, 'not-iz4', 'failing the golden test keeps it out';
@@ -137,29 +144,98 @@ is $r<because>, 'A hidden search can cost someone their job.', 'with the folded 
 # ---- the fast path challenges the same things -----------------------------
 my $dir  = temp-dir;
 my $path = minimal-iz4(:$dir);
-my ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'We use PostgreSQL.', '--because=It is fast.');
+my ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'We use PostgreSQL.', '--name=postgres', '--namespace=shop.example.com', '--because=It is fast.');
 is $rc, 1, 'the fast path refuses an implementation choice';
 like $err, /'--force'/, 'and says the owner can overrule it';
 nok $path.slurp.contains('PostgreSQL'), 'nothing is written';
-($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Profiles are private.', '--because=They must be private.');
+nok $path.slurp.contains('shop.example.com'), 'not even the namespace';
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Profiles are private.', '--name=profiles-private', '--namespace=shop.example.com', '--because=They must be private.');
 is $rc, 1, 'the fast path refuses a circular BECAUSE';
-($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'We use PostgreSQL.', '--because=Our hosting contract requires it.', '--force');
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'We use PostgreSQL.', '--name=postgres', '--namespace=shop.example.com',
+    '--because=Our hosting contract requires it.', '--force');
 is $rc, 0, '--force: the owner decides';
+like $path.slurp, /^^ "# This project's invariants are named under shop.example.com." $$/, 'the first add records the namespace in the file';
 ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Private profiles never appear in public search.',
-    '--because=A hidden search for work can cost someone their job.');
-is ($rc, $out), (0, "Added INVARIANT 6.\n"), 'a genuine invariant goes straight in';
-($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Employers cannot message a person first.');
+    '--name=private-profiles', '--because=A hidden search for work can cost someone their job.');
+is ($rc, $out), (0, "Added INVARIANT private-profiles.shop.example.com.\n"),
+    'a genuine invariant goes straight in, under the namespace the file already records';
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Employers cannot message a person first.', '--name=no-first-message');
 like $err, /'no BECAUSE'/, 'adding without a BECAUSE is allowed, with a nudge';
+is $path.slurp.comb("# This project's invariants are named under").elems, 1, 'the namespace is written once, however many are added';
+
+# a name is a person's choice: a script must give it, and is never asked
+my $before = $path.slurp;
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Applications are never shared with a third party.',
+    '--because=People apply to one employer, not to a market.');
+is $rc, 1, 'without a terminal, adding without --name exits 1';
+like $err, /'an invariant needs a name'/, 'and says a name is needed';
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Applications are never shared with a third party.',
+    '--number=7', '--because=People apply to one employer, not to a market.');
+is $rc, 1, '--number is refused';
+like $err, /'--name'/, 'with a pointer to --name';
+is $path.slurp, $before, 'and neither refusal writes anything';
+
+my $nons = temp-dir;
+my $nons-path = minimal-iz4(:dir($nons));
+$before = $nons-path.slurp;
+($rc, $out, $err) = iz4($nons, 'add', 'invariant', 'Private profiles never appear in public search.',
+    '--name=private-profiles', '--because=A hidden search for work can cost someone their job.');
+is $rc, 1, 'without a terminal, a first invariant with no namespace exits 1';
+like $err, /'no namespace yet' .* '--namespace='/, 'and says to pass --namespace once';
+is $nons-path.slurp, $before, 'writing nothing';
+($rc, $out, $err) = iz4($nons, 'add', 'invariant', 'Private profiles never appear in public search.',
+    '--name=private-profiles', '--because=A hidden search for work can cost someone their job.',
+    :env(%( IZ4_NAMESPACE => 'shop.example.com' )));
+is ($rc, $out), (0, "Added INVARIANT private-profiles.shop.example.com.\n"), 'IZ4_NAMESPACE answers for a script';
 
 # ---- the CLI conversation ---------------------------------------------------
 my $talk = temp-dir;
-minimal-iz4(:dir($talk));
+my $talk-path = minimal-iz4(:dir($talk));
+$before = $talk-path.slurp;
 ($rc, $out, $err) = iz4-talk($talk, "We use PostgreSQL.\ny\n\n", 'add');
 is $rc, 0, 'being talked out of an entry is not an error';
-nok $talk.add('IZ4').slurp.contains('INVARIANT 5'), 'nothing was added';
-($rc, $out, $err) = iz4-talk($talk, "Private profiles never appear in public search.\ny\nA hidden search can cost someone their job.\ny\n", 'add');
-like $out, /'Added INVARIANT 5'/, 'a coached invariant is added';
-like $talk.add('IZ4').slurp, /'INVARIANT 5' \n 'Private profiles never appear in public search.' \n\n 'BECAUSE' \n/,
+is $talk-path.slurp, $before, 'nothing was added';
+nok $out.contains('Name it') || $out.contains('Which domain?'), 'and no name or domain is asked for something that is not added';
+
+($rc, $out, $err) = iz4-talk($talk, "Blocked users cannot see your profile.\ny\nBecause people rely on it for safety.\nn\n", 'add');
+like $out, /'Add it as an invariant? [Y/n]' .* 'Nothing added.'/, 'declining at the confirmation adds nothing';
+nok $out.contains('Name it'), 'and the name is not asked for: it comes only after a yes';
+is $talk-path.slurp, $before, 'the file is untouched';
+
+($rc, $out, $err) = iz4-talk($talk, "Private profiles never appear in public search.\ny\nA hidden search can cost someone their job.\ny\nprivate-profiles\nshop.example.com\n", 'add');
+like $out, /'Added INVARIANT private-profiles.shop.example.com'/, 'a coached invariant is added under the name and domain the person gave';
+like $out, /'Add it as an invariant? [Y/n]' .* 'Name it:' .* 'Which domain?' .* 'Added INVARIANT'/,
+    'the name is asked after the confirmation, then the domain';
+nok $out.contains('Which domain? ['), 'a directory that does not read as a domain is not offered as one';
+like $talk-path.slurp, /'INVARIANT private-profiles.shop.example.com' \n 'Private profiles never appear in public search.' \n\n 'BECAUSE' \n/,
     'with its BECAUSE directly beneath it';
+like $talk-path.slurp, /^^ "# This project's invariants are named under shop.example.com." $$/, 'and the domain is recorded in the file';
+
+# the domain is asked once: the second invariant takes it from the file
+($rc, $out, $err) = iz4-talk($talk, "Employers only see a person after that person applies.\ny\nBeing found by a current employer can cost someone their job.\ny\napplies-first\n", 'add');
+like $out, /'Name it:' .* 'Added INVARIANT applies-first.shop.example.com'/, 'a second coached invariant is named under the same domain' or diag $out;
+nok $out.contains('Which domain?'), 'without the domain being asked again';
+is $talk-path.slurp.comb("# This project's invariants are named under").elems, 1, 'and without recording it twice';
+
+# a name that cannot be an identity is asked for again, never repaired
+($rc, $out, $err) = iz4-talk($talk, "People can withdraw an application at any time.\ny\nChanging your mind must never be held against you.\ny\nWithdraw Any Time\nwithdraw-any-time\n", 'add');
+like $out, /"'Withdraw Any Time' cannot be used" .* 'Added INVARIANT withdraw-any-time.shop.example.com'/,
+    'a name that is not lower-case labels is refused and asked for again' or diag $out;
+
+# an empty answer to the domain takes the suggestion: the directory, when it reads as a domain
+my $site = temp-dir.add('jobs.example.org');
+$site.mkdir;
+minimal-iz4(:dir($site));
+($rc, $out, $err) = iz4-talk($site, "Private profiles never appear in public search.\ny\nA hidden search can cost someone their job.\ny\nprivate-profiles\n\n", 'add');
+like $out, /'Which domain? [jobs.example.org]'/, 'a directory named like a domain is suggested';
+like $out, /'Added INVARIANT private-profiles.jobs.example.org'/, 'and an empty answer takes the suggestion' or diag $out;
+
+# with the namespace given, only the name is asked
+my $given = temp-dir;
+minimal-iz4(:dir($given));
+($rc, $out, $err) = iz4-talk($given, "Private profiles never appear in public search.\ny\nA hidden search can cost someone their job.\ny\nprivate-profiles\n", 'add',
+    :env(%( IZ4_NAMESPACE => 'shop.example.com' )));
+like $out, /'Added INVARIANT private-profiles.shop.example.com'/, 'IZ4_NAMESPACE names the domain';
+nok $out.contains('Which domain?'), 'so only the name is asked';
 
 done-testing;

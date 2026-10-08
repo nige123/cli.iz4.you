@@ -1,12 +1,11 @@
 unit module IZ4;
 
 use IZ4::Document;
-use IZ4::Launcher;
 use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.14.1';
+constant VERSION is export = '0.16.0';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -30,6 +29,31 @@ sub sha256-file(IO::Path $f --> Str) is export {
         return $hex.lc if $hex.defined && $hex ~~ /^ <[0..9 A..F a..f]> ** 64 $/;
     }
     user-error('no sha256 tool found (need sha256sum, shasum or openssl)');
+}
+
+#| sha256 of a string's UTF-8 bytes.
+sub sha256-text(Str $s --> Str) is export {
+    my $tmp = $*TMPDIR.add("iz4-text-{$*PID}-{(^1_000_000_000).pick}.txt");
+    LEAVE { try $tmp.unlink }
+    $tmp.spurt($s);
+    sha256-file($tmp);
+}
+
+#| The digest of one invariant (iz4-invariant/1): which version of the
+#| named commitment these exact words are.  The name says which
+#| commitment; this says which wording of it.
+sub invariant-digest(Str $id, Str $text, Str $because? --> Str) is export {
+    is-foundation-id($id) && foundation-matches($id, $text, $because // '')
+        ?? foundation-digest-of($id)
+        !! sha256-text(canonical-invariant($id, $text, $because // ''));
+}
+
+my %FOUNDATION-DIGESTS;
+sub foundation-digest-of(Str $id --> Str) is export {
+    %FOUNDATION-DIGESTS{$id} //= do {
+        my %f = foundation-entry($id);
+        sha256-text(canonical-invariant($id, %f<text>, %f<because>));
+    };
 }
 
 #| The one canonicalisation rule the register and the CLI share, so the
@@ -106,70 +130,90 @@ sub display-name(IO::Path $path, IO::Path :$cwd = $*CWD --> Str) is export {
 
 # ---------------------------------------------------------------- teaching
 
-#| Where Invariants 0-4 are explained, for a reader with no CLI.
+#| Where the foundation is explained, for a reader with no CLI.
 constant FOUNDATION-URL is export = 'https://iz4.you/invariant-zero';
 
 #| The lines every new IZ4 opens with, so a reader knows what the
 #| foundation below is, what it protects, and where to read about it.
 constant INHERITANCE-COMMENT is export =
-    "# Every IZ4 carries Invariants 0-4, the foundation, word for word: human intention protected.\n"
+    "# Every IZ4 carries the five foundation invariants word for word: human intention protected.\n"
     ~ "# Read about them at {FOUNDATION-URL}. They are the same in every IZ4 and not yours to edit.\n"
-    ~ '# Your own invariants begin at 5.';
+    ~ "# Your own invariants are named under your project's domain.";
 
-#| Write the foundation into an IZ4 that lacks it or has an altered one.
-#| Only the INVARIANT 0-4 blocks (with their BECAUSE) and the foundation
-#| comment are touched; every other line stays.  Returns 'unchanged',
-#| 'written' or 'replaced'.  Run on request only: this is the one case
-#| where the tool rewrites lines, because the foundation was never the
-#| owner's words to keep.
-sub restore-foundation(IO::Path $path --> Str) is export {
-    my $doc = IZ4::Document.load($path);
-    return 'unchanged' if $doc.foundation-intact;
-    my @lines = $path.slurp.lines;
-    # every INVARIANT 0-4 block (in either label form) and the BECAUSE
-    # directly after it, plus the foundation comment, are dropped
+#| The header comments earlier versions wrote, brought up to date when the
+#| foundation is restored or a file is migrated.
+my @OLD-HEADERS =
+    ("# Every IZ4 inherits Invariants 0-4: human intention protected.",
+     "# Read them at {FOUNDATION-URL} ('iz4 invariants' prints them).",
+     '# Project invariants begin at 5.'),
+    ("# Every IZ4 carries Invariants 0-4, the foundation, word for word: human intention protected.",
+     "# Read about them at {FOUNDATION-URL}. They are the same in every IZ4 and not yours to edit.",
+     '# Your own invariants begin at 5.');
+
+#| Refuse to write to a file still in the numbered format: one next step.
+sub require-named(IZ4::Document $doc, IO::Path $path) is export {
+    user-error("{$path.basename} is in the numbered format of earlier versions, which this version reads but no longer writes.\n"
+        ~ "Run 'iz4 migrate': it gives each invariant a name, with you, and brings the foundation up to date.") if $doc.legacy;
+}
+
+#| @lines with every foundation block (and its BECAUSE), the foundation
+#| comment and nothing else removed, the opening comment brought up to
+#| date, and the current foundation written where the first block stood:
+#| else after IS FOR WHO?, else after IS FOR WHAT?, else at the end.
+sub with-foundation(IZ4::Document $doc, @source --> List) {
+    my @lines = @source;
     my %drop;
-    for $doc.blocks.kv -> $i, $b {
-        next unless $b.kind eq 'INVARIANT' && $b.label.defined && $b.label ~~ /^ (\d+) / && +$0 < FIRST-PROJECT-NUMBER;
-        %drop{$_} = True for $b.line .. $b.last-line;
-        if $i + 1 < $doc.blocks && $doc.blocks[$i + 1].kind eq 'BECAUSE' {
-            %drop{$_} = True for $doc.blocks[$i + 1].line .. $doc.blocks[$i + 1].last-line;
-        }
-    }
-    my $replaced = %drop.elems > 0;
-    # the header comment this tool wrote for earlier versions is brought up to date too
-    my @old-header = "# Every IZ4 inherits Invariants 0-4: human intention protected.",
-        "# Read them at {FOUNDATION-URL} ('iz4 invariants' prints them).",
-        '# Project invariants begin at 5.';
-    for @lines.kv -> $i, $l {
-        if $l eq @old-header[0] && $i + 2 < @lines && @lines[$i + 1] eq @old-header[1] && @lines[$i + 2] eq @old-header[2] {
-            @lines[$i .. $i + 2] = INHERITANCE-COMMENT.lines;
+    for $doc.foundation-spans -> ($from, $to) { %drop{$_} = True for $from .. $to }
+    for @OLD-HEADERS -> @old {
+        for @lines.kv -> $i, $l {
+            if $l eq @old[0] && $i + 2 < @lines && @lines[$i + 1] eq @old[1] && @lines[$i + 2] eq @old[2] {
+                @lines[$i .. $i + 2] = INHERITANCE-COMMENT.lines;
+            }
         }
     }
     for @lines.kv -> $i, $l {
         %drop{$i + 1} = True if $l.starts-with('# The foundation, Invariants 0-4.')
+            || $l.starts-with('# The foundation. Every IZ4 carries these five invariants')
             || $l.starts-with("# 'iz4 check' refuses a file where they are missing")
             || $l.starts-with("# 'iz4 foundation --restore' puts them back");
     }
-    # insert after the IS FOR WHO? block, else after IS FOR WHAT?, else at the end
     my $anchor = $doc.blocks.first(*.kind eq 'IS FOR WHO') // $doc.blocks.first(*.kind eq 'IS FOR WHAT');
-    my $at = $anchor.defined ?? $anchor.last-line !! @lines.elems;
+    my $at = $doc.foundation-spans ?? $doc.foundation-spans.map(*[0]).min - 1
+          !! $anchor.defined ?? $anchor.last-line !! @lines.elems;
+    # the comment directly above the first block goes with it
+    $at-- while $at > 0 && %drop{$at};
     my @out;
-    for @lines.kv -> $i, $l {
-        @out.push($l) unless %drop{$i + 1};
-        if $i + 1 == $at {
-            @out.push('') if @out && @out.tail ne '';
-            @out.append(foundation-block().lines);
-        }
-    }
-    if $at == @lines.elems && !$anchor.defined {
+    my $placed = False;
+    my sub place() {
         @out.push('') if @out && @out.tail ne '';
         @out.append(foundation-block().lines);
+        @out.push('');
+        $placed = True;
     }
-    # collapse runs of blank lines the removal may have left
+    place() if $at == 0;
+    for @lines.kv -> $i, $l {
+        @out.push($l) unless %drop{$i + 1};
+        place() if $i + 1 == $at && !$placed;
+    }
+    place() unless $placed;
     my @tidy;
     for @out -> $l { @tidy.push($l) unless $l eq '' && @tidy && @tidy.tail eq '' }
-    $path.spurt(@tidy.join("\n") ~ "\n");
+    @tidy.pop while @tidy && @tidy.tail eq '';
+    @tidy;
+}
+
+#| Write the foundation into an IZ4 that lacks it or has an altered one.
+#| Only the foundation's own blocks (with their BECAUSE) and the
+#| foundation comment are touched; every other line stays.  Returns
+#| 'unchanged', 'written' or 'replaced'.  Run on request only: this is the
+#| one case where the tool rewrites lines, because the foundation was
+#| never the owner's words to keep.
+sub restore-foundation(IO::Path $path --> Str) is export {
+    my $doc = IZ4::Document.load($path);
+    require-named($doc, $path);
+    return 'unchanged' if $doc.foundation-intact;
+    my $replaced = so $doc.foundation-spans;
+    $path.spurt(with-foundation($doc, $path.slurp.lines).join("\n") ~ "\n");
     $replaced ?? 'replaced' !! 'written';
 }
 
@@ -236,8 +280,8 @@ sub show-text(IO::Path $path, Str $part? is copy --> Str) is export {
 }
 
 #| One invariant as a reader sees it: header, text, BECAUSE.
-sub invariant-block(Int $number, Str $name, Str $text, Str $because?, Str :$note --> Str) {
-    my @out = ("INVARIANT $number" ~ ($name ?? " - $name" !! '') ~ ($note ?? " ($note)" !! ''));
+sub invariant-block(Str $label, Str $text, Str $because? --> Str) {
+    my @out = ("INVARIANT $label");
     @out.append: wrap($text, WRAP-WIDTH);
     if $because.defined && $because.trim {
         @out.push: 'BECAUSE';
@@ -249,10 +293,19 @@ sub invariant-block(Int $number, Str $name, Str $text, Str $because?, Str :$note
 sub project-invariants-text(IZ4::Document $doc --> Str) {
     return "(no project invariants yet: 'iz4 add' helps you find one)\n" unless $doc.invariants;
     $doc.invariants.map({
-        .number.defined
-            ?? invariant-block(.number, Str, .text, .because)
-            !! "INVARIANT (unnumbered)\n" ~ wrap(.text, WRAP-WIDTH).join("\n") ~ "\n"
+        .id.defined
+            ?? invariant-block(.id, .text, .because)
+            !! "INVARIANT (unnamed)\n" ~ wrap(.text, WRAP-WIDTH).join("\n") ~ "\n"
     }).join("\n");
+}
+
+#| The foundation as a reader sees it.  A file still in the numbered
+#| format is shown the foundation it carries, the numbered one, because
+#| that is what its own words cite.
+sub foundation-text(Bool :$legacy = False --> Str) is export {
+    $legacy
+        ?? FOUNDATION-LEGACY.map({ invariant-block("{.<number>} - {.<name>} (foundation)", .<text>, .<because>) }).join("\n")
+        !! FOUNDATION.map({ invariant-block(.<id>, .<text>, .<because>) }).join("\n");
 }
 
 #| The effective invariant set: the foundation, then the
@@ -262,95 +315,114 @@ sub effective-text(IZ4::Document $doc, Str :$name = 'IZ4' --> Str) is export {
     my @out;
     @out.push: "IS FOR WHAT?\n" ~ wrap($doc.for-what // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
     @out.push: "IS FOR WHO?\n"  ~ wrap($doc.for-who  // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
-    @out.append: FOUNDATION.map({ invariant-block(.<number>, .<name>, .<text>, .<because>, :note<foundation>) });
+    @out.push: foundation-text(:legacy($doc.legacy));
     @out.push: project-invariants-text($doc);
     @out.join("\n");
 }
 
-#| One invariant by number (5, 'Invariant 5' and '5:' all work).  0-4
-#| always name the foundation.
-sub invariant-text(IO::Path $path, Str $number --> Str) is export {
+#| Which invariant a person means.  The full name always works.  So does
+#| its first part alone (owner-adjusted) when exactly one invariant in the
+#| file begins with it.  In a file still in the numbered format, a number
+#| ('5', 'Invariant 5', '5:').  Returns the identity, or Str.
+sub resolve-identity(IZ4::Document $doc, Str $ref, :@also --> Str) is export {
+    my $raw = $ref.trim.subst(/:i^ 'invariant' \s+ /, '').subst(/ ':' $/, '');
+    if $doc.legacy {
+        return $raw ~~ /^ \d+ $/ ?? ~+$raw !! Str;
+    }
+    my @all = |foundation-ids(), |$doc.invariants.map(*.id).grep(*.defined), |$doc.retired, |@also;
+    return $raw if @all.first(* eq $raw).defined;
+    my @starts = @all.grep(*.starts-with("$raw.")).unique;
+    @starts == 1 ?? @starts[0] !! Str;
+}
+
+sub own-names(IZ4::Document $doc --> Str) {
+    my @ids = $doc.invariants.map(*.id).grep(*.defined);
+    @ids ?? "its own are {@ids.join(', ')}" !! 'it has none of its own yet';
+}
+
+#| One invariant by name.  The five foundation names always answer.
+sub invariant-text(IO::Path $path, Str $ref --> Str) is export {
     my $doc = IZ4::Document.load($path);
-    my $raw = $number.subst(/:i^ 'invariant' \s+ /, '').subst(/ ':' $/, '');
-    user-error("'$number' is not an invariant number") unless $raw ~~ /^ \d+ $/;
-    my $n = +$raw;
-    if $n < FIRST-PROJECT-NUMBER {
-        my %f = FOUNDATION[$n];
-        return invariant-block($n, %f<name>, %f<text>, %f<because>, :note<foundation>);
+    if $doc.legacy {
+        my $raw = resolve-identity($doc, $ref) // user-error("'$ref' is not an invariant number, and {$path.basename} is still in the numbered format ('iz4 migrate' names its invariants)");
+        my $n = +$raw;
+        if $n < 5 {
+            my %f = FOUNDATION-LEGACY[$n];
+            return invariant-block("$n - {%f<name>} (foundation)", %f<text>, %f<because>);
+        }
+        with $doc.invariant($raw) { return invariant-block($raw, .text, .because) }
+        user-error("no invariant $n in {$path.basename}; {own-names($doc)}, and 0-4 are the foundation");
     }
-    with $doc.invariant($n) {
-        return invariant-block($n, Str, .text, .because);
+    user-error("invariants are named now: '$ref' is a number from the earlier format; 'iz4 show invariants' lists the names")
+        if $ref.trim ~~ /:i^ ['invariant' \s+]? \d+ ':'? $/;
+    my $id = resolve-identity($doc, $ref)
+        // user-error("no invariant '$ref' in {$path.basename}; {own-names($doc)}, and the foundation is {foundation-ids().join(', ')}");
+    with foundation-entry($id) -> %f { return invariant-block($id, %f<text>, %f<because>) }
+    with $doc.invariant($id) { return invariant-block($id, .text, .because) }
+    with withdrawn-in($path, $id) -> $when {
+        return "INVARIANT $id was withdrawn in commit $when; its name is retired and never reused. 'iz4 diff {$when.words[0]}~1 {$when.words[0]}' shows what it said.\n";
     }
-    with withdrawn-in($path, $n) -> $when {
-        return "Invariant $n was withdrawn in commit $when; its number is retired and never reused. 'iz4 diff {$when.words[0]}~1 {$when.words[0]}' shows what it said.\n";
-    }
-    if $n ∈ withdrawn-in-text($path) {
-        return "Invariant $n was withdrawn; its number is retired and never reused. 'iz4 log' shows when, where there is Git history.\n";
-    }
-    my @nums = $doc.invariants.map(*.number).grep(*.defined);
-    user-error("no invariant $n in {$path.basename}; "
-        ~ (@nums ?? "its own are {@nums.join(', ')}, and 0-4 are the foundation"
-                 !! "it has none of its own yet, and 0-4 are the foundation"));
+    "INVARIANT $id was withdrawn; its name is retired and never reused. 'iz4 log' shows when, where there is Git history.\n";
 }
 
 # ------------------------------------------------------------- withdraw
 
 #| Take a project invariant out of the file: its INVARIANT block, its
 #| BECAUSE and the blank line before them.  Nothing else is touched, Git
-#| keeps the words, and the number is retired: 'iz4 add' never hands a
-#| number the file has carried to a different invariant (Invariant 13).
-#| The foundation, 0-4, cannot be withdrawn by any project (Invariant 4).
-#| Returns the invariant as it was.  The caller confirms with a person
-#| first: this discards their words only on their say-so (Invariant 11).
-sub withdraw-invariant(IO::Path $path, Int $n --> IZ4::Document::Invariant) is export {
-    user-error("Invariant $n is the foundation's {FOUNDATION[$n]<name>}: Invariants 0-4 bind every project and cannot be withdrawn by one (Invariant 4)")
-        if $n < FIRST-PROJECT-NUMBER;
+#| keeps the words, and the name is retired: it is never given to a
+#| different invariant.  The foundation cannot be withdrawn by any
+#| project (foundation-holds.iz4.you).  Returns the invariant as it was.
+#| The caller confirms with a person first: this discards their words
+#| only on their say-so.
+sub withdraw-invariant(IO::Path $path, Str $ref --> IZ4::Document::Invariant) is export {
     my $doc = IZ4::Document.load($path);
-    my $inv = $doc.invariant($n);
+    require-named($doc, $path);
+    my $id = resolve-identity($doc, $ref) // $ref;
+    user-error("INVARIANT $id is part of the foundation: it binds every project and cannot be withdrawn by one (foundation-holds.iz4.you)")
+        if is-foundation-id($id);
+    my $inv = $doc.invariant($id);
     without $inv {
-        with withdrawn-in($path, $n) -> $when { user-error("Invariant $n was already withdrawn in commit $when") }
-        user-error("Invariant $n was already withdrawn") if $n ∈ withdrawn-in-text($path);
-        user-error("no invariant $n in {$path.basename}; 'iz4 show invariants' lists its own");
+        with withdrawn-in($path, $id) -> $when { user-error("INVARIANT $id was already withdrawn in commit $when") }
+        user-error("INVARIANT $id was already withdrawn") if $doc.retired.first(* eq $id).defined;
+        user-error("no invariant '$ref' in {$path.basename}; 'iz4 show invariants' lists its own");
     }
     my @lines = $doc.lines;
     my $from  = $inv.line - 1;
     my $to    = ($inv.because-line.defined
         ?? ($doc.blocks.first({ .kind eq 'BECAUSE' && .line == $inv.because-line }).last-line)
         !! $inv.last-line) - 1;
-    # One comment line stands where it was, so every reader sees why the
-    # number is missing, and so the number stays retired even where there
+    # One comment line stands where it was, so every reader sees that the
+    # invariant existed, and so the name stays retired even where there
     # is no Git history to consult.
-    @lines.splice($from, $to - $from + 1, withdrawn-comment($n));
+    @lines.splice($from, $to - $from + 1, withdrawn-comment($id));
     @lines.pop while @lines && @lines[*-1].trim eq '';
     $path.spurt(@lines.join("\n") ~ "\n");
     $inv;
 }
 
-sub withdrawn-comment(Int $n --> Str) { "# Invariant $n was withdrawn on {Date.today}; its number is retired." }
+sub withdrawn-comment(Str $id --> Str) { "# INVARIANT $id was withdrawn on {Date.today}; its name is retired." }
 
-#| The numbers a file's own comments say were withdrawn.
-sub withdrawn-in-text(IO::Path $path --> List) is export {
-    $path.slurp.lines.map({ $_ ~~ /^ '#' \h* 'Invariant' \h+ (\d+) \h+ 'was withdrawn' / ?? +$0 !! Empty }).List;
-}
+#| The names a file's own comments say were withdrawn.
+sub withdrawn-in-text(IO::Path $path --> List) is export { IZ4::Document.load($path).retired.List }
 
-#| The commit in which Invariant $n left the file, as 'HASH (DATE)', or
+#| The commit in which invariant $id left the file, as 'HASH (DATE)', or
 #| Str when Git does not show one.
-sub withdrawn-in(IO::Path $path, Int $n --> Str) is export {
+sub withdrawn-in(IO::Path $path, Str $id --> Str) is export {
     my ($rc, $log, $) = git($path, 'log', '-p', '--follow', '--date=short', '--format=%x01%h %ad', '--', $path.basename);
     return Str if $rc != 0;
     for $log.split("\x01").grep(* ne '') -> $commit {
         my ($head, @body) = $commit.lines;
-        my $gone = @body.first({ $_ ~~ /^ '-INVARIANT' \h+ $n \h* $/ }).defined;
-        my $back = @body.first({ $_ ~~ /^ '+INVARIANT' \h+ $n \h* $/ }).defined;
+        my $gone = @body.first({ .trim-trailing eq "-INVARIANT $id" }).defined;
+        my $back = @body.first({ .trim-trailing eq "+INVARIANT $id" }).defined;
         return "{$head.words[0]} ({$head.words[1]})" if $gone && !$back;
     }
     Str;
 }
 
-#| Test files that name Invariant $n, relative to $root: after a
+#| Test files that name invariant $id, relative to $root: after a
 #| withdrawal they are the next thing to look at.
-sub tests-naming(IO::Path $root, Int $n --> List) is export {
-    test-files($root).grep({ (try .slurp) andthen .match(/ 'Invariant' \h+ $n <!before \d> /) }).map(*.relative($root)).List;
+sub tests-naming(IO::Path $root, Str $id --> List) is export {
+    test-files($root).grep({ (try .slurp) andthen names-identity($_, $id) }).map(*.relative($root)).List;
 }
 
 # ---------------------------------------------------------------- check
@@ -378,6 +450,7 @@ sub set-is-for(IO::Path $path, Str $which where 'IS FOR WHAT' | 'IS FOR WHO', St
     my $value = $text.trim;
     user-error("nothing to set: the answer is empty") if $value eq '';
     my $doc   = IZ4::Document.load($path);
+    require-named($doc, $path);
     my @lines = $doc.lines;
     my @new = wrap($value, WRAP-WIDTH);
     with $doc.blocks.first(*.kind eq $which) -> $b {
@@ -396,84 +469,134 @@ sub set-is-for(IO::Path $path, Str $which where 'IS FOR WHAT' | 'IS FOR WHO', St
     $which;
 }
 
-#| The highest project number this file has ever carried, from its Git
-#| history as well as its current text, so a retired number is never
-#| handed to a different invariant (Invariant 13).  Without Git, or for an
-#| untracked file, only the current text is known.
-sub highest-ever-number(IO::Path $path --> Int) is export {
+#| Every name this file has ever given an invariant: from its Git history
+#| as well as its current text and its 'was withdrawn' comments, so a
+#| retired name is never handed to a different invariant.  Without Git,
+#| or for an untracked file, only the current text is known.
+sub names-ever-used(IO::Path $path --> List) is export {
     my $doc = IZ4::Document.load($path);
-    my $highest = (-1, |$doc.invariants.map(*.number).grep(*.defined), |withdrawn-in-text($path)).max;
+    my @names = |$doc.invariants.map(*.id).grep(*.defined), |$doc.retired;
     my ($rc, $log, $) = git($path, 'log', '-p', '--follow', '--format=', '--', $path.basename);
     if $rc == 0 {
         for $log.lines -> $l {
-            if $l ~~ /^ <[+\-]> 'INVARIANT' \h+ (\d+) \h* $/ { $highest max= +$0 }
+            @names.push(~$0) if $l ~~ /^ <[+\-]> 'INVARIANT' \h+ (\S+) \h* $/ && !numbered-label(~$0);
         }
     }
-    $highest;
+    @names.unique.List;
 }
 
-#| The next number to give a new invariant: after every number the file
-#| has ever carried, and never below 5.
-sub next-free-number(IO::Path $path --> Int) is export {
-    max(FIRST-PROJECT-NUMBER, highest-ever-number($path) + 1);
+#| The namespace a new invariant's name goes under: the one the file's
+#| own invariants already share, else the one given, else IZ4_NAMESPACE.
+#| Str when none of those says: the caller asks a person, once.
+sub project-namespace(IO::Path $path, Str :$given --> Str) is export {
+    my $ns = ($given // '').trim.lc || IZ4::Document.load($path).namespace || (%*ENV<IZ4_NAMESPACE> // '').trim.lc;
+    $ns ?? $ns !! Str;
 }
 
-#| Add a project invariant, with its BECAUSE when given.  It takes the
-#| next free number from 5 unless :$number chooses one; 0-4, numbers in
-#| use, and numbers the file has ever used are refused.  Returns the number
+#| Why a string cannot be a namespace, or ''.
+sub namespace-problem(Str $ns --> Str) is export {
+    my $why = identity-problem("x.$ns");
+    return $why if $why;
+    return "names directly under {FOUNDATION-NAMESPACE} are the foundation's; use a domain your project answers for" if $ns eq FOUNDATION-NAMESPACE;
+    '';
+}
+
+#| A namespace to offer when nothing says: the directory's own name, when
+#| it reads as a domain (cli.iz4.you, honeywillow.com).  A suggestion
+#| only; a person confirms it.
+sub suggested-namespace(IO::Path $path --> Str) is export {
+    my $dir = $path.resolve.parent.basename.lc;
+    $dir.contains('.') && namespace-problem($dir) eq '' ?? $dir !! Str;
+}
+
+#| The full identity for a name a person typed: as given when it is
+#| already a whole name, else under $namespace.
+sub full-identity(Str $name, Str $namespace? --> Str) is export {
+    my $n = $name.trim;
+    return $n if is-identity($n) || !$namespace;
+    "$n.$namespace";
+}
+
+#| Refuse a name no new invariant in $path may take.
+sub check-new-name(IO::Path $path, IZ4::Document $doc, Str $id) is export {
+    with identity-problem($id) -> $why {
+        user-error("'$id' is not a name an invariant can have: $why") if $why;
+    }
+    user-error("INVARIANT $id is part of the foundation: every IZ4 carries it word for word, and it cannot be redefined")
+        if is-foundation-id($id);
+    user-error("'$id': names directly under {FOUNDATION-NAMESPACE} are the foundation's, and there are exactly five; name yours under your project's own domain")
+        if reserved-identity($id);
+    user-error("INVARIANT $id is already in {$path.basename}; a name belongs to one invariant")
+        if $doc.invariant($id).defined;
+    user-error("INVARIANT $id was used before in {$path.basename} (see 'iz4 log'); a name is never reused for a different invariant, so choose a new one")
+        if names-ever-used($path).first(* eq $id).defined;
+}
+
+#| Add a project invariant under the name $name, with its BECAUSE when
+#| given.  The name is the full identity.  The foundation's names, names
+#| in use and names the file has ever used are refused.  Returns the name
 #| written.  Existing text is never touched: the new block is appended.
-sub add-invariant(IO::Path $path, Str $text, Str :$because, Int :$number --> Int) is export {
+sub add-invariant(IO::Path $path, Str $text, Str :$name!, Str :$because, Str :$namespace --> Str) is export {
     my $value = $text.trim;
     user-error("nothing to add: the invariant is empty") if $value eq '';
     my $doc = IZ4::Document.load($path);
-
-    # an explicit 'Invariant 7: ...' lead is a chosen number
-    my Int $n = $number;
-    if $value ~~ /:i^ 'invariant' \s+ (\d+) \s* <[:.\-]>? \s+ (.+) $/ {
-        $n //= +$0;
-        $value = ~$1;
-    }
-    with $n {
-        user-error("Invariant $n is inherited and reserved: Invariants 0-4 cannot be redefined; "
-            ~ "project invariants begin at {FIRST-PROJECT-NUMBER}") if $n < FIRST-PROJECT-NUMBER;
-        user-error("Invariant $n is already used in {$path.basename}; pick a free number")
-            if $doc.invariant($n).defined;
-        user-error("Invariant $n was used before in {$path.basename} (see 'iz4 log'); a number is never reused for a different invariant, so pick a fresh one")
-            if $n <= highest-ever-number($path);
-    }
-    else { $n = next-free-number($path) }
+    require-named($doc, $path);
+    check-new-name($path, $doc, $name);
     my $reason = ($because // '').trim;
 
     my @lines = $doc.lines;
     @lines.pop while @lines && @lines[*-1].trim eq '';
-    @lines.append: '', "INVARIANT $n", |wrap($value, WRAP-WIDTH);
+    # the namespace, said once in the file, the first time one is chosen
+    @lines.append: '', namespace-comment($namespace)
+        if $namespace && $name.ends-with(".$namespace") && !$doc.namespace.defined;
+    @lines.append: '', "INVARIANT $name", |wrap($value, WRAP-WIDTH);
     @lines.append: '', 'BECAUSE', |wrap($reason, WRAP-WIDTH) if $reason ne '';
     $path.spurt(@lines.join("\n") ~ "\n");
-    $n;
+    $name;
+}
+
+#| The one line that tells a reader, and the next 'iz4 add', which domain
+#| this project's invariants are named under.
+sub namespace-comment(Str $namespace --> Str) is export { "# This project's invariants are named under $namespace." }
+
+#| Name the unnamed INVARIANT block on line $line.  Only its header line
+#| is touched.
+sub name-invariant(IO::Path $path, Int $line, Str $name --> Str) is export {
+    my $doc = IZ4::Document.load($path);
+    require-named($doc, $path);
+    my $inv = $doc.invariants.first({ .line == $line })
+        // user-error("no INVARIANT on line $line of {$path.basename}");
+    user-error("the invariant on line $line is already named {$inv.id}; a name is an identity and is not changed (withdraw it and add a new one if it is a different commitment)")
+        if $inv.id.defined;
+    check-new-name($path, $doc, $name);
+    my @lines = $doc.lines;
+    @lines[$line - 1] = "INVARIANT $name";
+    $path.spurt(@lines.join("\n") ~ "\n");
+    $name;
 }
 
 # ---------------------------------------------------------------- because
 
-#| Set the BECAUSE of project invariant $n.  An existing one needs
-#| :replace.  Returns the number.
-sub set-because(IO::Path $path, Int $n, Str $text, Bool :$replace = False --> Int) is export {
+#| Set the BECAUSE of a project invariant.  An existing one needs
+#| :replace.  Returns its name.
+sub set-because(IO::Path $path, Str $ref, Str $text, Bool :$replace = False --> Str) is export {
     my $reason = $text.trim;
     user-error('nothing to set: the reason is empty') if $reason eq '';
     my $doc = IZ4::Document.load($path);
-    my $inv = invariant-or-die($doc, $path, $n);
-    user-error("Invariant $n already has a BECAUSE; use --replace to replace it")
+    my $inv = invariant-or-die($doc, $path, $ref);
+    user-error("INVARIANT {$inv.id} already has a BECAUSE; use --replace to replace it")
         if ($inv.because // '').trim && !$replace;
     rewrite-invariant($path, $doc, $inv, $inv.text, $reason);
-    $n;
+    $inv.id;
 }
 
-#| Move the reason folded into invariant $n's own text under BECAUSE.
+#| Move the reason folded into an invariant's own text under BECAUSE.
 #| Returns the reason moved, or Str when none was found.  The words are
 #| the owner's, only moved; nothing is added.
-sub split-because(IO::Path $path, Int $n --> Str) is export {
+sub split-because(IO::Path $path, Str $ref --> Str) is export {
     my $doc = IZ4::Document.load($path);
-    my $inv = invariant-or-die($doc, $path, $n);
-    user-error("Invariant $n already has a BECAUSE") if ($inv.because // '').trim;
+    my $inv = invariant-or-die($doc, $path, $ref);
+    user-error("INVARIANT {$inv.id} already has a BECAUSE") if ($inv.because // '').trim;
     my ($claim, $reason) = split-reason($inv.text);
     return Str without $reason;
     rewrite-invariant($path, $doc, $inv, $claim, $reason);
@@ -481,18 +604,20 @@ sub split-because(IO::Path $path, Int $n --> Str) is export {
 }
 
 #| Every invariant without a BECAUSE whose text holds one: split them all.
-#| Returns (number, reason) pairs.
+#| Returns (name, reason) pairs.
 sub split-all-because(IO::Path $path --> List) is export {
     my @done;
-    for IZ4::Document.load($path).unexplained-invariants.map(*.number).grep(*.defined) -> $n {
-        with split-because($path, $n) -> $reason { @done.push: ($n, $reason) }
+    for IZ4::Document.load($path).unexplained-invariants.map(*.id).grep(*.defined) -> $id {
+        with split-because($path, $id) -> $reason { @done.push: ($id, $reason) }
     }
     @done;
 }
 
-sub invariant-or-die(IZ4::Document $doc, IO::Path $path, Int $n) {
-    user-error("Invariant $n is the foundation's; its reasons are the same in every IZ4 and not yours to change") if $n < FIRST-PROJECT-NUMBER;
-    $doc.invariant($n) // user-error("no invariant $n in {$path.basename}");
+sub invariant-or-die(IZ4::Document $doc, IO::Path $path, Str $ref) {
+    require-named($doc, $path);
+    my $id = resolve-identity($doc, $ref) // $ref;
+    user-error("INVARIANT $id is part of the foundation; its reasons are the same in every IZ4 and not yours to change") if is-foundation-id($id);
+    $doc.invariant($id) // user-error("no invariant '$ref' in {$path.basename}; {own-names($doc)}");
 }
 
 #| Replace one INVARIANT block (and its BECAUSE, if any) with new wrapped
@@ -503,7 +628,7 @@ sub rewrite-invariant(IO::Path $path, IZ4::Document $doc, $inv, Str $claim, Str 
     my $to    = ($inv.because-line.defined
         ?? ($doc.blocks.first({ .kind eq 'BECAUSE' && .line == $inv.because-line }).last-line)
         !! $inv.last-line) - 1;
-    my @new = "INVARIANT {$inv.number}", |wrap($claim, WRAP-WIDTH);
+    my @new = "INVARIANT {$inv.id}", |wrap($claim, WRAP-WIDTH);
     @new.append: '', 'BECAUSE', |wrap($reason, WRAP-WIDTH) if $reason.trim;
     @lines.splice($from, $to - $from + 1, @new);
     $path.spurt(@lines.join("\n") ~ "\n");
@@ -522,37 +647,100 @@ sub wrap(Str $text, Int $width) is export {
     @lines || ('',);
 }
 
-# ---------------------------------------------------------------- number
+# ---------------------------------------------------------------- migrate
 
-#| Give every unnumbered invariant in $path the next free number from 5,
-#| in file order.  Existing numbers are references and are never changed;
-#| only the header line of each one numbered is touched.  Returns (line, number) pairs, empty when there was nothing
-#| to do.
-sub number-invariants(IO::Path $path --> List) is export {
-    my @lines = IZ4::Document.load($path).lines;
-    my @done  = number-lines(@lines, from => next-free-number($path));
-    $path.spurt(@lines.join("\n") ~ "\n") if @done;
-    @done;
+#| What moving a numbered IZ4 to named invariants would do, without doing
+#| it: a hash of
+#|   needed     whether there is anything to migrate
+#|   stop       why it cannot be done as the file stands ('' when it can)
+#|   foundation 'replace' (Invariants 0-4, word for word, become the five
+#|              named ones) or 'write' (the file had none)
+#|   own        the project's own invariants, each { number, text, because, line }
+#|   withdrawn  the numbers the file's comments say were withdrawn
+#| The foundation's mapping is fixed; a project invariant's name is a
+#| person's to choose and is never derived here.
+sub migration-plan(IO::Path $path --> Hash) is export {
+    my $doc = IZ4::Document.load($path);
+    return %( :!needed, stop => '', own => [], withdrawn => [], foundation => 'none' ) unless $doc.legacy;
+    my $stop = '';
+    if $doc.errors -> @e {
+        # a missing foundation is what migration writes; anything else is the owner's to settle first
+        my @other = @e.grep({ !(.message.starts-with('the foundation is missing') || .message.contains('does not read as the foundation did')
+            || .message.contains('the foundation is out of order') || .message.contains('comes after a project invariant')) });
+        $stop = "the file has problems to settle first: {@other[0].message} (line {@other[0].line})" if @other;
+    }
+    $stop ||= "an invariant has no number to migrate from (line {$doc.unnamed-invariants[0].line}): give it a name by hand first"
+        if $doc.unnamed-invariants;
+    %(
+        :needed, :$stop,
+        foundation => ($doc.foundation-spans ?? 'replace' !! 'write'),
+        own        => $doc.invariants.map({ %( number => +.id, text => .text, because => .because, line => .line ) }).Array,
+        withdrawn  => $path.slurp.lines.map({ $_ ~~ /^ '#' \h* 'Invariant' \h+ (\d+) \h+ 'was withdrawn' / ?? +$0 !! Empty }).Array,
+    );
 }
 
-#| The same, on a whole IZ4 held as @lines, changed in place.
-sub number-lines(@lines, Int :$from --> List) is export {
-    my $doc  = IZ4::Document.parse(@lines.join("\n") ~ "\n");
-    my @todo = $doc.unnumbered-invariants;
-    return () unless @todo;
-    my $next = max($from // 0, $doc.next-number);
+#| The numbers each foundation invariant carried in the numbered format.
+sub legacy-foundation-map(--> List) is export { FOUNDATION.map({ .<legacy> => .<id> }).List }
+
+#| Move a numbered IZ4 to named invariants.  %names gives every project
+#| invariant's full name by its old number; a missing or unusable name
+#| stops it before anything is written.  What changes: the five
+#| foundation blocks (to the current ones, by their fixed mapping), the
+#| opening comment, and the header line of each project invariant.  Not
+#| one word of a project invariant or its BECAUSE is touched.  Returns
+#| the old-number => name pairs written, the foundation's first.
+sub migrate(IO::Path $path, %names, Str :$namespace --> List) is export {
+    my %plan = migration-plan($path);
+    user-error("{$path.basename} already names its invariants; there is nothing to migrate") unless %plan<needed>;
+    user-error("cannot migrate {$path.basename}: %plan<stop>") if %plan<stop>;
+    my $doc = IZ4::Document.load($path);
+    my @taken;
+    for %plan<own>.list -> %o {
+        my $name = %names{%o<number>} // user-error("Invariant %o<number> has no name yet: a person chooses it");
+        with identity-problem($name) -> $why { user-error("'$name' (for Invariant %o<number>) is not a name an invariant can have: $why") if $why }
+        user-error("'$name' (for Invariant %o<number>): names directly under {FOUNDATION-NAMESPACE} are the foundation's; use your project's own domain")
+            if is-foundation-id($name) || reserved-identity($name);
+        user-error("'$name' is given to two invariants; a name belongs to one") if @taken.first(* eq $name).defined;
+        @taken.push($name);
+    }
+    my @lines = $path.slurp.lines;
+    for %plan<own>.list -> %o { @lines[%o<line> - 1] = "INVARIANT {%names{%o<number>}}" }
+    # the namespace, said once, above the first of the project's own
+    if $namespace && %plan<own> && !$doc.namespace.defined && %names.values.first(*.ends-with(".$namespace")).defined {
+        my $first = %plan<own>.map(*<line>).min - 1;
+        @lines[$first] = namespace-comment($namespace) ~ "\n\n" ~ @lines[$first];
+    }
+    @lines = with-foundation($doc, @lines).join("\n").lines;
+    $path.spurt(@lines.join("\n") ~ "\n");
+    (|legacy-foundation-map(), |%plan<own>.map({ .<number> => %names{.<number>} })).List;
+}
+
+#| After a migration: put each invariant's name into the test files that
+#| were evidence for it under the numbered rule, so they still are.  One
+#| comment line is added at the top of each (after a #! line); nothing
+#| else in a test is touched.  $before is the document as it was.
+#| Returns (file, name) pairs.
+sub relink-tests(IZ4::Document $before, IO::Path $root, %names --> List) is export {
+    my %e = evidence-for($before, $root);
     my @done;
-    for @todo -> $inv {
-        @lines[$inv.line - 1] = "INVARIANT $next";
-        @done.push: ($inv.line, $next++);
+    for %e<files>.sort(*.key.Int) -> (:key($number), :value(@files)) {
+        my $name = %names{$number} // next;
+        for @files -> $rel {
+            my $f = $root.add($rel);
+            my $text = (try $f.slurp) // next;
+            next if names-identity($text, $name);
+            my $mark = $f.extension eq any(<go rs ts tsx js mjs java kt swift c cc cpp>) ?? '//' !! '#';
+            my @l = $text.lines;
+            my $at = @l && @l[0].starts-with('#!') ?? 1 !! 0;
+            @l.splice($at, 0, "$mark INVARIANT $name (was Invariant $number)");
+            $f.spurt(@l.join("\n") ~ "\n");
+            @done.push: ($rel.Str, $name);
+        }
     }
     @done;
 }
 
 # ---------------------------------------------------------------- suggest
-
-#| The agent command behind `iz4 suggest`: overridable, external, optional.
-sub agent-cmd(--> Str) is export { %*ENV<IZ4_AGENT_CMD> // 'claude -p' }
 
 #| The prompt for repository analysis.  Its job is to keep IZ4 small.
 sub suggest-prompt(Str :$current = '', Str :$evidence = '' --> Str) is export {
@@ -566,8 +754,8 @@ sub suggest-prompt(Str :$current = '', Str :$evidence = '' --> Str) is export {
 
     Do not try to make IZ4 complete.  Try to make it small.
 
-    Every IZ4 carries Invariants 0-4, the foundation (humans first, do no
-    harm, human agency, honesty, the foundation holds), word for word.  Do
+    Every IZ4 carries the five foundation invariants (humans first, do no
+    harm, human agency, honesty, the foundation holds) word for word.  Do
     not restate them; propose only this project's own invariants.
 
     The golden test: if the whole system were rewritten tomorrow,
@@ -629,15 +817,6 @@ sub parse-suggestions(Str $reply, Int :$cap = 5 --> Hash) is export {
     %s<strong>   = [%s<strong>.head($cap)];
     %s<possible> = [%s<possible>.head($cap)];
     %s;
-}
-
-#| One agent pass over the repository.  Dies when the agent fails; a
-#| reply with no usable lines is an honest 'nothing found'.
-
-sub agent-suggest(IO::Path $dir = $*CWD, Str :$cmd, Str :$current = '' --> Hash) is export {
-    my $prompt = suggest-prompt(:$current, evidence => gather-context($dir));
-    note "asking agent ({$cmd // agent-label()}) for candidate invariants in {$dir.resolve} ...";
-    parse-suggestions(ask-agent($prompt, :root($dir), :$cmd));
 }
 
 #| Bounded evidence for the agent: the codebase's own account of itself

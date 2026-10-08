@@ -5,7 +5,7 @@ use lib $?FILE.IO.parent.add('lib').Str;
 use Test;
 use IZ4Test;
 use IZ4;
-use IZ4::Hook;
+use IZ4::LegacyHook;
 
 %*ENV<XDG_CACHE_HOME> = temp-dir.Str;
 
@@ -20,7 +20,7 @@ is read-input('{"session_id":"s","tool_input":{"file_path":"x"}}')<tool_input><f
 # ---- session start delivers the packet -----------------------------------
 my ($exit, $out, $err) = on-session-start($iz4, %( session_id => 'a1' ));
 is $exit, ALLOW, 'session start allows';
-like $out, /'loaded by the session-start hook' .* 'delivered again after a compaction' .* 'IZ4 agent packet' .* 'INVARIANT 0 - HUMANS FIRST'/,
+like $out, /'loaded by the session-start hook' .* 'delivered again after a compaction' .* 'IZ4 agent packet' .* 'INVARIANT humans-first.iz4.you'/,
     'and prints the packet for the model';
 
 # ---- an edit before the packet is refused once, with the packet ----------
@@ -44,8 +44,8 @@ if have-git() {
     $plain.spurt('{"type":"assistant","message":{"content":[{"type":"text","text":"Done."}]}}' ~ "\n");
     my $report = $repo.add('report.jsonl');
     $report.spurt('{"type":"user","message":{"content":"x"}}' ~ "\n"
-        ~ '{"type":"assistant","message":{"content":[{"type":"text","text":"Invariant: 5 profiles\nAssessment: uncertain\nEvidence: none run\nRemaining gap: all"}]}}' ~ "\n");
-    is last-assistant-text($report.Str), "Invariant: 5 profiles\nAssessment: uncertain\nEvidence: none run\nRemaining gap: all", 'the last assistant text is read from the transcript';
+        ~ '{"type":"assistant","message":{"content":[{"type":"text","text":"Invariant: private-profiles.shop.example.com, private profiles stay out of public search\nAssessment: uncertain\nEvidence: none run\nRemaining gap: all"}]}}' ~ "\n");
+    is last-assistant-text($report.Str), "Invariant: private-profiles.shop.example.com, private profiles stay out of public search\nAssessment: uncertain\nEvidence: none run\nRemaining gap: all", 'the last assistant text is read from the transcript';
 
     ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd1', transcript_path => $plain.Str ));
     is $exit, ALLOW, 'nothing changed: the turn may end';
@@ -54,6 +54,7 @@ if have-git() {
     ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd1', transcript_path => $plain.Str ));
     is $exit, REFUSE, 'files changed and no report: the turn is refused';
     like $err, /'Invariant:' .* 'Assessment:' .* 'Remaining gap:'/, 'with the report format';
+    like $err, /'Invariant:' \s+ 'its name and wording'/, 'which asks for each invariant by name';
     ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd1', transcript_path => $plain.Str ));
     is $exit, ALLOW, 'but only once, so a session cannot be trapped';
     ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd2', transcript_path => $plain.Str, stop_hook_active => True ));
@@ -61,64 +62,44 @@ if have-git() {
     ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd3', transcript_path => $report.Str ));
     is $exit, ALLOW, 'a reply that carries the report may end';
 
-    # ---- the Claude Code adapter --------------------------------------------
-    is install-claude-hooks(:root($repo)), 'installed', 'hooks install into .claude/settings.json';
-    my $settings = $repo.add('.claude/settings.json');
-    like $settings.slurp, /'"SessionStart"' .* '"iz4 hook session-start"' .* '"startup|resume|compact"'/, 'the session-start hook fires on startup, resume and compaction';
-    unlike $settings.slurp, /'PreToolUse' | '"Stop"'/, 'without --strict there are no blocking hooks';
-    is claude-hooks-status(:root($repo)), 'start', 'status says so';
-    is install-claude-hooks(:root($repo)), 'unchanged', 'reinstalling changes nothing';
-
-    $settings.spurt('{"permissions":{"allow":["Bash(ls)"]},"hooks":{"Stop":[{"hooks":[{"type":"command","command":"echo mine"}]}]}}');
-    is install-claude-hooks(:root($repo), :strict), 'updated', '--strict adds the gates to an existing file';
-    my $text = $settings.slurp;
-    ok $text.contains('"Bash(ls)"') && $text.contains('"echo mine"'), 'other settings and other hooks are kept';
-    like $text, /'"iz4 hook pre-edit"' .* '"Edit|Write|MultiEdit|NotebookEdit"'/, 'the edit gate covers the editing tools';
-    like $text, /'"iz4 hook stop"'/, 'and the stop gate is there';
-    is claude-hooks-status(:root($repo)), 'strict', 'status says strict';
-    is install-claude-hooks(:root($repo), :strict), 'unchanged', 'strict reinstall is idempotent';
-    is install-claude-hooks(:root($repo)), 'updated', 'reinstalling without --strict removes the gates';
-    is claude-hooks-status(:root($repo)), 'start', 'and leaves the session-start hook';
-    is $settings.slurp.comb('echo mine').elems, 1, 'never duplicating anyone else\'s hook';
-
-    $settings.spurt('{ not json' ~ "\n");
-    throws-like { install-claude-hooks(:root($repo)) }, X::IZ4, message => /'not valid JSON'/, 'a file that cannot be parsed is refused';
-    is $settings.slurp, '{ not json' ~ "\n", 'and left untouched';
-
-    # ---- through the CLI --------------------------------------------------
-    $settings.unlink;
-    # as if 321 were not installed: this pins iz4's own Claude Code wiring
+    # ---- iz4 installs itself into no agent environment -----------------------
+    # A driver that knows the environment does that.  Here there is none:
+    # iz4 says so, writes nothing, and never guesses at a harness's files.
     my %no = IZ4_NO_321 => '1';
-    # by default: the advisory hook where an agent harness is in use, nothing where it is not
     {
         my $plain = temp-dir;
         minimal-iz4(:dir($plain));
-        my ($rc, $o, $e) = iz4($plain, 'agent', 'install', :env(%no));
-        nok $plain.add(SETTINGS-PATH).e, 'a repository with no sign of an agent harness gets no hooks by default';
         $plain.add('CLAUDE.md').spurt("# notes\n");
-        ($rc, $o, $e) = iz4($plain, 'agent', 'install', '--/hooks', :env(%no));
-        nok $plain.add(SETTINGS-PATH).e, '--/hooks leaves the harness alone';
-        ($rc, $o, $e) = iz4($plain, 'agent', 'install', :env(%no));
-        like $o, /'hooks: installing the advisory set by default'/, 'with a CLAUDE.md, install says it is adding the advisory hooks';
-        is claude-hooks-status(:root($plain)), 'start', 'and writes the session-start hook only: nothing is refused';
+        $plain.add('.claude').mkdir;
+        my ($rc, $o, $e) = iz4($plain, 'agent', 'install', :env(%no));
+        is $rc, 0, 'a default install with no driver still succeeds';
+        nok $plain.add('.claude/settings.json').e, 'and writes no harness configuration, whatever the repository looks like';
+        unlike $o, /'installing the advisory set'/, 'it does not claim to be installing hooks';
+        like $o, /'hooks: none installed. Driving an agent harness is 321\'s job' .* '321 iz4 install'/, 'and says in one line whose job that is, and how to get it done';
+        ($rc, $o, $e) = iz4($plain, 'agent', 'install', '--hooks', :env(%no));
+        is $rc, 0, 'asked for hooks with no driver, the rest of the install stands';
+        like $e, /'hooks: not installed.'/, 'with a warning that none were installed';
+        like $e, /'IZ4 defines the invariant checks but does not install' \s+ 'agent-environment hooks directly'/, 'and why';
+        like $e, /'No environment driver is available' .* 'then run: 321 iz4 install'/, 'what would do it';
+        like $e, /'iz4 context' .* 'iz4 check action' .* 'iz4 verify'/, 'and how any other environment can drive iz4 itself';
+        nok $plain.add('.claude/settings.json').e, 'still writing nothing';
         ($rc, $o, $e) = iz4($plain, 'agent', 'install', '--hooks', '--strict', :env(%no));
-        is claude-hooks-status(:root($plain)), 'strict', '--strict upgrades them';
-        ($rc, $o, $e) = iz4($plain, 'agent', 'install', :env(%no));
-        is claude-hooks-status(:root($plain)), 'strict', 'a later default install never downgrades strict hooks';
-        unlike $o, /'installing the advisory set'/, 'and says nothing about installing any';
-        like $plain.add('AGENTS.md').slurp, /'To the people who own this repository' .* 'iz4 agent install --hooks --strict'/,
-            'the managed section tells the owners the command that enforces';
+        is $rc, 1, '--strict with no driver fails rather than pretend';
+        ($rc, $o, $e) = iz4($plain, 'agent', 'status', :env(%no));
+        like $o, /'iz4 finds no hooks of its own here' .* 'iz4 leaves agent environments to a driver'/, 'status says it finds none of its own, and whose job wiring is';
+        ($rc, $o, $e) = iz4($plain, 'agent', 'status', '--json', :env(%no));
+        like $o, /'"hooks":"unknown"'/, 'and in JSON the hooks are unknown: iz4 looked only for its own';
+        my $section = $plain.add('AGENTS.md').slurp;
+        like $section, /'To the people who own this repository' .* '321 iz4 install'/, 'the managed section tells the owners the command that wires the checks in';
+        unlike $section, /'iz4 agent install --hooks'/, 'and no longer one that installs nothing';
     }
-    my ($rc, $o, $e) = iz4($repo, 'agent', 'install', '--hooks', '--strict', :env(%no));
-    like $o, /'.claude/settings.json: installed' .* 'never that an invariant was honoured'/, 'the CLI installs and says what a hook cannot prove';
-    ($rc, $o, $e) = iz4($repo, 'agent', 'status', :env(%no));
-    like $o, /'settings.json: hooks installed'/, 'status reports the hooks';
+    nok $repo.add('.claude/settings.json').e, 'nothing in this file ever wrote a harness\'s settings';
     my ($hrc, $hout, $herr) = iz4-talk($repo, '{"session_id":"z9","tool_input":{"file_path":"lib/Y.pm"}}', 'hook', 'pre-edit');
     is $hrc, 2, 'iz4 hook pre-edit exits 2 to refuse';
     like $herr, /'IZ4 agent packet'/, 'with the packet on standard error';
 }
 else {
-    skip 'git not available', 31;
+    skip 'git not available', 35;
 }
 
 done-testing;

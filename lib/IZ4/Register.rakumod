@@ -186,7 +186,7 @@ sub collect-report(IO::Path $iz4, Str :$release, Str :$run-id --> Hash) is expor
         %declaration<canonical_digest> = canonical-digest($iz4);
         my $doc = IZ4::Document.load($iz4);
         # the count is the project's own invariants in the file (the
-        # inherited 0-4 are never counted)
+        # foundation's five are never counted)
         %declaration<grammar_version> = 'IZ4';
         %declaration<invariant_count> = $doc.invariants.elems;
         %checks<syntax> = %( outcome => $doc.ok ?? 'passed' !! 'failed' );

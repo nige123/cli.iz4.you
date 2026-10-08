@@ -53,7 +53,7 @@ if have-git() {
     run 'git', '-C', $repo.Str, 'config', 'user.email', 't@test';
     run 'git', '-C', $repo.Str, 'config', 'user.name', 'Test';
     my $sp = minimal-iz4(:dir($repo));
-    add-invariant($sp, 'Registered things stay registered.', :because('People find them there.'));
+    add-invariant($sp, 'Registered things stay registered.', :name('stay-registered.shop.example.com'), :because('People find them there.'));
     run 'git', '-C', $repo.Str, 'add', '-A';
     run 'git', '-C', $repo.Str, 'commit', '-qm', 'x';
 
@@ -61,7 +61,7 @@ if have-git() {
     is %r<schema_version>, 'iz4-report/2', 'report declares its schema';
     ok %r<revision> ~~ /^ <[0..9a..f]> ** 40 $/, 'revision is the exact commit';
     ok %r<declaration><present>, 'declaration present';
-    is %r<declaration><invariant_count>, 1, "the count is the project's own invariants, never the inherited 0-4";
+    is %r<declaration><invariant_count>, 1, "the count is the project's own invariants, never the five foundation invariants";
     is %r<declaration><grammar_version>, 'IZ4', 'the grammar label names the current format';
     ok %r<declaration><digest> ~~ /^ <[0..9a..f]> ** 64 $/, 'digest is a sha256';
     is %r<declaration><canonical_digest>, canonical-digest($sp), 'iz4-digest/1 travels beside the raw digest';

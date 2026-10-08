@@ -6,8 +6,8 @@ directory, and reports in five words what it found. `iz4 approve` is how
 a person agrees to a change that needs it. Routine commits pass without
 anyone being asked. A new, revised or withdrawn project invariant, a
 change to IS FOR WHAT or IS FOR WHO, or a weakened test that protects an
-invariant needs a person. Altering Invariants 0-4 is blocked and no
-project approval can lift it.
+invariant needs a person. Altering the five foundation invariants is
+blocked and no project approval can lift it.
 
 The file states it, Git keeps its history, the gate asks before a
 commitment moves. Nothing here needs 321, a model, an account or the
@@ -38,16 +38,25 @@ says.
 Commitments, from the IZ4 in each tree:
 
 - IS FOR WHAT or IS FOR WHO changed;
-- a project invariant (5 and up) added, revised (its text or its BECAUSE)
-  or removed;
+- a project invariant added, revised (its text or its BECAUSE) or
+  removed, each keyed by its name;
 - the IZ4 removed altogether;
 - the candidate IZ4 does not parse (blocked);
-- Invariants 0-4 missing or altered (blocked, never approvable);
-- a withdrawn number reused for a different invariant (blocked;
-  Invariant 13).
+- a foundation invariant missing or altered (blocked, never approvable);
+- a withdrawn name reused for a different invariant (blocked);
+- a numbered IZ4 moved to named invariants by `iz4 migrate`: each
+  `Invariant N is named ...`, and the foundation's new words (agreement
+  required);
+- a named IZ4 replaced by a numbered one (blocked).
 
-Protections, from the tests that name an invariant (`Invariant N` plus
-the invariant's opening words, the same convention `iz4 check` uses):
+Invariants are compared by name, so moving a block within the file changes
+nothing and passes. The same words under a new name are a removal and an
+addition, and the addition says it is not a rename. An added invariant
+carries the digest of its words, and a revised one the digest before and
+after.
+
+Protections, from the tests that name an invariant (a test file that
+contains the invariant's full name, the same convention `iz4 check` uses):
 
 - a test that named an invariant is gone, or no longer names it
   (removed, unlinked);
@@ -94,7 +103,7 @@ opinion with evidence attached, never approval and never proof.
 |---|---|---|
 | `pass` | no commitment or protection changed, and every check that could run passed | 0 |
 | `agreement-required` | a commitment or protection changes and no valid approval covers it | 2 |
-| `blocked` | a definite finding no approval can lift: a failing linked test, an invalid IZ4, an altered foundation, a reused number | 3 |
+| `blocked` | a definite finding no approval can lift: a failing linked test, an invalid IZ4, an altered foundation, a reused name, a named IZ4 replaced by a numbered one | 3 |
 | `unassessed` | a check could not be run; this is not a pass, and the result says what to do | 4 |
 | `error` | the gate could not complete (not a repository, unknown revision, unmergeable index) | 1 |
 
@@ -107,26 +116,31 @@ result names the test it could not run so the fix is one step away.
 Ordinary commits that touch no invariant test and no IZ4 pass without a
 check being run, so they stay fast.
 
-`--json` prints the result as `iz4-gate/1`: `outcome`, `exit_code`,
+`--json` prints the result as `iz4-gate/2`: `outcome`, `exit_code`,
 `mode`, `repository` (the root commit), `base`, `candidate` (tree
 hashes), `changes`, `protections`, `checks`, `touches`, `approval`,
 `proposal_digest`, `notes`, `next`. The identifiers are what an approval
-binds to and what a harness or CI should quote.
+binds to and what a harness or CI should quote. An invariant is always
+given by its name: each change, protection and touch carries `id`, and
+each check carries `invariants`, a list of names.
 
 ## Proposing, then agreeing
 
 ```text
 $ iz4 gate --staged
-gate: candidate tree 9882b2ce7c93 (index) against base b782ea6ec478 (HEAD), advisory
+gate: candidate tree 16a36fa5d0fe (index) against base 92b4464fb6bb (HEAD), advisory
 commitments and protections:
-  Invariant 6 added: Employers cannot contact someone first.
-    BECAUSE No new inbox.
+  INVARIANT charged-once.orders.honeywillow.com added: A customer is charged once for an order, however many times a payment is retried.
+    BECAUSE A double charge costs a customer money and the shop its trust.
 checks, run from the candidate tree:
-  ✓ tests/invariant-5.sh (Invariant 5) passed
+  ✓ t/owner-adjusted.prices.honeywillow.com.sh (owner-adjusted.prices.honeywillow.com) passed
+touches, by their own words (for a person to look at, not a finding): charged-once.orders.honeywillow.com
 approval: none for this candidate tree
 outcome: agreement-required - a commitment or protection changes; a person has to agree
 next:
   1. iz4 approve --staged
+  then: iz4 gate --staged again
+advisory: this run refuses nothing; --enforce makes the outcome the exit code
 ```
 
 `iz4 approve` shows the proposal: the exact before and after wording of
@@ -169,8 +183,9 @@ has to be the same document, signed by a key the boundary lists.
 ## Carrying protection forward
 
 An invariant's protection is a test that names it, in the repository's
-own test system: `Invariant 5` plus the invariant's opening words,
-anywhere in the file. Nothing goes into the IZ4 for it. `iz4 test`
+own test system: the invariant's full name, such as
+`owner-adjusted.prices.honeywillow.com`, anywhere in the file. Nothing
+goes into the IZ4 for it. `iz4 test`
 scaffolds one, `iz4 check` reports which invariants have one, and the
 gate runs them from the candidate and watches them between trees. The
 record of what changed when, and who agreed, is Git: the commit that
@@ -248,56 +263,35 @@ policy.
 
 The contract is the CLI: `iz4 gate --candidate=<rev> [--base=<rev>]
 --enforce --json [--approvers=FILE]`, exit code `0 2 3 4 1`, result
-`iz4-gate/1`. An interactive harness shows `proposal_digest`, `changes`
+`iz4-gate/2`. An interactive harness shows `proposal_digest`, `changes`
 and `protections` and, when the person agrees, runs `iz4 approve` on the
 person's behalf at the person's terminal, or has the person sign the
 document it is given. A harness never fabricates an approval: an
 `iz4-approval/1` document without a signature a boundary lists is a
 terminal approval and is treated as one.
 
-What exists in 321 today (cli.321.do, inspected on 2026-10-06): a
-`role Adapter` (`lib/Do321/Adapter.rakumod`) with `name`, `detect`,
-`enforcement` and `run(Cancel, Spec, Control --> Outcome)`, implemented
-by `ClaudeCode` and by `ProcedureAdapter`; shape tables `WorkPackage`
-(with an `approval` pointer to an `Approval` of `proposalRef`,
-`approvalRef`, `approvedBy`, `action`, `target`, `params`, `paramsHash`
-and `proposal`, a `DeploymentProposal` carried verbatim: 321's approvals
-are deployment-shaped, and its boundary re-plans the same service and
-target and fails the approval if parameters, manifest digest or deployed
-revision moved) and `RunReceipt` (`status` including `blocked`, `blockedOn`,
-`uncertain`, `evidence.approvalCheck`) in `lib/Do321/Shape.rakumod`; and,
-in `lib/Do321/Run.rakumod`, `apply-iz4-policy` (the packet into the
-prompt), `refresh-iz4-packet` and `check-iz4-report` (`iz4 hook stop`
-after a run, turning a missing per-invariant report into
-`status: blocked`). There is no Codex adapter and nothing in 321 calls a
-gate. Since 321 0.3.3, `policy.standingApprovals` in `trust.json` lets an
-unattended `321 <agent> go` deploy without a person at the terminal;
-those are deploy-only and approve nothing about an IZ4, so they are not a
-precedent for gate approvals. None of that is changed by this
-repository.
+What 321 does with this (since 321 0.4.0): it is the reference
+[environment driver](drivers.md). Where a workspace keeps an IZ4, a
+model-driven run gets iz4's context in its prompt, the harness's own
+interception points call `iz4 check action` through 321's glue, and the
+finished work is put to `iz4 verify --worktree`, which includes this gate
+over the working directory. `needs_human` (the gate's
+`agreement-required`) and `block` end the run with `status: blocked`, the
+proposal or the reason in `blockedOn`; `warn` (`unassessed`) is an
+`uncertain` line; and `evidence.controllers` on the receipt records the
+IZ4's digest, every check and its result, and how strongly the run was
+really governed. 321 never records an agreement.
 
-What a 321 integration would be, as work in 321, not done here:
+Two things remain as they were, and are not built:
 
-- after `fill` and beside `check-iz4-report` in `Session.drive`, run
-  `iz4 gate --staged --enforce --json` (or over the run's commits) and
-  map `agreement-required` to `status: blocked` with `blockedOn` carrying
-  the proposal, `blocked` to `blocked`, `unassessed` to an `uncertain`
-  line; the gate's JSON goes under `evidence`;
-- in `cmd-agent`, when a blocked receipt carries a proposal, show it and,
-  if the operator accepts at the terminal, run `iz4 approve` there and
-  resume; today `--continue <receipt.json>` exists only on `321 run`, so
-  this needs continuation added to the agent path or `cmd-agent`
-  re-issuing the same package through the run path. An unattended run
-  leaves the receipt blocked, as `iz4 approve` itself does;
-- carrying an iz4 agreement on a `WorkPackage.approval` is new protocol
-  work in 321, not a fit for what is there: `proposalRef` is a string
-  reference, `proposal` must be a `DeploymentProposal`, and
-  `Control.approval(action, target, params)` is a callback adapters use
-  at execution time to check the package's approval against an external
-  action. An `iz4-approval/1` document would need a new action kind, a
-  non-deployment proposal type in `work-package.v1`, and its own check
-  (the gate's validation, run by the boundary). That is the shape an
-  exact-action approval from 123.do would take.
+- resuming a blocked run from the terminal once a person has run
+  `iz4 approve`: `--continue <receipt.json>` exists only on `321 run`, not
+  on `321 <agent>`;
+- carrying an iz4 agreement on a `WorkPackage.approval`: 321's approvals
+  are deployment-shaped (`proposal` is a `DeploymentProposal`, checked by
+  re-planning the same service and target), so an `iz4-approval/1` there
+  would be new protocol work. 321's `policy.standingApprovals` are
+  deploy-only and approve nothing about an IZ4.
 
 Any other harness has the same contract and the same two obligations:
 call the gate on the real trees, and hand the proposal to a person

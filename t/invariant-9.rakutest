@@ -1,4 +1,5 @@
-# Invariant 9: A check never claims more than it established. File facts can
+# INVARIANT never-overclaims.cli.iz4.you
+# A check never claims more than it established. File facts can
 # be verified; whether software keeps its invariants is reported as uncertain
 # unless there is evidence.
 # BECAUSE A green tick people cannot trust teaches them to stop looking,
@@ -10,24 +11,25 @@ use IZ4Test;
 use IZ4;
 use IZ4::Document;
 use IZ4::Agent;
+use IZ4::Integrations;
 
 my $dir = temp-dir;
 my $iz4 = minimal-iz4(:$dir);
-add-invariant($iz4, 'Private profiles never appear in public search.', :because('A hidden search can cost someone their job.'));
+add-invariant($iz4, 'Private profiles never appear in public search.', :name('private-profiles.shop.example.com'), :because('A hidden search can cost someone their job.'));
 
 # a clean file: every tick is a file fact, conformance is a question mark
 my ($rc, $out, $err) = iz4($dir, 'check');
 my @ticks = $out.lines.grep(*.starts-with('✓'));
 ok @ticks.elems >= 5, 'file facts are ticked';
-nok @ticks.grep(/'keeps Invariants'/), 'conformance is never among the ticks';
-like $out, /^^ '? the system keeps Invariants 0-5: uncertain' .* 'a checker cannot verify natural-language invariants'/, 'and is reported as uncertain, saying why';
+nok @ticks.grep(/'keeps its invariants'/), 'conformance is never among the ticks';
+like $out, /^^ '? the system keeps its invariants (the foundation and its own 1): uncertain' .* 'a checker cannot verify natural-language invariants'/, 'and is reported as uncertain, saying why';
 like $out, /'checked: file facts only; a passing check never means the system is safe, harmless, or keeps its invariants'/, 'the closing line disclaims it every time';
-like $out, /'✗ evidence: Invariant 5 has no test naming it'/, 'and the absence of evidence is said, not hidden';
+like $out, /'✗ evidence: private-profiles.shop.example.com has no test naming it'/, 'and the absence of evidence is said, not hidden';
 
 # a scaffold is not evidence: a test that cannot pass is not counted
 ($rc, $out, $err) = iz4($dir, 'test');
 ($rc, $out, $err) = iz4($dir, 'check');
-like $out, /'✗ evidence: Invariant 5 has only a scaffold'/, 'a born-red scaffold is reported as a scaffold, not as evidence';
+like $out, /'✗ evidence: private-profiles.shop.example.com has only a scaffold'/, 'a born-red scaffold is reported as a scaffold, not as evidence';
 
 # the agent packet, the status report and the review all say what they cannot prove
 like packet-text(agent-packet($iz4)), /'proves neither that an agent read it nor that the software conforms'/, 'the packet disclaims';

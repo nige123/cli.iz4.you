@@ -9,7 +9,8 @@ unit module IZ4::Gate;
 #|
 #|   commitments   IS FOR WHAT, IS FOR WHO, a project invariant added,
 #|                 revised or removed, the foundation altered, the file
-#|                 invalid or gone, a retired number reused
+#|                 invalid or gone, a retired name reused, the numbered
+#|                 format moved to named invariants
 #|   protections   a test naming an invariant removed, no longer naming
 #|                 it, or carrying a new skip marker
 #|   checks        the tests naming invariants, run from the candidate
@@ -25,8 +26,14 @@ unit module IZ4::Gate;
 #| receipt can never sit inside the tree it approves.  A terminal yes is
 #| recorded as such and counts for local checks; a protected boundary
 #| accepts only an approval signed by a key in its own allowed-signers
-#| file, which the candidate cannot edit.  The foundation, Invariants
-#| 0-4, is never approvable: altering it is blocked.
+#| file, which the candidate cannot edit.  The foundation is never
+#| approvable: altering it is blocked.
+#|
+#| An invariant is compared by its name and nothing else.  Where it sits
+#| in the file is presentation: moving it changes no commitment.  The
+#| same name with different words is a revision.  A new name is a new
+#| commitment, even with the same words, and the old name's going is a
+#| withdrawal: both are shown, and a person agrees to both.
 #|
 #| The checks run in an export of the candidate tree with the checkout's
 #| ignored files (installed dependencies, local configuration) linked in:
@@ -50,8 +57,8 @@ use IZ4::Evidence;
 use IZ4::Register;     # json-encode, json-field
 use IZ4::Review;       # touched-invariants
 
-constant GATE-SCHEMA     is export = 'iz4-gate/1';
-constant PROPOSAL-SCHEMA is export = 'iz4-proposal/1';
+constant GATE-SCHEMA     is export = 'iz4-gate/2';
+constant PROPOSAL-SCHEMA is export = 'iz4-proposal/2';
 constant APPROVAL-SCHEMA is export = 'iz4-approval/1';
 constant APPROVAL-REFS   is export = 'refs/iz4/approvals/';
 constant SIGN-NAMESPACE  is export = 'iz4-approval';
@@ -61,8 +68,8 @@ constant SIGN-NAMESPACE  is export = 'iz4-approval';
 constant %EXIT-CODE is export = (pass => 0, error => 1, 'agreement-required' => 2, blocked => 3, unassessed => 4);
 constant @REJECTS   is export = <agreement-required blocked unassessed error>;
 
-constant @BLOCKING-KINDS  = <invalid foundation reused-number>;
-constant @AGREEMENT-KINDS = <purpose people added revised removed removed-file>;
+constant @BLOCKING-KINDS  = <invalid foundation reused-name format-regressed>;
+constant @AGREEMENT-KINDS = <purpose people added revised removed removed-file named foundation-migrated>;
 constant @PROTECTION-AGREEMENT-KINDS = <protection-removed protection-unlinked protection-weakened>;
 
 sub gate-error(Str $message) { X::IZ4.new(:$message).throw }
@@ -200,16 +207,38 @@ sub link-environment(IO::Path $root, IO::Path $dir --> Int) is export {
 
 sub norm(Str $s --> Str) { ($s // '').words.join(' ') }
 
-#| The numbers a base IZ4 has retired, from its withdrawal comments.
-sub retired-numbers(Str $source --> Set) {
-    $source.lines.map({ .match(/^ \s* '#' .* 'Invariant' \s+ (\d+) \s+ 'was withdrawn' /) })
-           .grep(*.defined).map({ +.[0] }).Set;
+#| Sort identities the way a person reads them: numbers of the numbered
+#| format in order, names alphabetically.
+sub by-identity(@ids --> List) { @ids.sort({ $_ ~~ /^ \d+ $/ ?? (0, +$_, '') !! (1, 0, $_) }).List }
+
+#| How a base's invariants correspond to a candidate's: identity => identity.
+#| The same name is the same invariant.  Only when a numbered file
+#| becomes a named one is anything matched another way: an invariant
+#| whose words (text and BECAUSE) are exactly unchanged is the one that
+#| was named.
+sub correspondence(IZ4::Document $base, IZ4::Document $cand --> Hash) is export {
+    my %m;
+    return %m unless $base.defined && $cand.defined;
+    my @b = $base.invariants.grep(*.id.defined);
+    my @c = $cand.invariants.grep(*.id.defined);
+    if $base.legacy && !$cand.legacy {
+        my %taken;
+        for @b -> $old {
+            my $new = @c.first({ !%taken{.id} && norm(.text) eq norm($old.text) && norm(.because) eq norm($old.because) });
+            with $new { %m{$old.id} = $new.id; %taken{$new.id} = True }
+        }
+    }
+    else {
+        for @b -> $old { %m{$old.id} = $old.id if @c.first({ .id eq $old.id }).defined }
+    }
+    %m;
 }
 
 #| What the candidate IZ4 commits to that the base did not, or no longer
-#| does.  Each change is a hash with a kind and the exact before/after
-#| wording.  Blocking kinds (invalid, foundation, reused-number) are
-#| never approvable; the others need a person's agreement.
+#| does.  Each change is a hash with a kind, the invariant's identity and
+#| the exact before/after wording.  Blocking kinds (invalid, foundation,
+#| reused-name, format-regressed) are never approvable; the others need a
+#| person's agreement.
 sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-source = '' --> List) is export {
     my @c;
     without $cand {
@@ -226,34 +255,60 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
     my $co = norm($cand.for-who);
     @c.push: %( kind => 'people', before => $bo, after => $co ) if $bo ne $co;
 
-    my %b = $base.defined ?? $base.invariants.grep(*.number.defined).map({ .number => $_ }) !! ();
-    my %k = $cand.invariants.grep(*.number.defined).map({ .number => $_ });
-    my $retired = retired-numbers($base-source);
-    for %k.keys.sort(+*) -> $n {
-        my $inv = %k{$n};
-        if %b{$n}:exists {
-            my $old = %b{$n};
+    my $migrating = $base.defined && $base.legacy && !$cand.legacy;
+    if $base.defined && !$base.legacy && $cand.legacy {
+        @c.push: %( kind => 'format-regressed',
+                    detail => 'the candidate goes back to numbered invariants; the base names them, and a name once given is the identity' );
+        return @c;
+    }
+    if $migrating && $cand.foundation-intact {
+        @c.push: %( kind => 'foundation-migrated',
+                    before => "Invariants 0-4 of the numbered format (sha256 {FOUNDATION-LEGACY-DIGEST.substr(0, 12)})",
+                    after  => "{foundation-ids().join(', ')} (sha256 {FOUNDATION-DIGEST.substr(0, 12)})",
+                    detail => 'the foundation is rewritten as five named invariants: read the new words, they are not the old ones renumbered' );
+    }
+
+    my %b = $base.defined ?? $base.invariants.grep(*.id.defined).map({ .id => $_ }) !! ();
+    my %k = $cand.invariants.grep(*.id.defined).map({ .id => $_ });
+    my %map = correspondence($base, $cand);
+    my %from = %map.antipairs;
+    my @retired = $base.defined ?? |$base.retired !! ();
+    my @order = $migrating ?? %k.keys.sort({ %from{$_}:exists ?? (0, +%from{$_}, '') !! (1, 0, $_) }) !! by-identity(%k.keys);
+    for @order -> $id {
+        my $inv = %k{$id};
+        my $digest = invariant-digest($id, $inv.text, $inv.because);
+        if $migrating && (%from{$id}:exists) {
+            @c.push: %( kind => 'named', :$id, from => %from{$id}, after => norm($inv.text), after_because => norm($inv.because), :$digest );
+        }
+        elsif !$migrating && (%b{$id}:exists) {
+            my $old = %b{$id};
             if norm($old.text) ne norm($inv.text) || norm($old.because) ne norm($inv.because) {
-                @c.push: %( kind => 'revised', number => +$n,
+                @c.push: %( kind => 'revised', :$id,
                             before => norm($old.text), after => norm($inv.text),
-                            before_because => norm($old.because), after_because => norm($inv.because) );
+                            before_because => norm($old.because), after_because => norm($inv.because),
+                            before_digest => invariant-digest($id, $old.text, $old.because), after_digest => $digest );
             }
         }
-        elsif +$n ∈ $retired {
-            @c.push: %( kind => 'reused-number', number => +$n, after => norm($inv.text),
-                        detail => "Invariant $n was withdrawn before; a retired number is never reused (Invariant 13)" );
+        elsif @retired.first(* eq $id).defined {
+            @c.push: %( kind => 'reused-name', :$id, after => norm($inv.text),
+                        detail => "INVARIANT $id was withdrawn before; a retired name is never given to a different invariant" );
         }
         else {
-            @c.push: %( kind => 'added', number => +$n, after => norm($inv.text), after_because => norm($inv.because) );
+            my %add = kind => 'added', :$id, after => norm($inv.text), after_because => norm($inv.because), :$digest;
+            # the same words under a new name: say so, and still treat it as new
+            my $twin = %b.values.first({ !(%k{.id}:exists) && norm(.text) eq norm($inv.text) });
+            %add<detail> = "the same words as {$twin.id}, which this change removes: a new name is a new commitment, not a rename"
+                if $twin.defined && !$migrating;
+            @c.push: %add;
         }
     }
-    for %b.keys.sort(+*) -> $n {
-        next if %k{$n}:exists;
-        @c.push: %( kind => 'removed', number => +$n, before => norm(%b{$n}.text), before_because => norm(%b{$n}.because) );
+    for by-identity(%b.keys) -> $id {
+        next if %map{$id}:exists;
+        @c.push: %( kind => 'removed', :$id, before => norm(%b{$id}.text), before_because => norm(%b{$id}.because) );
     }
-    for $cand.unnumbered-invariants -> $inv {
+    for $cand.unnamed-invariants -> $inv {
         @c.push: %( kind => 'added', after => norm($inv.text), after_because => norm($inv.because),
-                    detail => "unnumbered: 'iz4 number' gives it one" );
+                    detail => 'it has no name yet' );
     }
     @c;
 }
@@ -273,35 +328,36 @@ sub protection-changes(IZ4::Document $base, IO::Path $base-dir, IZ4::Document $c
     return () without $cand;
     my %eb = evidence-for($base, $base-dir);
     my %ec = evidence-for($cand, $cand-dir);
+    my %map = correspondence($base, $cand);
     my @p;
-    for %eb<state>.keys.sort(+*) -> $n {
-        next unless %eb<state>{$n} eq 'named';
-        next without $cand.invariant(+$n);                 # its removal is the commitment change
-        my @before = |(%eb<files>{$n} // ());
-        my @after  = |(%ec<files>{$n} // ());
-        if (%ec<state>{$n} // 'none') ne 'named' {
-            @p.push: %( kind => 'protection-removed', number => +$n, files => @before.List,
-                        detail => "Invariant $n had a test naming it; the candidate has " ~ (%ec<state>{$n} // 'none') );
+    for by-identity(%eb<state>.keys) -> $was {
+        next unless %eb<state>{$was} eq 'named';
+        my $id = %map{$was} // next;                        # its removal is the commitment change
+        my @before = |(%eb<files>{$was} // ());
+        my @after  = |(%ec<files>{$id} // ());
+        if (%ec<state>{$id} // 'none') ne 'named' {
+            @p.push: %( kind => 'protection-removed', :$id, files => @before.List,
+                        detail => "INVARIANT $id had a test naming it; the candidate has " ~ (%ec<state>{$id} // 'none') );
             next;
         }
         for @before -> $f {
             if $f ∉ @after {
-                @p.push: %( kind => 'protection-unlinked', number => +$n, files => ($f,).List,
-                            detail => "$f no longer names and quotes Invariant $n, or is gone" );
+                @p.push: %( kind => 'protection-unlinked', :$id, files => ($f,).List,
+                            detail => "$f no longer names $id, or is gone" );
                 next;
             }
             my $old = (try $base-dir.add($f).slurp) // '';
             my $new = (try $cand-dir.add($f).slurp) // '';
             next if $old eq $new;
-            my $was = $old.lines.Set;
-            my @added = $new.lines.grep({ $_ ∉ $was });
+            my $was-lines = $old.lines.Set;
+            my @added = $new.lines.grep({ $_ ∉ $was-lines });
             my $skip = @added.first({ $_ ~~ &skip-marker });
             if $skip.defined {
-                @p.push: %( kind => 'protection-weakened', number => +$n, files => ($f,).List,
+                @p.push: %( kind => 'protection-weakened', :$id, files => ($f,).List,
                             detail => "$f gained a line that looks like a skip: " ~ $skip.trim.substr(0, 80) );
             }
             else {
-                @p.push: %( kind => 'protection-changed', number => +$n, files => ($f,).List, detail => "$f changed; its check runs below" );
+                @p.push: %( kind => 'protection-changed', :$id, files => ($f,).List, detail => "$f changed; its check runs below" );
             }
         }
     }
@@ -376,7 +432,7 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
     my %by-file;
     for %ec<state>.keys -> $n {
         next unless %ec<state>{$n} eq 'named';
-        %by-file{$_}.push(+$n) for |(%ec<files>{$n} // ());
+        %by-file{$_}.push(~$n) for |(%ec<files>{$n} // ());
     }
     my $lang = detect-language($cand-dir);
     my $has-timeout = have-timeout();
@@ -390,7 +446,7 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
         my @argv = $cmd.defined
             ?? $cmd.subst('{file}', $f, :g).words
             !! runner-for($lang, $f, $cand-dir);
-        my %r = file => $f, invariants => %by-file{$f}.sort.List, timeout_applied => $has-timeout;
+        my %r = file => $f, invariants => by-identity(%by-file{$f}), timeout_applied => $has-timeout;
         if !@argv {
             %r<outcome> = 'unassessed';
             %r<detail>  = "no runner known for $lang tests; set IZ4_CHECK_CMD, e.g. 'npm test -- \{file\}'";
@@ -454,13 +510,6 @@ sub proposal(%snap, @changes, @protections --> Hash) is export {
     );
 }
 
-sub sha256-text(Str $s --> Str) {
-    my $tmp = $*TMPDIR.add("iz4-gate-{$*PID}-{(^1_000_000).pick}.txt");
-    LEAVE { try $tmp.unlink }
-    $tmp.spurt($s);
-    sha256-file($tmp);
-}
-
 #| The digest an approval binds to: the changes and protections only, so
 #| the same proposal on the same trees always has the same digest.
 sub proposal-digest(%p --> Str) is export {
@@ -475,6 +524,12 @@ sub is-blocked(%p --> Bool) is export {
     so %p<changes>.grep({ .<kind> eq any(@BLOCKING-KINDS) });
 }
 
+#| An identity as a person reads it in a proposal: INVARIANT and its name,
+#| or 'Invariant N' for one from a file still in the numbered format.
+sub shown($id --> Str) {
+    !$id.defined ?? 'INVARIANT (unnamed)' !! $id ~~ /^ \d+ $/ ?? "Invariant $id" !! "INVARIANT $id";
+}
+
 #| The proposal as a person reads it.
 sub proposal-lines(%p --> List) is export {
     my @l;
@@ -483,24 +538,28 @@ sub proposal-lines(%p --> List) is export {
             when 'purpose'  { @l.push: 'IS FOR WHAT changes', "  before: {%c<before> || '(none)'}", "  after:  {%c<after>}" }
             when 'people'   { @l.push: 'IS FOR WHO changes', "  before: {%c<before> || '(none)'}", "  after:  {%c<after>}" }
             when 'added'    {
-                @l.push: "Invariant {%c<number> // '(unnumbered)'} added: {%c<after>}";
+                @l.push: "{shown(%c<id>)} added: {%c<after>}";
                 @l.push: "  BECAUSE {%c<after_because>}" if %c<after_because>;
                 @l.push: "  {%c<detail>}" if %c<detail>;
             }
             when 'revised'  {
-                @l.push: "Invariant {%c<number>} revised";
+                @l.push: "{shown(%c<id>)} revised";
                 @l.push: "  before: {%c<before>}" ~ (%c<before_because> ?? " BECAUSE {%c<before_because>}" !! '');
                 @l.push: "  after:  {%c<after>}" ~ (%c<after_because> ?? " BECAUSE {%c<after_because>}" !! '');
             }
-            when 'removed'       { @l.push: "Invariant {%c<number>} removed: {%c<before>}" }
+            when 'removed'       { @l.push: "{shown(%c<id>)} removed: {%c<before>}" }
+            when 'named'         { @l.push: "Invariant {%c<from>} is named {%c<id>}; its words are unchanged" }
+            when 'foundation-migrated' {
+                @l.push: 'The foundation moves to named invariants, with new words', "  before: {%c<before>}", "  after:  {%c<after>}", "  {%c<detail>}";
+            }
             when 'removed-file'  { @l.push: 'The IZ4 is removed: every commitment with it' }
             when 'invalid'       { @l.push: "BLOCKED: the candidate IZ4 does not parse: {%c<detail>}" }
-            when 'foundation'    { @l.push: "BLOCKED: {%c<detail>}", '  Invariants 0-4 are the foundation; no project approval can change them (Invariant 4)' }
-            when 'reused-number' { @l.push: "BLOCKED: {%c<detail>}" }
+            when 'foundation'    { @l.push: "BLOCKED: {%c<detail>}", '  The foundation is the same in every IZ4; no project approval can change it (foundation-holds.iz4.you)' }
+            when 'reused-name' | 'format-regressed' { @l.push: "BLOCKED: {%c<detail>}" }
         }
     }
     for |%p<protections> -> %t {
-        @l.push: "Protection of Invariant {%t<number>}: {%t<kind>.subst('protection-', '')} - {%t<detail>}";
+        @l.push: "Protection of {%t<id>}: {%t<kind>.subst('protection-', '')} - {%t<detail>}";
     }
     @l;
 }
@@ -714,7 +773,7 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
         }
         if %snap<base>.defined && $cand-doc.defined {
             my ($rc, $diff, $) = g($root, 'diff', '--no-color', %snap<base>, %snap<candidate>);
-            @touches = touched-invariants($cand-doc, $diff).map({ %( number => .<number>, terms => .<terms>.List ) }) if $rc == 0;
+            @touches = touched-invariants($cand-doc, $diff).map({ %( id => .<id>, terms => .<terms>.List ) }) if $rc == 0;
         }
     }
     my %p = proposal(%snap, @changes, @protections);
@@ -762,7 +821,8 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
         when 'blocked' {
             @next.push: 'iz4 foundation --restore' if @changes.grep({ .<kind> eq 'foundation' });
             @next.push: 'iz4 check' if @changes.grep({ .<kind> eq 'invalid' });
-            @next.push: "give the invariant a new number: 'iz4 number'" if @changes.grep({ .<kind> eq 'reused-number' });
+            @next.push: 'give the invariant a name the file has never used' if @changes.grep({ .<kind> eq 'reused-name' });
+            @next.push: "keep the named IZ4; 'iz4 show invariants' lists the names" if @changes.grep({ .<kind> eq 'format-regressed' });
             @next.push: "make {.<file>} pass, or if the invariant no longer holds, change the IZ4 and its test together and seek agreement" for @checks.grep({ .<outcome> eq 'failed' });
         }
         when 'agreement-required' {

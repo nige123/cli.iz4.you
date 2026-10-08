@@ -1,20 +1,23 @@
-unit module IZ4::Hook;
+unit module IZ4::LegacyHook;
 
-#| Harness hooks: the parts of the protocol a harness can insist on.
+#| COMPATIBILITY ONLY, DEPRECATED.  The hook command iz4 shipped up to
+#| 0.14: 'iz4 hook session-start | pre-edit | stop', and the reading of the
+#| wiring those versions wrote into Claude Code's project settings.
 #|
-#| A model cannot be made to obey prose, but a harness that runs a
-#| command before a session starts, before a tool call and before a turn
-#| ends can refuse to let the mechanical steps be skipped: the packet is
-#| loaded, nothing is edited before it is, and a turn that changed files
-#| does not end without the per-invariant report.  None of that proves
-#| an invariant was honoured; it proves the agent had the packet and
-#| wrote the report.
+#| iz4 installs itself into no agent environment any more and holds no
+#| harness knowledge in its core: a driver (321) does that, and calls the
+#| machine interface (IZ4::Machine).  This module is what is left so that
+#| repositories wired by an earlier iz4 keep exactly the enforcement they
+#| had until a driver adopts the wiring ('321 iz4 install'): the old
+#| commands still answer, and status can still say they are there.  It
+#| reads one harness's event shape and settings file, which is why it is
+#| kept apart: nothing in the core uses it, nothing new is ever wired to
+#| it, and it goes once the transition is over.
 #|
-#| The core is harness-neutral: 'iz4 hook <event>' reads the harness's
-#| JSON on standard input, prints for the model on standard output, and
-#| refuses with exit code 2 and a reason on standard error.  Claude Code
-#| speaks exactly this contract; an adapter for another harness only has
-#| to call the same command.
+#| What the old commands do is unchanged: the packet is delivered at
+#| session start, one edit made before it is refused, and one turn end
+#| that changed files without the per-invariant report is refused.  None
+#| of that proves an invariant was honoured.
 
 use IZ4;
 use IZ4::Document;
@@ -108,7 +111,7 @@ sub on-stop(IO::Path $iz4, %input --> List) is export {
     (REFUSE, '',
      "iz4: files changed in a repository that keeps an IZ4, and the reply gives no per-invariant report. "
      ~ "Before finishing, report each invariant the change could affect:\n"
-     ~ "    Invariant:     its number and wording\n"
+     ~ "    Invariant:     its name and wording\n"
      ~ "    Assessment:    mechanically verified | supported by evidence | apparently consistent | uncertain | conflicting\n"
      ~ "    Evidence:      what was actually run or reviewed, and what was only suggested\n"
      ~ "    Remaining gap: what has not been established\n"
@@ -143,87 +146,50 @@ sub last-assistant-text(Str $path --> Str) is export {
     $text;
 }
 
-# ------------------------------------------------------- Claude Code adapter
+# ------------------------------------------- wiring an earlier iz4 wrote
 
-constant SETTINGS-PATH is export = '.claude/settings.json';
+#| Until 0.15.0 iz4 wrote its own hook commands into Claude Code's
+#| project settings.  It writes none now: an environment driver does.
+#| The entries it left are still there and still fire, so status has to
+#| be able to say so.  This only reads, and looks only for iz4's own
+#| commands: it is how an old installation is recognised and left alone,
+#| not a way to make a new one.
+constant LEGACY-SETTINGS is export = '.claude/settings.json';
+constant LEGACY-EVENTS = ('session-start', 'pre-edit', 'stop');
 
-#| The hook entries for Claude Code's settings.json.  The two blocking
-#| hooks are :strict only; the session-start hook is always installed.
-sub claude-hooks(Bool :$strict = False --> Hash) is export {
-    # $%( ) keeps each hash whole: a bare %( ) inside [ ] flattens to pairs
-    my sub entry(Str $command, Str :$matcher) {
-        my %e = hooks => [ $%( type => 'command', command => $command ) ];
-        %e<matcher> = $matcher with $matcher;
-        $%e;
-    }
-    my %h = SessionStart => [ entry('iz4 hook session-start', :matcher<startup|resume|compact>) ];
-    if $strict {
-        %h<PreToolUse> = [ entry('iz4 hook pre-edit', :matcher<Edit|Write|MultiEdit|NotebookEdit>) ];
-        %h<Stop>       = [ entry('iz4 hook stop') ];
-    }
-    %h;
-}
-
-#| Install or refresh the hooks in a repository's .claude/settings.json,
-#| keeping every other setting and every hook that is not ours.  Returns
-#| 'installed', 'updated' or 'unchanged'; refuses to touch a file it
-#| cannot parse.
-sub install-claude-hooks(IO::Path :$root!, Bool :$strict = False --> Str) is export {
-    my $target = $root.add(SETTINGS-PATH);
-    my %settings;
-    if $target.e {
-        my $parsed = try Rakudo::Internals::JSON.from-json($target.slurp);
-        X::IZ4.new(message => "{SETTINGS-PATH} is not valid JSON; fix it by hand, nothing was changed").throw
-            unless $parsed ~~ Associative;
-        %settings = %$parsed;
-    }
-    my $before = json-encode(%settings);
-    my %hooks = %(%settings<hooks> // %());
-    # drop our entries everywhere, then add the current set
-    for %hooks.keys -> $event {
-        %hooks{$event} = [ %hooks{$event}.grep({ !ours($_) }) ];
-        %hooks{$event}:delete unless %hooks{$event}.elems;
-    }
-    for claude-hooks(:$strict).kv -> $event, @entries {
-        %hooks{$event} = [ |(%hooks{$event} // ()), |@entries ];
-    }
-    %settings<hooks> = %hooks;
-    my $after = json-encode(%settings);
-    return 'unchanged' if $after eq $before;
-    $target.parent.mkdir;
-    $target.spurt(pretty-json(%settings) ~ "\n");
-    $before eq '{}' || !%settings<hooks>.keys.grep({ $before.contains("\"$_\"") }) ?? 'installed' !! 'updated';
-}
-
-sub ours($entry --> Bool) {
-    $entry ~~ Associative && ($entry<hooks> // ()).grep({ ($_<command> // '').starts-with('iz4 hook') }).so;
-}
-
-#| Which of our hooks a settings file carries: 'none', 'start' or 'strict'.
-sub claude-hooks-status(IO::Path :$root! --> Str) is export {
-    my $target = $root.add(SETTINGS-PATH);
-    return 'none' unless $target.e;
+#| The iz4 hook events an earlier iz4 left wired here, in the order they
+#| fire.  Empty when there are none or the file cannot be read.
+sub legacy-hooks(IO::Path :$root! --> List) is export {
+    my $target = $root.add(LEGACY-SETTINGS);
+    return () unless $target.f;
     my $parsed = try Rakudo::Internals::JSON.from-json($target.slurp);
-    return 'none' unless $parsed ~~ Associative && $parsed<hooks> ~~ Associative;
-    my %hooks = %($parsed<hooks>);
-    my $start  = (%hooks<SessionStart> // ()).grep(&ours).so;
-    my $strict = (%hooks<PreToolUse> // ()).grep(&ours).so && (%hooks<Stop> // ()).grep(&ours).so;
-    $strict ?? 'strict' !! $start ?? 'start' !! 'none';
+    return () unless $parsed ~~ Associative && $parsed<hooks> ~~ Associative;
+    my %seen;
+    for $parsed<hooks>.values -> $entries {
+        next unless $entries ~~ Positional;
+        for @$entries -> $entry {
+            next unless $entry ~~ Associative && $entry<hooks> ~~ Positional;
+            for @($entry<hooks>) -> $h {
+                next unless $h ~~ Associative && ($h<command> // '') ~~ Str;
+                my $cmd = $h<command>.trim;
+                for LEGACY-EVENTS -> $e {
+                    %seen{$e} = True if $cmd eq "iz4 hook $e" || $cmd.ends-with("/iz4 hook $e") || $cmd.ends-with(" iz4 hook $e");
+                }
+            }
+        }
+    }
+    LEGACY-EVENTS.grep({ %seen{$_} }).List;
 }
 
-#| Readable JSON, two-space indented, keys sorted.
-sub pretty-json($v, Int :$depth = 0 --> Str) is export {
-    my $pad = '  ' x $depth;
-    my $in  = '  ' x ($depth + 1);
-    given $v {
-        when Associative {
-            return '{}' unless .elems;
-            '{' ~ "\n" ~ .pairs.sort(*.key).map({ $in ~ json-encode(.key.Str) ~ ': ' ~ pretty-json(.value, :depth($depth + 1)) }).join(",\n") ~ "\n$pad}"
-        }
-        when Positional {
-            return '[]' unless .elems;
-            '[' ~ "\n" ~ .map({ $in ~ pretty-json($_, :depth($depth + 1)) }).join(",\n") ~ "\n$pad]"
-        }
-        default { json-encode($v) }
-    }
+#| What that wiring does, said for a person.  It counts as AWARE and no
+#| more: it delivers the packet and looks for a report, and puts neither
+#| an action nor the change to a check.
+sub legacy-hooks-lines(@events, Str :$migration! --> List) is export {
+    my @does = 'the packet is delivered at session start';
+    @does.push('one edit made before it is refused') if @events.grep('pre-edit');
+    @does.push('one turn end without a report is refused') if @events.grep('stop');
+    ("Claude Code hooks: active ({@events.join(', ')})",
+     "  Managed by: legacy IZ4 wiring ({LEGACY-SETTINGS}, written by an earlier iz4; left exactly as it is)",
+     "  Enforcement: AWARE ({@does.join('; ')}; no action and no change is checked)",
+     "  Migration: $migration").List;
 }

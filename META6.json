@@ -1,7 +1,7 @@
 {
     "name": "IZ4",
     "description": "iz4: IZ4 means Is For - find the few invariants your software must never accidentally lose",
-    "version": "0.14.1",
+    "version": "0.16.0",
     "auth": "zef:nige123",
     "api": "1",
     "authors": [
@@ -12,14 +12,17 @@
     "provides": {
         "IZ4": "lib/IZ4.rakumod",
         "IZ4::Agent": "lib/IZ4/Agent.rakumod",
+        "IZ4::Assist": "lib/IZ4/Assist.rakumod",
         "IZ4::Coach": "lib/IZ4/Coach.rakumod",
         "IZ4::Document": "lib/IZ4/Document.rakumod",
         "IZ4::Evidence": "lib/IZ4/Evidence.rakumod",
         "IZ4::Gate": "lib/IZ4/Gate.rakumod",
         "IZ4::Git": "lib/IZ4/Git.rakumod",
         "IZ4::Grammar": "lib/IZ4/Grammar.rakumod",
-        "IZ4::Hook": "lib/IZ4/Hook.rakumod",
+        "IZ4::Integrations": "lib/IZ4/Integrations.rakumod",
         "IZ4::Launcher": "lib/IZ4/Launcher.rakumod",
+        "IZ4::LegacyHook": "lib/IZ4/LegacyHook.rakumod",
+        "IZ4::Machine": "lib/IZ4/Machine.rakumod",
         "IZ4::Register": "lib/IZ4/Register.rakumod",
         "IZ4::Review": "lib/IZ4/Review.rakumod"
     },

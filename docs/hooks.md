@@ -1,8 +1,14 @@
-# Hooks: what a harness can insist on
+# The older hook (deprecated, compatibility only)
+
+> `iz4 hook` is what an iz4 before 0.15 wired into Claude Code itself. It
+> is kept so that wiring keeps working until an environment driver adopts
+> it (`321 iz4 install`), and nothing new is wired to it. New integrations
+> use the five operations in [drivers.md](drivers.md): iz4 holds no
+> harness knowledge in its core, and wires no harness.
 
 A model cannot be made to obey prose. A harness can be made to refuse to
-let the mechanical steps be skipped. `iz4 hook` is the harness-neutral
-core; each harness needs only a thin adapter that calls it.
+let the mechanical steps be skipped. This page records what the old hook
+does at each of three moments, which is unchanged.
 
 ## The three moments
 
@@ -34,53 +40,66 @@ without them:
 Marks live under `$XDG_CACHE_HOME/iz4/sessions/` (default
 `~/.cache/iz4/sessions/`), one small file per session and event.
 
-## Through 321
+## Who wires a harness
 
-When [321](https://321.do), an agent launcher, is installed (the iz4
-installer fetches it beside iz4), `iz4 agent install --hooks` hands the
-wiring to it: 321 knows each harness's settings file, event names and
-quirks, writes `iz4 hook` into every harness it knows, and keeps up with
-them as they change. The protocol above stays iz4's. `iz4 agent status`
-then quotes what 321 says each harness enforces: pre-edit and stop can
-refuse, session-start can only inject. `IZ4_NO_321=1` makes iz4 act as if
-321 were not installed and write its own Claude Code wiring, below.
+Not iz4. iz4 installs itself into no agent environment: each harness keeps
+its configuration somewhere different and changes it often, and following
+them all is the job of an *environment driver*. [321](https://321.do) is the
+reference driver, and [drivers.md](drivers.md) is the interface any driver
+calls.
 
-## Claude Code
+`iz4 agent install --hooks` asks 321 to do the wiring: 321 knows each
+harness's settings file, event names and quirks, wires iz4 in as strongly as
+the harness allows, verifies it, and keeps up with the harness as it
+changes. Without `--strict` it wires the context only, so nothing is
+refused; with it, everything the harness can enforce. `iz4 agent status`
+quotes what 321 says is enforced, so nobody reads a written hook as an
+enforced one. With no 321 new enough (0.4.0 or later), or with
+`IZ4_NO_321=1`, iz4 says that it defines the checks and installs no hooks,
+names what to install, and writes no harness's configuration: a warning for
+`--hooks`, a failure for `--hooks --strict`.
 
-Without 321, `iz4 agent install --hooks` writes the session-start hook into
-the repository's `.claude/settings.json`, merged with whatever is there, and
-refuses to touch a file it cannot parse. `--strict` adds the two refusing
-hooks. Re-running is idempotent, and running without `--strict` removes the
-gates again. `iz4 agent status` reports which are installed.
+### Hooks an earlier iz4 wrote
 
-```json
-{
-  "hooks": {
-    "SessionStart": [{ "matcher": "startup|resume|compact",
-                       "hooks": [{ "type": "command", "command": "iz4 hook session-start" }] }],
-    "PreToolUse":   [{ "matcher": "Edit|Write|MultiEdit|NotebookEdit",
-                       "hooks": [{ "type": "command", "command": "iz4 hook pre-edit" }] }],
-    "Stop":         [{ "hooks": [{ "type": "command", "command": "iz4 hook stop" }] }]
-  }
-}
+Before 0.15.0 iz4 wrote `iz4 hook session-start`, `iz4 hook pre-edit` and
+`iz4 hook stop` into `.claude/settings.json` itself. Those entries keep
+working exactly as they are; iz4 never removes or rewrites them, and
+`iz4 agent status` reports them whatever 321 is or is not installed:
+
+```text
+Claude Code hooks: active (session-start, pre-edit, stop)
+  Managed by: legacy IZ4 wiring (.claude/settings.json, written by an earlier iz4; left exactly as it is)
+  Enforcement: AWARE (the packet is delivered at session start; one edit made before it is refused; one turn end without a report is refused; no action and no change is checked)
+  Migration: 321 0.4.0 or later can adopt this wiring; no 321 is installed. Nothing needs doing until then.
 ```
 
-Claude Code speaks the contract exactly: it passes JSON on standard input
-with those field names, adds a session-start hook's standard output to the
-context, and treats exit code 2 as a refusal whose standard error the model
-sees.
+Recognising its own old commands is how iz4 stays truthful across the
+change; it is not a way to install new ones. `321 iz4 install` adopts the
+old wiring: each old command is replaced by 321's command for the same
+moment, once, with every other hook and setting left alone.
+
+The hooks 321 writes call 321, not iz4:
+
+```text
+harness event  ->  321 hook <harness> iz4 <control>  ->  iz4 context | check action | verify
+```
+
+so when a harness changes its hook mechanism, 321 changes and iz4 does not.
+The command on this page, `iz4 hook`, is the older direct form: a harness
+that speaks its contract exactly can still call it, and an existing wiring
+that does keeps working.
 
 ## Other harnesses
 
 The same three moments exist in most agent harnesses, under different
-names. An adapter is a few lines that call `iz4 hook` and translate the
-input fields; 321 is where those adapters live, so that iz4 need not
-follow every harness. Where a harness offers fewer moments, the ones it has still
+names. An adapter translates the harness's events into iz4's
+[machine interface](drivers.md); 321 is where those adapters live, so that
+iz4 need not follow every harness. Where a harness offers fewer moments, the ones it has still
 help, and Git supplies two more that every harness passes through.
 
 | Harness | Session start | Before an edit | Turn end | Notes |
 |---|---|---|---|---|
-| Claude Code | SessionStart | PreToolUse | Stop | Built in: `iz4 agent install --hooks`, through 321 or by iz4 itself. |
+| Claude Code | SessionStart | PreToolUse | Stop | Supported by 321: `321 iz4 install`, or `iz4 agent install --hooks` which asks 321. |
 | Cursor | hooks.json `beforeSubmitPrompt` | `beforeShellExecution` / MCP hooks | `stop` | Field names differ; an adapter maps them. Not yet verified against a live install. |
 | Gemini CLI | settings hooks, tool-call hooks | `BeforeTool` | `AfterAgent` | Same shape as Claude Code's; not yet verified. |
 | GitHub Copilot agent | hooks in `.github/hooks` | `preToolUse` | `sessionEnd` | Not yet verified. |

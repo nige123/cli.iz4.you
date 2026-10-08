@@ -237,7 +237,7 @@ sub coach-invariant(
     :&ask!, :&tell!,
     Str :$candidate is copy,
     Str :$for-what, Str :$for-who,
-    Int :$number,
+    Str :$name,
     Str :$suggested-because is copy,
     --> Hash
 ) is export {
@@ -363,7 +363,7 @@ sub coach-invariant(
         tell("Without a BECAUSE this is easy to remove by accident; you can add one later.");
     }
 
-    my $label = $number.defined ?? "INVARIANT $number" !! 'an invariant';
+    my $label = $name.defined ?? "INVARIANT $name" !! 'an invariant';
     my $confirm = yes-no(answer("Add it as $label? [Y/n] "), :default);
     return %( outcome => 'skipped' ) unless $confirm;
     %( outcome => 'add', text => $candidate, because => ($because eq '' ?? Str !! $because) );

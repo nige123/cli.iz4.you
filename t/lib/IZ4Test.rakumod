@@ -8,6 +8,10 @@ INIT {
     $cfg.spurt('') unless $cfg.e;
     %*ENV<GIT_CONFIG_GLOBAL>   = $cfg.Str;
     %*ENV<GIT_CONFIG_NOSYSTEM> = '1';
+    # No test reaches the network or a real 321 by accident: the step that
+    # follows a change of intent (ensure the driver, activate enforcement)
+    # is off unless a test turns it on against a stand-in.
+    %*ENV<IZ4_ENFORCE> = '0';
     # and an identity, so a test's commits work on a machine with none set
     %*ENV<GIT_AUTHOR_NAME>  = %*ENV<GIT_COMMITTER_NAME>  = 'iz4 test';
     %*ENV<GIT_AUTHOR_EMAIL> = %*ENV<GIT_COMMITTER_EMAIL> = 't@test';

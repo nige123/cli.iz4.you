@@ -4,7 +4,7 @@ use IZ4Test;
 use IZ4;
 use IZ4::Git;
 
-plan 12;
+plan 15;
 
 # outside Git: degrade gracefully
 my $dir = temp-dir;
@@ -15,7 +15,7 @@ is $rc, 127, 'diff outside Git returns no-git code';
 like $err, /'No Git history'/, 'diff outside Git explains';
 
 if !have-git() {
-    skip 'git not available', 4;
+    skip 'git not available', 12;
     exit;
 }
 
@@ -30,20 +30,28 @@ is log-text($file), "No Git history available for IZ4\n", 'untracked file has no
 g('add', 'IZ4');
 g('commit', '-q', '-m', 'Add initial IZ4');
 like log-text($file), /^ \d**4 '-' \d\d '-' \d\d '  ' <xdigit>+ '  Add initial IZ4' \n $/, 'log shows concise history';
-add-invariant($file, 'Always true.', :because('People rely on it.'));
+my $NS = 'shop.example.com';
+add-invariant($file, 'Always true.', :name("always-true.$NS"), :because('People rely on it.'), :namespace($NS));
 ($rc, $out, $err) = diff-result($file);
-ok $rc == 0 && $out.contains('+INVARIANT 5'), 'diff shows working-tree change';
+ok $rc == 0 && $out.contains("+INVARIANT always-true.$NS"), 'diff shows working-tree change';
 g('commit', '-q', '-am', 'Add invariant');
 ($rc, $out, $err) = diff-result($file, 'HEAD~1', 'HEAD');
-ok $rc == 0 && $out.contains('+INVARIANT 5'), 'diff between revisions';
+ok $rc == 0 && $out.contains("+INVARIANT always-true.$NS"), 'diff between revisions';
 
-# a withdrawn number is retired: Git remembers it, and iz4 says when it went
-add-invariant($file, 'Also true.', :because('Someone relies on it.'));
-g('commit', '-q', '-am', 'Add Invariant 6');
-withdraw-invariant($file, 6);
-g('commit', '-q', '-am', 'Withdraw Invariant 6: no longer needed');
-like withdrawn-in($file, 6), /^ <xdigit>+ ' (' \d**4 '-' \d\d '-' \d\d ')' $/, 'withdrawn-in names the commit and its date';
-nok withdrawn-in($file, 5).defined, 'an invariant still in the file was not withdrawn';
-like invariant-text($file, '6'), /'Invariant 6 was withdrawn in commit' .* 'never reused' .* 'iz4 diff'/, 'show invariant says so';
-is add-invariant($file, 'New.', :because('Why.')), 7, 'the next invariant skips the retired number';
-throws-like { add-invariant($file, 'Again.', :number(6)) }, X::IZ4, message => /'used before'/, 'and 6 cannot be chosen';
+# a withdrawn name is retired: Git remembers it, and iz4 says when it went
+add-invariant($file, 'Also true.', :name("also-true.$NS"), :because('Someone relies on it.'), :namespace($NS));
+g('commit', '-q', '-am', 'Add also-true');
+withdraw-invariant($file, "also-true.$NS");
+g('commit', '-q', '-am', 'Withdraw also-true: no longer needed');
+like withdrawn-in($file, "also-true.$NS"), /^ <xdigit>+ ' (' \d**4 '-' \d\d '-' \d\d ')' $/, 'withdrawn-in names the commit and its date';
+nok withdrawn-in($file, "always-true.$NS").defined, 'an invariant still in the file was not withdrawn';
+like invariant-text($file, "also-true.$NS"), /"INVARIANT also-true.$NS was withdrawn in commit" .* 'never reused' .* 'iz4 diff'/, 'show invariant says so';
+is add-invariant($file, 'New.', :name("new-one.$NS"), :because('Why.')), "new-one.$NS", 'the next invariant takes a new name';
+throws-like { add-invariant($file, 'Again.', :name("also-true.$NS")) }, X::IZ4, message => /'used before'/, 'and the retired one cannot be chosen';
+
+# Git remembers even when the file no longer says: without its comment, the name is still retired
+$file.spurt($file.slurp.lines.grep({ !.contains('was withdrawn on') }).join("\n") ~ "\n");
+g('commit', '-q', '-am', 'Tidy the withdrawal comment away');
+nok check-doc($file).retired, 'with the comment deleted the file itself has forgotten';
+ok names-ever-used($file).first(* eq "also-true.$NS").defined, 'the history has not';
+throws-like { add-invariant($file, 'Again.', :name("also-true.$NS")) }, X::IZ4, message => /'used before'/, 'so the name still cannot be reused';

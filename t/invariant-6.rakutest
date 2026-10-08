@@ -1,4 +1,5 @@
-# Invariant 6: An IZ4 stays small: what the software is for, who it is for,
+# INVARIANT stays-small.cli.iz4.you
+# An IZ4 stays small: what the software is for, who it is for,
 # and the invariants that must survive. The tool never turns it into a home
 # for requirements, plans, tasks or implementation detail.
 # BECAUSE A file that tries to say everything is too long to read before
