@@ -53,7 +53,7 @@ my %d = doc($out);
 my %d-first = %d<invariants>.map({ .<id> => .<digest> });
 is %d<schema>, 'iz4-discover/2', 'discover is versioned';
 ok %d<present>, 'an IZ4 up the tree is found';
-is %d<file>, $sp.Str, 'by its path';
+is %d<file>.IO.resolve.Str, $sp.resolve.Str, 'by its path';   # a temporary directory may sit behind a symlink (macOS: /var is /private/var)
 is %d<sha256>, sha256-file($sp), 'with its content identity';
 ok %d<valid>, 'and it is valid';
 is %d<format>, 'named', 'it says the file names its invariants';
