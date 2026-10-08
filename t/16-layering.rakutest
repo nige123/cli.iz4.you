@@ -95,9 +95,9 @@ sub fresh-repo(--> IO::Path) {
     my $r = temp-dir;
     run 'git', '-C', $r.Str, 'init', '-q';
     my $sp = minimal-iz4(:dir($r));
-    add-invariant($sp, 'People control whether their profile is visible.', :because('Privacy.'));
+    add-invariant($sp, 'People control whether their profile is visible.', :name('visible-by-choice.shop.example.com'), :because('Privacy.'));
     $r.add('tests').mkdir;
-    $r.add('tests/invariant-5.sh').spurt("#!/bin/sh\n# Invariant 5: People control whether their profile is visible.\nexit 0\n");
+    $r.add('tests/visible-by-choice.shop.example.com.sh').spurt("#!/bin/sh\n# INVARIANT visible-by-choice.shop.example.com\n# People control whether their profile is visible.\nexit 0\n");
     $r;
 }
 sub g(IO::Path $r, *@a) { my $p = run 'git', '-C', $r.Str, |@a, :out, :err; my $o = $p.out.slurp(:close); $p.err.slurp(:close); $o.trim }
@@ -109,7 +109,7 @@ sub g(IO::Path $r, *@a) { my $p = run 'git', '-C', $r.Str, |@a, :out, :err; my $
 # followed by the enforcement step, which asks 321: they are below.)
 my @core-commands =
     ('version',),
-    ('show',), ('show', 'invariant', '5'), ('invariants',), ('foundation',), ('number',),
+    ('show',), ('show', 'invariant', 'visible-by-choice.shop.example.com'), ('show', 'invariant', 'visible-by-choice'), ('invariants',), ('foundation',), ('number',),
     ('check',), ('check', '--strict'),
     ('test', '--list'), ('test', '--/draft'),
     ('agent',), ('agent', '--json'),
@@ -161,7 +161,7 @@ for (%with, %without) -> %env {
 {
     my $r = fresh-repo;
     forget;
-    my ($rc, $out, $err) = iz4($r, 'add', 'invariant', 'Employers cannot contact someone first.', '--because=No new inbox.', :env(%with));
+    my ($rc, $out, $err) = iz4($r, 'add', 'invariant', 'Employers cannot contact someone first.', '--name=no-first-contact', '--because=No new inbox.', :env(%with));
     is $rc, 0, 'the invariant is added';
     like $log.slurp, / ^^ 'iz4 install --workspace ' \S+ ' --json' $$ /, "and iz4 then asks 321 to activate enforcement ('321 iz4 install')";
     is $log.lines.grep(*.starts-with('iz4 install')).elems, 1, 'once';
@@ -170,13 +170,13 @@ for (%with, %without) -> %env {
 
     # a command that changed nothing is followed by nothing
     forget;
-    ($rc, $out, $err) = iz4($r, 'add', 'invariant', 'We use PostgreSQL.', :env(%with));
+    ($rc, $out, $err) = iz4($r, 'add', 'invariant', 'We use PostgreSQL.', '--name=postgres', :env(%with));
     nok driver-was-run(), 'a refused candidate changes no intent, so 321 is not asked' or diag $log.slurp;
     ($rc, $out, $err) = iz4($r, 'approve', '--staged', :env(%with));
     nok driver-was-run(), 'an approval that was not given (no terminal) changes nothing either';
 
     # each intent command, when it does change something
-    for ('because', '5', 'Privacy is a right.', '--replace'), ('withdraw', '6', '--force') -> @argv {
+    for ('because', 'visible-by-choice', 'Privacy is a right.', '--replace'), ('withdraw', 'no-first-contact', '--force') -> @argv {
         forget;
         ($rc, $out, $err) = iz4($r, |@argv, :env(%with));
         ok $rc == 0 && $log.e && $log.lines.grep(*.starts-with('iz4 install')).elems == 1, "'iz4 {@argv.head}' is followed by the enforcement step" or diag "$rc $out $err";
@@ -190,7 +190,7 @@ for (%with, %without) -> %env {
     # switched off, nothing is asked and nothing is said
     for (IZ4_ENFORCE => '0'), (IZ4_NO_321 => '1') -> $off {
         forget;
-        ($rc, $out, $err) = iz4($r, 'add', 'invariant', "Nobody is shown another person's address ({$off.key}).", '--because=Safety.', :env(%( |%with, $off )));
+        ($rc, $out, $err) = iz4($r, 'add', 'invariant', "Nobody is shown another person's address ({$off.key}).", "--name=no-address-{$off.key.lc.subst('_', '-', :g)}", '--because=Safety.', :env(%( |%with, $off )));
         ok $rc == 0 && !driver-was-run() && !($out ~ $err).contains('enforcement'), "with {$off.key}={$off.value} the step is off: the file changes and nothing else happens";
     }
 }
@@ -218,7 +218,7 @@ for (%with, %without) -> %env {
         %( PATH => "/usr/bin:/bin", IZ4_BIN => $bindir.Str, IZ4_321_RELEASE_URL => "file://{$rel}", IZ4_ENFORCE => '1', IZ4_INTERACTIVE => '0', |%more )
     }
     my $n = 0;
-    my sub add-one(IO::Path $r, %env) { iz4($r, 'add', 'invariant', "A lasting commitment number {++$n} stays true.", '--because=People rely on it.', :%env) }
+    my sub add-one(IO::Path $r, %env) { iz4($r, 'add', 'invariant', "A lasting commitment number {++$n} stays true.", "--name=lasting-commitment-$n", '--because=People rely on it.', :%env) }
 
     if launcher-asset().defined {
         # no 321 anywhere: iz4 installs the published one, then asks it

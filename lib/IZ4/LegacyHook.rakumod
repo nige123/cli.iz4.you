@@ -111,7 +111,7 @@ sub on-stop(IO::Path $iz4, %input --> List) is export {
     (REFUSE, '',
      "iz4: files changed in a repository that keeps an IZ4, and the reply gives no per-invariant report. "
      ~ "Before finishing, report each invariant the change could affect:\n"
-     ~ "    Invariant:     its number and wording\n"
+     ~ "    Invariant:     its name and wording\n"
      ~ "    Assessment:    mechanically verified | supported by evidence | apparently consistent | uncertain | conflicting\n"
      ~ "    Evidence:      what was actually run or reviewed, and what was only suggested\n"
      ~ "    Remaining gap: what has not been established\n"

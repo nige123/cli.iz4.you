@@ -20,14 +20,14 @@ my $job = q:to/END/;
     IS FOR WHO?
     People looking for work.
 
-    INVARIANT 5
+    INVARIANT visible-by-choice.jobs.example.com
     People control whether their profile
     is visible.
 
     BECAUSE
     Looking for work should not mean surrendering privacy.
 
-    INVARIANT 6
+    INVARIANT contact-by-invitation.jobs.example.com
     Employers cannot contact someone until that person initiates contact.
 
     BECAUSE
@@ -39,7 +39,9 @@ ok $doc.ok, 'the example from the brief is a valid IZ4';
 nok $doc.warnings, 'and draws no warnings';
 is $doc.for-what, 'Helping people find work they love to do.', 'IS FOR WHAT read';
 is $doc.for-who, 'People looking for work.', 'IS FOR WHO read';
-is $doc.invariants».number, (5, 6), 'project invariants begin at 5';
+is $doc.invariants».id, ('visible-by-choice.jobs.example.com', 'contact-by-invitation.jobs.example.com'), 'project invariants are known by their names, in file order';
+is $doc.namespace, 'jobs.example.com', 'and the namespace is what their names share';
+nok $doc.legacy, 'a named file is not legacy';
 is $doc.invariants[0].text, 'People control whether their profile is visible.',
     'wrapped lines join into one invariant';
 is $doc.invariants[0].because, 'Looking for work should not mean surrendering privacy.',
@@ -60,67 +62,115 @@ ok $minimal.ok && !$minimal.warnings, 'a two-question IZ4 with no invariants is 
 nok $minimal.invariants, 'and has no project invariants of its own';
 
 # BECAUSE is optional at the grammar level
-my $bare = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx y z\n\nIS FOR WHO?\na b c\n\nINVARIANT 5\nSomething holds.\n"));
+my $bare = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx y z\n\nIS FOR WHO?\na b c\n\nINVARIANT holds.shop.example.com\nSomething holds.\n"));
 ok $bare.ok, 'an invariant without BECAUSE is still valid grammar';
-is $bare.unexplained-invariants».number, (5,), 'and is listed as unexplained';
+is $bare.unexplained-invariants».id, ('holds.shop.example.com',), 'and is listed as unexplained';
 
-# ---- 0-4 are inherited and reserved ------------------------------------
+# ---- an identity is a name ------------------------------------------------
 
-for 0..4 -> $n {
-    my $override = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT $n\nMy own version.\n"));
-    nok $override.ok, "INVARIANT $n cannot be redefined by a project";
+for <owner-adjusted.honeywillow.com owner-adjusted.prices.honeywillow.com a.b.co x-1.shop2.example.com> -> $good {
+    is identity-problem($good), '', "$good is a name an invariant can have";
 }
-like IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT 2\nNope.\n")).errors[0].Str,
-    /"the foundation's HUMAN AGENCY" .* 'word for word' .* 'begin at 5'/, 'the refusal explains the foundation';
-# without the foundation a file is not an IZ4; with it altered, neither
+for ('Owner.shop.example.com' => 'lower case', 'owner adjusted.shop.example.com' => 'space', 'owner_adjusted.shop.example.com' => 'a-z, 0-9',
+     'owner..example.com' => 'both sides', '-owner.shop.example.com' => 'hyphen', 'owner.com' => 'a name and a domain',
+     'owner-adjusted' => 'a name and a domain', '7' => 'a name and a domain', 'a.b.42' => 'has a letter', '' => 'empty') -> (:key($bad), :value($why)) {
+    ok identity-problem($bad).contains($why), "'$bad' is refused: $why";
+}
+ok is-identity('x.cli.iz4.you') && !reserved-identity('x.cli.iz4.you'), 'a deeper name under iz4.you is an ordinary name';
+ok reserved-identity('sneaky.iz4.you'), 'a name directly under iz4.you that is not one of the five is reserved';
+nok reserved-identity('honesty.iz4.you'), 'the five themselves are not "reserved": they are the foundation';
+
+sub with-inv(Str $label, Str $text = 'Something holds.') { IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT $label\n$text\n")) }
+like with-inv('sneaky.iz4.you').errors[0].Str, /"names directly under iz4.you are the foundation's" .* 'exactly five'/, 'a project cannot take a name in the foundation\'s namespace';
+like with-inv('Owner_Adjusted').errors[0].Str, /"'Owner_Adjusted' is not a name an invariant can have"/, 'an invalid name is an error that says why';
+like with-inv('Owner_Adjusted').errors[0].fix, /'rename the invariant on line ' \d+/, 'and says what to change, and where';
+
+# ---- the foundation: five names, word for word, anywhere ------------------
+
+is FOUNDATION».<id>, <humans-first.iz4.you do-no-harm.iz4.you human-agency.iz4.you honesty.iz4.you foundation-holds.iz4.you>,
+    'the foundation is exactly these five names';
+is FOUNDATION».<legacy>, (0, 1, 2, 3, 4), 'each remembers the number it carried, as history only';
+for foundation-ids() -> $id {
+    my $override = with-inv($id, 'My own version.');
+    nok $override.ok, "$id cannot be redefined by a project";
+}
 my $none = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n");
 nok $none.ok, 'a file without the foundation fails';
-like $none.errors[0].Str, /'the foundation is missing' .* 'Invariants 0, 1, 2, 3, 4' .* 'iz4 foundation --restore'/, 'and the error says how to write it';
+like $none.errors[0].Str, /'the foundation is missing' .* 'humans-first.iz4.you, do-no-harm.iz4.you' .* 'iz4 foundation --restore'/, 'and the error names what is missing and how to write it';
 nok $none.foundation-intact, 'and is not intact';
 my $altered = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n").subst('Do not harm people,', 'Do not harm people much,'));
 nok $altered.ok, 'an altered foundation fails';
-like $altered.errors[0].Str, /"INVARIANT 1 is the foundation's DO NO HARM" .* 'not yours to edit'/, 'naming the invariant and saying it is not the owner\'s to edit';
+like $altered.errors[0].Str, /'INVARIANT do-no-harm.iz4.you is part of the foundation' .* 'not yours to edit'/, 'naming the invariant and saying it is not the owner\'s to edit';
 my $rewrapped = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n").subst("Do not harm people, or help", "Do not harm people,\nor help"));
 ok $rewrapped.ok && $rewrapped.foundation-intact, 'wrapping the foundation differently is fine: only the words count';
-my $late = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT 5\nMine.\n\n" ~ $F);
-nok $late.ok, 'the foundation after a project invariant fails';
-like $late.errors[0].Str, /'comes after a project invariant'/, 'because the foundation comes first';
-ok $doc.foundation-intact && $doc.foundation-first-line.defined && $doc.foundation-last-line > $doc.foundation-first-line, 'an intact foundation knows its lines';
-is FOUNDATION».<number>, (0, 1, 2, 3, 4), 'the foundation is exactly 0-4';
-is FOUNDATION».<name>, ('HUMANS FIRST', 'DO NO HARM', 'HUMAN AGENCY', 'HONESTY', 'THE FOUNDATION HOLDS'),
-    'with its five names';
-like $doc.foundation-status, /'Invariants 0-4: the foundation, in the file word for word'/, 'every file carries them, and the status says so';
+my $one-gone = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n").subst(/ 'INVARIANT honesty.iz4.you' .*? 'see truly.' \n /, ''));
+like $one-gone.errors».Str.join, /'the foundation is missing: every IZ4 carries honesty.iz4.you word for word'/, 'one missing foundation invariant is named alone';
+my $twice-f = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n") ~ "\nINVARIANT honesty.iz4.you\nAgain.\n");
+like $twice-f.errors».Str.join, /'duplicate INVARIANT honesty.iz4.you'/, 'a foundation invariant appears once';
+
+# order is presentation: the foundation may come last, or in any order
+my $late = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT mine.shop.example.com\nMine.\n\n" ~ $F);
+ok $late.ok && $late.foundation-intact, 'the foundation after a project invariant is the same file';
+my @blocks = $F.split(/ <?before 'INVARIANT '> /);
+my $shuffled = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n" ~ @blocks[0] ~ @blocks[1 .. *].reverse.join);
+ok $shuffled.ok && $shuffled.foundation-intact, 'and so is the foundation in another order';
+is $doc.foundation-spans.elems, 5, 'the document knows where each foundation block is';
+like $doc.foundation-status, /'the foundation: all five invariants, in the file word for word (sha256 f0c11bd08bcc)'/, 'every file carries them, and the status says so';
 
 # ---- structural problems -------------------------------------------------
 
-my $dups = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nIS FOR WHO?\nz\n\nINVARIANT 5\na\n\nINVARIANT 5\nb\n"));
+my $dups = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nIS FOR WHO?\nz\n\nINVARIANT a.shop.example.com\na\n\nINVARIANT a.shop.example.com\nb\n"));
 like $dups.report.join("\n"), /'IZ4:' $(9 + $FL) ': duplicate IS FOR WHO (first at line 6)'/, 'duplicate IS FOR reported';
-like $dups.report.join("\n"), /'duplicate INVARIANT 5 (first at line ' $(12 + $FL) ')'/, 'duplicate number reported';
+like $dups.report.join("\n"), /'duplicate INVARIANT a.shop.example.com (first at line ' $(12 + $FL) ')'/, 'duplicate name reported';
 
 my $orphan = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nBECAUSE\nno invariant\n\nIS FOR WHO?\ny\n"));
 like $orphan.errors».Str.join, /'BECAUSE must directly follow the INVARIANT'/, 'a stray BECAUSE is an error';
 
-my $missing = IZ4::Document.parse("IZ4\n\nINVARIANT 5\nSomething.\n");
+my $missing = IZ4::Document.parse("IZ4\n\nINVARIANT some.shop.example.com\nSomething.\n");
 like $missing.errors».Str.join("\n"), /'missing IS FOR WHAT' .* 'missing IS FOR WHO'/,
     'both IS FOR answers are required';
 
-my $wordy = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT five\nx\n"));
-like $wordy.errors[0].Str, /'whole number'/, 'INVARIANT needs a whole number';
+my $unnamed = with-inv('', 'x y z');
+nok $unnamed.ok, 'an INVARIANT with no name is an error: every invariant is named';
+like $unnamed.errors[0].Str, /'INVARIANT has no name'/, 'and the error says so';
+like $unnamed.errors[0].fix, /'iz4 name ' \d+ ' <name>'/, 'with the command that names it';
+is $unnamed.unnamed-invariants.elems, 1, 'and it is listed as unnamed';
 
+# a withdrawn name is retired: the comment says so, and the name cannot come back as something else
+my $retired = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n# INVARIANT gone.shop.example.com was withdrawn on 2026-01-01; its name is retired.\n\nINVARIANT gone.shop.example.com\nSomething else.\n"));
+is $retired.retired, ('gone.shop.example.com',), 'a withdrawal comment retires the name';
+like $retired.errors[0].Str, /'reuses a withdrawn name'/, 'and reusing it is an error';
 
-my $unnumbered = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT\nx y z\n"));
-ok $unnumbered.ok && $unnumbered.warnings[0].Str.contains("'iz4 number'"),
-    'an unnumbered INVARIANT is a warning pointing at iz4 number';
+# the namespace is said once in the file, and otherwise read from the names
+my $said = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n# This project's invariants are named under honeywillow.com.\n\nINVARIANT owner-adjusted.prices.honeywillow.com\nx y z\n"));
+is $said.namespace, 'honeywillow.com', 'the namespace comment wins over what one name alone suggests';
+nok $minimal.namespace.defined, 'a file with no invariant of its own has no namespace yet';
 
 # ---- every problem carries its next step ----------------------------------
-like $wordy.errors[0].fix, /"replace 'five' on line " \d+ " with a whole number"/, 'a problem says what to change, and where';
 is $missing.fixes, ('iz4 add for-what "what it is for"', 'iz4 add for-who "who it is for"', 'iz4 foundation --restore'),
     'fixes are the next steps for the errors, in line order';
-my $twice = IZ4::Document.parse("IZ4\n\nINVARIANT 5\nSomething.\n\nINVARIANT 5\nAgain.\n");
+my $twice = IZ4::Document.parse("IZ4\n\nINVARIANT a.shop.example.com\nSomething.\n\nINVARIANT a.shop.example.com\nAgain.\n");
 is $twice.fixes.grep(* eq 'iz4 foundation --restore').elems, 1, 'a step that clears several errors is listed once';
 ok $twice.fixes.first(*.contains('line 6')), 'and the duplicate names its line';
-ok $unnumbered.warnings[0].fix eq 'iz4 number' && !$unnumbered.fixes, 'a warning has a fix too, but fixes lists only the errors';
-is $unnumbered.next-number, 5, 'the next free number is 5';
+
+# ---- the numbered format of earlier versions is read, as legacy ------------
+
+sub legacy-foundation() {
+    FOUNDATION-LEGACY.map({ "INVARIANT {.<number>} - {.<name>}\n{.<text>}\n\nBECAUSE\n{.<because>}\n" }).join("\n");
+}
+my $legacy = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n" ~ legacy-foundation() ~ "\nINVARIANT 5\nPeople control it.\n\nBECAUSE\nWhy.\n\nINVARIANT 7\nAnother.\n");
+ok $legacy.legacy, 'a file whose invariants are all numbered is the earlier format';
+ok $legacy.ok && $legacy.foundation-intact, 'it still parses, and its numbered foundation is recognised word for word';
+is $legacy.invariants».id, ('5', '7'), 'its identities are its numbers, as strings';
+is $legacy.invariant('5').because, 'Why.', 'and they are looked up the same way';
+like $legacy.foundation-status, /'Invariants 0-4 of the numbered format' .* 'iz4 migrate'/, 'the status says which foundation it carries and how to move on';
+my $legacy-altered = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n" ~ legacy-foundation().subst('Keep people in charge.', 'Keep some people in charge.') ~ "\nINVARIANT 5\nP.\n");
+nok $legacy-altered.ok, 'an altered numbered foundation is still an error';
+is $legacy-altered.fixes, ('iz4 migrate',), 'and the one next step for a numbered file is to migrate it';
+my $mixed = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT 5\nNumbered.\n\nINVARIANT named.shop.example.com\nNamed.\n"));
+nok $mixed.legacy, 'a file with both numbered and named invariants is not legacy';
+like $mixed.errors».Str.join("\n"), /'mixes numbered and named invariants'/, 'it is refused as a mix';
+like $mixed.errors».Str.join("\n"), /'INVARIANT 5 is numbered: invariants are named now'/, 'and the numbered one is pointed at';
 
 # old concepts are kept as unknown blocks, and the warning says where they belong
 my $spec = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nBEHAVIOURS\nSearch shows 20 results.\n"));
@@ -138,11 +188,11 @@ like $old.errors[0].Str, /"'gist:' is the earlier IZ4 format" .* 'docs/format.md
 nok IZ4::Document.parse("NOTIZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n").ok, 'a header word other than IZ4 is refused';
 
 # ---- mistakes the grammar catches by line ---------------------------------------
-my $indented = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT 5\nRule.\n    BECAUSE\n    reason\n"));
+my $indented = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT rule.shop.example.com\nRule.\n    BECAUSE\n    reason\n"));
 nok $indented.ok, 'an indented BECAUSE is an error, never swallowed as text';
 like $indented.errors[0].Str, /"'BECAUSE' is indented" .* 'column 0'/, 'and says where a keyword goes';
 is $indented.errors[0].line, 11 + $FL, 'at its line';
-is $indented.invariant(5).text, 'Rule.', 'the invariant keeps only its own text';
+is $indented.invariant('rule.shop.example.com').text, 'Rule.', 'the invariant keeps only its own text';
 
 my $stray = IZ4::Document.parse(f("IZ4\n\nsome prose\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n"));
 like $stray.errors[0].Str, /'text before any block'/, 'text outside a block is an error';

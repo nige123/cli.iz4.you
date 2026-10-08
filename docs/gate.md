@@ -6,8 +6,8 @@ directory, and reports in five words what it found. `iz4 approve` is how
 a person agrees to a change that needs it. Routine commits pass without
 anyone being asked. A new, revised or withdrawn project invariant, a
 change to IS FOR WHAT or IS FOR WHO, or a weakened test that protects an
-invariant needs a person. Altering Invariants 0-4 is blocked and no
-project approval can lift it.
+invariant needs a person. Altering the five foundation invariants is
+blocked and no project approval can lift it.
 
 The file states it, Git keeps its history, the gate asks before a
 commitment moves. Nothing here needs 321, a model, an account or the
@@ -38,16 +38,25 @@ says.
 Commitments, from the IZ4 in each tree:
 
 - IS FOR WHAT or IS FOR WHO changed;
-- a project invariant (5 and up) added, revised (its text or its BECAUSE)
-  or removed;
+- a project invariant added, revised (its text or its BECAUSE) or
+  removed, each keyed by its name;
 - the IZ4 removed altogether;
 - the candidate IZ4 does not parse (blocked);
-- Invariants 0-4 missing or altered (blocked, never approvable);
-- a withdrawn number reused for a different invariant (blocked;
-  Invariant 13).
+- a foundation invariant missing or altered (blocked, never approvable);
+- a withdrawn name reused for a different invariant (blocked);
+- a numbered IZ4 moved to named invariants by `iz4 migrate`: each
+  `Invariant N is named ...`, and the foundation's new words (agreement
+  required);
+- a named IZ4 replaced by a numbered one (blocked).
 
-Protections, from the tests that name an invariant (`Invariant N` plus
-the invariant's opening words, the same convention `iz4 check` uses):
+Invariants are compared by name, so moving a block within the file changes
+nothing and passes. The same words under a new name are a removal and an
+addition, and the addition says it is not a rename. An added invariant
+carries the digest of its words, and a revised one the digest before and
+after.
+
+Protections, from the tests that name an invariant (a test file that
+contains the invariant's full name, the same convention `iz4 check` uses):
 
 - a test that named an invariant is gone, or no longer names it
   (removed, unlinked);
@@ -94,7 +103,7 @@ opinion with evidence attached, never approval and never proof.
 |---|---|---|
 | `pass` | no commitment or protection changed, and every check that could run passed | 0 |
 | `agreement-required` | a commitment or protection changes and no valid approval covers it | 2 |
-| `blocked` | a definite finding no approval can lift: a failing linked test, an invalid IZ4, an altered foundation, a reused number | 3 |
+| `blocked` | a definite finding no approval can lift: a failing linked test, an invalid IZ4, an altered foundation, a reused name, a named IZ4 replaced by a numbered one | 3 |
 | `unassessed` | a check could not be run; this is not a pass, and the result says what to do | 4 |
 | `error` | the gate could not complete (not a repository, unknown revision, unmergeable index) | 1 |
 
@@ -107,26 +116,31 @@ result names the test it could not run so the fix is one step away.
 Ordinary commits that touch no invariant test and no IZ4 pass without a
 check being run, so they stay fast.
 
-`--json` prints the result as `iz4-gate/1`: `outcome`, `exit_code`,
+`--json` prints the result as `iz4-gate/2`: `outcome`, `exit_code`,
 `mode`, `repository` (the root commit), `base`, `candidate` (tree
 hashes), `changes`, `protections`, `checks`, `touches`, `approval`,
 `proposal_digest`, `notes`, `next`. The identifiers are what an approval
-binds to and what a harness or CI should quote.
+binds to and what a harness or CI should quote. An invariant is always
+given by its name: each change, protection and touch carries `id`, and
+each check carries `invariants`, a list of names.
 
 ## Proposing, then agreeing
 
 ```text
 $ iz4 gate --staged
-gate: candidate tree 9882b2ce7c93 (index) against base b782ea6ec478 (HEAD), advisory
+gate: candidate tree 16a36fa5d0fe (index) against base 92b4464fb6bb (HEAD), advisory
 commitments and protections:
-  Invariant 6 added: Employers cannot contact someone first.
-    BECAUSE No new inbox.
+  INVARIANT charged-once.orders.honeywillow.com added: A customer is charged once for an order, however many times a payment is retried.
+    BECAUSE A double charge costs a customer money and the shop its trust.
 checks, run from the candidate tree:
-  ✓ tests/invariant-5.sh (Invariant 5) passed
+  ✓ t/owner-adjusted.prices.honeywillow.com.sh (owner-adjusted.prices.honeywillow.com) passed
+touches, by their own words (for a person to look at, not a finding): charged-once.orders.honeywillow.com
 approval: none for this candidate tree
 outcome: agreement-required - a commitment or protection changes; a person has to agree
 next:
   1. iz4 approve --staged
+  then: iz4 gate --staged again
+advisory: this run refuses nothing; --enforce makes the outcome the exit code
 ```
 
 `iz4 approve` shows the proposal: the exact before and after wording of
@@ -169,8 +183,9 @@ has to be the same document, signed by a key the boundary lists.
 ## Carrying protection forward
 
 An invariant's protection is a test that names it, in the repository's
-own test system: `Invariant 5` plus the invariant's opening words,
-anywhere in the file. Nothing goes into the IZ4 for it. `iz4 test`
+own test system: the invariant's full name, such as
+`owner-adjusted.prices.honeywillow.com`, anywhere in the file. Nothing
+goes into the IZ4 for it. `iz4 test`
 scaffolds one, `iz4 check` reports which invariants have one, and the
 gate runs them from the candidate and watches them between trees. The
 record of what changed when, and who agreed, is Git: the commit that
@@ -248,7 +263,7 @@ policy.
 
 The contract is the CLI: `iz4 gate --candidate=<rev> [--base=<rev>]
 --enforce --json [--approvers=FILE]`, exit code `0 2 3 4 1`, result
-`iz4-gate/1`. An interactive harness shows `proposal_digest`, `changes`
+`iz4-gate/2`. An interactive harness shows `proposal_digest`, `changes`
 and `protections` and, when the person agrees, runs `iz4 approve` on the
 person's behalf at the person's terminal, or has the person sign the
 document it is given. A harness never fabricates an approval: an

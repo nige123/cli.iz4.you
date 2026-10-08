@@ -5,19 +5,23 @@ use IZ4;
 use IZ4::Document;
 use IZ4::Agent;
 use IZ4::Integrations;
+my $SECTION-VERSION = SECTION-VERSION;
 
 my $dir = temp-dir;
 my $sp  = minimal-iz4(:$dir);
 add-invariant($sp, 'Private profiles never appear in public search.',
+    :name('private-profiles.shop.example.com'),
     :because('A hidden search for work can cost someone their job.'));
 
 # ---- packet -----------------------------------------------------------
 my %p = agent-packet($sp);
-is %p<schema>, 'iz4-agent-packet/3', 'packet schema is versioned';
+is %p<schema>, 'iz4-agent-packet/4', 'packet schema is versioned';
+is %p<format>, 'named', 'the packet says the file names its invariants';
+is-deeply %p<foundation><ids>.List, foundation-ids(), 'and carries the five foundation names';
 is %p<foundation><text>, FOUNDATION-TEXT, 'the canonical foundation is carried';
 is %p<foundation><sha256>, FOUNDATION-DIGEST, 'with its digest';
-like %p<effective>, /'INVARIANT 0 - HUMANS FIRST (foundation)' .* 'INVARIANT 5' \n 'Private profiles'/,
-    'the effective invariants, inherited and project, are in the packet';
+like %p<effective>, /'INVARIANT humans-first.iz4.you' \n .* 'INVARIANT private-profiles.shop.example.com' \n 'Private profiles'/,
+    'the effective invariants, foundation and project, are in the packet under their names';
 is %p<specification>, $sp.slurp, 'the verbatim file is carried too';
 is %p<sha256>, sha256-hex($sp), 'digest is of the exact file bytes';
 my $text = packet-text(%p);
@@ -34,12 +38,29 @@ like $protocol, /'never invent it'/, 'intent is asked for, never invented';
 like $protocol, /'mechanically verified | supported by evidence | apparently consistent | uncertain | conflicting'/,
     'the five honesty levels are the assessment vocabulary';
 like $protocol, /'cannot prove a natural-language invariant'/, 'no checker proves prose';
-like $protocol, /'No project-level approval can waive Invariants 0-4'/, 'the foundation cannot be waived';
+like $protocol, /'No project-level approval can waive the foundation'/, 'the foundation cannot be waived';
+like $protocol, /"An invariant's name is its identity: cite it whole, exactly as written"/, 'agents are told to cite an invariant by its whole name';
+like $protocol, /'Invariant: its name and wording'/, 'and the closing report names each invariant';
+unlike $protocol, /'Invariants 0-4' | 'its number'/, 'nothing in the protocol speaks of numbered invariants';
 unlike $protocol, /"'direction' entries"/, 'no trace of the old specification sections';
+
+# a file still in the numbered format still governs: its packet is built, and says which format it is
+my $old-dir = temp-dir;
+my $old = $old-dir.add('IZ4');
+$old.spurt("IZ4\n\nIS FOR WHAT?\nHelping people find work they love to do.\n\nIS FOR WHO?\nPeople looking for work.\n\n"
+    ~ FOUNDATION-LEGACY.map({ "INVARIANT {.<number>} - {.<name>}\n{.<text>}\n\nBECAUSE\n{.<because>}\n" }).join("\n")
+    ~ "\nINVARIANT 5\nPrivate profiles never appear in public search.\n\nBECAUSE\nA hidden search for work can cost someone their job.\n");
+my %o = agent-packet($old);
+is %o<schema>, 'iz4-agent-packet/4', 'a numbered file gets the same packet schema';
+is %o<format>, 'numbered', 'and the packet says it is in the numbered format';
+is %o<foundation><sha256>, FOUNDATION-LEGACY-DIGEST, 'with the digest of the foundation that file carries';
+is %o<foundation><ids>.join(' '), '0 1 2 3 4', 'whose invariants are known by their numbers';
+like %o<foundation><status>, /'Invariants 0-4 of the numbered format, word for word' .* "'iz4 migrate'"/, 'the foundation is intact, and the one next step is named';
+like %o<effective>, /'INVARIANT 5' \n 'Private profiles'/, 'its own invariant is in the packet under the number it has';
 
 # failures: never invent a valid packet
 my $bad = $dir.add('bad.iz4');
-$bad.spurt("IZ4\n\nINVARIANT 5\nNo IS FOR at all.\n");
+$bad.spurt("IZ4\n\nINVARIANT no-is-for.shop.example.com\nNo IS FOR at all.\n");
 throws-like { agent-packet($bad) }, X::IZ4, message => /'invalid IZ4'/, 'invalid spec refused';
 throws-like { agent-packet($dir.add('none.iz4')) }, X::IZ4, message => /'no such file'/, 'missing file refused';
 
@@ -50,7 +71,7 @@ is install-agent-section($agents, :root($dir)), 'unchanged', 'repeat install is 
 unlike $agents.slurp, /'Private profiles'/, 'project invariants are not copied into instruction files';
 like $agents.slurp, /'Keep the IZ4 small'/, 'the managed section says to keep the IZ4 small';
 like $agents.slurp.words.join(' '), /'compacted or resumed session' .* "run 'iz4 agent' again"/, 'the managed section survives compaction and says to re-run';
-like $agents.slurp, /'carries' \s+ 'Invariants 0-4'/, 'and names the foundation for agents without the CLI';
+like $agents.slurp, /'carries the five foundation invariants'/, 'and names the foundation for agents without the CLI';
 
 my $before = "# My project\n\nHand-written notes stay.\n";
 my $claude = $dir.add('CLAUDE.md');
@@ -99,7 +120,8 @@ is install-skill(:root($dir)), 'updated', 'stale skill regenerated';
 # ---- status -----------------------------------------------------------
 my %s = agent-status($sp, :root($dir));
 is %s<schema>, 'iz4-agent-status/4', 'status schema is versioned';
-ok %s<iz4><valid> && %s<iz4><binding>.contains('Invariants 0-4'), 'status: valid spec, foundation reported';
+ok %s<iz4><valid> && %s<iz4><binding>.contains('the foundation: all five invariants'), 'status: valid spec, foundation reported';
+nok %s<iz4><binding>.contains('0-4'), 'and not by number';
 is %s<integrations><AGENTS.md>, 'current', 'status: AGENTS.md integration current';
 like %s<note>, /'never that an agent read'/, 'status wording claims nothing about agents';
 
@@ -108,7 +130,7 @@ my ($rc, $out, $err) = iz4($dir, 'agent');
 is $rc, 0, 'iz4 agent exits 0';
 like $out, /'IZ4 agent packet'/, 'prints the packet';
 ($rc, $out, $err) = iz4($dir, 'agent', '--json');
-like $out, /'"schema":"iz4-agent-packet/3"'/, '--json emits the versioned schema';
+like $out, /'"schema":"iz4-agent-packet/4"'/, '--json emits the versioned schema';
 
 ($rc, $out, $err) = iz4($dir, 'agent', 'status');
 is $rc, 0, 'status is informational: exit 0';
@@ -126,7 +148,7 @@ like $out, /'SKILL.md: integration installed but stale (written by an earlier iz
 $dir.add('CLAUDE.md').spurt($dir.add('CLAUDE.md').slurp.subst(/'IZ4-AGENT v' \d+ ' START'/, 'IZ4-AGENT v2 START'));
 ($rc, $out, $err) = iz4($dir, 'agent', 'status');
 like $out, /'CLAUDE.md: integration installed but stale (section v2 from an earlier iz4, v' \d+ ' is current)'/, 'an older section names its version';
-$dir.add('CLAUDE.md').spurt($dir.add('CLAUDE.md').slurp.subst('IZ4-AGENT v2 START', "IZ4-AGENT v{SECTION-VERSION} START").subst('Project intent', 'Project intentions'));
+$dir.add('CLAUDE.md').spurt($dir.add('CLAUDE.md').slurp.subst('IZ4-AGENT v2 START', "IZ4-AGENT v{$SECTION-VERSION} START").subst('Project intent', 'Project intentions'));
 ($rc, $out, $err) = iz4($dir, 'agent', 'status');
 like $out, /'CLAUDE.md: integration installed but stale (edited by hand since it was written)'/, 'a hand-edited current section says so';
 {
@@ -135,8 +157,12 @@ like $out, /'CLAUDE.md: integration installed but stale (edited by hand since it
     like $out, /"next:\n  1. iz4 init\n  2. iz4 agent install\n"/, 'without an IZ4 the first step is iz4 init' or diag $out;
 }
 
+($rc, $out, $err) = iz4($old-dir, 'agent');
+is $rc, 0, 'iz4 agent still delivers the packet for a numbered file';
+like $out, /'IZ4 agent packet (iz4-agent-packet/4)' .* 'INVARIANT 5' \n 'Private profiles'/, 'with its invariants as written';
+
 my $broken = temp-dir;
-$broken.add('IZ4').spurt("IZ4\n\nINVARIANT 5\nNo IS FOR.\n");
+$broken.add('IZ4').spurt("IZ4\n\nINVARIANT no-is-for.shop.example.com\nNo IS FOR.\n");
 ($rc, $out, $err) = iz4($broken, 'agent');
 is $rc, 1, 'agent packet refused for an invalid spec';
 like $err, /'invalid IZ4'/, 'refusal names the reason';

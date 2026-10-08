@@ -20,7 +20,7 @@ is read-input('{"session_id":"s","tool_input":{"file_path":"x"}}')<tool_input><f
 # ---- session start delivers the packet -----------------------------------
 my ($exit, $out, $err) = on-session-start($iz4, %( session_id => 'a1' ));
 is $exit, ALLOW, 'session start allows';
-like $out, /'loaded by the session-start hook' .* 'delivered again after a compaction' .* 'IZ4 agent packet' .* 'INVARIANT 0 - HUMANS FIRST'/,
+like $out, /'loaded by the session-start hook' .* 'delivered again after a compaction' .* 'IZ4 agent packet' .* 'INVARIANT humans-first.iz4.you'/,
     'and prints the packet for the model';
 
 # ---- an edit before the packet is refused once, with the packet ----------
@@ -44,8 +44,8 @@ if have-git() {
     $plain.spurt('{"type":"assistant","message":{"content":[{"type":"text","text":"Done."}]}}' ~ "\n");
     my $report = $repo.add('report.jsonl');
     $report.spurt('{"type":"user","message":{"content":"x"}}' ~ "\n"
-        ~ '{"type":"assistant","message":{"content":[{"type":"text","text":"Invariant: 5 profiles\nAssessment: uncertain\nEvidence: none run\nRemaining gap: all"}]}}' ~ "\n");
-    is last-assistant-text($report.Str), "Invariant: 5 profiles\nAssessment: uncertain\nEvidence: none run\nRemaining gap: all", 'the last assistant text is read from the transcript';
+        ~ '{"type":"assistant","message":{"content":[{"type":"text","text":"Invariant: private-profiles.shop.example.com, private profiles stay out of public search\nAssessment: uncertain\nEvidence: none run\nRemaining gap: all"}]}}' ~ "\n");
+    is last-assistant-text($report.Str), "Invariant: private-profiles.shop.example.com, private profiles stay out of public search\nAssessment: uncertain\nEvidence: none run\nRemaining gap: all", 'the last assistant text is read from the transcript';
 
     ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd1', transcript_path => $plain.Str ));
     is $exit, ALLOW, 'nothing changed: the turn may end';
@@ -54,6 +54,7 @@ if have-git() {
     ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd1', transcript_path => $plain.Str ));
     is $exit, REFUSE, 'files changed and no report: the turn is refused';
     like $err, /'Invariant:' .* 'Assessment:' .* 'Remaining gap:'/, 'with the report format';
+    like $err, /'Invariant:' \s+ 'its name and wording'/, 'which asks for each invariant by name';
     ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd1', transcript_path => $plain.Str ));
     is $exit, ALLOW, 'but only once, so a session cannot be trapped';
     ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd2', transcript_path => $plain.Str, stop_hook_active => True ));
@@ -98,7 +99,7 @@ if have-git() {
     like $herr, /'IZ4 agent packet'/, 'with the packet on standard error';
 }
 else {
-    skip 'git not available', 34;
+    skip 'git not available', 35;
 }
 
 done-testing;

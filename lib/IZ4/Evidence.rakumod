@@ -4,10 +4,12 @@ unit module IZ4::Evidence;
 #|
 #| A checker cannot verify prose, but a test can pin the behaviour an
 #| invariant describes, and a test that names its invariant can be found.
-#| The convention is one phrase: a test file that contains 'Invariant N'
-#| (in a comment, a test name, anywhere) is evidence named for project
-#| invariant N.  'iz4 check' reports which invariants have such a test,
-#| which have only a scaffold, and which have nothing.
+#| The convention is the invariant's own name: a test file that contains
+#| its full identity (owner-adjusted.prices.honeywillow.com, in a comment,
+#| a test name, anywhere) is evidence named for that invariant.  The name
+#| is the whole link: no number, no position in the file, no quoted
+#| words.  'iz4 check' reports which invariants have such a test, which
+#| have only a scaffold, and which have nothing.
 #|
 #| 'iz4 test' writes the scaffold: one test file per invariant without
 #| evidence, in the repository's own test language, carrying the
@@ -15,9 +17,13 @@ unit module IZ4::Evidence;
 #| placeholder with an assertion that would fail if the invariant stopped
 #| being true.  A scaffold is born red on purpose: a test that cannot fail
 #| is not evidence, and a scaffold is not counted as evidence until its
-#| placeholder is gone.  A file counts only when it also quotes the
-#| invariant's own opening words, so a passing mention of 'Invariant 5' in
-#| some other test is never taken as evidence.
+#| placeholder is gone.  The name counts only as a whole: a longer name
+#| that merely contains it (x.owner-adjusted.prices.honeywillow.com) is a
+#| different invariant.
+#|
+#| A file still in the numbered format keeps the rule it was written
+#| under, 'Invariant N' together with the invariant's opening words,
+#| until 'iz4 migrate' names its invariants.
 #|
 #| None of this proves an invariant holds.  It makes visible which ones
 #| have a test that says it does, and which have none.
@@ -36,7 +42,7 @@ constant DRAFT-MARK is export = 'iz4 draft: an agent wrote this test; review it,
 
 #| Directories and file names that hold tests, by convention across
 #| languages.  Only these are searched, so prose elsewhere that happens to
-#| say 'Invariant 5' is never mistaken for a test.
+#| names an invariant is never mistaken for a test.
 my @TEST-DIRS  = <t test tests spec specs __tests__ features>;
 my regex test-file-name { [ '_test' | '.test' | '.spec' | '_spec' | 'Test' ] '.' \w+ $ | '.t' $ | '.rakutest' $ }
 my @SKIP-DIRS  = <.git node_modules local vendor dist target .precomp build .venv venv>;
@@ -72,31 +78,54 @@ sub test-files(IO::Path $root --> List) is export {
     @out;
 }
 
+#| Whether $text names invariant $id as a whole name: not as part of a
+#| longer one on either side.  A full stop after it ends a sentence.
+sub names-identity(Str $text, Str $id --> Bool) is export {
+    my $from = 0;
+    loop {
+        my $at = $text.index($id, $from);
+        return False without $at;
+        my $before = $at > 0 ?? $text.substr($at - 1, 1) !! '';
+        my $after  = $text.substr($at + $id.chars, 2);
+        return True unless $before ~~ /^ <[A..Z a..z 0..9 . \-]> $/
+            || $after ~~ /^ <[A..Z a..z 0..9 \-]> / || $after ~~ /^ '.' <[A..Z a..z 0..9]> /;
+        $from = $at + 1;
+    }
+}
+
 #| Which project invariants have evidence: returns a hash of
-#| number => 'named' (a reviewed test names it) | 'drafted' (an agent's
+#| identity => 'named' (a reviewed test names it) | 'drafted' (an agent's
 #| draft awaiting review) | 'scaffolded' (only the born-red scaffold) |
-#| 'none', plus 'files' => number => the files naming it.
+#| 'none', plus 'files' => identity => the files naming it.
 sub evidence-for(IZ4::Document $doc, IO::Path $root --> Hash) is export {
-    my %state = $doc.invariants.map(*.number).grep(*.defined).map({ $_ => 'none' });
-    my %opening = $doc.invariants.grep(*.number.defined).map({ .number => opening-words(.text) });
+    my @ids = $doc.invariants.map(*.id).grep(*.defined);
+    my %state = @ids.map({ $_ => 'none' });
+    my %opening = $doc.invariants.grep(*.id.defined).map({ .id => opening-words(.text) });
     my %files;
+    my %rank = none => 0, scaffolded => 1, drafted => 2, named => 3;
     for test-files($root) -> $f {
         my $text = try $f.slurp;        # unreadable or not UTF-8: not evidence
         next without $text;
-        my $flat = $text.lc.words.join(' ');
         my $here = $text.contains(PLACEHOLDER) ?? 'scaffolded' !! $text.contains(DRAFT-MARK) ?? 'drafted' !! 'named';
-        my %rank = none => 0, scaffolded => 1, drafted => 2, named => 3;
-        for $text.match(/ 'Invariant' \h+ (\d+) <!before \d> /, :g).map({ +.[0] }).unique -> $n {
-            next unless %state{$n}:exists;
-            next unless $flat.contains(%opening{$n});     # names it AND quotes it
-            %files{$n}.push: $f.relative($root);
-            %state{$n} = $here if %rank{$here} > %rank{%state{$n}};
+        my @linked;
+        if $doc.legacy {
+            my $flat = $text.lc.words.join(' ');
+            @linked = $text.match(/ 'Invariant' \h+ (\d+) <!before \d> /, :g).map({ ~.[0] }).unique
+                .grep({ (%state{$_}:exists) && $flat.contains(%opening{$_}) });
+        }
+        else {
+            @linked = @ids.grep({ names-identity($text, $_) });
+        }
+        for @linked -> $id {
+            %files{$id}.push: $f.relative($root);
+            %state{$id} = $here if %rank{$here} > %rank{%state{$id}};
         }
     }
     %( :%state, :%files );
 }
 
-#| The first words of an invariant, normalised, that a test must quote.
+#| The first words of an invariant, normalised, that a test had to quote
+#| under the numbered format.
 sub opening-words(Str $text --> Str) is export {
     $text.lc.words.head(6).join(' ');
 }
@@ -139,87 +168,91 @@ sub detect-language(IO::Path $root --> Str) is export {
 #| the BECAUSE, and fails on PLACEHOLDER until written.
 constant LANGUAGES is export = <raku perl go python ruby rust typescript javascript sh>;
 
+#| An identity as a word a programming language accepts in a name.
+sub identity-slug(Str $id --> Str) is export { $id.subst(/ <-[a..z 0..9]> /, '_', :g) }
+
 sub scaffold(Str $lang, $inv --> List) is export {
     die "no scaffold for language '$lang'; one of {LANGUAGES.join(', ')}" unless so $lang eq any(LANGUAGES);
-    my $n    = $inv.number;
+    my $id   = $inv.id;
+    my $slug = identity-slug($id);
     my $text = $inv.text;
     my $why  = $inv.because // '(no BECAUSE yet)';
     my $mark = $lang eq any(<go rust typescript javascript>) ?? '//' !! '#';
-    # the invariant and its reason, wrapped, as comment lines
-    my $head = comment-lines($mark, "Invariant $n: $text") ~ "\n" ~ comment-lines($mark, "BECAUSE $why");
+    # the invariant's name on a line of its own, then its words and its reason
+    my $head = "$mark INVARIANT $id\n" ~ comment-lines($mark, $text) ~ "\n" ~ comment-lines($mark, "BECAUSE $why");
     given $lang {
         when 'raku' {
-            "t/invariant-$n.rakutest", qq:to/END/;
+            "t/$id.rakutest", qq:to/END/;
             $head
             use Test;
             plan 1;
-            flunk 'Invariant $n: {PLACEHOLDER}';
+            flunk '$id: {PLACEHOLDER}';
             END
         }
         when 'perl' {
-            "t/invariant-$n.t", qq:to/END/;
+            "t/$id.t", qq:to/END/;
             $head
             use strict;
             use warnings;
             use Test::More tests => 1;
-            fail('Invariant $n: {PLACEHOLDER}');
+            fail('$id: {PLACEHOLDER}');
             END
         }
         when 'go' {
-            "invariants/invariant_{$n}_test.go", qq:to/END/;
+            "invariants/{$slug}_test.go", qq:to/END/;
             $head
             package invariants
 
             import "testing"
 
-            func TestInvariant{$n}(t *testing.T) \{
-            \tt.Fatal("Invariant $n: {PLACEHOLDER}")
+            func TestInvariant_{$slug}(t *testing.T) \{
+            \tt.Fatal("$id: {PLACEHOLDER}")
             \}
             END
         }
         when 'python' {
-            "tests/test_invariant_$n.py", qq:to/END/;
+            "tests/test_$slug.py", qq:to/END/;
             $head
             import pytest
 
 
-            def test_invariant_{$n}():
-                pytest.fail("Invariant $n: {PLACEHOLDER}")
+            def test_{$slug}():
+                pytest.fail("$id: {PLACEHOLDER}")
             END
         }
         when 'ruby' {
-            "spec/invariant_{$n}_spec.rb", qq:to/END/;
+            "spec/{$slug}_spec.rb", qq:to/END/;
             $head
-            RSpec.describe "Invariant $n" do
+            RSpec.describe "$id" do
               it "{$text.subst('"', "'", :g)}" do
-                raise "Invariant $n: {PLACEHOLDER}"
+                raise "$id: {PLACEHOLDER}"
               end
             end
             END
         }
         when 'rust' {
-            "tests/invariant_$n.rs", qq:to/END/;
+            "tests/invariant_$slug.rs", qq:to/END/;
             $head
             #[test]
-            fn invariant_{$n}() \{
-                panic!("Invariant $n: {PLACEHOLDER}");
+            fn invariant_{$slug}() \{
+                panic!("$id: {PLACEHOLDER}");
             \}
             END
         }
         when 'typescript' | 'javascript' {
             my $ext = $lang eq 'typescript' ?? 'ts' !! 'js';
-            "test/invariant-$n.test.$ext", qq:to/END/;
+            "test/$id.test.$ext", qq:to/END/;
             $head
-            test("Invariant $n: {$text.subst('"', "'", :g)}", () => \{
-              throw new Error("Invariant $n: {PLACEHOLDER}");
+            test("$id: {$text.subst('"', "'", :g)}", () => \{
+              throw new Error("$id: {PLACEHOLDER}");
             \});
             END
         }
         default {
-            "t/invariant-$n.sh", qq:to/END/;
+            "t/$id.sh", qq:to/END/;
             #!/bin/sh
             $head
-            echo "Invariant $n: {PLACEHOLDER}" >&2
+            echo "$id: {PLACEHOLDER}" >&2
             exit 1
             END
         }
@@ -239,21 +272,21 @@ sub comment-lines(Str $mark, Str $text --> Str) {
 }
 
 #| Write scaffolds for the invariants that have no evidence (or for @only).
-#| Never overwrites.  Returns (path, number) pairs written.
+#| Never overwrites.  Returns (path, identity) pairs written.
 sub write-scaffolds(IZ4::Document $doc, IO::Path $root, Str :$lang = detect-language($root), :@only --> List) is export {
     my %e = evidence-for($doc, $root);
     my @done;
     for $doc.invariants -> $inv {
-        next without $inv.number;
-        next if @only && $inv.number ne any(@only);
-        next if %e<state>{$inv.number} ne 'none';
+        next without $inv.id;
+        next if @only && $inv.id ne any(@only);
+        next if %e<state>{$inv.id} ne 'none';
         my ($rel, $text) = scaffold($lang, $inv);
         my $path = $root.add($rel);
         next if $path.e;
         $path.parent.mkdir;
         $path.spurt($text);
         $path.chmod(0o755) if $lang eq 'sh';
-        @done.push: ($rel, $inv.number);
+        @done.push: ($rel, $inv.id);
     }
     @done;
 }
@@ -282,9 +315,10 @@ sub draft-prompt($doc, $inv, Str :$lang!, Str :$path!, Str :$example = '', Str :
       show; if you must assume one, name the assumption in a comment.
     - Do not create, modify or delete any file: a person decides whether
       this test is written, after reading it.
-    - Begin the file with a comment quoting the invariant exactly as
-      "Invariant N: <text>" and a comment "BECAUSE <reason>", in the comment
-      style of the language.
+    - Begin the file with a comment line "INVARIANT <its full name>",
+      exactly as the name is given below, then comments quoting its text and
+      "BECAUSE <reason>", in the comment style of the language.  The name is
+      how the test is found: write it whole, never shortened.
     - If the invariant cannot be tested from what you can see - it depends on
       product intent, an external system, or code that is not here - reply
       with exactly one line: CANNOT: <one sentence saying why and what would
@@ -295,7 +329,7 @@ sub draft-prompt($doc, $inv, Str :$lang!, Str :$path!, Str :$example = '', Str :
     END
     ~ "Language and framework: $lang\nFile to write: $path\n\n"
     ~ "IS FOR WHAT? {$doc.for-what // ''}\nIS FOR WHO? {$doc.for-who // ''}\n\n"
-    ~ "INVARIANT {$inv.number}\n{$inv.text}\n\nBECAUSE\n$because\n\n"
+    ~ "INVARIANT {$inv.id}\n{$inv.text}\n\nBECAUSE\n$because\n\n"
     ~ ($example ?? "An existing test in this repository, to match in style:\n=== example begin ===\n$example\n=== example end ===\n\n" !! '')
     ~ ($layout  ?? "File layout:\n$layout\n" !! '');
 }

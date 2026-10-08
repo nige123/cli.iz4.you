@@ -10,7 +10,7 @@
 #|     IS FOR WHO?
 #|     People looking for work.
 #|
-#|     INVARIANT 5
+#|     INVARIANT visible-by-choice.jobs.example.com
 #|     People control whether their profile is visible.
 #|
 #|     BECAUSE
@@ -20,7 +20,9 @@
 #| lines and blocks.  A block is a keyword line at column 0 followed by
 #| its text lines; the text runs until a blank line, a comment or the
 #| next keyword.  There are four keywords: IS FOR WHAT?, IS FOR WHO?,
-#| INVARIANT n and BECAUSE.
+#| INVARIANT name and BECAUSE.  What follows INVARIANT on its line is the
+#| invariant's label; that a label is a well-formed, unreserved name is
+#| judged in IZ4::Document, so every problem with one is reported by line.
 #|
 #| The grammar is deliberately forgiving: the productions marked 'error'
 #| and 'warning' below accept what a person might write by mistake, so
@@ -62,10 +64,12 @@ token invariant { 'INVARIANT' [ \h+ <label> ]? <!before \S> }
 token label     { \S+ [ \h+ \S+ ]* }
 token because   { 'BECAUSE' <!before \S> }
 
-# A text line: anything that is not blank, not a comment, not a capitals
-# line (which would start another block) and not an indented keyword
-# (which is reported, so a mis-indented BECAUSE is never swallowed).
-token text-line { <!before \h* \n> <!before '#'> <!before <caps-line>> <!before \h+ <keyword> \h* \n> \N* \n }
+# A text line: anything that is not blank, not a comment, not a keyword
+# line (an INVARIANT with its lower-case name is not a capitals line, so
+# it is named here), not a capitals line (which would start another
+# block) and not an indented keyword (which is reported, so a
+# mis-indented BECAUSE is never swallowed).
+token text-line { <!before \h* \n> <!before '#'> <!before <keyword> \h* \n> <!before <caps-line>> <!before \h+ <keyword> \h* \n> \N* \n }
 
 # Any line of capitals and digits is a block header, so the format can
 # grow; one that is not a known keyword is kept and reported.

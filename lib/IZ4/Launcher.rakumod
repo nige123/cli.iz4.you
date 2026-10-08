@@ -8,7 +8,7 @@ unit module IZ4::Launcher;
 #| iz4 uses it for everything agentic - suggest, review, test drafting -
 #| and for wiring hooks into whatever harnesses 321 knows, and quotes what
 #| 321 says each of them enforces.  When it is not, the core CLI still
-#| works alone (Invariant 5); the agent conveniences take the person's
+#| works alone; the agent conveniences take the person's
 #| own IZ4_AGENT_CMD or say that an agent runner is needed, and no harness
 #| is wired: that is a driver's job.  Nothing here parses an IZ4 through
 #| 321: 321 runs iz4 for that.

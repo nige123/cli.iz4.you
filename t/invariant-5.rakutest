@@ -1,4 +1,5 @@
-# Invariant 5: The format and the core CLI work without the iz4.you service,
+# INVARIANT works-offline.cli.iz4.you
+# The format and the core CLI work without the iz4.you service,
 # an account or a network connection: the file belongs to the project.
 # BECAUSE Intent a project cannot hold on its own terms is intent it can
 # lose when a service, a company or a connection goes away.
@@ -34,15 +35,16 @@ sub offline(*@args) {
 }
 nok $bin.add('curl').e, 'curl is not on the PATH these commands get';
 is offline('init', '--for-what=Offline.', '--for-who=Anyone.', '--/agents')[0], 0, 'init works with no network tool';
-my ($arc, $aout, $aerr) = offline('add', 'invariant', 'The file is the source.', '--because=Nothing else is.');
+my ($arc, $aout, $aerr) = offline('add', 'invariant', 'The file is the source.', '--name=file-is-source', '--namespace=offline.example.com', '--because=Nothing else is.');
 is $arc, 0, 'add works';
 like $aerr, /'so agent enforcement could not be activated.' \n 'The IZ4 intent is recorded, but harness enforcement is currently inactive.'/,
     'with no connection the driver cannot be fetched, and iz4 says enforcement is inactive: the change stands all the same';
 nok %env<IZ4_BIN>.IO.add('321').e, 'and nothing was installed';
 is offline('check')[0], 0, 'check works';
-like offline('invariants')[1], /'INVARIANT 0 - HUMANS FIRST (foundation)' .* 'INVARIANT 5'/, 'the foundation is available with no account';
+like offline('invariants')[1], /'INVARIANT humans-first.iz4.you' .* 'INVARIANT file-is-source.offline.example.com'/, 'the foundation is available with no account, and names need no registry';
 is offline('agent')[0], 0, 'the agent packet works';
-is offline('number')[0], 0, 'number works';
+is offline('show', 'invariant', 'file-is-source')[0], 0, 'an invariant is looked up by its name';
+is offline('discover', '--json')[0], 0, 'and the machine interface answers';
 ok $dir.add('IZ4').slurp.contains('The file is the source.'), 'and the file, plain text, holds it all';
 
 # Nothing in the core modules reaches the network.  What does is named in

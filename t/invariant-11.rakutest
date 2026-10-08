@@ -1,4 +1,5 @@
-# Invariant 11: The tool never silently overwrites, reformats or discards a
+# INVARIANT keeps-your-words.cli.iz4.you
+# The tool never silently overwrites, reformats or discards a
 # person's words in an IZ4.
 # BECAUSE The file records what its owner decided must stay true; a tool
 # that rewrote it quietly would be substituting its own judgement for theirs.
@@ -20,13 +21,13 @@ $iz4.spurt(q:to/END/);
     IS FOR WHO?
     Them.
 
-    INVARIANT 5
+    INVARIANT first.shop.example.com
     First rule. A stale price sells work at a loss.
     END
 my $before = $iz4.slurp;
 
 # adding appends; every byte that was there is still there
-add-invariant($iz4, 'Second rule.', :because('Why two.'));
+add-invariant($iz4, 'Second rule.', :name('second.shop.example.com'), :because('Why two.'));
 ok $iz4.slurp.starts-with($before.trim-trailing), 'add keeps every existing byte, odd spacing included';
 
 # setting an answer needs --replace, and even then touches only that block
@@ -34,22 +35,41 @@ throws-like { set-is-for($iz4, 'IS FOR WHO', 'Others.') }, X::IZ4, message => /'
 set-is-for($iz4, 'IS FOR WHO', 'Others.', :replace);
 ok $iz4.slurp.contains("Their words,\n  wrapped their way."), 'replacing one answer leaves the other, and its wrapping, alone';
 
-# numbering changes only the header line
-$iz4.spurt($iz4.slurp ~ "\nINVARIANT\nUnnumbered, in\nmy own lines.\n");
-number-invariants($iz4);
-ok $iz4.slurp.contains("INVARIANT 7\nUnnumbered, in\nmy own lines."), 'number rewrites the keyword line and nothing else';
+# naming changes only the header line
+$iz4.spurt($iz4.slurp ~ "\nINVARIANT\nUnnamed, in\nmy own lines.\n");
+my $named-before = $iz4.slurp;
+name-invariant($iz4, $iz4.slurp.lines.first(* eq 'INVARIANT', :k) + 1, 'third.shop.example.com');
+is $iz4.slurp, $named-before.subst("\nINVARIANT\nUnnamed", "\nINVARIANT third.shop.example.com\nUnnamed"), 'naming rewrites the keyword line and nothing else';
+throws-like { name-invariant($iz4, $iz4.slurp.lines.first(* eq 'INVARIANT third.shop.example.com', :k) + 1, 'other.shop.example.com') }, X::IZ4,
+    message => /'already named'/, 'and a name once given is not rewritten by the tool';
 
 # splitting a reason moves the owner's words; it never rewrites them
 my sub words { $iz4.slurp.lc.comb(/\w+/).grep(* ne 'because').Bag }   # the keyword the split adds is not the owner's word
 my $words-before = words();
-split-because($iz4, 5);
+split-because($iz4, 'first.shop.example.com');
 ok words() eqv $words-before, 'every word is still there after a split; only the position changed';
 
 # init never overwrites; scaffolds never overwrite; a failing rewrite leaves the file as it was
 throws-like { init(:$dir, :for-what('x'), :for-who('y')) }, X::IZ4, message => /'not overwriting'/, 'init refuses an existing file';
 my $snapshot = $iz4.slurp;
-throws-like { add-invariant($iz4, 'Clash.', :number(5)) }, X::IZ4, 'a refused add';
+throws-like { add-invariant($iz4, 'Clash.', :name('first.shop.example.com')) }, X::IZ4, 'a refused add';
 is $iz4.slurp, $snapshot, 'writes nothing';
+
+# moving a numbered file to names touches the header line of each invariant
+# and the foundation's own blocks: the owner's words keep every byte
+my $numbered = temp-dir.add('IZ4');
+my $theirs = "Their rule,\n   wrapped   their way.\n\nBECAUSE\nTheir reason,\n  theirs too.\n";
+$numbered.spurt("IZ4\n# their comment\nIS FOR WHAT?\nTheir   purpose.\n\nIS FOR WHO?\nThem.\n\n"
+    ~ FOUNDATION-LEGACY.map({ "INVARIANT {.<number>} - {.<name>}\n{.<text>}\n\nBECAUSE\n{.<because>}\n" }).join("\n")
+    ~ "\nINVARIANT 5\n$theirs");
+my $numbered-before = $numbered.slurp;
+throws-like { add-invariant($numbered, 'More.', :name('more.shop.example.com')) }, X::IZ4, message => /'iz4 migrate'/, 'a numbered file is not written to: the tool says how to move it';
+throws-like { migrate($numbered, %()) }, X::IZ4, message => /'has no name yet'/, 'and it is not moved without a name for each invariant';
+is $numbered.slurp, $numbered-before, 'both refusals write nothing';
+migrate($numbered, %( 5 => 'their-rule.shop.example.com' ));
+ok $numbered.slurp.contains("INVARIANT their-rule.shop.example.com\n$theirs"), 'migrating gives the invariant its name and keeps its words, wrapping and reason byte for byte';
+ok $numbered.slurp.contains("# their comment\nIS FOR WHAT?\nTheir   purpose.\n"), 'and everything else of theirs';
+ok check-doc($numbered).ok && !check-doc($numbered).legacy, 'in a valid named file';
 
 # an old-format file is refused, not rewritten
 my $old = temp-dir.add('IZ4');

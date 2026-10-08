@@ -11,7 +11,7 @@ use IZ4::Document;
 #| anything or that software conforms - the wording keeps that distinction
 #| everywhere.
 
-constant PACKET-SCHEMA   is export = 'iz4-agent-packet/3';
+constant PACKET-SCHEMA   is export = 'iz4-agent-packet/4';
 
 #| The canonical adherence protocol.  The single source: the packet, the
 #| skill and the instruction-file sections are all generated from it.
@@ -26,9 +26,10 @@ constant AGENT-PROTOCOL is export = q:to/END/;
     As a coding agent working in a repository that keeps one:
 
     1.  Read the effective invariants before planning or changing anything:
-        IS FOR WHAT, IS FOR WHO, the inherited foundation (Invariants 0-4)
-        and the project's own (5 and up).  Invariants 0-4 bind every
-        project whether or not its file repeats them.
+        IS FOR WHAT, IS FOR WHO, the five foundation invariants (named
+        under iz4.you) and the project's own (named under its own
+        domain).  The foundation binds every project.  An invariant's
+        name is its identity: cite it whole, exactly as written.
     2.  Ask of every consequential change: does it preserve every
         invariant, and stay consistent with who and what this software is
         for?  An invariant nobody mentioned is not waived.
@@ -36,7 +37,7 @@ constant AGENT-PROTOCOL is export = q:to/END/;
         safely pause the affected action.  Continue safe work within your
         existing authority.  Resume only once a compliant approach is found
         or the owner deliberately changes the IZ4.  No project-level
-        approval can waive Invariants 0-4.
+        approval can waive the foundation.
     4.  Only the project owner decides what must remain true.  When they
         ask you to change it, edit the IZ4 before the code and let Git keep
         the history.  Never weaken an invariant, remove a check or redefine
@@ -54,7 +55,7 @@ constant AGENT-PROTOCOL is export = q:to/END/;
     6.  Choose proportionate evidence for each affected invariant: an
         existing test, a new behavioural test, inspection or human review.
     7.  Before finishing, report each affected invariant honestly:
-            Invariant:     its number and wording
+            Invariant:     its name and wording
             Assessment:    mechanically verified | supported by evidence |
                            apparently consistent | uncertain | conflicting
             Evidence:      what was actually run or reviewed, and what was
@@ -90,11 +91,13 @@ sub agent-packet(IO::Path $iz4 --> Hash) is export {
     }
     %(
         schema        => PACKET-SCHEMA,
+        format        => ($doc.legacy ?? 'numbered' !! 'named'),
         file          => $iz4.Str,
         sha256        => sha256-file($iz4),
         foundation    => %(
-            text   => FOUNDATION-TEXT,
-            sha256 => FOUNDATION-DIGEST,
+            text   => ($doc.legacy ?? foundation-text(:legacy) !! FOUNDATION-TEXT),
+            sha256 => ($doc.legacy ?? FOUNDATION-LEGACY-DIGEST !! FOUNDATION-DIGEST),
+            ids    => ($doc.legacy ?? (0..4).map(~*).Array !! foundation-ids().Array),
             status => $doc.foundation-status,
         ),
         effective     => effective-text($doc, :name($iz4.basename)),

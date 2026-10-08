@@ -14,7 +14,7 @@ use IZ4::Document;
 use IZ4::Agent;
 
 constant STATUS-SCHEMA   is export = 'iz4-agent-status/4';
-constant SECTION-VERSION is export = 5;
+constant SECTION-VERSION is export = 6;
 
 sub agent-error(Str $message) { X::IZ4.new(:$message).throw }
 
@@ -44,8 +44,8 @@ sub managed-block(--> Str) is export {
     anything, and report the affected invariants when you finish.
 
     If the iz4 CLI is unavailable, read the root IZ4 file directly; it
-    carries Invariants 0-4, the foundation (humans first, do no harm,
-    human agency, honesty, the foundation holds), word for word, and
+    carries the five foundation invariants (humans first, do no harm,
+    human agency, honesty, the foundation holds) word for word, and
     they bind you too.  Say in your final report that CLI validation was
     not performed.
 
@@ -132,7 +132,7 @@ constant SKILL-PATH is export = '.claude/skills/iz4/SKILL.md';
 #| validation, inherited-binding resolution and structured output.
 sub skill-text(--> Str) is export {
     my $foundation = "\n\n## The inherited foundation\n\n"
-        ~ FOUNDATION.map({ "- Invariant {.<number>} - {.<name>}: {.<text>}\n  BECAUSE: {.<because>}" }).join("\n") ~ "\n";
+        ~ FOUNDATION.map({ "- {.<id>}: {.<text>}\n  BECAUSE: {.<because>}" }).join("\n") ~ "\n";
     q:to/HEAD/ ~ AGENT-PROTOCOL.trim-trailing ~ $foundation ~ q:to/TAIL/;
     ---
     name: iz4
@@ -143,7 +143,7 @@ sub skill-text(--> Str) is export {
 
     Preferred: run `iz4 agent` in the repository and follow the packet it
     prints - it validates the file, lists the effective invariants
-    (the inherited 0-4 plus the project's own) and can emit `--json`.
+    (the foundation plus the project's own) and can emit `--json`.
 
     Without the CLI the core workflow still works: read the root `IZ4`
     file directly (the nearest one walking upward), apply the protocol and

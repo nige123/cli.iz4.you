@@ -11,21 +11,24 @@ sub kinds(Str $src) {
     $m<item>.map({ my $i = $_; <blank comment block unknown-block indented-keyword legacy-section stray>.first({ $i{$_}.defined }) }).grep(* ne 'blank').List;
 }
 
-is kinds("IZ4\n\nIS FOR WHAT?\nJobs.\n\nIS FOR WHO?\nPeople.\n\nINVARIANT 5\nRule\nmore.\n\nBECAUSE\nWhy.\n"),
+is kinds("IZ4\n\nIS FOR WHAT?\nJobs.\n\nIS FOR WHO?\nPeople.\n\nINVARIANT rule.shop.example.com\nRule\nmore.\n\nBECAUSE\nWhy.\n"),
     <block block block block>, 'the canonical file is four blocks';
 is kinds("IZ4\n# note\nIS FOR WHAT?\nx\n"), <comment block>, 'a comment is its own item';
 is kinds("IZ4\nBEHAVIOURS\nx\n"), <unknown-block>, 'a capitals line that is not a keyword is an unknown block';
 is kinds("IZ4\n  BECAUSE\nx\n"), <indented-keyword>, 'an indented keyword is caught';
-is kinds("IZ4\nINVARIANT 5\nRule.\n  BECAUSE\n  why\n"), <block indented-keyword>, 'and ends the block before it';
+is kinds("IZ4\nINVARIANT rule.shop.example.com\nRule.\n  BECAUSE\n  why\n"), <block indented-keyword>, 'and ends the block before it';
+is kinds("IZ4\nINVARIANT a.shop.example.com\nRule.\nINVARIANT b.shop.example.com\nOther.\nBECAUSE\nWhy.\n"), <block block block>,
+    'a named INVARIANT line starts a block even with no blank line before it: it is never swallowed as text';
+is kinds("IZ4\nINVARIANT 5\nRule.\nINVARIANT 6\nOther.\n"), <block block>, 'and so does a numbered one, of the earlier format';
 is kinds("IZ4\ngist:\n"), <legacy-section>, "the earlier format's section lines are caught";
 is kinds("IZ4\nhello there\n"), <stray>, 'prose outside a block is stray';
-is kinds("IZ4\nINVARIANT 5\nSMS OR EMAIL\nx\n"), <block unknown-block>, 'an all-capitals text line starts a block (the format can grow)';
+is kinds("IZ4\nINVARIANT codes.shop.example.com\nSMS OR EMAIL\nx\n"), <block unknown-block>, 'an all-capitals text line starts a block (the format can grow)';
 
-my $m = IZ4::Grammar.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO\ny\n\nINVARIANT 7\nz\n\nINVARIANT\nw\n");
+my $m = IZ4::Grammar.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO\ny\n\nINVARIANT seven.shop.example.com\nz\n\nINVARIANT\nw\n");
 my @b = $m<item>.grep(*<block>).map(*<block>);
 ok @b[0]<keyword><for-what><asked>.defined, 'IS FOR WHAT? carries its question mark';
 nok @b[1]<keyword><for-who><asked>.defined, 'IS FOR WHO without one is still the keyword';
-is @b[2]<keyword><invariant><label>.Str, '7', 'an INVARIANT label is captured';
+is @b[2]<keyword><invariant><label>.Str, 'seven.shop.example.com', 'an INVARIANT label is captured';
 nok @b[3]<keyword><invariant><label>.defined, 'and may be absent';
 is @b[0]<text-line>».Str».trim, ('x',), 'text lines are captured';
 

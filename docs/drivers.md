@@ -72,14 +72,26 @@ account, 321, or anything but Git.
 Does an IZ4 govern this directory? Never an error: no IZ4 is an answer.
 
 ```json
-{"schema":"iz4-discover/1","present":true,"file":"/repo/IZ4","sha256":"9020...",
- "valid":true,"errors":[],
- "invariants":[{"number":0,"foundation":true,"summary":"..."},{"number":5,"foundation":false,"summary":"..."}],
- "tool":"iz4/0.15.0"}
+{"schema":"iz4-discover/2","present":true,"file":"/repo/IZ4","sha256":"b083...",
+ "valid":true,"errors":[],"format":"named","namespace":"honeywillow.com",
+ "invariants":[{"id":"humans-first.iz4.you","foundation":true,"summary":"Help people thrive, on their own terms.","digest":"c2a8...","legacy_foundation_number":0},
+   {"id":"owner-adjusted.prices.honeywillow.com","foundation":false,"summary":"A live shop price changes only by human decision.","digest":"3d8c..."}],
+ "tool":"iz4/0.16.0"}
 ```
 
 `--dir=PATH` asks about another directory. `file` and `sha256` identify
 exactly which IZ4 applied; record them with any evidence you keep.
+
+An invariant is identified by `id`, its full name, and a driver treats it
+as an opaque string and compares it whole. The foundation's five come
+first, then the project's own in file order. `digest` says which wording
+of the invariant this is (rule `iz4-invariant/1`, in
+[format.md](format.md#which-wording-the-digest)). `namespace` is the domain
+the project's own names share. `format` is `named`, or `numbered` for a
+file in the earlier format that `iz4 migrate` has not yet moved: there
+each `id` is the old number as a string, such as `"5"`, and `namespace` is
+null. A foundation entry in a named file also carries
+`legacy_foundation_number`, the number it had in that format.
 
 ### `iz4 context`
 
@@ -151,20 +163,24 @@ uncertain or conflicting, in its own words.
 
 ## One result document
 
-`check action`, `check change` and `verify` all answer with `iz4-check/1`:
+`check action`, `check change` and `verify` all answer with `iz4-check/2`:
 
 ```json
-{"schema":"iz4-check/1","check":"change","result":"needs_human",
+{"schema":"iz4-check/2","check":"change","result":"needs_human",
  "reason":"the change alters what the project commits to, or what protects it; a person must agree",
- "invariants_considered":[5],
- "evidence":{"gate":{"schema":"iz4-gate/1","outcome":"agreement-required"}},
+ "invariants_considered":["owner-adjusted.prices.honeywillow.com"],
+ "evidence":{"gate":{"schema":"iz4-gate/2","outcome":"agreement-required"}},
  "proposed_invariant_change":{"kind":"change","summary":"1 commitment change(s), 0 protection change(s)",
-   "changes":[{"kind":"revised","number":5}],"proposal_digest":"...",
-   "agree_with":"iz4 approve --candidate=<tree> --base=HEAD"},
+   "changes":[{"kind":"revised","id":"owner-adjusted.prices.honeywillow.com",
+     "before_digest":"3d8c...","after_digest":"ab6a..."}],"proposal_digest":"...",
+   "agree_with":"iz4 approve --candidate=<tree> --base=HEAD --sign=<key> --by=<principal>"},
  "iz4":{"file":"/repo/IZ4","sha256":"..."},
  "limits":"what this check did not establish",
- "exit_code":2,"tool":"iz4/0.15.0"}
+ "exit_code":2,"tool":"iz4/0.16.0"}
 ```
+
+`invariants_considered` is a sorted list of names. Every change in
+`proposed_invariant_change` names its invariant by `id`.
 
 | `result` | Means | Exit |
 |---|---|---|

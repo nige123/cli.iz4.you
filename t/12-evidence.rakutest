@@ -1,4 +1,4 @@
-# Evidence: a test that names an invariant and quotes it; a scaffold that
+# Evidence: a test that carries an invariant's whole name; a scaffold that
 # is born red and never counted until written; the check row that says
 # which invariants have nothing.
 use lib $?FILE.IO.parent.add('lib').Str;
@@ -7,50 +7,126 @@ use IZ4Test;
 use IZ4;
 use IZ4::Document;
 use IZ4::Evidence;
+my $PLACEHOLDER = PLACEHOLDER;
+my $DRAFT-MARK = DRAFT-MARK;
+
+my constant ONCE   = 'single-use.codes.shop.example.com';
+my $ONCE = ONCE;
+my constant EXPIRE = 'expiry.codes.shop.example.com';
+my $EXPIRE = EXPIRE;
 
 my $repo = temp-dir;
 my $iz4  = minimal-iz4(:dir($repo));
-add-invariant($iz4, 'A code works once and only once.', :because('A code that works twice lets someone else sign in as you.'));
-add-invariant($iz4, 'Codes expire within ten minutes.', :because('A stale code in an inbox is a key under the mat.'));
+add-invariant($iz4, 'A code works once and only once.', :name(ONCE), :because('A code that works twice lets someone else sign in as you.'));
+add-invariant($iz4, 'Codes expire within ten minutes.', :name(EXPIRE), :because('A stale code in an inbox is a key under the mat.'));
 my $doc = check-doc($iz4);
 
 # ---- nothing yet --------------------------------------------------------------
 my %e = evidence-for($doc, $repo);
-is %e<state>, { 5 => 'none', 6 => 'none' }, 'with no tests, every invariant has no evidence';
+is %e<state>, %( ONCE, 'none', EXPIRE, 'none' ), 'with no tests, every invariant has no evidence';
 
-# ---- a mention is not evidence; naming and quoting is ---------------------
+# ---- the whole name is the link, and only the whole name ------------------
 $repo.add('t').mkdir;
-$repo.add('t/other.t').spurt("# see Invariant 5 for why\nok 1;\n");
-is evidence-for($doc, $repo)<state><5>, 'none', "a test that only mentions 'Invariant 5' is not evidence";
-$repo.add('t/codes.t').spurt("# Invariant 5: A code works once and only once.\nok !use_twice(), 'second use fails';\n");
+$repo.add('t/other.t').spurt("# see single-use for why\n# and single-use.codes, and codes.shop.example.com\nok 1;\n");
+is evidence-for($doc, $repo)<state>{$ONCE}, 'none', 'a test that carries only part of the name is not evidence';
+$repo.add('t/other.t').spurt("# A code works once and only once.\nok 1;\n");
+is evidence-for($doc, $repo)<state>{$ONCE}, 'none', "nor is one that quotes the invariant's words without its name";
+$repo.add('t/other.t').spurt("# x.{$ONCE} is somebody else's\n# and so is {$ONCE}.au, {$ONCE}-v2 and old-{$ONCE}\nok 1;\n");
+is evidence-for($doc, $repo)<state>{$ONCE}, 'none', 'a longer name that contains it does not link';
+$repo.add('t/other.t').unlink;
+$repo.add('t/codes.t').spurt("# INVARIANT {$ONCE}\nok !use_twice(), 'second use fails';\n");
 %e = evidence-for($doc, $repo);
-is %e<state><5>, 'named', 'a test that names the invariant and quotes its opening words is';
-is %e<files><5>, ['t/codes.t'], 'and is listed once';
-$repo.add('README.md').spurt("Invariant 6: Codes expire within ten minutes.\n");
-is evidence-for($doc, $repo)<state><6>, 'none', 'prose outside the test directories never counts';
+is %e<state>{$ONCE}, 'named', 'a test that carries the whole name is evidence, with no words quoted';
+is %e<files>{$ONCE}, ['t/codes.t'], 'and is listed once';
+is %e<state>{$EXPIRE}, 'none', 'and it is evidence for that invariant only';
+$repo.add('t/codes.t').spurt("ok !use_twice(), 'a second use fails, which keeps {$ONCE}.';\n");
+is evidence-for($doc, $repo)<state>{$ONCE}, 'named', 'a full stop ending the sentence after the name still links';
+$repo.add('t/codes.t').spurt("ok !use_twice(), '{$ONCE}';\n");
+is evidence-for($doc, $repo)<state>{$ONCE}, 'named', 'and so does the name in quotes, at the end of a line';
+$repo.add('README.md').spurt("INVARIANT {$EXPIRE}\nCodes expire within ten minutes.\n");
+is evidence-for($doc, $repo)<state>{$EXPIRE}, 'none', 'prose outside the test directories never counts';
 $repo.add('t/.codes.t.swp').spurt(Blob.new(0xff, 0xfe, 0x00, 0x49));
 $repo.add('t/binary.t').spurt(Blob.new(0xff, 0xfe, 0x00, 0x49, 0x6e));
-is evidence-for($doc, $repo)<state><5>, 'named', 'a swap file or an unreadable file in t/ is skipped, not fatal';
+is evidence-for($doc, $repo)<state>{$ONCE}, 'named', 'a swap file or an unreadable file in t/ is skipped, not fatal';
+
+ok  names-identity("# INVARIANT {$ONCE}\n", ONCE), 'names-identity: the name alone on a line';
+ok  names-identity("({$ONCE})", ONCE), 'names-identity: in brackets';
+ok  names-identity("keeps {$ONCE}. Next sentence", ONCE), 'names-identity: before a full stop and a space';
+ok  names-identity("keeps {$ONCE}.", ONCE), 'names-identity: before a full stop at the end of the text';
+nok names-identity("x.{$ONCE}", ONCE), 'names-identity: not as the tail of a longer name';
+nok names-identity("{$ONCE}.au", ONCE), 'names-identity: not as the head of a longer name';
+nok names-identity("{$ONCE}x", ONCE), 'names-identity: not with letters run on';
+nok names-identity("{$ONCE}-old", ONCE), 'names-identity: not with a hyphenated label run on';
+ok  names-identity("x.{$ONCE} and then {$ONCE}", ONCE), 'names-identity: a later whole occurrence counts after a partial one';
+
+# ---- a file still in the numbered format keeps the rule it was written under
+sub legacy-iz4(IO::Path $dir, Str $own --> IO::Path) {
+    my $p = $dir.add('IZ4');
+    $p.spurt("IZ4\n\nIS FOR WHAT?\nHelping people find work they love to do.\n\nIS FOR WHO?\nPeople looking for work.\n\n"
+        ~ FOUNDATION-LEGACY.map({ "INVARIANT {.<number>} - {.<name>}\n{.<text>}\n\nBECAUSE\n{.<because>}\n\n" }).join ~ $own);
+    $p;
+}
+my $old = temp-dir;
+my $old-iz4 = legacy-iz4($old, "INVARIANT 5\nA code works once and only once.\n\nBECAUSE\nA code that works twice lets someone else sign in as you.\n\n"
+    ~ "INVARIANT 6\nCodes expire within ten minutes.\n\nBECAUSE\nA stale code in an inbox is a key under the mat.\n");
+my $old-doc = IZ4::Document.load($old-iz4);
+ok $old-doc.legacy && !$old-doc.errors, 'a numbered file still parses, as legacy';
+is evidence-for($old-doc, $old)<state>, { '5' => 'none', '6' => 'none' }, 'legacy: identities are the numbers, as strings';
+$old.add('t').mkdir;
+$old.add('t/other.t').spurt("# see Invariant 5 for why\nok 1;\n");
+is evidence-for($old-doc, $old)<state><5>, 'none', "legacy: a test that only mentions 'Invariant 5' is not evidence";
+$old.add('t/other.t').spurt("# A code works once and only once.\nok 1;\n");
+is evidence-for($old-doc, $old)<state><5>, 'none', 'legacy: nor one that only quotes the words';
+$old.add('t/other.t').unlink;
+$old.add('t/codes.t').spurt("# Invariant 5: A code works once and only once.\nok !use_twice(), 'second use fails';\n");
+my %le = evidence-for($old-doc, $old);
+is %le<state><5>, 'named', "legacy: 'Invariant N' with the opening words is evidence";
+is %le<files><5>, ['t/codes.t'], 'legacy: and is listed once';
+is %le<state><6>, 'none', 'legacy: for that number only';
+$old.add('t/fifty.t').spurt("# Invariant 56: Codes expire within ten minutes.\nok 1;\n");
+is evidence-for($old-doc, $old)<state><6>, 'none', 'legacy: Invariant 56 is not Invariant 6';
+my ($lrc, $lout, $lerr) = iz4($old, 'check');
+ok $lrc == 1 && $lout.contains('✗ evidence: Invariant 6 has no test naming it'), 'legacy: check still reports evidence, by number';
+unlike $lout, /"'iz4 test' scaffolds one"/, 'legacy: and does not offer a scaffold it would refuse to write';
+like $lout, /'NOT OK' .* "run 'iz4 migrate'"/, 'legacy: check fails with the one next step';
+($lrc, $lout, $lerr) = iz4($old, 'test', '--list');
+ok $lrc == 0 && $lout ~~ /'named' \s+ 'Invariant 5' \s+ 't/codes.t'/ && $lout ~~ /'none' \s+ 'Invariant 6'/, 'legacy: iz4 test --list still reads it';
+($lrc, $lout, $lerr) = iz4($old, 'test');
+ok $lrc == 1 && $lerr.contains('numbered format') && $lerr.contains("Run 'iz4 migrate'"), 'legacy: iz4 test writes nothing and points at iz4 migrate';
+ok !$old.add('t/invariant-6.t').e && $old.add('t').dir.elems == 2, 'legacy: no scaffold appeared';
 
 # ---- scaffolds: the repository's language, born red, never overwritten ----
 is detect-language($repo), 'perl', 'the language follows the existing tests';
 my $rk = temp-dir; $rk.add('t').mkdir; $rk.add('t/00-load.t').spurt("use v6;\nuse Test;\nuse-ok 'X';\n");
 is detect-language($rk), 'raku', 'a .t file that says use v6 is Raku, not Perl';
 my @done = write-scaffolds($doc, $repo);
-is @done, (('t/invariant-6.t', 6),), 'only the invariant without evidence is scaffolded';
-my $scaffold = $repo.add('t/invariant-6.t').slurp;
-like $scaffold, /'# Invariant 6: Codes expire within ten minutes.' \n '# BECAUSE A stale code'/, 'it carries the invariant and its reason';
-like $scaffold, /'fail(' .* 'not yet tested'/, 'and fails until written';
-is evidence-for($doc, $repo)<state><6>, 'scaffolded', 'a scaffold counts as scaffolded, never as evidence';
+is @done, (("t/{$EXPIRE}.t", EXPIRE),), 'only the invariant without evidence is scaffolded';
+my $scaffold = $repo.add("t/{$EXPIRE}.t").slurp;
+is $scaffold.lines[0], "# INVARIANT {$EXPIRE}", "the scaffold's first line is the invariant's name";
+like $scaffold, /^ "# INVARIANT {$EXPIRE}" \n '# Codes expire within ten minutes.' \n '# BECAUSE A stale code'/, 'then its words and its reason';
+like $scaffold, /'fail(' "'{$EXPIRE}: not yet tested" /, 'and fails until written, saying which invariant';
+is evidence-for($doc, $repo)<state>{$EXPIRE}, 'scaffolded', 'a scaffold counts as scaffolded, never as evidence';
 is write-scaffolds($doc, $repo), (), 'a second run writes nothing';
-$repo.add('t/invariant-6.t').spurt("# Invariant 6: Codes expire within ten minutes.\nok expiry() < 600;\n");
-is evidence-for($doc, $repo)<state><6>, 'named', 'writing the assertion turns it into evidence';
+$repo.add("t/{$EXPIRE}.t").spurt("# INVARIANT {$EXPIRE}\nok expiry() < 600;\n");
+is evidence-for($doc, $repo)<state>{$EXPIRE}, 'named', 'writing the assertion turns it into evidence';
 
 # every language produces a scaffold that names, quotes and fails
+is identity-slug(ONCE), 'single_use_codes_shop_example_com', 'a slug turns everything but a-z and 0-9 into an underscore';
+my $slug = identity-slug(ONCE);
+my %where = raku => "t/{$ONCE}.rakutest", perl => "t/{$ONCE}.t", javascript => "test/{$ONCE}.test.js", typescript => "test/{$ONCE}.test.ts",
+    sh => "t/{$ONCE}.sh", python => "tests/test_$slug.py", go => "invariants/{$slug}_test.go", ruby => "spec/{$slug}_spec.rb",
+    rust => "tests/invariant_$slug.rs";
 for <raku perl go python ruby rust typescript javascript sh> -> $lang {
-    my ($rel, $text) = scaffold($lang, $doc.invariant(5));
-    ok $text.contains('Invariant 5') && $text.contains(PLACEHOLDER) && $text.lc.contains(opening-words($doc.invariant(5).text)),
-        "$lang scaffold at $rel names, quotes and fails";
+    my ($rel, $text) = scaffold($lang, $doc.invariant(ONCE));
+    is $rel, %where{$lang}, "$lang scaffold goes to {%where{$lang}}";
+    my $mark = $lang eq any(<go rust typescript javascript>) ?? '//' !! '#';
+    my @l = $text.lines;
+    @l.shift if $lang eq 'sh' && @l[0] eq '#!/bin/sh';
+    is @l[0..2], ("$mark INVARIANT {$ONCE}", "$mark A code works once and only once.", "$mark BECAUSE A code that works twice lets someone else sign in as you."),
+        "$lang scaffold opens with the name, the words and the reason";
+    ok $text.contains("{$ONCE}: {$PLACEHOLDER}"), "$lang scaffold fails on the placeholder, under the invariant's name";
+    ok names-identity($text, ONCE), "$lang scaffold links to its invariant";
+    is is-test-path($rel), True, "$lang scaffold lands where tests are looked for";
 }
 my $empty = temp-dir;
 is detect-language($empty), 'sh', 'with nothing to go on, the scaffold is a shell script';
@@ -58,101 +134,117 @@ $empty.add('go.mod').spurt("module x\n");
 is detect-language($empty), 'go', 'a project file decides when there are no tests';
 
 # ---- the CLI -------------------------------------------------------------------
+my constant SEARCH  = 'private-search.shop.example.com';
+my $SEARCH = SEARCH;
+my constant CONTACT = 'no-first-contact.shop.example.com';
+my $CONTACT = CONTACT;
 my $cli = temp-dir;
 my $f = minimal-iz4(:dir($cli));
-add-invariant($f, 'Private profiles never appear in public search.', :because('A hidden search can cost someone their job.'));
+add-invariant($f, 'Private profiles never appear in public search.', :name(SEARCH), :because('A hidden search can cost someone their job.'));
 $cli.add('package.json').spurt(Q[{}] ~ "\n");
 my ($rc, $out, $err) = iz4($cli, 'check');
-like $out, /"✗ evidence: Invariant 5 has no test naming it - 'iz4 test' scaffolds one"/, 'check says which invariants have no test';
+like $out, /"✗ evidence: {$SEARCH} has no test naming it - 'iz4 test' scaffolds one"/, 'check says which invariants have no test';
 ($rc, $out, $err) = iz4($cli, 'test');
 is $rc, 0, 'iz4 test exits 0';
-like $out, /'Scaffolded 1 test (javascript)' .* 'test/invariant-5.test.js' .* 'A scaffold is not evidence'/, 'and says what it wrote and what that is not';
-ok $cli.add('test/invariant-5.test.js').f, 'the scaffold exists';
+like $out, /'Scaffolded 1 test (javascript)' .* "test/{$SEARCH}.test.js  ({$SEARCH})" .* 'A scaffold is not evidence'/, 'and says what it wrote and what that is not';
+ok $cli.add("test/{$SEARCH}.test.js").f, 'the scaffold exists';
+is $cli.add("test/{$SEARCH}.test.js").slurp.lines[0], "// INVARIANT {$SEARCH}", 'headed by the name of its invariant';
 ($rc, $out, $err) = iz4($cli, 'check');
-like $out, /'✗ evidence: Invariant 5 has only a scaffold - write the assertion in test/invariant-5.test.js'/, 'check now points at the scaffold';
+like $out, /"✗ evidence: {$SEARCH} has only a scaffold - write the assertion in test/{$SEARCH}.test.js"/, 'check now points at the scaffold';
 ($rc, $out, $err) = iz4($cli, 'test', '--list');
-like $out, /'Invariant 5' \s+ 'scaffolded' \s+ 'test/invariant-5.test.js'/, '--list shows the state per invariant';
-$cli.add('test/invariant-5.test.js').spurt("// Invariant 5: Private profiles never appear in public search.\ntest('x', () => expect(search('private')).toEqual([]));\n");
+like $out, /'scaffolded' \s+ "{$SEARCH}" \s+ "test/{$SEARCH}.test.js"/, '--list shows the state per invariant';
+$cli.add("test/{$SEARCH}.test.js").spurt("// x.{$SEARCH} is not this one\ntest('x', () => expect(search('private')).toEqual([]));\n");
 ($rc, $out, $err) = iz4($cli, 'check');
-like $out, /'✓ evidence: every invariant is named and quoted by a test (1 of 1)'/, 'a written test is a tick';
-($rc, $out, $err) = iz4($cli, 'test', '9');
-ok $rc == 1 && $err.contains('no invariant 9'), 'an unknown number is refused';
+like $out, /"✗ evidence: {$SEARCH} has no test naming it"/, 'a test carrying only a longer name that contains it is no tick';
+$cli.add("test/{$SEARCH}.test.js").spurt("// INVARIANT {$SEARCH}\ntest('x', () => expect(search('private')).toEqual([]));\n");
+($rc, $out, $err) = iz4($cli, 'check');
+like $out, /'✓ evidence: every invariant is named by a test (1 of 1)'/, 'a written test is a tick';
+($rc, $out, $err) = iz4($cli, 'test', 'private-search');
+ok $rc == 0 && $out.contains("Nothing to write: {$SEARCH} already has a test naming it"), 'the first part of a name is enough to say which invariant';
+($rc, $out, $err) = iz4($cli, 'test', 'no-such-thing');
+ok $rc == 1 && $err.contains("no invariant 'no-such-thing'"), 'an unknown name is refused';
+($rc, $out, $err) = iz4($cli, 'test', '5');
+ok $rc == 1 && $err.contains("no invariant '5'"), 'and so is a number: invariants are found by name';
 ($rc, $out, $err) = iz4($cli, 'test', '--lang=cobol');
 ok $rc == 1 && $err.contains("no scaffold for language 'cobol'"), 'an unknown language is refused, not turned into shell';
-ok !$cli.add('test/invariant-5.sh').e, 'and nothing is written';
+ok !$cli.add("t/{$SEARCH}.sh").e && !$cli.add("test/{$SEARCH}.sh").e, 'and nothing is written';
 
 # ---- agent drafts: written only on a yes, marked until reviewed ------------
 my $reply = q:to/JS/;
     ```js
-    // Invariant 5: Private profiles never appear in public search.
+    // INVARIANT private-search.shop.example.com
+    // Private profiles never appear in public search.
     // BECAUSE A hidden search can cost someone their job.
     const { search } = require("../lib/search");
-    test("Invariant 5: a private profile is absent from public results", () => {
+    test("a private profile is absent from public results", () => {
       expect(search("private")).toEqual([]);
     });
     ```
     JS
 my %d = parse-draft($reply);
-ok %d<text>.starts-with('// Invariant 5') && %d<text>.ends-with("});\n"), 'parse-draft strips a code fence and keeps the file';
+ok %d<text>.starts-with("// INVARIANT {$SEARCH}") && %d<text>.ends-with("});\n"), 'parse-draft strips a code fence and keeps the file';
 is parse-draft("CANNOT: the search service is not in this repository.\n")<cannot>, 'the search service is not in this repository.', 'a CANNOT reply carries its reason';
 ok parse-draft('')<cannot>, 'an empty reply is a cannot';
-ok parse-draft("// Invariant 5\nfail('{PLACEHOLDER}');\n")<cannot>, 'a draft that leaves the placeholder in is a cannot';
+ok parse-draft("// INVARIANT {$SEARCH}\nfail('{$PLACEHOLDER}');\n")<cannot>, 'a draft that leaves the placeholder in is a cannot';
 
-my $prompt = draft-prompt($doc, $doc.invariant(5), :lang<perl>, :path<t/invariant-5.t>);
+my $prompt = draft-prompt($doc, $doc.invariant(ONCE), :lang<perl>, :path("t/{$ONCE}.t"));
 like $prompt, /'would FAIL'/, 'the prompt asks for a test that can fail';
 like $prompt, /'CANNOT:'/, 'and says how to decline';
 like $prompt, /'Do not create, modify or delete any file'/, 'and forbids touching the repository';
-like $prompt, /'A code works once and only once.'/, 'and carries the invariant';
+like $prompt, /"INVARIANT {$ONCE}" \n 'A code works once and only once.'/, 'and carries the invariant under its name';
+like $prompt, /'write it whole, never shortened'/, 'and says the name is the link';
 like $prompt, /'A code that works twice'/, 'and its reason';
 
 my $marked = marked-draft('javascript', %d<text>);
-ok $marked.lines[0] eq "// {DRAFT-MARK}", 'a written draft starts with the review mark';
-is marked-draft('sh', "#!/bin/sh\nexit 1\n").lines[0..1], ("#!/bin/sh", "# {DRAFT-MARK}"), 'a shebang stays first';
+ok $marked.lines[0] eq "// {$DRAFT-MARK}", 'a written draft starts with the review mark';
+is marked-draft('sh', "#!/bin/sh\nexit 1\n").lines[0..1], ("#!/bin/sh", "# {$DRAFT-MARK}"), 'a shebang stays first';
 
 my $agent = temp-dir;
 my $g = minimal-iz4(:dir($agent));
-add-invariant($g, 'Private profiles never appear in public search.', :because('A hidden search can cost someone their job.'));
-add-invariant($g, 'Employers cannot contact someone first.', :because('Job seekers should not acquire another unsolicited inbox.'));
+add-invariant($g, 'Private profiles never appear in public search.', :name(SEARCH), :because('A hidden search can cost someone their job.'));
+add-invariant($g, 'Employers cannot contact someone first.', :name(CONTACT), :because('Job seekers should not acquire another unsolicited inbox.'));
 $agent.add('package.json').spurt(Q[{}] ~ "\n");
 my $reply-file = $agent.add('reply.txt');
 $reply-file.spurt($reply);
 my %env = IZ4_AGENT_CMD => "cat {$reply-file}";
+my $search-test  = "test/{$SEARCH}.test.js";
+my $contact-test = "test/{$CONTACT}.test.js";
 
 # a script gets scaffolds only
 ($rc, $out, $err) = iz4($agent, 'test', :env(%env));
 like $out, /'Scaffolded 2 tests' .* "'iz4 test' drafts the real test"/, 'without a terminal, iz4 test scaffolds and says drafting needs one';
-ok !$agent.add('test/invariant-5.test.js').slurp.contains(DRAFT-MARK), 'and writes no draft';
+ok !$agent.add($search-test).slurp.contains(DRAFT-MARK), 'and writes no draft';
 .unlink for $agent.add('test').dir;
 
-# yes to 5, no to 6
+# yes to the first, no to the second
 ($rc, $out, $err) = iz4-talk($agent, "y\nn\n", 'test', :env(%env));
 is $rc, 0, 'a drafting run exits 0';
-like $out, /'asking agent (cat ' .* 'Write it to test/invariant-5.test.js, marked for your review?'/, 'the draft is shown and the person asked';
-like $out, /'Drafted 1 test (javascript)' .* 'test/invariant-5.test.js  (Invariant 5)' .* 'A draft is not evidence until'/, 'a yes writes the draft and says what it is not';
-like $out, /'Scaffolded 1 test (javascript)' .* 'test/invariant-6.test.js'/, 'a no falls back to the scaffold';
-my $written = $agent.add('test/invariant-5.test.js').slurp;
-ok $written.lines[0] eq "// {DRAFT-MARK}", 'the written draft carries the review mark';
+like $out, /'asking agent (cat ' .* "Write it to $search-test, marked for your review?"/, 'the draft is shown and the person asked';
+like $out, /'Drafted 1 test (javascript)' .* "$search-test  ({$SEARCH})" .* 'A draft is not evidence until'/, 'a yes writes the draft and says what it is not';
+like $out, /'Scaffolded 1 test (javascript)' .* "$contact-test"/, 'a no falls back to the scaffold';
+my $written = $agent.add($search-test).slurp;
+ok $written.lines[0] eq "// {$DRAFT-MARK}", 'the written draft carries the review mark';
 ok $written.contains('expect(search("private"))'), 'and the agent\'s test';
-ok $agent.add('test/invariant-6.test.js').slurp.contains(PLACEHOLDER), 'the scaffold is the plain one';
+ok $agent.add($contact-test).slurp.contains(PLACEHOLDER), 'the scaffold is the plain one';
 my $gdoc = check-doc($g);
-is evidence-for($gdoc, $agent)<state>, { 5 => 'drafted', 6 => 'scaffolded' }, 'a draft is drafted, not named';
+is evidence-for($gdoc, $agent)<state>, %( SEARCH, 'drafted', CONTACT, 'scaffolded' ), 'a draft is drafted, not named';
 ($rc, $out, $err) = iz4($agent, 'check');
-like $out, /'✗ evidence: Invariant 5 has an agent-drafted test awaiting review - read test/invariant-5.test.js, run it, make sure it can fail, then delete its first line'/, 'check says a draft awaits review';
+like $out, /"✗ evidence: {$SEARCH} has an agent-drafted test awaiting review - read $search-test, run it, make sure it can fail, then delete its first line"/, 'check says a draft awaits review';
 ($rc, $out, $err) = iz4($agent, 'test', '--list');
-like $out, /'Invariant 5' \s+ 'drafted' \s+ 'test/invariant-5.test.js'/, '--list shows drafted';
-$agent.add('test/invariant-5.test.js').spurt($written.lines[1..*].join("\n") ~ "\n");
-is evidence-for($gdoc, $agent)<state><5>, 'named', 'deleting the mark after review turns it into evidence';
+like $out, /'drafted' \s+ "{$SEARCH}" \s+ "$search-test"/, '--list shows drafted';
+$agent.add($search-test).spurt($written.lines[1..*].join("\n") ~ "\n");
+is evidence-for($gdoc, $agent)<state>{$SEARCH}, 'named', 'deleting the mark after review turns it into evidence';
 
 # the agent declines, or is absent: the scaffold, never a made-up test
-$agent.add('test/invariant-6.test.js').unlink;
+$agent.add($contact-test).unlink;
 $reply-file.spurt("CANNOT: contact rules live in a service outside this repository.\n");
-($rc, $out, $err) = iz4-talk($agent, "y\n", 'test', '6', :env(%env));
+($rc, $out, $err) = iz4-talk($agent, "y\n", 'test', CONTACT, :env(%env));
 like $out, /'the agent declined: contact rules live in a service' .* 'Scaffolded 1 test'/, 'a CANNOT reply is shown and the scaffold written';
-ok $agent.add('test/invariant-6.test.js').slurp.contains(PLACEHOLDER), 'as the plain scaffold';
-$agent.add('test/invariant-6.test.js').unlink;
-($rc, $out, $err) = iz4-talk($agent, "y\n", 'test', '6', :env(IZ4_AGENT_CMD => 'exit 3'));
+ok $agent.add($contact-test).slurp.contains(PLACEHOLDER), 'as the plain scaffold';
+$agent.add($contact-test).unlink;
+($rc, $out, $err) = iz4-talk($agent, "y\n", 'test', 'no-first-contact', :env(IZ4_AGENT_CMD => 'exit 3'));
 like $out, /'no draft:' .* 'Scaffolded 1 test'/, 'a failing agent is reported and the scaffold written';
-$agent.add('test/invariant-6.test.js').unlink;
+$agent.add($contact-test).unlink;
 $reply-file.spurt($reply);
 ($rc, $out, $err) = iz4-talk($agent, "y\n", 'test', '--/draft', :env(%env));
 unlike $out, /'asking agent'/, '--/draft never asks an agent';

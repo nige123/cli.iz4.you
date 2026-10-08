@@ -117,7 +117,7 @@ sub diff-terms(Str $diff --> Hash) is export {
 }
 
 #| Which project invariants a change touches, by their own words turning
-#| up in it.  Returns a list of hashes: number, text, because, terms
+#| up in it.  Returns a list of hashes: id, text, because, terms
 #| (the words that matched).  An invariant counts as touched when at
 #| least two of its words appear, or one word that is rare enough to be
 #| specific.  This is a pointer for a person, not a judgement.
@@ -129,7 +129,8 @@ sub touched-invariants(IZ4::Document $doc, Str $diff --> List) is export {
         my @hit = $terms.keys.grep({ %in{$_}:exists }).sort;
         my $specific = @hit.grep(*.chars >= 8);
         next unless @hit >= 2 || $specific;
-        @out.push: %( number => $inv.number, text => $inv.text, because => $inv.because, terms => @hit );
+        next without $inv.id;
+        @out.push: %( id => $inv.id, text => $inv.text, because => $inv.because, terms => @hit );
     }
     @out;
 }
@@ -139,11 +140,13 @@ sub offline-report(IZ4::Document $doc, Str $diff, Str :$what --> List) is export
     my @touched = touched-invariants($doc, $diff);
     my $files = $diff.lines.grep(*.starts-with('+++ ')).elems;
     return ("Nothing to review: no change in $what.",) unless $diff.trim;
-    my @out = "Reviewed $what: $files file{$files == 1 ?? '' !! 's'} changed, against Invariants 0-{top-number($doc)}.";
+    my $own = $doc.invariants.elems;
+    my $against = $own == 1 ?? "the project's one invariant" !! "the project's $own invariants";
+    my @out = "Reviewed $what: $files file" ~ ($files == 1 ?? '' !! 's') ~ " changed, against the foundation and $against.";
     if @touched {
-        @out.push: "This change touches, by its own words, Invariant {@touched.map(*<number>).join(', ')}. Look at each before you push:";
+        @out.push: "This change touches, by its own words, {@touched.map({ label($doc, .<id>) }).join(', ')}. Look at each before you push:";
         for @touched -> %t {
-            @out.push: "  Invariant {%t<number>}: {short(%t<text>)}";
+            @out.push: "  {label($doc, %t<id>)}: {short(%t<text>)}";
             @out.push: "    BECAUSE {short(%t<because>)}" if %t<because>;
             @out.push: "    matched: {%t<terms>.join(', ')}";
         }
@@ -155,10 +158,9 @@ sub offline-report(IZ4::Document $doc, Str $diff, Str :$what --> List) is export
     @out;
 }
 
-sub top-number(IZ4::Document $doc --> Int) {
-    my @n = $doc.invariants.map(*.number).grep(*.defined);
-    @n ?? max(FIRST-PROJECT-NUMBER - 1, |@n) !! FIRST-PROJECT-NUMBER - 1;
-}
+#| How an invariant is named to a reader: its name, or 'Invariant N' in a
+#| file still in the numbered format.
+sub label(IZ4::Document $doc, Str $id --> Str) { $doc.legacy ?? "Invariant $id" !! $id }
 
 sub short(Str $s --> Str) { $s.chars > 110 ?? $s.substr(0, 107).trim-trailing ~ '...' !! $s }
 
@@ -198,7 +200,8 @@ sub review-prompt(Str :$effective!, Str :$diff!, Str :$what = 'this change' --> 
        question.
 
     Reply with one item per line and nothing else, in exactly this form:
-    INVARIANT n | assessment | evidence, citing lines or files
+    INVARIANT its-name | assessment | evidence, citing lines or files
+    (its-name is the invariant's full name exactly as the IZ4 gives it after INVARIANT)
     CANDIDATE | STRONG or POSSIBLE | what must remain true | BECAUSE: why | EVIDENCE: what would show it holds
 
     The IZ4, effective invariants:
@@ -213,11 +216,11 @@ sub parse-review(Str $reply --> Hash) is export {
         my $line = $raw.trim.subst(/^ <[\-*•]> \s* /, '');
         my @f = $line.split(/\s* '|' \s*/)».trim;
         next unless @f >= 2;
-        if @f[0] ~~ /:i^ 'invariant' \s+ (\d+) $/ {
-            my $number = +$0;
+        if @f[0] ~~ /:i^ 'invariant' \s+ (\S+) [ \s+ '-' .* ]? $/ {
+            my $id = ~$0;
             my $level  = @f[1].lc.subst(/\s+/, '-', :g);
             next unless $level eq any(@ASSESSMENTS);
-            %r<assessments>.push: %( :$number, level => $level, evidence => @f[2] // '' );
+            %r<assessments>.push: %( :$id, level => $level, evidence => @f[2] // '' );
         }
         elsif @f[0] ~~ /:i^ 'candidate' $/ && @f >= 3 {
             my $class = @f[1].uc;
@@ -243,8 +246,9 @@ sub assessment-lines(%review, IZ4::Document $doc --> List) is export {
     }
     @out.push: "The agent's assessment (an opinion with evidence, not a proof):";
     for %review<assessments>.list -> %a {
-        my $label = %a<number> < FIRST-PROJECT-NUMBER ?? "Invariant {%a<number>} (inherited)" !! "Invariant {%a<number>}";
-        @out.push: sprintf('  %-26s %-22s %s', $label, %a<level>, %a<evidence>);
+        my $inherited = is-foundation-id(%a<id>) || ($doc.legacy && %a<id> ~~ /^ <[0..4]> $/);
+        @out.push: "  {label($doc, %a<id>)}" ~ ($inherited ?? ' (foundation)' !! '');
+        @out.push: sprintf('      %-22s %s', %a<level>, %a<evidence>);
     }
     @out;
 }

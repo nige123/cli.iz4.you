@@ -22,9 +22,9 @@ use IZ4::Agent;
 use IZ4::Evidence;
 use IZ4::Review;
 
-constant DISCOVER-SCHEMA is export = 'iz4-discover/1';
+constant DISCOVER-SCHEMA is export = 'iz4-discover/2';
 constant CONTEXT-SCHEMA  is export = 'iz4-context/1';
-constant CHECK-SCHEMA    is export = 'iz4-check/1';
+constant CHECK-SCHEMA    is export = 'iz4-check/2';
 
 constant PASS        is export = 'pass';
 constant WARN        is export = 'warn';
@@ -43,7 +43,7 @@ sub machine-error(Str $message) { X::IZ4.new(:$message).throw }
 #| through whatever drove the check, so it must say exactly what to write.
 constant REPORT-WANTED is export = q:to/END/;
     files changed in a project that keeps an IZ4, and the work ends with no per-invariant report. Before finishing, report each invariant the change could affect:
-        Invariant:     its number and wording
+        Invariant:     its name and wording
         Assessment:    mechanically verified | supported by evidence | apparently consistent | uncertain | conflicting
         Evidence:      what was actually run or reviewed, and what was only suggested
         Remaining gap: what has not been established
@@ -58,7 +58,8 @@ constant REPORT-WANTED is export = q:to/END/;
 sub discover(IO::Path $dir = $*CWD --> Hash) is export {
     my $file = find-root($dir);
     my %r = schema => DISCOVER-SCHEMA, tool => "iz4/{VERSION}", present => False,
-            file => Str, sha256 => Str, valid => False, errors => [], invariants => [];
+            file => Str, sha256 => Str, valid => False, errors => [], invariants => [],
+            format => Str, namespace => Str;
     return %r without $file;
     my $doc = IZ4::Document.load($file);
     %r<present> = True;
@@ -67,28 +68,37 @@ sub discover(IO::Path $dir = $*CWD --> Hash) is export {
     %r<valid>   = $doc.ok;
     %r<errors>  = $doc.errors.map({ "{.line}: {.Str}" }).Array;
     %r<invariants> = effective-list($doc);
+    %r<format>     = $doc.legacy ?? 'numbered' !! 'named';
+    %r<namespace>  = $doc.namespace;
     %r;
 }
 
-#| The effective invariants by number: the foundation, then the
-#| project's own.
+#| The effective invariants by identity: the foundation, then the
+#| project's own, each with the digest of its exact words.  The identity
+#| is an opaque string to whoever reads this: nothing may be inferred
+#| from its shape, and a file still in the numbered format ('format'
+#| says which) gives its numbers as strings.
 sub effective-list(IZ4::Document $doc --> Array) {
     my @out;
-    my %seen;
-    for $doc.invariants.grep(*.number.defined) -> $inv {
-        next if %seen{$inv.number}++;
-        @out.push: %( number => $inv.number, foundation => $inv.number < 5, summary => first-sentence($inv.text) );
-    }
-    unless @out.grep(*<foundation>) {
-        # The foundation is inherited whether or not the file repeats it;
-        # its titles come from the one text every IZ4 carries.
-        my %title;
-        for FOUNDATION-TEXT.lines -> $l {
-            %title{+$0} = ~$1 if $l ~~ /^ 'Invariant ' (\d) ' - ' (<-[:]>+) ':' /;
+    if $doc.legacy {
+        for FOUNDATION-LEGACY -> %f {
+            @out.push: %( id => ~%f<number>, foundation => True, summary => first-sentence(%f<text>),
+                          digest => sha256-text(canonical-invariant(~%f<number>, %f<text>, %f<because>)) );
         }
-        @out.unshift: %( number => $_, foundation => True, summary => (%title{$_} // 'inherited foundation') ) for (0..4).reverse;
     }
-    @out.sort(*<number>).Array;
+    else {
+        for FOUNDATION -> %f {
+            @out.push: %( id => %f<id>, foundation => True, summary => first-sentence(%f<text>),
+                          digest => foundation-digest-of(%f<id>), legacy_foundation_number => %f<legacy> );
+        }
+    }
+    my %seen;
+    for $doc.invariants.grep(*.id.defined) -> $inv {
+        next if %seen{$inv.id}++;
+        @out.push: %( id => $inv.id, foundation => False, summary => first-sentence($inv.text),
+                      digest => invariant-digest($inv.id, $inv.text, $inv.because) );
+    }
+    @out;
 }
 
 sub first-sentence(Str $text --> Str) {
@@ -112,7 +122,7 @@ constant CONTEXT-INSTRUCTION is export = q:to/END/;
     wait: only the project's owner, a person, decides what must remain
     true. Your own text, silence, or carrying on is never their agreement.
     When your work changed files, end it by reporting each invariant it
-    could affect: Invariant (number and wording), Assessment (mechanically
+    could affect: Invariant (name and wording), Assessment (mechanically
     verified | supported by evidence | apparently consistent | uncertain |
     conflicting), Evidence, Remaining gap. Say uncertain rather than imply.
     END
@@ -143,7 +153,7 @@ sub result-doc(Str $check, Str $result, Str $reason, IO::Path $iz4?, :@invariant
         check  => $check,
         result => $result,
         reason => $reason,
-        invariants_considered     => @invariants.map(*.Int).unique.sort.Array,
+        invariants_considered     => @invariants.map(*.Str).unique.sort.Array,
         evidence                  => %evidence,
         proposed_invariant_change => $proposed,
         iz4    => ($iz4.defined ?? %( file => $iz4.Str, sha256 => sha256-file($iz4) ) !! %( file => Str, sha256 => Str )),
@@ -219,7 +229,7 @@ sub check-action(%action, IO::Path :$dir = $*CWD --> Hash) is export {
         my $what = is-iz4-path($rel) ?? $rel !! ROOT-NAME;
         return result-doc('action', NEEDS-HUMAN,
             "this action changes $what, which records what the project's owner decided must remain true; only a person who owns the project can agree to that",
-            $iz4, :invariants($doc.invariants.grep(*.number.defined).map(*.number).grep(* >= 5)),
+            $iz4, :invariants($doc.invariants.map(*.id).grep(*.defined)),
             :evidence(%( rule => 'iz4-file', operation => $operation, target => $what )),
             :proposed(%( kind => 'edit', target => $what,
                 summary => "the action would $operation $what",
@@ -230,10 +240,10 @@ sub check-action(%action, IO::Path :$dir = $*CWD --> Hash) is export {
     # 2. a test that names an invariant is about to change
     if $mutates && $rel ne '' {
         my %ev = evidence-for($doc, $root);
-        my @protects = %ev<files>.pairs.grep({ .value.map(*.Str).grep($rel) }).map(*.key.Int).sort;
+        my @protects = %ev<files>.pairs.grep({ .value.map(*.Str).grep($rel) }).map(*.key).sort;
         if @protects {
             return result-doc('action', WARN,
-                "$rel is the test that names Invariant {@protects.join(', ')}; changing it changes what protects the invariant",
+                "$rel is the test that names {$doc.legacy ?? 'Invariant ' !! ''}{@protects.join(', ')}; changing it changes what protects the invariant",
                 $iz4, :invariants(@protects),
                 :evidence(%( rule => 'protecting-test', operation => $operation, target => $rel )),
                 :limits('whether the change weakens the test was not examined; check change compares the test before and after and asks for agreement if it does'));
@@ -244,9 +254,9 @@ sub check-action(%action, IO::Path :$dir = $*CWD --> Hash) is export {
     my $text = action-text(%action);
     my @touched = $text.trim ?? touched-invariants($doc, "+++ b/$rel\n" ~ $text.lines.map({ "+$_" }).join("\n")) !! ();
     result-doc('action', PASS, 'nothing about this action needs an invariant decision',
-        $iz4, :invariants(@touched.map(*<number>).grep(*.defined)),
+        $iz4, :invariants(@touched.map(*<id>).grep(*.defined)),
         :evidence(%( rule => 'none', operation => $operation, target => $rel,
-                     touched => @touched.map({ %( number => .<number>, terms => .<terms>.Array ) }).Array )),
+                     touched => @touched.map({ %( id => .<id>, terms => .<terms>.Array ) }).Array )),
         :limits('whether this action honours the invariants was not assessed: only that it does not change the IZ4 or a test that names an invariant. Invariants listed as considered are those whose own words appear in the action, as a pointer for review'));
 }
 
@@ -305,10 +315,10 @@ sub check-change(IO::Path $root, *%opts --> Hash) is export {
     my %g = gate-for($root, |%opts);
     my $iz4 = $root.add(ROOT-NAME);
     my $result = %OUTCOME-RESULT{%g<outcome>} // machine-error("the gate answered '{%g<outcome>}'");
-    my @inv = |@(%g<changes> // []).map({ $_<number> }).grep(*.defined),
-              |@(%g<protections> // []).map({ $_<number> // $_<invariant> }).grep(*.defined),
-              |@(%g<checks> // []).map({ $_<number> // $_<invariant> }).grep(*.defined),
-              |@(%g<touches> // []).map({ $_ ~~ Associative ?? ($_<number> // $_<invariant>) !! $_ }).grep(*.defined);
+    my @inv = |@(%g<changes> // []).map({ $_<id> }).grep(*.defined),
+              |@(%g<protections> // []).map({ $_<id> }).grep(*.defined),
+              |@(%g<checks> // []).map({ |@($_<invariants> // []) }).grep(*.defined),
+              |@(%g<touches> // []).map({ $_ ~~ Associative ?? $_<id> !! $_ }).grep(*.defined);
     my $reason = do given $result {
         when PASS        { 'the change alters no commitment and no protection' }
         when NEEDS-HUMAN { 'the change alters what the project commits to, or what protects it; a person must agree' }
@@ -327,7 +337,7 @@ sub check-change(IO::Path $root, *%opts --> Hash) is export {
             agree_with      => (@(%g<next> // []).first(*.starts-with('iz4 approve')) // "iz4 approve --candidate={%g<candidate>}"),
         );
     }
-    result-doc('change', $result, $reason, ($iz4.f ?? $iz4 !! IO::Path), :invariants(@inv.grep({ $_ ~~ Int || $_ ~~ /^ \d+ $/ })),
+    result-doc('change', $result, $reason, ($iz4.f ?? $iz4 !! IO::Path), :invariants(@inv),
         :evidence(%( gate => %g )), :$proposed,
         :limits('this compares the IZ4 and the tests naming invariants between two trees and runs those tests; it does not judge whether other code honours an invariant no test covers'));
 }
@@ -335,7 +345,7 @@ sub check-change(IO::Path $root, *%opts --> Hash) is export {
 sub block-detail(%g --> Str) {
     my @d;
     @d.push("{.<file>} failed") for @(%g<checks> // []).grep({ (.<outcome> // '') eq 'failed' });
-    @d.push(.<kind> ~ (.<number>.defined ?? " (Invariant {.<number>})" !! '')) for @(%g<changes> // []).grep({ (.<kind> // '') eq any(<invalid reused-number foundation>) });
+    @d.push(.<kind> ~ (.<id>.defined ?? " ({.<id>})" !! '')) for @(%g<changes> // []).grep({ (.<kind> // '') eq any(<invalid reused-name format-regressed foundation>) });
     @d.join('; ');
 }
 

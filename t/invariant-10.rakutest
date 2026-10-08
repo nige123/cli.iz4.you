@@ -1,4 +1,5 @@
-# Invariant 10: People and agents can read and edit an IZ4 in any text
+# INVARIANT plain-text.cli.iz4.you
+# People and agents can read and edit an IZ4 in any text
 # editor, without specialised or proprietary tooling.
 # BECAUSE Intent that needs special software to read will not be read at
 # the moment a change is being made.
@@ -10,7 +11,7 @@ use IZ4::Document;
 
 my $dir = temp-dir;
 my $iz4 = init(:$dir, :for-what('Editable.'), :for-who('People with an editor.'));
-add-invariant($iz4, 'Nothing here needs a tool.', :because('An editor is enough.'));
+add-invariant($iz4, 'Nothing here needs a tool.', :name('no-tool.shop.example.com'), :because('An editor is enough.'));
 
 # what the tool writes is plain, short-lined UTF-8 text with no markup
 my $text = $iz4.slurp;
@@ -32,7 +33,7 @@ $hand.spurt(q:to/END/);
     IS FOR WHO?
     Me.
 
-    INVARIANT 5
+    INVARIANT keeps-working.shop.example.com
     It keeps
     working.
     BECAUSE
@@ -43,7 +44,7 @@ $hand.spurt($hand.slurp.subst("IS FOR WHO?\nMe.\n", "IS FOR WHO?\nMe.\n\n" ~ fou
 my $doc = IZ4::Document.load($hand);
 ok $doc.ok, 'a hand-written file with its own line breaks is valid';
 is $doc.for-what, 'A thing I typed by hand, over three lines.', 'and reads as the person meant it';
-is $doc.invariant(5).because, 'I said so.', 'with its BECAUSE';
+is $doc.invariant('keeps-working.shop.example.com').because, 'I said so.', 'with its BECAUSE';
 
 # nothing in the tool's output for a person depends on a terminal feature
 my ($rc, $out, $err) = iz4($dir, 'invariants');

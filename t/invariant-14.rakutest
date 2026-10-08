@@ -1,4 +1,5 @@
-# Invariant 14: The project owner decides what must remain true. The tool
+# INVARIANT owner-decides.cli.iz4.you
+# The project owner decides what must remain true. The tool
 # may question a candidate and suggest where it belongs, but never adds an
 # invariant without a person's confirmation and never invents intent they
 # did not state.
@@ -10,6 +11,7 @@ use Test;
 use IZ4Test;
 use IZ4;
 use IZ4::Coach;
+use IZ4::Document;
 
 my $dir = temp-dir;
 my $iz4 = minimal-iz4(:$dir);
@@ -44,18 +46,18 @@ my %env-agent = IZ4_AGENT_CMD => "cat {$reply}";
 
 # a test an agent drafts is evidence about intent too: it is written only on
 # a person's yes, and never counted as evidence until they have reviewed it
-add-invariant($iz4, 'Private profiles never appear in public search.', :because('A hidden search can cost someone their job.'));
+add-invariant($iz4, 'Private profiles never appear in public search.', :name('private-profiles.shop.example.com'), :because('A hidden search can cost someone their job.'));
 $dir.add('package.json').spurt(Q[{}] ~ "\n");
-$reply.spurt("// Invariant 5: Private profiles never appear in public search.\ntest('x', () => expect(search('private')).toEqual([]));\n");
+$reply.spurt("// INVARIANT private-profiles.shop.example.com\n// Private profiles never appear in public search.\ntest('x', () => expect(search('private')).toEqual([]));\n");
 ($rc, $out, $err) = iz4-talk($dir, "n\n", 'test', :env(%env-agent));
-ok !$dir.add('test/invariant-5.test.js').slurp.contains('expect(search'), 'a drafted test the person declines is not written';
-$dir.add('test/invariant-5.test.js').unlink;
+ok !$dir.add('test/private-profiles.shop.example.com.test.js').slurp.contains('expect(search'), 'a drafted test the person declines is not written';
+$dir.add('test/private-profiles.shop.example.com.test.js').unlink;
 ($rc, $out, $err) = iz4($dir, 'test', :env(%env-agent));
-ok !$dir.add('test/invariant-5.test.js').slurp.contains('expect(search'), 'nor is one written where no person can answer';
-$dir.add('test/invariant-5.test.js').unlink;
+ok !$dir.add('test/private-profiles.shop.example.com.test.js').slurp.contains('expect(search'), 'nor is one written where no person can answer';
+$dir.add('test/private-profiles.shop.example.com.test.js').unlink;
 ($rc, $out, $err) = iz4-talk($dir, "y\n", 'test', :env(%env-agent));
 ($rc, $out, $err) = iz4($dir, 'check');
-like $out, /'✗ evidence: Invariant 5 has an agent-drafted test awaiting review'/, 'a draft the person accepted still waits for their review before it counts';
+like $out, /'✗ evidence: private-profiles.shop.example.com has an agent-drafted test awaiting review'/, 'a draft the person accepted still waits for their review before it counts';
 $before = $iz4.slurp;
 
 # the fast path refuses to store what looks like implementation unless the owner overrides
@@ -65,6 +67,21 @@ is $iz4.slurp, $before, 'nothing written';
 
 # the tool never fills in the two answers or the foundation's reasons for anyone
 throws-like { init(:dir(temp-dir), :for-what(''), :for-who('y')) }, X::IZ4, 'init will not write an IZ4 without the owner saying what it is for';
-throws-like { set-because($iz4, 2, 'Mine.') }, X::IZ4, message => /"the foundation's"/, "and the foundation's reasons are not the tool's to set";
+throws-like { set-because($iz4, 'human-agency.iz4.you', 'Mine.') }, X::IZ4, message => /'part of the foundation'/, "and the foundation's reasons are not the tool's to set";
+
+# a name is the owner's to choose as well: the tool never makes one up
+$before = $iz4.slurp;
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Orders are never charged twice.', '--because=A customer charged twice loses money and trust.');
+ok $rc == 1 && $err.contains('an invariant needs a name'), 'with no name and nobody to ask, nothing is added';
+is $iz4.slurp, $before, 'and nothing is written';
+my $numbered = temp-dir.add('IZ4');
+$numbered.spurt("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n"
+    ~ IZ4::Document::FOUNDATION-LEGACY.map({ "INVARIANT {.<number>} - {.<name>}\n{.<text>}\n\nBECAUSE\n{.<because>}\n" }).join("\n")
+    ~ "\nINVARIANT 5\nOrders are never charged twice.\n\nBECAUSE\nA customer charged twice loses money and trust.\n");
+my $numbered-before = $numbered.slurp;
+($rc, $out, $err) = iz4($numbered.parent, 'migrate');
+is $rc, 2, 'migrating a numbered file with nobody to name its invariants exits 2: a person is needed';
+like $out, /'a name is yours to choose' .* 'Nothing was written'/, 'and says so';
+is $numbered.slurp, $numbered-before, 'having written nothing';
 
 done-testing;
