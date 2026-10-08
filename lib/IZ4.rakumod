@@ -97,13 +97,22 @@ sub canonical-digest(IO::Path $f --> Str) is export {
 #| Walk upward from $start looking for a root IZ4 file.
 sub find-root(IO::Path $start = $*CWD --> IO::Path) is export {
     my $dir = $start.resolve;
-    loop {
+    # The walk must end on every system.  At a root the parent is the
+    # directory itself on some, and a path that only grows ('D:\..') on
+    # others, so it stops when the path stops getting shorter, when it
+    # comes round to one already seen, and in any case after 128 levels.
+    my %seen;
+    for ^128 {
         my $candidate = $dir.add(ROOT-NAME);
         return $candidate if $candidate.f;
+        my $here = $dir.Str;
+        %seen{$here} = True;
         my $parent = $dir.parent;
-        return Nil if $parent eq $dir;
+        my $up = $parent.Str;
+        return Nil if $up eq $here || %seen{$up} || $up.chars >= $here.chars;
         $dir = $parent;
     }
+    Nil;
 }
 
 #| True when a CLI argument names a IZ4 document rather than a section or revision.

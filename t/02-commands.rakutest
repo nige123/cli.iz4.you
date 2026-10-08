@@ -270,4 +270,8 @@ is sha256-file($probe), '17d3f49c9ea9709daed96db895e9966341a3757250437bc4067cab4
 throws-like { resolve-target(Str, cwd => temp-dir) }, X::IZ4,
     message => /'No IZ4 found' .* "iz4 init"/, 'no IZ4 gives an actionable error';
 
+# the upward search for an IZ4 ends at a root, on every system
+nok find-root($*SPEC.rootdir.IO).defined || $*SPEC.rootdir.IO.add('IZ4').f, 'searching from the root directory ends, with nothing found';
+nok find-root(temp-dir()).defined && !find-root(temp-dir()).f, 'and so does a search from a directory with no IZ4 above it';
+
 done-testing;
