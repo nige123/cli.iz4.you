@@ -215,7 +215,7 @@ for (%with, %without) -> %env {
         $rel;
     }
     my sub env-for(IO::Path $bindir, IO::Path $rel, *%more) {
-        %( PATH => "/usr/bin:/bin", IZ4_BIN => $bindir.Str, IZ4_321_RELEASE_URL => "file://{$rel}", IZ4_ENFORCE => '1', IZ4_INTERACTIVE => '0', |%more )
+        %( PATH => "/usr/bin:/bin", HOME => temp-dir().Str, IZ4_BIN => $bindir.Str, IZ4_321_RELEASE_URL => "file://{$rel}", IZ4_ENFORCE => '1', IZ4_INTERACTIVE => '0', |%more )
     }
     my $n = 0;
     my sub add-one(IO::Path $r, %env) { iz4($r, 'add', 'invariant', "A lasting commitment number {++$n} stays true.", "--name=lasting-commitment-$n", '--because=People rely on it.', :%env) }

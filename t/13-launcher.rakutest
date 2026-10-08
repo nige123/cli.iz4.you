@@ -217,7 +217,8 @@ sub receipt-line(Str $status, Str :$summary = '', Str :$blocked = '' --> Str) {
 {
     my $dir = temp-dir();
     minimal-iz4(:$dir);
-    my %env = IZ4_321 => temp-dir().add('missing').Str, PATH => temp-dir().Str ~ ':' ~ %*ENV<PATH>.split(':').grep({ !.IO.add('321').e }).join(':');
+    # an empty home too: a 321 iz4 once installed in the real ~/.local/bin is not this test's
+    my %env = HOME => temp-dir().Str, IZ4_321 => temp-dir().add('missing').Str, PATH => temp-dir().Str ~ ':' ~ %*ENV<PATH>.split(':').grep({ !.IO.add('321').e }).join(':');
     my ($rc, $out, $err) = iz4($dir, 'agent', 'install', '--hooks', '--strict', :env(%env));
     is $rc, 1, 'without 321, agent install --hooks --strict fails: nothing here knows a harness' or diag $err;
     ok $err.contains('IZ4 defines the invariant checks but does not install agent-environment hooks directly')
@@ -232,6 +233,7 @@ sub receipt-line(Str $status, Str :$summary = '', Str :$blocked = '' --> Str) {
     ok $out.contains('321, an agent launcher, is not installed'), 'and status says 321 is not there' or diag $out;
     temp %*ENV<IZ4_321> = temp-dir().add('missing').Str;
     temp %*ENV<PATH> = temp-dir().Str;
+    temp %*ENV<HOME> = temp-dir().Str;
     temp %*ENV<IZ4_AGENT_CMD>; %*ENV<IZ4_AGENT_CMD>:delete;
     ok !launcher-binary().defined, 'no launcher';
     is agent-label(), 'no agent runner', 'and iz4 names no agent harness of its own as a default';
@@ -259,6 +261,7 @@ ok !launcher-marker($bd).e, 'no marker means iz4 did not install 321 here';
     my $d = temp-dir();
     $d.add('iz4').spurt("#!/bin/sh\nexit 0\n"); $d.add('iz4').chmod(0o755);
     temp %*ENV<PATH> = $d.Str;
+    temp %*ENV<HOME> = temp-dir().Str;
     ok !launcher-owner-dir().defined, 'no marker anywhere: 321 is not ours';
     launcher-marker($d).spurt("installed by iz4\n");
     is launcher-owner-dir().Str, $d.Str, 'the marker beside the iz4 on PATH names the owner directory';
