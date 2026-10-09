@@ -5,7 +5,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.16.2';
+constant VERSION is export = '0.16.3';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -145,8 +145,8 @@ constant FOUNDATION-URL is export = 'https://iz4.you/invariant-zero';
 #| The lines every new IZ4 opens with, so a reader knows what the
 #| foundation below is, what it protects, and where to read about it.
 constant INHERITANCE-COMMENT is export =
-    "# Every IZ4 carries the five foundation invariants word for word: human intention protected.\n"
-    ~ "# Read about them at {FOUNDATION-URL}. They are the same in every IZ4 and not yours to edit.\n"
+    "# Every IZ4 carries the foundation, Invariants 0 to 4, word for word: human intention protected.\n"
+    ~ "# It begins with Invariant Zero, humans first: {FOUNDATION-URL}. It is the same in every IZ4 and not yours to edit.\n"
     ~ "# Your own invariants are named under your project's domain.";
 
 #| The header comments earlier versions wrote, brought up to date when the
@@ -157,7 +157,10 @@ my @OLD-HEADERS =
      '# Project invariants begin at 5.'),
     ("# Every IZ4 carries Invariants 0-4, the foundation, word for word: human intention protected.",
      "# Read about them at {FOUNDATION-URL}. They are the same in every IZ4 and not yours to edit.",
-     '# Your own invariants begin at 5.');
+     '# Your own invariants begin at 5.'),
+    ("# Every IZ4 carries the five foundation invariants word for word: human intention protected.",
+     "# Read about them at {FOUNDATION-URL}. They are the same in every IZ4 and not yours to edit.",
+     "# Your own invariants are named under your project's domain.");
 
 #| Refuse to write to a file still in the numbered format: one next step.
 sub require-named(IZ4::Document $doc, IO::Path $path) is export {
@@ -183,6 +186,10 @@ sub with-foundation(IZ4::Document $doc, @source --> List) {
     for @lines.kv -> $i, $l {
         %drop{$i + 1} = True if $l.starts-with('# The foundation, Invariants 0-4.')
             || $l.starts-with('# The foundation. Every IZ4 carries these five invariants')
+            || $l.starts-with('# The foundation, Invariants 0 to 4:')
+            || $l.starts-with('# Invariant Zero, humans-first.iz4.you, is the foundation')
+            || $l.starts-with("# 'iz4 check' refuses a file where any of it is missing")
+            || $l.starts-with("# 'iz4 foundation --restore' puts it back")
             || $l.starts-with("# 'iz4 check' refuses a file where they are missing")
             || $l.starts-with("# 'iz4 foundation --restore' puts them back");
     }
@@ -338,6 +345,11 @@ sub resolve-identity(IZ4::Document $doc, Str $ref, :@also --> Str) is export {
     if $doc.legacy {
         return $raw ~~ /^ \d+ $/ ?? ~+$raw !! Str;
     }
+    # The foundation has an order, 0 to 4, and Invariant Zero a name of its
+    # own: either finds the foundation invariant at that place.  Only the
+    # foundation: a project's own invariants have no numbers.
+    return foundation-at(0) if $raw.lc eq 'zero' | 'iz';
+    return foundation-at(+$raw) if $raw ~~ /^ <[0..4]> $/;
     my @all = |foundation-ids(), |$doc.invariants.map(*.id).grep(*.defined), |$doc.retired, |@also;
     return $raw if @all.first(* eq $raw).defined;
     my @starts = @all.grep(*.starts-with("$raw.")).unique;
@@ -362,8 +374,8 @@ sub invariant-text(IO::Path $path, Str $ref --> Str) is export {
         with $doc.invariant($raw) { return invariant-block($raw, .text, .because) }
         user-error("no invariant $n in {$path.basename}; {own-names($doc)}, and 0-4 are the foundation");
     }
-    user-error("invariants are named now: '$ref' is a number from the earlier format; 'iz4 show invariants' lists the names")
-        if $ref.trim ~~ /:i^ ['invariant' \s+]? \d+ ':'? $/;
+    user-error("invariants are named now: '$ref' is a number from the earlier format, and only the foundation, 0 to 4, has an order; 'iz4 show invariants' lists the names")
+        if $ref.trim ~~ /:i^ ['invariant' \s+]? \d+ ':'? $/ && $ref.trim !~~ /:i^ ['invariant' \s+]? <[0..4]> ':'? $/;
     my $id = resolve-identity($doc, $ref)
         // user-error("no invariant '$ref' in {$path.basename}; {own-names($doc)}, and the foundation is {foundation-ids().join(', ')}");
     with foundation-entry($id) -> %f { return invariant-block($id, %f<text>, %f<because>) }
@@ -533,7 +545,7 @@ sub check-new-name(IO::Path $path, IZ4::Document $doc, Str $id) is export {
     }
     user-error("INVARIANT $id is part of the foundation: every IZ4 carries it word for word, and it cannot be redefined")
         if is-foundation-id($id);
-    user-error("'$id': names directly under {FOUNDATION-NAMESPACE} are the foundation's, and there are exactly five; name yours under your project's own domain")
+    user-error("'$id': names directly under {FOUNDATION-NAMESPACE} are the foundation's, which is the same in every IZ4; name yours under your project's own domain")
         if reserved-identity($id);
     user-error("INVARIANT $id is already in {$path.basename}; a name belongs to one invariant")
         if $doc.invariant($id).defined;
@@ -763,9 +775,9 @@ sub suggest-prompt(Str :$current = '', Str :$evidence = '' --> Str) is export {
 
     Do not try to make IZ4 complete.  Try to make it small.
 
-    Every IZ4 carries the five foundation invariants (humans first, do no
-    harm, human agency, honesty, the foundation holds) word for word.  Do
-    not restate them; propose only this project's own invariants.
+    Every IZ4 carries the foundation word for word: Invariant Zero, humans
+    first, then do no harm, human agency, honesty and the foundation
+    holds.  Do not restate it; propose only this project's own invariants.
 
     The golden test: if the whole system were rewritten tomorrow,
     would we regret not telling the people and agents rebuilding it this?

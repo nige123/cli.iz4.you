@@ -28,7 +28,7 @@ BECAUSE
 Job seekers should not acquire another unsolicited inbox.
 ```
 
-(Every file also carries the five foundation invariants, left out here for
+(Every file also carries the foundation, Invariants 0 to 4, left out here for
 length; see [the foundation](foundation.md).)
 
 ## The rules
@@ -36,8 +36,8 @@ length; see [the foundation](foundation.md).)
 - **The header** is the word `IZ4` on a line by itself. Blank and comment
   lines may come before it; nothing else may.
 - **A comment** is a line starting with `#`. Comments are for people.
-  `iz4 init` writes a few: that the file carries the five foundation
-  invariants word for word; where to read about them,
+  `iz4 init` writes a few: that the file carries the foundation, beginning
+  with Invariant Zero, word for word; where to read about them,
   https://iz4.you/invariant-zero; and, above the foundation, that it is not
   the owner's to edit. Two kinds of comment the tool writes it also reads
   back, because they record a decision and nothing else in the file does:
@@ -65,7 +65,8 @@ length; see [the foundation](foundation.md).)
   line marks the withdrawal where the block stood, and `iz4 add` checks the
   Git history as well as the text. The same words under a new name are a
   new invariant, and the old name's going is a withdrawal.
-- **The foundation** is five more blocks every file carries:
+- **The foundation** is the same blocks in every file, Invariants 0 to 4,
+  beginning with Invariant Zero:
   `INVARIANT humans-first.iz4.you`, `do-no-harm.iz4.you`,
   `human-agency.iz4.you`, `honesty.iz4.you` and `foundation-holds.iz4.you`,
   each with its BECAUSE, word for word as `iz4 foundation` prints them.
@@ -92,7 +93,7 @@ problem with its line number. The document layer then decides:
 | Prose where a keyword was expected | error: text before any block |
 | A second `IZ4` line | error |
 | A foundation name whose words differ from the foundation | error: the foundation is not the owner's to edit |
-| Any of the five foundation names missing, or one of them twice | error: every IZ4 carries the foundation |
+| Any of the foundation's names missing, or one of them twice | error: every IZ4 carries the foundation |
 | A name that is not well formed, or any other name directly under `iz4.you` | error: with the reason, and the line to change |
 | The same name twice, a withdrawn name reused, or the same IS FOR twice | error |
 | `INVARIANT` with no name | error: `iz4 name LINE NAME` names it |
@@ -118,9 +119,11 @@ test, a gate proposal, a conversation. So the rules are few and strict.
   The whole name is at most 253.
 - There are at least three labels: the invariant's own name first, then a
   domain of at least two. The last label has a letter in it.
-- No capitals, spaces or underscores, and no bare numbers.
-- Names directly under `iz4.you` are the foundation's, and there are
-  exactly five. Deeper names, such as `works-offline.cli.iz4.you`, are
+- No capitals, spaces or underscores. The first label, the invariant's own
+  name, has a letter in it: `5.honeywillow.com` is refused, because a
+  number is not a name.
+- Names directly under `iz4.you` are the foundation's, and the foundation is
+  the same in every IZ4. Deeper names, such as `works-offline.cli.iz4.you`, are
   ordinary.
 - A project names its invariants under a domain it answers for, its
   namespace. Labels between the invariant's own name and the namespace are
@@ -131,6 +134,11 @@ test, a gate proposal, a conversation. So the rules are few and strict.
   project controls the domain: that belongs to a registry, not to the file.
 - A name carries no order and no rank. Tools treat it as an opaque string
   and compare it whole.
+
+Only the foundation has an order, 0 to 4, with Invariant Zero first. It is
+for showing and speaking of the foundation, and commands accept it for
+looking one up (`iz4 show invariant 0`). Nothing is ever linked or
+compared by it.
 
 Refer to an invariant by its full name. Commands also accept the first
 part alone (`iz4 show invariant owner-adjusted`) where exactly one

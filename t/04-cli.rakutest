@@ -19,7 +19,7 @@ is $err, "No IZ4 found in this directory or its parents.\nRun 'iz4 init' to crea
 ($rc, $out, $err) = iz4-talk($dir, "Helping people find work they love to do.\nPeople looking for work.\nn\n", 'init');
 is $rc, 0, 'coached init exits 0';
 like $out, /'What is this for?' .* 'Who is it for?' .* 'Created IZ4.'/, 'init asks what and who';
-like $out, /'carries the five foundation invariants word for word' .* "named under your project's domain"/, 'init teaches the foundation, and how your own are named';
+like $out, /'carries the foundation word for word, from Invariant Zero, humans first' .* "named under your project's domain"/, 'init teaches the foundation, and how your own are named';
 like $out, /'Add an invariant now? [Y/n]'/, 'and offers to add one';
 unlike $out, /:i 'behaviour' | 'requirement' | 'constraint'/, 'without asking for a specification';
 my $iz4 = $dir.add('IZ4').slurp;
@@ -108,7 +108,7 @@ is $rc, 0, 'check passes';
 like $out, /'✓ structure: valid' \n
             '✓ IS FOR WHAT: Helping people find work they love to do.' \n
             '✓ IS FOR WHO: People looking for work.' \n
-            '✓ the foundation: all five invariants, in the file word for word' .* \n
+            '✓ the foundation: Invariants 0 to 4, in the file word for word' .* \n
             '✓ invariants: 1 of your own, named under shop.example.com' \n
             '✓ BECAUSE: every invariant says why it must survive' \n/, 'ticks for what is true';
 like $out, /'? the system keeps its invariants (the foundation and its own 1): uncertain'/, 'conformance is uncertain, never a tick';
@@ -374,7 +374,7 @@ sub legacy-iz4(IO::Path $dir, Str $name = 'IZ4' --> IO::Path) {
 
     ($rc, $out, $err) = iz4($old, 'migrate', |@names);
     is $rc, 0, 'migrate with every name given exits 0' or diag $err;
-    like $out, /'Wrote IZ4: the foundation is the five named invariants' .* 'Not a word of yours changed.'/, 'and says what it wrote';
+    like $out, /'Wrote IZ4: the foundation is named, from Invariant Zero (humans-first.iz4.you)' .* 'Not a word of yours changed.'/, 'and says what it wrote';
     like $out, /'t/invariant-5.t  (visible-by-choice.shop.example.com)'/, 'and which tests it relinked';
     like $out, /"next:\n  1. iz4 check\n"/, 'and what to do next';
     my $doc = IZ4::Document.load($file);
@@ -421,6 +421,36 @@ sub legacy-iz4(IO::Path $dir, Str $name = 'IZ4' --> IO::Path) {
     like $out, /'IZ4:' \d+ ': this file mixes numbered and named invariants'/, 'and says so';
     ($rc, $out, $err) = iz4($mixed, 'migrate');
     is ($rc, $out), (0, "IZ4 already names its invariants; there is nothing to migrate.\n"), 'it is not a numbered file for migrate to move';
+}
+
+# ---- the foundation has an order, and Invariant Zero comes first ---------------------
+{
+    my $d = temp-dir;
+    iz4($d, 'init', '--for-what=Things.', '--for-who=People.', '--/agents');
+    my ($rc, $out, $err) = iz4($d, 'foundation');
+    like $out, /^ 'The foundation, Invariants 0 to 4:' \n '  0  humans-first.iz4.you' \s+ 'Invariant Zero: the foundation of the foundation' \n '  1  do-no-harm.iz4.you' \n/,
+        'iz4 foundation lists it in its order, and says what Invariant Zero is';
+    like $out, /'  4  foundation-holds.iz4.you' \n \n '# The foundation, Invariants 0 to 4'/, 'down to 4, then the blocks every file carries';
+    nok $out.lines.grep(/ \s $/), 'with no trailing spaces';
+    nok $out ~~ /:i 'these five' | 'five foundation'/, 'and it is called the foundation, not counted out';
+    for (0 => 'humans-first', 1 => 'do-no-harm', 2 => 'human-agency', 3 => 'honesty', 4 => 'foundation-holds') -> (:key($n), :value($name)) {
+        ($rc, $out, $err) = iz4($d, 'show', 'invariant', ~$n);
+        ok $rc == 0 && $out.starts-with("INVARIANT $name.iz4.you\n"), "show invariant $n finds $name.iz4.you by its place in the foundation";
+    }
+    ($rc, $out, $err) = iz4($d, 'show', 'invariant', 'zero');
+    ok $out.starts-with("INVARIANT humans-first.iz4.you\n"), "'zero' is Invariant Zero";
+    ($rc, $out, $err) = iz4($d, 'show', 'invariant', 'Invariant 0');
+    ok $out.starts-with("INVARIANT humans-first.iz4.you\n"), "and so is 'Invariant 0'";
+    ($rc, $out, $err) = iz4($d, 'show', 'invariant', '5');
+    ok $rc == 1 && $err.contains('only the foundation, 0 to 4, has an order'), 'there is no Invariant 5: a project\'s own invariants have names and no numbers';
+    ($rc, $out, $err) = iz4($d, 'add', 'invariant', 'Orders are never charged twice for anyone.', '--name=5', '--namespace=shop.example.com', '--because=A customer charged twice loses money and trust.');
+    ok $rc == 1 && !$d.add('IZ4').slurp.contains('charged twice'), 'and a number is never accepted as the name of one';
+    ($rc, $out, $err) = iz4($d, 'withdraw', '0', '--force');
+    ok $rc == 1 && $err.contains('part of the foundation') && $d.add('IZ4').slurp.contains('INVARIANT humans-first.iz4.you'), 'the order is for looking up: Invariant Zero cannot be withdrawn by it';
+    like $d.add('IZ4').slurp, /'# It begins with Invariant Zero, humans first: https://iz4.you/invariant-zero.'/, 'a new IZ4 opens by pointing at Invariant Zero';
+    like $d.add('IZ4').slurp, /'# Invariant Zero, humans-first.iz4.you, is the foundation of the foundation.' \n/, 'and says above the foundation what it is';
+    ($rc, $out, $err) = iz4($d, 'check');
+    is $rc, 0, 'and the file checks: the comments are for people, the words are what is checked' or diag $out;
 }
 
 done-testing;

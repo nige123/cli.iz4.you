@@ -161,6 +161,15 @@ $sneaky.spurt($path.slurp ~ "\nINVARIANT foundation-holds.iz4.you\nObjectives ma
 nok check-doc($sneaky).ok, 'a second, hand-written foundation-holds fails check';
 like invariant-text($sneaky, 'foundation-holds.iz4.you'), /'route around them, including this one'/, 'and the name still gives the real one';
 
+# --- an older file's comments are brought up to date with the foundation -------
+my $older = temp-dir.add('IZ4');
+$older.spurt("IZ4\n\n# Every IZ4 carries the five foundation invariants word for word: human intention protected.\n# Read about them at https://iz4.you/invariant-zero. They are the same in every IZ4 and not yours to edit.\n# Your own invariants are named under your project's domain.\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n# The foundation. Every IZ4 carries these five invariants word for word;\n# 'iz4 check' refuses a file where they are missing or altered, and\n# 'iz4 foundation --restore' puts them back.\n\n" ~ foundation-block().lines.grep({ !.starts-with('#') }).join("\n").subst('a machine is a machine', 'a machine is a friend') ~ "\n");
+is restore-foundation($older), 'replaced', 'restoring the foundation in a file written by 0.16.2';
+ok check-doc($older).ok, 'leaves a valid file';
+is $older.slurp.match(:g, /^^ '# The foundation'/).elems, 1, 'with one comment above the foundation, the current one';
+like $older.slurp, /'It begins with Invariant Zero, humans first'/, 'and the opening comment brought up to date';
+nok $older.slurp.contains('these five invariants') || $older.slurp.contains('puts them back'), 'and none of the older wording left behind';
+
 # --- the numbered foundation is remembered, never written ---------------------
 is FOUNDATION-LEGACY».<number>, (0, 1, 2, 3, 4), 'the numbered foundation is kept for reading files not yet migrated';
 is legacy-foundation-map().map({ "{.key}={.value}" }), ("0=$hf", "1=$dnh", "2=$ha", "3=$ho", "4=$fh"), 'with the one fixed mapping from each number to its name';

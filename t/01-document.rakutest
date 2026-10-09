@@ -73,7 +73,8 @@ for <owner-adjusted.honeywillow.com owner-adjusted.prices.honeywillow.com a.b.co
 }
 for ('Owner.shop.example.com' => 'lower case', 'owner adjusted.shop.example.com' => 'space', 'owner_adjusted.shop.example.com' => 'a-z, 0-9',
      'owner..example.com' => 'both sides', '-owner.shop.example.com' => 'hyphen', 'owner.com' => 'a name and a domain',
-     'owner-adjusted' => 'a name and a domain', '7' => 'a name and a domain', 'a.b.42' => 'has a letter', '' => 'empty') -> (:key($bad), :value($why)) {
+     'owner-adjusted' => 'a name and a domain', '7' => 'a name and a domain', 'a.b.42' => 'has a letter', '5.shop.example.com' => 'a number is not a name',
+     '2024.shop.example.com' => 'a number is not a name', '' => 'empty') -> (:key($bad), :value($why)) {
     ok identity-problem($bad).contains($why), "'$bad' is refused: $why";
 }
 ok is-identity('x.cli.iz4.you') && !reserved-identity('x.cli.iz4.you'), 'a deeper name under iz4.you is an ordinary name';
@@ -81,7 +82,7 @@ ok reserved-identity('sneaky.iz4.you'), 'a name directly under iz4.you that is n
 nok reserved-identity('honesty.iz4.you'), 'the five themselves are not "reserved": they are the foundation';
 
 sub with-inv(Str $label, Str $text = 'Something holds.') { IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT $label\n$text\n")) }
-like with-inv('sneaky.iz4.you').errors[0].Str, /"names directly under iz4.you are the foundation's" .* 'exactly five'/, 'a project cannot take a name in the foundation\'s namespace';
+like with-inv('sneaky.iz4.you').errors[0].Str, /"names directly under iz4.you are the foundation's" .* 'the same in every IZ4'/, 'a project cannot take a name in the foundation\'s namespace';
 like with-inv('Owner_Adjusted').errors[0].Str, /"'Owner_Adjusted' is not a name an invariant can have"/, 'an invalid name is an error that says why';
 like with-inv('Owner_Adjusted').errors[0].fix, /'rename the invariant on line ' \d+/, 'and says what to change, and where';
 
@@ -115,7 +116,17 @@ my @blocks = $F.split(/ <?before 'INVARIANT '> /);
 my $shuffled = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n" ~ @blocks[0] ~ @blocks[1 .. *].reverse.join);
 ok $shuffled.ok && $shuffled.foundation-intact, 'and so is the foundation in another order';
 is $doc.foundation-spans.elems, 5, 'the document knows where each foundation block is';
-like $doc.foundation-status, /'the foundation: all five invariants, in the file word for word (sha256 f0c11bd08bcc)'/, 'every file carries them, and the status says so';
+like $doc.foundation-status, /'the foundation: Invariants 0 to 4, in the file word for word (sha256 f0c11bd08bcc)'/, 'every file carries it, and the status says so';
+
+# the foundation has an order, 0 to 4, and Invariant Zero comes first
+is INVARIANT-ZERO, 'humans-first.iz4.you', 'Invariant Zero is humans-first.iz4.you';
+is foundation-ids().map({ foundation-order($_) }), (0, 1, 2, 3, 4), 'the foundation is ordered 0 to 4';
+is (0 .. 4).map({ foundation-at($_) }), foundation-ids(), 'and each place gives its name back';
+nok foundation-order('mine.shop.example.com').defined, "a project's own invariant has no place in that order";
+nok foundation-at(5).defined, 'and there is nothing at 5';
+like FOUNDATION-COMMENT, /'The foundation, Invariants 0 to 4' .* 'Invariant Zero, humans-first.iz4.you, is the foundation of the foundation'/,
+    'the comment written above the foundation in every new file says so';
+nok FOUNDATION-COMMENT ~~ /:i 'five'/, 'without counting it out';
 
 # ---- structural problems -------------------------------------------------
 

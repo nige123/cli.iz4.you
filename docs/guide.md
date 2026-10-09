@@ -44,11 +44,11 @@ Job seekers should not acquire another unsolicited inbox.
 ```
 
 Each invariant has a name, written like a domain name, and the name is how
-people, tests and tools refer to it. Every file also carries the five
-foundation invariants word for word: human intention protected, the same
-five blocks in every IZ4, explained at
-[iz4.you/invariant-zero](https://iz4.you/invariant-zero). They are part of
-the grammar: `iz4 check` refuses a file where they are missing or altered,
+people, tests and tools refer to it. Every file also carries the
+foundation word for word: human intention protected, the same blocks in
+every IZ4, beginning with Invariant Zero, humans first, explained at
+[iz4.you/invariant-zero](https://iz4.you/invariant-zero). It is part of
+the grammar: `iz4 check` refuses a file where any of it is missing or altered,
 and `iz4 foundation --restore` puts them back.
 
 It is small enough that an agent can read all of it before every meaningful
@@ -133,7 +133,7 @@ Who is it for?
 Created IZ4.
 AGENTS.md: installed
 
-Every IZ4 carries the five foundation invariants word for word ('iz4 invariants' shows them).
+Every IZ4 carries the foundation word for word, from Invariant Zero, humans first ('iz4 foundation' shows it).
 Your own are named under your project's domain, like owner-adjusted.honeywillow.com.
 
 Add an invariant now? [Y/n]
@@ -281,7 +281,7 @@ stood that says the name was withdrawn and when. Its name is retired for
 good, so no later invariant is ever cited as
 `private-stays-private.jobs.example.com` by mistake, and `iz4 show
 invariant private-stays-private` says in which commit it went. Git keeps
-the words. The five foundation invariants cannot be withdrawn by any
+the words. The foundation's invariants cannot be withdrawn by any
 project: they are the foundation every IZ4 carries, not the project's to
 change.
 
@@ -663,7 +663,7 @@ Name it: a few lower-case words joined by hyphens. The name never changes afterw
   Invariant 5   ->  owner-adjusted.prices.honeywillow.com
   Invariant 6   ->  charged-once.orders.honeywillow.com
 
-Wrote IZ4: the foundation is the five named invariants, and your own carry their names. Not a word of yours changed.
+Wrote IZ4: the foundation is named, from Invariant Zero (humans-first.iz4.you), and your own carry their names. Not a word of yours changed.
 Tests that named an invariant by number now name it by name (one comment line added to each):
   t/invariant-5.sh  (owner-adjusted.prices.honeywillow.com)
 References to 'Invariant N' elsewhere (documents, comments, commit messages) are yours to update: iz4 does not rewrite them.
@@ -686,8 +686,11 @@ shows the move as a change for a person to agree to. More in
 
 ## The foundation
 
-Every IZ4 carries these five invariants word for word, so anyone who opens
-the file reads them there, and no file can drop or bend them: the CLI holds
+Every IZ4 carries the foundation word for word, so anyone who opens the
+file reads it there, and no file can drop or bend it. It has an order, 0
+to 4, and begins with Invariant Zero, `humans-first.iz4.you`: the
+foundation of the foundation. More in [docs/foundation.md](foundation.md).
+The words are the same in every file: the CLI holds
 the reference copy and `iz4 check` compares the two. Projects cannot
 redefine, remove or override them, and no project may take a name directly
 under `iz4.you`.

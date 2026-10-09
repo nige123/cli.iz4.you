@@ -73,7 +73,8 @@ sub discover(IO::Path $dir = $*CWD --> Hash) is export {
     %r;
 }
 
-#| The effective invariants by identity: the foundation, then the
+#| The effective invariants by identity: the foundation in its order (0
+#| to 4, as foundation_order; the first is Invariant Zero), then the
 #| project's own, each with the digest of its exact words.  The identity
 #| is an opaque string to whoever reads this: nothing may be inferred
 #| from its shape, and a file still in the numbered format ('format'
@@ -89,7 +90,7 @@ sub effective-list(IZ4::Document $doc --> Array) {
     else {
         for FOUNDATION -> %f {
             @out.push: %( id => %f<id>, foundation => True, summary => first-sentence(%f<text>),
-                          digest => foundation-digest-of(%f<id>), legacy_foundation_number => %f<legacy> );
+                          digest => foundation-digest-of(%f<id>), foundation_order => %f<legacy>, legacy_foundation_number => %f<legacy> );
         }
     }
     my %seen;

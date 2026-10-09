@@ -71,7 +71,7 @@ is install-agent-section($agents, :root($dir)), 'unchanged', 'repeat install is 
 unlike $agents.slurp, /'Private profiles'/, 'project invariants are not copied into instruction files';
 like $agents.slurp, /'Keep the IZ4 small'/, 'the managed section says to keep the IZ4 small';
 like $agents.slurp.words.join(' '), /'compacted or resumed session' .* "run 'iz4 agent' again"/, 'the managed section survives compaction and says to re-run';
-like $agents.slurp, /'carries the five foundation invariants'/, 'and names the foundation for agents without the CLI';
+like $agents.slurp, /'carries the foundation word for word (Invariant Zero, humans first,'/, 'and names the foundation, Invariant Zero first, for agents without the CLI';
 
 my $before = "# My project\n\nHand-written notes stay.\n";
 my $claude = $dir.add('CLAUDE.md');
@@ -120,7 +120,7 @@ is install-skill(:root($dir)), 'updated', 'stale skill regenerated';
 # ---- status -----------------------------------------------------------
 my %s = agent-status($sp, :root($dir));
 is %s<schema>, 'iz4-agent-status/4', 'status schema is versioned';
-ok %s<iz4><valid> && %s<iz4><binding>.contains('the foundation: all five invariants'), 'status: valid spec, foundation reported';
+ok %s<iz4><valid> && %s<iz4><binding>.contains('the foundation: Invariants 0 to 4'), 'status: valid spec, foundation reported';
 nok %s<iz4><binding>.contains('0-4'), 'and not by number';
 is %s<integrations><AGENTS.md>, 'current', 'status: AGENTS.md integration current';
 like %s<note>, /'never that an agent read'/, 'status wording claims nothing about agents';

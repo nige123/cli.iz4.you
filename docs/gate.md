@@ -6,7 +6,7 @@ directory, and reports in five words what it found. `iz4 approve` is how
 a person agrees to a change that needs it. Routine commits pass without
 anyone being asked. A new, revised or withdrawn project invariant, a
 change to IS FOR WHAT or IS FOR WHO, or a weakened test that protects an
-invariant needs a person. Altering the five foundation invariants is
+invariant needs a person. Altering the foundation is
 blocked and no project approval can lift it.
 
 The file states it, Git keeps its history, the gate asks before a

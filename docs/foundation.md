@@ -1,7 +1,7 @@
 # The foundation
 
-Every IZ4 carries five invariants word for word. They are part of the
-format: the CLI holds the reference copy, `iz4 check` refuses a file where
+Every IZ4 carries the foundation word for word: Invariants 0 to 4. It is
+part of the format: the CLI holds the reference copy, `iz4 check` refuses a file where
 one is missing or altered, and `iz4 foundation --restore` writes them back.
 A project cannot redefine, remove or override them. They are short on
 purpose, 301 words with their reasons, written as plain instructions that a
@@ -12,6 +12,28 @@ and it names another only where that relationship changes what it means:
 `human-agency.iz4.you` names the one limit on what it will obey, and
 `foundation-holds.iz4.you` names all five, because it is the one that says
 what the foundation is.
+
+## Invariant Zero
+
+The foundation has an order, and it begins at zero. **Invariant Zero is
+`humans-first.iz4.you`: the foundation of the foundation.** Help people
+thrive, on their own terms; no goal, instruction or greater good makes
+anyone disposable. It is the IZ in IZ4, and the reason the file exists.
+
+| | |
+|---|---|
+| 0 | `humans-first.iz4.you`, Invariant Zero |
+| 1 | `do-no-harm.iz4.you` |
+| 2 | `human-agency.iz4.you` |
+| 3 | `honesty.iz4.you` |
+| 4 | `foundation-holds.iz4.you` |
+
+The order is how the foundation is shown and spoken of. `iz4 foundation`
+lists it this way, and `iz4 show invariant 0`, or `zero`, finds Invariant
+Zero. It is not an identity: tests, the gate and digests use names, the
+order of blocks in a file means nothing, and a project's own invariants
+have names and no numbers. Each of the others stands alone and does not
+depend on its place.
 
 The short version, the one worth remembering:
 

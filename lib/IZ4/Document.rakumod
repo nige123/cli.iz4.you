@@ -15,8 +15,8 @@ unit class IZ4::Document;
 #| says which commitment it is; a digest of its exact words says which
 #| version.  Order in the file is presentation and nothing else.
 #|
-#| Every IZ4 carries the five foundation invariants word for word, the
-#| same five blocks in every file, checked against the reference copy
+#| Every IZ4 carries the foundation word for word, the same blocks in
+#| every file, Invariants 0 to 4, checked against the reference copy
 #| below.  A project's own invariants are named under a domain the
 #| project answers for.
 
@@ -24,13 +24,17 @@ use IZ4::Grammar;
 
 # ------------------------------------------------------------ foundation
 
-#| The five foundation invariants, by their canonical identities.  Each
+#| The foundation, Invariants 0 to 4, by their canonical identities.
+#| Invariant Zero, humans-first.iz4.you, comes first: it is the foundation
+#| of the foundation, and the reason IZ4 has the name it has.  Each
 #| stands alone: a name is used inside another's words only where the
 #| relationship changes what it means.  Short and in the imperative, so a
 #| person or an AI can take them in at a glance.  Stating a rule, or
 #| hashing it, does not make software obey it.  'legacy' is the number
 #| each carried up to iz4 0.15: history, and a help to migration, never
-#| an identity.
+#| an identity.  It is also the foundation's order, 0 to 4: how the
+#| foundation is shown and spoken of, and nothing a test, a gate or a
+#| digest ever uses.
 constant FOUNDATION is export = (
     %( id => 'humans-first.iz4.you', legacy => 0,
        text => "Help people thrive, on their own terms. Respect every person's "
@@ -77,6 +81,22 @@ constant FOUNDATION is export = (
 constant FOUNDATION-NAMESPACE is export = 'iz4.you';
 
 sub foundation-ids(--> List) is export { FOUNDATION.map(*<id>).List }
+
+#| Invariant Zero: the foundation of the foundation.
+constant INVARIANT-ZERO is export = 'humans-first.iz4.you';
+
+#| A foundation invariant's place in the foundation's order, 0 to 4, or
+#| Int when the name is not the foundation's.
+sub foundation-order(Str $id --> Int) is export {
+    my $f = FOUNDATION.first({ .<id> eq $id });
+    $f.defined ?? $f<legacy> !! Int;
+}
+
+#| The foundation invariant at a place in that order, or Str.
+sub foundation-at(Int $n --> Str) is export {
+    my $f = FOUNDATION.first({ .<legacy> == $n });
+    $f.defined ?? $f<id> !! Str;
+}
 sub foundation-entry(Str $id) is export { FOUNDATION.first({ .<id> eq $id }) }
 sub is-foundation-id(Str $id --> Bool) is export { so FOUNDATION.first({ .<id> eq $id }) }
 
@@ -125,9 +145,10 @@ constant FOUNDATION-LEGACY is export = (
 
 #| The comment written directly above the foundation blocks in a file.
 constant FOUNDATION-COMMENT is export =
-    "# The foundation. Every IZ4 carries these five invariants word for word;\n"
-    ~ "# 'iz4 check' refuses a file where they are missing or altered, and\n"
-    ~ "# 'iz4 foundation --restore' puts them back.";
+    "# The foundation, Invariants 0 to 4: the same words in every IZ4.\n"
+    ~ "# Invariant Zero, humans-first.iz4.you, is the foundation of the foundation.\n"
+    ~ "# 'iz4 check' refuses a file where any of it is missing or altered, and\n"
+    ~ "# 'iz4 foundation --restore' puts it back.";
 
 #| The foundation as it is written into every file: the comment, then the
 #| five invariants with their BECAUSE, each block ending in a blank line.
@@ -168,7 +189,9 @@ sub normalised(Str $text --> Str) is export { $text.words.join(' ') }
 #| hyphen and is at most 63 characters; the whole is at most 253.  There
 #| are at least three labels (a name for the invariant, then a domain of
 #| at least two), and the last label has a letter in it, so a version
-#| number or an address is never taken for a name.  That is all: no
+#| number or an address is never taken for a name.  The first label, the
+#| invariant's own, has a letter in it too: a number is not a name.  That
+#| is all: no
 #| spaces, no capitals, no underscores, no numbers standing for names.
 sub identity-problem(Str $id --> Str) is export {
     return 'it is empty' if $id eq '';
@@ -183,6 +206,7 @@ sub identity-problem(Str $id --> Str) is export {
     return 'a label is at most 63 characters' if @labels.grep(*.chars > 63);
     return 'it needs a name and a domain, like owner-adjusted.honeywillow.com' if @labels < 3;
     return 'it must end in a domain, and the last part of a domain has a letter in it' unless @labels.tail ~~ / <[a..z]> /;
+    return 'its first part is the invariant\'s own name, and a number is not a name: use a word or two' unless @labels.head ~~ / <[a..z]> /;
     '';
 }
 sub is-identity(Str $id --> Bool) is export { identity-problem($id) eq '' }
@@ -349,7 +373,7 @@ method foundation-status(--> Str) {
         !! "the foundation is missing or altered, in a file still in the numbered format - 'iz4 migrate' moves it to named invariants and writes the foundation"
         if $!legacy;
     $!foundation-intact
-        ?? "the foundation: all five invariants, in the file word for word (sha256 {FOUNDATION-DIGEST.substr(0, 12)})"
+        ?? "the foundation: Invariants 0 to 4, in the file word for word (sha256 {FOUNDATION-DIGEST.substr(0, 12)})"
         !! "the foundation is missing or altered - 'iz4 foundation --restore' writes it back";
 }
 
@@ -539,7 +563,7 @@ method !validate-named() {
                         }
                         elsif reserved-identity($label) {
                             self!problem($b.line, "INVARIANT $label: names directly under {FOUNDATION-NAMESPACE} are the foundation's, "
-                                ~ "and there are exactly five ({foundation-ids().join(', ')})",
+                                ~ "and the foundation is the same in every IZ4 ({foundation-ids().join(', ')})",
                                 :fix("rename the invariant on line {$b.line} under your project's own domain"));
                         }
                         elsif %ids{$label}:exists {

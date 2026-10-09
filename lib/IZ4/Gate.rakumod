@@ -265,7 +265,7 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
         @c.push: %( kind => 'foundation-migrated',
                     before => "Invariants 0-4 of the numbered format (sha256 {FOUNDATION-LEGACY-DIGEST.substr(0, 12)})",
                     after  => "{foundation-ids().join(', ')} (sha256 {FOUNDATION-DIGEST.substr(0, 12)})",
-                    detail => 'the foundation is rewritten as five named invariants: read the new words, they are not the old ones renumbered' );
+                    detail => 'the foundation is rewritten as named invariants: read the new words, they are not the old ones renumbered' );
     }
 
     my %b = $base.defined ?? $base.invariants.grep(*.id.defined).map({ .id => $_ }) !! ();

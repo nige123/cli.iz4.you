@@ -34,21 +34,25 @@ Looking for work should not mean surrendering privacy.
 
 ## The foundation
 
-Every IZ4 also carries five invariants, word for word, the same in every
-file. A project cannot edit, remove or override them. Each has a page of
-its own, at its own name:
+Every IZ4 also carries the foundation, word for word, the same in every
+file. A project cannot edit, remove or override it. It begins with
+**Invariant Zero**, humans first: the foundation of the foundation, and the
+IZ in IZ4. The rest stand on it, in order, 0 to 4. Each has a page of its
+own, at its own name:
 
-| Invariant | In a line |
-|---|---|
-| [humans-first.iz4.you](https://humans-first.iz4.you) | Help people thrive, on their own terms. Nobody is disposable. |
-| [do-no-harm.iz4.you](https://do-no-harm.iz4.you) | Do not harm people or help anyone harm them, and never use safety to rule their lives. |
-| [human-agency.iz4.you](https://human-agency.iz4.you) | Keep people in charge. Act only on authority from the people entitled to decide. Stay stoppable. |
-| [honesty.iz4.you](https://honesty.iz4.you) | Tell the truth about what you are, know and have done. A machine is a machine. |
-| [foundation-holds.iz4.you](https://foundation-holds.iz4.you) | Nothing may weaken these five. On a conflict, pause, say so, and hand the decision back. |
+| | Invariant | In a line |
+|---|---|---|
+| 0 | [humans-first.iz4.you](https://humans-first.iz4.you) | **Invariant Zero.** Help people thrive, on their own terms. Nobody is disposable. |
+| 1 | [do-no-harm.iz4.you](https://do-no-harm.iz4.you) | Do not harm people or help anyone harm them, and never use safety to rule their lives. |
+| 2 | [human-agency.iz4.you](https://human-agency.iz4.you) | Keep people in charge. Act only on authority from the people entitled to decide. Stay stoppable. |
+| 3 | [honesty.iz4.you](https://honesty.iz4.you) | Tell the truth about what you are, know and have done. A machine is a machine. |
+| 4 | [foundation-holds.iz4.you](https://foundation-holds.iz4.you) | Nothing may weaken the foundation. On a conflict, pause, say so, and hand the decision back. |
 
 The lines above are summaries. The exact words are what `iz4 foundation`
-prints and what those pages carry. `iz4 check` refuses a file where they
-are missing or altered.
+prints and what those pages carry. `iz4 check` refuses a file where any of
+it is missing or altered. The numbers are the foundation's order and a way
+to speak of it. A name is still how anything refers to an invariant, and a
+project's own invariants have names and no numbers.
 
 ## Your own invariants
 

@@ -64,6 +64,8 @@ ok all(%d<invariants>.map({ .<id> ~~ Str })), 'every identity is a string';
 ok !%d<invariants>.first({ .<number>:exists }), 'and no entry carries a number';
 ok all(%d<invariants>[^5].map({ .<foundation> === True })) && %d<invariants>[5]<foundation> === False, 'the foundation is told apart from the project\'s own';
 is %d<invariants>[^5].map(*<legacy_foundation_number>).join(','), '0,1,2,3,4', 'each of the five says which number it had in the numbered format';
+is %d<invariants>[^5].map(*<foundation_order>).join(','), '0,1,2,3,4', 'and its place in the foundation, 0 to 4: Invariant Zero is first';
+ok !(%d<invariants>[5]<foundation_order>:exists), "a project's own invariant has no place in that order";
 ok !(%d<invariants>[5]<legacy_foundation_number>:exists), "a project's own invariant has no such number";
 ok all(%d<invariants>.map({ so .<digest> ~~ /^ <[0..9a..f]> ** 64 $/ })), 'every entry carries the digest of its words';
 is %d<invariants>[^5].map(*<digest>).join(','), @FIVE.map({ foundation-digest-of($_) }).join(','), 'the foundation digests are the foundation\'s';
@@ -365,7 +367,7 @@ is $out.lines.elems, 1, 'a JSON result is one line';
     one-doc($out, 'discover');
     is doc($out)<schema>, 'iz4-discover/2', 'discover: schema id';
     is keys-of($out), 'errors file format invariants namespace present schema sha256 tool valid', 'discover: keys';
-    is doc($out)<invariants>[0].keys.sort.join(' '), 'digest foundation id legacy_foundation_number summary', 'discover: a foundation entry';
+    is doc($out)<invariants>[0].keys.sort.join(' '), 'digest foundation foundation_order id legacy_foundation_number summary', 'discover: a foundation entry';
     is doc($out)<invariants>[5].keys.sort.join(' '), 'digest foundation id summary', "discover: an entry for one of the project's own";
     is keys-of(iz4(temp-dir(), 'discover', '--json')[1]), 'errors file format invariants namespace present schema sha256 tool valid', 'discover: the same keys where there is no IZ4';
 

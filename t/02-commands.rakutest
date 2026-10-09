@@ -15,7 +15,7 @@ my $doc = check-doc($path);
 ok $doc.ok && !$doc.warnings, 'a freshly initialised IZ4 is valid';
 nok $doc.invariants, 'and demands no invariants';
 ok $path.slurp.lines.elems <= 12 + foundation-block().lines.elems, 'and is tiny: no template to fill in beyond the foundation';
-like $path.slurp, /'carries the five foundation invariants word for word: human intention protected' .* 'https://iz4.you/invariant-zero'/,
+like $path.slurp, /'carries the foundation, Invariants 0 to 4, word for word: human intention protected' .* 'Invariant Zero, humans first' .* 'https://iz4.you/invariant-zero'/,
     'it tells a reader that the five are the foundation, what they protect, and where to read about them';
 like $path.slurp, /"Your own invariants are named under your project's domain"/, 'and how its own will be named';
 ok $path.slurp.contains(foundation-block()), 'and carries the foundation itself, after IS FOR WHO?';

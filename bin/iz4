@@ -106,7 +106,8 @@ sub USAGE() {
                                            invariants
       iz4 show invariant NAME          print one invariant by its name (the
                                            first part alone will do where only
-                                           one begins with it)
+                                           one begins with it; 0 to 4, or zero,
+                                           finds the foundation by its order)
       iz4 check [FILE] [--strict]      tick what is true, cross what needs a
                                            remedy; exit 1 only on errors, or on
                                            any cross with --strict (for a gate)
@@ -414,7 +415,7 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Bool :$agent, Bool :$agents) {
         }
 
         say '';
-        say "Every IZ4 carries the five foundation invariants word for word ('iz4 invariants' shows them).";
+        say "Every IZ4 carries the foundation word for word, from Invariant Zero, humans first ('iz4 foundation' shows it).";
         say "Your own are named under your project's domain, like owner-adjusted.honeywillow.com.";
         if $talk {
             say '';
@@ -561,16 +562,21 @@ multi MAIN('withdraw', Str $which, Str :$file, Bool :$force = False) {
 multi MAIN('foundation', Str $file?, Bool :$restore = False) {
     attempt {
         unless $restore {
+            say 'The foundation, Invariants 0 to 4:';
+            for FOUNDATION -> %f {
+                say sprintf('  %d  %-26s%s', %f<legacy>, %f<id>, %f<id> eq INVARIANT-ZERO ?? 'Invariant Zero: the foundation of the foundation' !! '').trim-trailing;
+            }
+            say '';
             print foundation-block();
             say '';
-            say "(sha256 of the foundation text: {FOUNDATION-DIGEST.substr(0, 12)}; every IZ4 carries these five word for word)";
+            say "(sha256 of the foundation text: {FOUNDATION-DIGEST.substr(0, 12)}; every IZ4 carries it word for word)";
             return 0;
         }
         my $path = resolve-target($file);
         given restore-foundation($path) {
             when 'unchanged' { say "{display-name($path)}: the foundation is already there, word for word" }
-            when 'written'   { say "{display-name($path)}: wrote the five foundation invariants after IS FOR WHO?" }
-            when 'replaced'  { say "{display-name($path)}: replaced the altered foundation with the five invariants word for word" }
+            when 'written'   { say "{display-name($path)}: wrote the foundation, Invariants 0 to 4, after IS FOR WHO?" }
+            when 'replaced'  { say "{display-name($path)}: replaced the altered foundation, word for word" }
         }
         my $doc = check-doc($path);
         say "  now: {$doc.foundation-status}";
@@ -941,7 +947,7 @@ sub migrate-command(Str $file, Str :$namespace, Str :$names, Bool :$dry-run, Boo
         my $before = check-doc($path);
         migrate($path, %chosen, :namespace($ns));
         say '';
-        say "Wrote $name: the foundation is the five named invariants, and your own carry their names. Not a word of yours changed.";
+        say "Wrote $name: the foundation is named, from Invariant Zero (humans-first.iz4.you), and your own carry their names. Not a word of yours changed.";
         if $tests {
             my @linked = relink-tests($before, $path.parent, %chosen);
             if @linked {
