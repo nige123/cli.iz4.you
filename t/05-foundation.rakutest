@@ -30,7 +30,7 @@ is foundation-entry($ho)<text>,
     'Tell the truth about what you are, know and have done, and what is uncertain or blocked. Never deceive or manipulate: a guess is a guess, a failure is a failure, a machine is a machine. You may keep a confidence, but never lie or use it to conceal harm.',
     'honesty.iz4.you reads as approved';
 is foundation-entry($fh)<text>,
-    'The foundation is five invariants: humans-first.iz4.you, do-no-harm.iz4.you, human-agency.iz4.you, honesty.iz4.you and foundation-holds.iz4.you. They always bind everyone who builds, runs, uses or changes the system. Nothing may weaken, override or route around them, including this one. Where anything conflicts with them, or they conflict with each other, never work around it: pause what is affected, say so, and return the decision to the people entitled to decide.',
+    'The foundation is these invariants: humans-first.iz4.you, do-no-harm.iz4.you, human-agency.iz4.you, honesty.iz4.you and foundation-holds.iz4.you. They always bind everyone who builds, runs, uses or changes the system. Nothing may weaken, override or route around them, including this one. Where anything conflicts with them, or they conflict with each other, never work around it: pause what is affected, say so, and return the decision to the people entitled to decide.',
     'foundation-holds.iz4.you reads as approved';
 is FOUNDATION».<because>, (
     'Humanity thrives person by person, and each person chooses how to thrive.',
@@ -94,7 +94,7 @@ my $canon = temp-dir.add('foundation.txt');
 $canon.spurt(FOUNDATION-TEXT);
 is sha256-hex($canon), FOUNDATION-DIGEST, 'the foundation digest matches its canonical bytes';
 is FOUNDATION-TEXT.lines.grep(*.starts-with('INVARIANT ')).map(*.words[1]), foundation-ids(), 'the canonical bytes name the five, in canonical order';
-is FOUNDATION-DIGEST.substr(0, 12), 'f0c11bd08bcc', 'and the digest is the published one';
+is FOUNDATION-DIGEST.substr(0, 12), '99d6c2c1776b', 'and the digest is the published one';
 isnt FOUNDATION-DIGEST, FOUNDATION-LEGACY-DIGEST, 'which is not the digest of the numbered foundation';
 for FOUNDATION -> %f {
     my $t = temp-dir.add('one.txt');
@@ -169,6 +169,22 @@ ok check-doc($older).ok, 'leaves a valid file';
 is $older.slurp.match(:g, /^^ '# The foundation'/).elems, 1, 'with one comment above the foundation, the current one';
 like $older.slurp, /'It begins with Invariant Zero, humans first'/, 'and the opening comment brought up to date';
 nok $older.slurp.contains('these five invariants') || $older.slurp.contains('puts them back'), 'and none of the older wording left behind';
+
+# --- the wording iz4 0.16.2 wrote is out of date, not altered -------------------------
+ok foundation-entry($fh)<text>.starts-with('The foundation is these invariants: humans-first.iz4.you,'), 'foundation-holds lists the invariants and does not count them';
+nok FOUNDATION.map({ .<text> ~ ' ' ~ .<because> }).join(' ') ~~ /:i << ['five' | 'four' | 'six'] >> /, 'no foundation invariant says how many there are';
+my $v0162 = temp-dir.add('IZ4');
+$v0162.spurt(minimal-iz4().slurp.subst('The foundation is these invariants:', 'The foundation is five invariants:'));
+my $out-of-date = check-doc($v0162);
+nok $out-of-date.ok, 'a file with the foundation as 0.16.2 wrote it does not check';
+like $out-of-date.errors[0].Str, /'INVARIANT foundation-holds.iz4.you reads as iz4 0.16.2 wrote it' .* "the foundation's wording has changed since" .* 'brings it up to date'/,
+    'and is told it is out of date, not that someone edited it';
+is $out-of-date.fixes, ('iz4 foundation --restore',), 'with the one step that brings it up to date';
+is foundation-earlier($fh, FOUNDATION-EARLIER[0]<text>, FOUNDATION-EARLIER[0]<because>), '0.16.2', 'the earlier wording is recognised word for word';
+nok foundation-earlier($fh, 'Something else entirely.', 'x').defined, 'and nothing else is taken for it';
+is restore-foundation($v0162), 'replaced', 'restore brings it up to date';
+ok check-doc($v0162).ok && $v0162.slurp.contains('The foundation is these invariants:') && !$v0162.slurp.contains('five invariants'), 'to the current words';
+isnt FOUNDATION-DIGEST.substr(0, 12), 'f0c11bd08bcc', 'the digest moved with the words';
 
 # --- the numbered foundation is remembered, never written ---------------------
 is FOUNDATION-LEGACY».<number>, (0, 1, 2, 3, 4), 'the numbered foundation is kept for reading files not yet migrated';

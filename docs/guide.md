@@ -523,7 +523,7 @@ $ iz4 check
 ✓ structure: valid
 ✓ IS FOR WHAT: Helping people find work they love to do.
 ✓ IS FOR WHO: People looking for work.
-✓ the foundation: all five invariants, in the file word for word (sha256 f0c11bd08bcc)
+✓ the foundation: all five invariants, in the file word for word (sha256 99d6c2c1776b)
 ✓ invariants: 2 of your own, named under jobs.example.com
 ✗ BECAUSE: missing for contact-by-invitation.jobs.example.com - write under each why it must survive ('iz4 because NAME WHY')
 ✗ evidence: contact-by-invitation.jobs.example.com, visible-by-choice.jobs.example.com have no test naming them - 'iz4 test' scaffolds one
@@ -730,7 +730,7 @@ BECAUSE
 People can only stay in charge of what they can see truly.
 
 INVARIANT foundation-holds.iz4.you
-The foundation is five invariants: humans-first.iz4.you, do-no-harm.iz4.you,
+The foundation is these invariants: humans-first.iz4.you, do-no-harm.iz4.you,
 human-agency.iz4.you, honesty.iz4.you and foundation-holds.iz4.you. They always
 bind everyone who builds, runs, uses or changes the system. Nothing may weaken,
 override or route around them, including this one. Where anything conflicts with

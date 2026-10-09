@@ -76,7 +76,7 @@ BECAUSE
 People can only stay in charge of what they can see truly.
 
 INVARIANT foundation-holds.iz4.you
-The foundation is five invariants: humans-first.iz4.you, do-no-harm.iz4.you,
+The foundation is these invariants: humans-first.iz4.you, do-no-harm.iz4.you,
 human-agency.iz4.you, honesty.iz4.you and foundation-holds.iz4.you. They always
 bind everyone who builds, runs, uses or changes the system. Nothing may weaken,
 override or route around them, including this one. Where anything conflicts with
@@ -138,6 +138,15 @@ and failing safe, and `honesty.iz4.you` requires saying what is blocked.
 The change is recorded here so that it is a known decision rather than
 something to discover.
 
+On 2026-10-09 one sentence changed again, with the owner's approval.
+`foundation-holds.iz4.you` began "The foundation is five invariants:" and
+now begins "The foundation is these invariants:". It lists them by name, so
+it does not need to count them, and the foundation is spoken of as the
+foundation, in its order 0 to 4, beginning with Invariant Zero. Nothing
+else in the text changed. A file that still carries the earlier sentence
+is told it is out of date, and `iz4 foundation --restore` brings it up to
+date.
+
 The numbered text stays readable: a file not yet migrated is recognised by
 it (see [the format](format.md#the-numbered-format)), and `iz4 migrate`
 moves the file to the names. The texts before that live in Git history.
@@ -160,9 +169,10 @@ INVARIANT do-no-harm.iz4.you
 Their sha256 is:
 
 ```text
-f0c11bd08bcc5f2439a75b51af3f12654b283e7f47a60ee192b663bac023afcc
+99d6c2c1776bada52d864af922d3d62db759be0c8c0ec477495bd57d1f87fbbf
 ```
 
+The first named text, which said "five invariants", was `f0c11bd08bcc...`.
 The numbered foundation was `9782949420dc...`, the single Invariant 0
 before it `1af8b123edd8...`, and before that `b0c2482d4298...` and
 `df43776d2c4d...`; those texts stay in Git history.

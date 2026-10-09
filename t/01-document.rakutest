@@ -116,7 +116,7 @@ my @blocks = $F.split(/ <?before 'INVARIANT '> /);
 my $shuffled = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n" ~ @blocks[0] ~ @blocks[1 .. *].reverse.join);
 ok $shuffled.ok && $shuffled.foundation-intact, 'and so is the foundation in another order';
 is $doc.foundation-spans.elems, 5, 'the document knows where each foundation block is';
-like $doc.foundation-status, /'the foundation: Invariants 0 to 4, in the file word for word (sha256 f0c11bd08bcc)'/, 'every file carries it, and the status says so';
+like $doc.foundation-status, /'the foundation: Invariants 0 to 4, in the file word for word (sha256 99d6c2c1776b)'/, 'every file carries it, and the status says so';
 
 # the foundation has an order, 0 to 4, and Invariant Zero comes first
 is INVARIANT-ZERO, 'humans-first.iz4.you', 'Invariant Zero is humans-first.iz4.you';

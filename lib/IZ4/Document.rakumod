@@ -64,6 +64,23 @@ constant FOUNDATION is export = (
              ~ 'confidence, but never lie or use it to conceal harm.',
        because => 'People can only stay in charge of what they can see truly.' ),
     %( id => 'foundation-holds.iz4.you', legacy => 4,
+       text => 'The foundation is these invariants: humans-first.iz4.you, '
+             ~ 'do-no-harm.iz4.you, human-agency.iz4.you, honesty.iz4.you and '
+             ~ 'foundation-holds.iz4.you. They always bind everyone who builds, runs, '
+             ~ 'uses or changes the system. Nothing may weaken, override or route '
+             ~ 'around them, including this one. Where anything conflicts with them, '
+             ~ 'or they conflict with each other, never work around it: pause what is '
+             ~ 'affected, say so, and return the decision to the people entitled to '
+             ~ 'decide.',
+       because => 'A foundation that bends under pressure is not a foundation.' ),
+);
+
+#| Wordings the foundation has had since it was named, by invariant, each
+#| with the version that last wrote it.  A file that still carries one is
+#| not altered by its owner: it is out of date, and is told so.  Nothing
+#| writes these.
+constant FOUNDATION-EARLIER is export = (
+    %( id => 'foundation-holds.iz4.you', until => '0.16.2',
        text => 'The foundation is five invariants: humans-first.iz4.you, '
              ~ 'do-no-harm.iz4.you, human-agency.iz4.you, honesty.iz4.you and '
              ~ 'foundation-holds.iz4.you. They always bind everyone who builds, runs, '
@@ -74,6 +91,13 @@ constant FOUNDATION is export = (
              ~ 'decide.',
        because => 'A foundation that bends under pressure is not a foundation.' ),
 );
+
+#| The version whose wording a foundation block carries, when it is an
+#| earlier one word for word; Str otherwise.
+sub foundation-earlier(Str $id, Str $text, Str $because --> Str) is export {
+    my $f = FOUNDATION-EARLIER.first({ .<id> eq $id && normalised(.<text>) eq normalised($text) && normalised(.<because>) eq normalised($because // '') });
+    $f.defined ?? $f<until> !! Str;
+}
 
 #| The namespace the foundation lives in.  Exactly the five names above
 #| are valid directly under it; deeper names (x.cli.iz4.you) are ordinary
@@ -233,7 +257,7 @@ constant FOUNDATION-TEXT is export =
 
 #| sha256 of FOUNDATION-TEXT.  A test pins it to the bytes.
 constant FOUNDATION-DIGEST is export =
-    'f0c11bd08bcc5f2439a75b51af3f12654b283e7f47a60ee192b663bac023afcc';
+    '99d6c2c1776bada52d864af922d3d62db759be0c8c0ec477495bd57d1f87fbbf';
 
 #| The digest of the numbered foundation, as iz4 0.15 and earlier
 #| reported it: how a legacy file's foundation is still recognised.
@@ -543,8 +567,14 @@ method !validate-named() {
                     else {
                         %foundation{$label} = $b.line;
                         $foundation-broken = True;
-                        self!problem($b.line, "INVARIANT $label is part of the foundation and must read exactly as it does "
-                            ~ "in every IZ4; it is not yours to edit ('iz4 foundation --restore' puts it back)", :fix('iz4 foundation --restore'));
+                        with foundation-earlier($label, $b.text, $because-block.defined ?? $because-block.text !! Str) -> $version {
+                            self!problem($b.line, "INVARIANT $label reads as iz4 $version wrote it, and the foundation's wording has "
+                                ~ "changed since ('iz4 foundation --restore' brings it up to date; 'iz4 foundation' shows the words)", :fix('iz4 foundation --restore'));
+                        }
+                        else {
+                            self!problem($b.line, "INVARIANT $label is part of the foundation and must read exactly as it does "
+                                ~ "in every IZ4; it is not yours to edit ('iz4 foundation --restore' puts it back)", :fix('iz4 foundation --restore'));
+                        }
                     }
                     $last-was-invariant = False;
                     $foundation-block = True;
