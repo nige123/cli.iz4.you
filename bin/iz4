@@ -58,8 +58,13 @@ sub USAGE() {
                                            'iz4 because --split' does every one
       iz4 withdraw NAME                take an invariant out, once you confirm:
                                            its name is retired for good and Git
-                                           keeps its words; the foundation
-                                           cannot be withdrawn (scripts: --force)
+                                           keeps its words. The tests that exist
+                                           only for it are removed with it, shown
+                                           to you first; a test that also names
+                                           another invariant, or that Git does not
+                                           hold as it is, is left (--keep-tests
+                                           leaves them all). The foundation cannot
+                                           be withdrawn (scripts: --force)
       iz4 review [RANGE] [--staged]    review a change against the invariants:
                                            which ones it touches (offline), then
                                            your agent's assessment and any
@@ -531,25 +536,47 @@ sub which-invariant(IO::Path $path, Str $ref --> Str) {
 #| Take a project invariant out, on a person's say-so.  The name is
 #| retired for good; Git keeps the words.  The foundation cannot be
 #| withdrawn.  Scripts pass --force in place of the question.
-multi MAIN('withdraw', Str $which, Str :$file, Bool :$force = False) {
+multi MAIN('withdraw', Str $which, Str :$file, Bool :$force = False, Bool :$keep-tests = False) {
     attempt :intent, {
         my $path = resolve-target($file);
         my $name = display-name($path);
         require-named(check-doc($path), $path);
         my $id   = which-invariant($path, $which);
         print invariant-text($path, $id) unless is-foundation-id($id);   # the refusal below says why for the foundation
-        unless $force || is-foundation-id($id) || !check-doc($path).invariant($id).defined {
+        # What goes with it is worked out, and shown, before anyone is asked.
+        my $present = !is-foundation-id($id) && check-doc($path).invariant($id).defined;
+        my %tests = $present ?? withdrawal-tests($path, check-doc($path), $id) !! %( remove => [], shared => [], unsaved => [] );
+        my @remove = $keep-tests ?? () !! @(%tests<remove>);
+        my @kept   = $keep-tests ?? @(%tests<remove>) !! ();
+        unless $force || !$present {
             user-error("withdrawing an invariant needs a person: run this on a terminal (a script passes --force)")
                 unless interactive();
             say "Withdrawing retires the name $id for good (never reused) and takes the words out of $name; Git keeps them.";
-            my $answer = yes-no(ask("Withdraw INVARIANT $id? [y/N] ") // '', :default(False));
-            unless $answer { say "INVARIANT $id stays."; return 0 }
+            if @remove {
+                say "Its tests go with it: a test for an invariant that is gone protects nothing. Git keeps these too:";
+                say "  $_" for @remove;
+            }
+            my $answer = yes-no(ask("Withdraw INVARIANT $id" ~ (@remove ?? " and remove {+@remove == 1 ?? 'that test' !! "those {+@remove} tests"}" !! '') ~ "? [y/N] ") // '', :default(False));
+            unless $answer { say "INVARIANT $id stays" ~ (@remove ?? ', and so do its tests.' !! '.'); return 0 }
         }
         my $inv = withdraw-invariant($path, $id);
         say "Withdrew INVARIANT $id from $name: {$inv.text}";
-        my @next = ("git commit -am 'Withdraw $id: ...'  (say why, so the history explains it)",);
-        my @tests = tests-naming($path.parent, $id);
-        @next.unshift("delete or re-home the tests naming it: {@tests.join(', ')}") if @tests;
+        my @gone = remove-tests($path.parent, @remove);
+        if @gone {
+            say "Removed {+@gone == 1 ?? 'the test' !! "the {+@gone} tests"} that existed only for it:";
+            say "  $_" for @gone;
+        }
+        my @next;
+        for @(%tests<shared>) -> ($f, @also) {
+            say "Left $f: it also names {@also.join(', ')}.";
+            @next.push("take what was about $id out of $f; the rest of it still protects {@also.join(', ')}");
+        }
+        for @(%tests<unsaved>) -> $f {
+            say "Left $f: Git does not hold it as it is, so removing it would lose it for good.";
+            @next.push("delete $f yourself if it was only for $id, or commit it first");
+        }
+        @next.push("delete or re-home $_: it was only for $id (kept because of --keep-tests)") for @kept;
+        @next.push("git add -A && git commit -m 'Withdraw $id: ...'  (say why, so the history explains it)");
         say-next(@next, :then('iz4 check'));
         0;
     }

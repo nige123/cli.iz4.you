@@ -274,8 +274,9 @@ ok $rc == 1 && $err.contains('nothing was added'), 'a failing agent adds nothing
     like $out, /"retires the name $id for good"/, 'having said that the name is retired for good';
     ($rc, $out, $err) = iz4-talk($wd, "y\n", 'withdraw', $id);
     is $rc, 0, 'yes withdraws';
-    like $out, /"Withdrew INVARIANT $id" .* "next:\n  1. delete or re-home the tests naming it: t/nothing-unexplained.t\n  2. git commit -am 'Withdraw $id: ...'" .* 'then: iz4 check again'/,
-        'and the next steps name the test that still cites it, and the commit' or diag $out;
+    like $out, /"Withdrew INVARIANT $id" .* 'Left t/nothing-unexplained.t: Git does not hold it as it is' .* "next:\n  1. delete t/nothing-unexplained.t yourself if it was only for $id, or commit it first\n  2. git add -A && git commit -m 'Withdraw $id: ...'" .* 'then: iz4 check again'/,
+        'where there is no Git to keep it, the test is left and the next steps name it, and the commit' or diag $out;
+    ok $wd.add('t/nothing-unexplained.t').e, 'a test Git does not hold is never removed: that would lose it for good';
     unlike $out, /'t/other.t'/, 'a test naming only a longer name that contains it is not listed';
     unlike $wd.add('IZ4').slurp, /^^ "INVARIANT $id" $$/, 'the invariant is gone';
     like $wd.add('IZ4').slurp, /^^ "# INVARIANT $id was withdrawn on {Date.today}; its name is retired." $$/, 'and a comment says so where it stood';
@@ -299,6 +300,71 @@ ok $rc == 1 && $err.contains('nothing was added'), 'a failing agent adds nothing
     ($rc, $out, $err) = iz4($wd, 'check');
     is $rc, 0, 'and the file with its two withdrawals still checks' or diag $out;
 }
+
+# ---- withdrawing an invariant takes its tests with it ---------------------------------
+if have-git() {
+    my $wd = temp-dir();
+    sub g(*@a) { my $p = run 'git', '-C', $wd.Str, |@a, :out, :err; $p.out.slurp(:close); $p.err.slurp(:close); $p.exitcode }
+    g('init', '-q'); g('config', 'user.email', 't@t'); g('config', 'user.name', 'T');
+    minimal-iz4(:dir($wd));
+    my ($gone, $stays, $second) = "goes-away.$NS", "stays-put.$NS", "second-one.$NS";
+    iz4($wd, 'add', 'invariant', 'Nothing is sold unexplained to anyone.', '--name=goes-away', "--namespace=$NS", '--because=A confidently wrong price sells work at a loss.');
+    iz4($wd, 'add', 'invariant', 'Refunds go back the way they came.', '--name=stays-put', '--because=Money should not change shape on the way back.');
+    iz4($wd, 'add', 'invariant', 'A receipt is always sent to the buyer.', '--name=second-one', '--because=People need proof of what they paid.');
+    $wd.add('t').mkdir;
+    $wd.add('t/only-one.t').spurt("# INVARIANT $gone\nok 1\n");
+    $wd.add('t/only-two.t').spurt("# another test of $gone alone\nok 1\n");
+    $wd.add('t/shared.t').spurt("# INVARIANT $gone\n# INVARIANT $stays\nok 1\n");
+    $wd.add('t/changed.t').spurt("# INVARIANT $gone\nok 1\n");
+    $wd.add('t/other.t').spurt("# INVARIANT $stays\nok 1\n");
+    $wd.add('t/longer.t').spurt("# INVARIANT really-$gone is another name\nok 1\n");
+    g('add', '-A'); g('commit', '-qm', 'three invariants and their tests');
+    $wd.add('t/changed.t').spurt("# INVARIANT $gone\nok 1\n# work in progress nobody has committed\n");
+    $wd.add('t/untracked.t').spurt("# INVARIANT $gone\nok 1\n");
+
+    # asked first, with what would go
+    my ($rc, $out, $err) = iz4-talk($wd, "n\n", 'withdraw', 'goes-away');
+    like $out, /'Its tests go with it' .* 'Git keeps these too:' \n '  t/only-one.t' \n '  t/only-two.t' \n/, 'before asking, withdraw shows the tests that would go with the invariant';
+    like $out, /"Withdraw INVARIANT $gone and remove those 2 tests? [y/N]"/, 'and the question says so';
+    like $out, /"INVARIANT $gone stays, and so do its tests."/, 'a no keeps the invariant and every test';
+    ok $wd.add('t/only-one.t').e && $wd.add('t/only-two.t').e, 'nothing was removed on a no';
+
+    ($rc, $out, $err) = iz4-talk($wd, "y\n", 'withdraw', 'goes-away');
+    is $rc, 0, 'a yes withdraws' or diag $err;
+    nok $wd.add('t/only-one.t').e || $wd.add('t/only-two.t').e, 'and the tests that existed only for it are removed';
+    like $out, /'Removed the 2 tests that existed only for it:' \n '  t/only-one.t' \n '  t/only-two.t'/, 'which the output lists';
+    ok $wd.add('t/shared.t').e, 'a test that also names another invariant is left: it still protects something';
+    like $out, /"Left t/shared.t: it also names $stays."/, 'and the output says why';
+    like $out, /"take what was about $gone out of t/shared.t; the rest of it still protects $stays"/, 'with the next step for it';
+    ok $wd.add('t/changed.t').slurp.contains('work in progress'), 'a test changed since the last commit is left, with its uncommitted work';
+    ok $wd.add('t/untracked.t').e, 'and so is one Git has never held';
+    like $out, /'Left t/changed.t: Git does not hold it as it is' .* 'Left t/untracked.t: Git does not hold it as it is'/, 'each with the reason';
+    ok $wd.add('t/other.t').e && $wd.add('t/longer.t').e, 'tests of other invariants, and of a longer name that merely contains this one, are untouched';
+    is g('show', 'HEAD:t/only-one.t'), 0, 'Git still holds what was removed';
+    like $out, /"git add -A && git commit -m 'Withdraw $gone: ...'"/, 'and the last step is to commit, saying why';
+    ($rc, $out, $err) = iz4($wd, 'check');
+    is $rc, 0, 'the file still checks' or diag $out;
+    unlike $out, /"evidence: " .* $gone/, 'and check no longer speaks of the withdrawn invariant';
+
+    # a script, and the way to keep them
+    g('add', '-A'); g('commit', '-qm', 'withdrawn');
+    $wd.add('t/second.t').spurt("# INVARIANT $second\nok 1\n");
+    g('add', '-A'); g('commit', '-qm', 'a test');
+    ($rc, $out, $err) = iz4($wd, 'withdraw', 'second-one', '--force', '--keep-tests');
+    ok $rc == 0 && $wd.add('t/second.t').e, '--keep-tests withdraws and leaves every test';
+    like $out, /"delete or re-home t/second.t: it was only for $second (kept because of --keep-tests)"/, 'and the next step names what was kept';
+    g('add', '-A'); g('commit', '-qm', 'withdrawn two');
+    ($rc, $out, $err) = iz4($wd, 'withdraw', 'stays-put', '--force');
+    ok $rc == 0 && !$wd.add('t/other.t').e, 'with --force a script withdraws and the lone test goes with it';
+    nok $wd.add('t/shared.t').e, 'a test once shared goes when the last invariant it named is withdrawn';
+
+    # the foundation: nothing is looked for, nothing removed
+    $wd.add('t/humans.t').spurt("# INVARIANT humans-first.iz4.you\nok 1\n");
+    g('add', '-A'); g('commit', '-qm', 'a foundation test');
+    ($rc, $out, $err) = iz4($wd, 'withdraw', 'humans-first', '--force');
+    ok $rc == 1 && $wd.add('t/humans.t').e, 'a refused withdrawal of the foundation removes no test';
+}
+else { skip 'git not available', 24 }
 
 # ---- the numbered format: read, refused by every command that writes, migrated ------
 sub legacy-iz4(IO::Path $dir, Str $name = 'IZ4' --> IO::Path) {

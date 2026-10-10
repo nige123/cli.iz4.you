@@ -391,7 +391,8 @@ sub invariant-text(IO::Path $path, Str $ref --> Str) is export {
 #| Take a project invariant out of the file: its INVARIANT block, its
 #| BECAUSE and the blank line before them.  Nothing else is touched, Git
 #| keeps the words, and the name is retired: it is never given to a
-#| different invariant.  The foundation cannot be withdrawn by any
+#| different invariant.  The tests that exist only for it go with it
+#| (withdrawal-tests, remove-tests): the caller does that, after asking.  The foundation cannot be withdrawn by any
 #| project (foundation-holds.iz4.you).  Returns the invariant as it was.
 #| The caller confirms with a person first: this discards their words
 #| only on their say-so.
@@ -444,6 +445,49 @@ sub withdrawn-in(IO::Path $path, Str $id --> Str) is export {
 #| withdrawal they are the next thing to look at.
 sub tests-naming(IO::Path $root, Str $id --> List) is export {
     test-files($root).grep({ (try .slurp) andthen names-identity($_, $id) }).map(*.relative($root)).List;
+}
+
+#| What withdrawing invariant $id means for the tests that name it,
+#| decided before anything is touched.  $doc is the document as it is
+#| now, with the invariant still in it.  A hash of three lists:
+#|
+#|   remove   test files that exist only for this invariant, and that Git
+#|            holds exactly as they are: taking them out loses nothing
+#|   shared   (file, the other invariants it also names): left in place,
+#|            because they still protect something
+#|   unsaved  files Git does not hold as they are (untracked, or changed
+#|            since the last commit): left in place, because removing
+#|            them would discard work for good
+#|
+#| A test for an invariant that no longer exists protects nothing, and a
+#| scaffold for it would fail for ever, so the first list goes with the
+#| invariant.  Nothing here deletes: remove-tests does, on a person's yes.
+sub withdrawal-tests(IO::Path $path, IZ4::Document $doc, Str $id --> Hash) is export {
+    my $root = $path.parent;
+    my @others = $doc.invariants.map(*.id).grep({ .defined && $_ ne $id });
+    my (@remove, @shared, @unsaved);
+    for tests-naming($root, $id) -> $rel {
+        my $text = (try $root.add($rel).slurp) // '';
+        my @also = @others.grep({ names-identity($text, $_) });
+        if @also { @shared.push: ($rel.Str, @also.List); next }
+        my ($tracked) = git($path, 'ls-files', '--error-unmatch', '--', $rel.Str);
+        my ($rc, $changed, $) = git($path, 'status', '--porcelain', '--', $rel.Str);
+        if $tracked == 0 && $rc == 0 && $changed.trim eq '' { @remove.push($rel.Str) }
+        else { @unsaved.push($rel.Str) }
+    }
+    %( remove => @remove, shared => @shared, unsaved => @unsaved );
+}
+
+#| Take test files out.  Returns the ones removed.
+sub remove-tests(IO::Path $root, @files --> List) is export {
+    my @gone;
+    for @files -> $rel {
+        my $f = $root.add($rel);
+        next unless $f.e && $f.f;
+        $f.unlink;
+        @gone.push($rel);
+    }
+    @gone.List;
 }
 
 # ---------------------------------------------------------------- check

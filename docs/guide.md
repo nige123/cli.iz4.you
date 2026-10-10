@@ -285,6 +285,21 @@ the words. The foundation's invariants cannot be withdrawn by any
 project: they are the foundation every IZ4 carries, not the project's to
 change.
 
+Its tests go with it. A test for an invariant that is gone protects
+nothing, and a scaffold for it would fail for ever. So `iz4 withdraw`
+lists the test files that exist only for that invariant before it asks,
+and removes them on your yes. Three kinds of file it leaves alone, and
+says so:
+
+- a test that also names another invariant, because it still protects
+  something. The next step is to take the withdrawn part out by hand;
+- a test Git does not hold exactly as it is, untracked or changed since
+  the last commit, because removing it would lose work for good;
+- every test, with `--keep-tests`.
+
+Git keeps the removed tests as it keeps the words, and the last step is
+always a commit that says why.
+
 ## Reviewing a change
 
 ```text
