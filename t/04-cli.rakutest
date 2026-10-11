@@ -513,7 +513,7 @@ sub legacy-iz4(IO::Path $dir, Str $name = 'IZ4' --> IO::Path) {
     ok $rc == 1 && !$d.add('IZ4').slurp.contains('charged twice'), 'and a number is never accepted as the name of one';
     ($rc, $out, $err) = iz4($d, 'withdraw', '0', '--force');
     ok $rc == 1 && $err.contains('part of the foundation') && $d.add('IZ4').slurp.contains('INVARIANT humans-first.iz4.you'), 'the order is for looking up: Invariant Zero cannot be withdrawn by it';
-    like $d.add('IZ4').slurp, /'# It begins with Invariant Zero, humans first: https://iz4.you/invariant-zero.'/, 'a new IZ4 opens by pointing at Invariant Zero';
+    like $d.add('IZ4').slurp, /'# It begins with Invariant Zero, humans first: https://iz4.you/foundation.'/, 'a new IZ4 opens by pointing at Invariant Zero';
     like $d.add('IZ4').slurp, /'# Invariant Zero, humans-first.iz4.you, is the foundation of the foundation.' \n/, 'and says above the foundation what it is';
     ($rc, $out, $err) = iz4($d, 'check');
     is $rc, 0, 'and the file checks: the comments are for people, the words are what is checked' or diag $out;
