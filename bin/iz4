@@ -319,6 +319,7 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Bool :$agent, Bool :$agents) {
         say '';
         say "Every IZ4 carries the foundation word for word, from Invariant Zero, humans first ('iz4 foundation' shows it).";
         say "Your own are named under your project's domain, like owner-adjusted.honeywillow.com.";
+        say "Still working out what it must keep? 'iz4 mode mvp' lets you move fast while the invariants settle.";
         if $talk {
             say '';
             if yes-no(ask('Add an invariant now? [Y/n] '), :default) {
@@ -482,6 +483,42 @@ multi MAIN('withdraw', Str $which, Str :$file, Bool :$force = False, Bool :$keep
     }
 }
 
+# ------------------------------------------------------------ mode
+
+#| MVP mode or solid: how much the project's own invariants are meant yet.
+multi MAIN('mode', Str $mode?, Str :$file) {
+    attempt :intent, {
+        my $path = resolve-target($file);
+        my $doc  = check-doc($path);
+        my $name = display-name($path);
+        without $mode {
+            say $doc.mvp
+                ?? "$name is in MVP mode: its invariants are still settling, and a change to them does not wait for a yes.\n'iz4 mode solid' when they are ready to hold."
+                !! "$name is solid: a change to one of its invariants waits for your yes.\n'iz4 mode mvp' while they are still settling.";
+            return 0;
+        }
+        my $want = $mode.lc;
+        user-error("iz4 mode takes mvp or solid; not '$mode'") unless $want eq 'mvp' | 'solid';
+        my $now = set-mode($path, $want);
+        if $now eq 'unchanged' { say "$name is already " ~ ($want eq 'mvp' ?? 'in MVP mode.' !! 'solid.'); return 0 }
+        if $want eq 'mvp' {
+            say "$name is in MVP mode. Keep moving: changes to its invariants do not wait for a yes, and a failing test of one does not hold a commit.";
+            say "The foundation holds as ever. 'iz4 mode solid' when the invariants are ready to mean it.";
+        }
+        else {
+            my %ev    = evidence-for(check-doc($path), $path.parent);
+            my @own   = check-doc($path).invariants.grep(*.id.defined);
+            my $named = @own.grep({ (%ev<state>{.id} // '') eq 'named' }).elems;
+            say "$name is solid: from now on a change to one of its invariants waits for your yes.";
+            say @own == $named
+                ?? "All {+@own} of its own have a test."
+                !! "$named of {+@own} have a test; 'iz4 test' writes the rest, so each one means something.";
+        }
+        say "Changing mode is itself something you agree to: commit it, and you are asked once." if git($path, 'rev-parse', '--git-dir')[0] == 0 && git-tracked($path);
+        0;
+    }
+}
+
 # ------------------------------------------------------------ words for actions
 #
 # An action is a word.  Each of these is the same command as the flag
@@ -618,7 +655,14 @@ multi MAIN('check', Str $file?, Bool :$strict = False) {
         else {
             @rows.push: ('✓', "invariants: none of your own yet, which is a fine start ('iz4 add' helps you find one)", '');
         }
-        if $count {
+        if $count && $doc.mvp {
+            # still settling: say where things stand in a line, and ask for nothing
+            my %ev    = evidence-for($doc, $path.parent);
+            my $named = $doc.invariants.grep({ .id.defined && (%ev<state>{.id} // '') eq 'named' }).elems;
+            my $why   = $count - $doc.unexplained-invariants.elems;
+            @rows.push: ('✓', "MVP mode: $count settling, $why with a reason, $named with a test. Nothing waits on you; 'iz4 mode solid' when they are ready to hold.", '');
+        }
+        elsif $count {
             my @bare   = $doc.unexplained-invariants;
             my @folded = @bare.grep({ split-reason(.text)[1].defined }).map({ .id // 'unnamed' });
             my @plain  = @bare.grep({ !split-reason(.text)[1].defined }).map({ .id // 'unnamed' });
@@ -1427,6 +1471,19 @@ sub gate-root(Str $file --> IO::Path) {
     $root;
 }
 
+#| A pass in one line.
+sub brief-line(%r --> Str) {
+    with %r<mvp> -> %m {
+        my @said;
+        @said.push: "{%m<changes>} change{%m<changes> == 1 ?? '' !! 's'} to what it promises" if %m<changes>;
+        @said.push: "{%m<failing>} invariant test{%m<failing> == 1 ?? '' !! 's'} failing" if %m<failing>;
+        return 'iz4: MVP mode, ' ~ (@said ?? @said.join(', ') ~ ". Nothing waits on you; 'iz4 mode solid' when they are ready to hold." !! 'nothing it promises changed.');
+    }
+    (%r<approval><status> // '') eq 'valid'
+        ?? "iz4: the change to what this promises is agreed, by {%r<approval><approved_by>}."
+        !! 'iz4: nothing this software promises has changed.';
+}
+
 sub gate-lines(%r --> List) {
     my @l;
     my $b = %r<base> eq 'none' ?? 'no base (initial)' !! "base {%r<base>.substr(0, 12)} ({%r<base_ref>})";
@@ -1453,6 +1510,7 @@ sub gate-lines(%r --> List) {
         }
     }
     @l.push: "  note: $_" for |%r<notes>;
+    with %r<mvp> { @l.push: "MVP mode: the invariants are still settling, so nothing here waits for a yes ({.<changes>} changed, {.<failing>} test{.<failing> == 1 ?? '' !! 's'} failing). 'iz4 mode solid' when they are ready to hold." }
     my %why =
         pass => 'no commitment or protection changed, and every check that could run passed',
         'agreement-required' => 'this changes what the software promises, so it waits for your yes',
@@ -1544,12 +1602,12 @@ multi MAIN('gate', Bool :$install-hook!, Bool :$enforce = False, Bool :$force = 
 
 multi MAIN('gate', Str :$base, Str :$candidate, Bool :$staged = False, Bool :$enforce = False, Bool :$json = False,
            Bool :$checks = True, Int :$timeout = 300, Str :$check-cmd = %*ENV<IZ4_CHECK_CMD> // Str,
-           Str :$approval, Str :$approvers = %*ENV<IZ4_APPROVERS> // Str, Str :$file) {
-    attempt { gate-command(:$base, :$candidate, :$enforce, :$json, :$checks, :$timeout, :$check-cmd, :$approval, :$approvers, :$file) }
+           Str :$approval, Str :$approvers = %*ENV<IZ4_APPROVERS> // Str, Str :$file, Bool :$brief = False) {
+    attempt { gate-command(:$base, :$candidate, :$enforce, :$json, :$checks, :$timeout, :$check-cmd, :$approval, :$approvers, :$file, :$brief) }
 }
 
 sub gate-command(Str :$base, Str :$candidate, Bool :$enforce, Bool :$json, Bool :$checks, Int :$timeout, Str :$check-cmd,
-                 Str :$approval, Str :$approvers, Str :$file --> Int) {
+                 Str :$approval, Str :$approvers, Str :$file, Bool :$brief = False --> Int) {
     {
         my $root = gate-root($file);
         # the command that runs one linked test: the flag, then IZ4_CHECK_CMD,
@@ -1575,6 +1633,10 @@ sub gate-command(Str :$base, Str :$candidate, Bool :$enforce, Bool :$json, Bool 
             return 1;
         }
         if $json { say json-encode(%r) }
+        elsif $brief && %r<outcome> eq 'pass' {
+            # nothing for a person to do: one line, so a commit or a deploy is not a wall of text
+            say brief-line(%r);
+        }
         else {
             say $_ for gate-lines(%r);
             my $again = 'iz4 gate' ~ ($candidate.defined ?? " --candidate=$candidate" !! ' --staged') ~ ($enforce ?? ' --enforce' !! '');

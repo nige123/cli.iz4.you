@@ -119,8 +119,8 @@ g($r, 'config', '--global', '--unset', 'iz4.approveKey');
 
 # ---- committing by hand: no command at all ----------------------------------
 my $hook = gate-hook-text(:enforce);
-like $hook, / 'iz4 gate --staged --enforce && exit 0' /, 'the hook runs the gate';
-like $hook, / '[ -t 2 ]' .* 'iz4 approve </dev/tty' .* 'exec iz4 gate --staged --enforce' /,
+like $hook, / 'iz4 gate --staged --enforce --brief && exit 0' /, 'the hook runs the gate';
+like $hook, / '[ -t 2 ]' .* 'iz4 approve </dev/tty' .* 'exec iz4 gate --staged --enforce --brief' /,
     'and where a person is committing at a terminal, asks them there and goes on with the commit';
 like $hook, / '[ "$rc" = 2 ]' .* '[ "$rc" = 3 ]' .* '|| exit $rc' /, 'anything else committing is refused as before, with the same exit code';
 unlike gate-hook-text(), / 'approve' /, 'an advisory hook asks nothing';

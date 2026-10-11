@@ -41,7 +41,8 @@ length; see [the foundation](foundation.md).)
   https://iz4.you/foundation; and, above the foundation, that it is not
   the owner's to edit. Two kinds of comment the tool writes it also reads
   back, because they record a decision and nothing else in the file does:
-  the withdrawal line (below) and the one line naming the project's
+  the withdrawal line (below), the `# MVP:` line that says the project's
+  invariants are still settling ([the gate](gate.md#mvp-mode)), and the one line naming the project's
   namespace.
 - **A block** is a keyword line at column 0, then its text: every following
   line up to a blank line, a comment or the next keyword. The lines join

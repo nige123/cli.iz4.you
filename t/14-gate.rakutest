@@ -403,7 +403,7 @@ g($r, 'checkout', 'HEAD', '--', 'lib/profile.txt'); g($r, 'reset', '-q', 'lib');
 ($rc, $out, $err) = gate($r, '--install-hook');
 like $out, /'pre-commit hook: installed (advisory'/, 'the advisory hook installs' or diag $err;
 my $hook = $r.add('.git/hooks/pre-commit');
-like $hook.slurp, /'iz4 gate --staged; exit 0'/, 'and never refuses';
+like $hook.slurp, /'iz4 gate --staged --brief; exit 0'/, 'and never refuses';
 ($rc, $out, $err) = gate($r, '--install-hook', '--enforce');
 like $out, /'pre-commit hook: updated (it asks you at the terminal when a commit changes what the software promises'/, 'the enforcing hook replaces it';
 like $hook.slurp, /'iz4 gate --staged --enforce'/, 'and refuses on any outcome but pass';

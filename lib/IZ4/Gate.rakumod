@@ -69,7 +69,7 @@ constant %EXIT-CODE is export = (pass => 0, error => 1, 'agreement-required' => 
 constant @REJECTS   is export = <agreement-required blocked unassessed error>;
 
 constant @BLOCKING-KINDS  = <invalid foundation reused-name format-regressed>;
-constant @AGREEMENT-KINDS = <purpose people added revised removed removed-file named foundation-migrated>;
+constant @AGREEMENT-KINDS = <purpose people added revised removed removed-file named foundation-migrated mode>;
 constant @PROTECTION-AGREEMENT-KINDS = <protection-removed protection-unlinked protection-weakened>;
 
 sub gate-error(Str $message) { X::IZ4.new(:$message).throw }
@@ -562,6 +562,7 @@ sub proposal-lines(%p --> List) is export {
                 @l.push: 'The foundation moves to named invariants, with new words', "  before: {%c<before>}", "  after:  {%c<after>}", "  {%c<detail>}";
             }
             when 'removed-file'  { @l.push: 'The IZ4 is removed: every commitment with it' }
+            when 'mode'          { @l.push: (%c<after> eq 'mvp' ?? 'The IZ4 goes into MVP mode' !! 'The IZ4 becomes solid'), "  {%c<detail>}" }
             when 'invalid'       { @l.push: "To put right: the candidate IZ4 does not parse: {%c<detail>}" }
             when 'foundation'    { @l.push: "To put right: {%c<detail>}", '  The foundation is the same in every IZ4; no project approval can change it (keystone.iz4.you)' }
             when 'reused-name' | 'format-regressed' { @l.push: "To put right: {%c<detail>}" }
@@ -811,6 +812,19 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
     }
 
     my @changes = commitment-changes($base-doc, $cand-doc, :base-source($base-src // ''));
+    # MVP mode is the file's own to declare.  Going into it, or out of it,
+    # is a change to how much the invariants are meant, and a person agrees
+    # to that like any other; while a file stays in it, nothing below waits.
+    my $cand-mvp = $cand-doc.defined && $cand-doc.mvp;
+    my $base-mvp = $base-doc.defined && $base-doc.mvp;
+    my $settling = $cand-mvp && ($base-mvp || !$base-doc.defined);
+    if $base-doc.defined && $cand-doc.defined && $base-mvp != $cand-mvp {
+        my $own = $cand-doc.invariants.grep(*.id.defined).elems;
+        @changes.push: %( kind => 'mode', before => ($base-mvp ?? 'mvp' !! 'solid'), after => ($cand-mvp ?? 'mvp' !! 'solid'),
+                          detail => ($cand-mvp
+                              ?? "its $own invariant{$own == 1 ?? '' !! 's'} go back to settling: changes to them will not wait for a yes until it is solid again"
+                              !! "its $own invariant{$own == 1 ?? '' !! 's'} become solid: from now on a change to any of them waits for a yes") );
+    }
     my ($base-dir, $cand-dir);
     my $linked = 0;
     my $skipped = 0;
@@ -860,6 +874,16 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
     my $blocked    = is-blocked(%p) || ?@checks.grep({ .<outcome> eq 'failed' });
     my $agree      = needs-agreement(%p);
     my $unassessed = ?@checks.grep({ .<outcome> eq any(<timeout unassessed>) });
+    %r<intent_mode> = $cand-mvp ?? 'mvp' !! 'solid';
+    if $settling {
+        # nothing of the project's own waits or holds; what was noticed is said in one line
+        my $n = @changes.grep({ .<kind> eq any(@AGREEMENT-KINDS) }).elems + @protections.grep({ .<kind> eq any(@PROTECTION-AGREEMENT-KINDS) }).elems;
+        my $f = @checks.grep({ .<outcome> eq 'failed' }).elems;
+        %r<mvp> = %( changes => $n, failing => $f );
+        $blocked    = is-blocked(%p);
+        $agree      = False;
+        $unassessed = False;
+    }
     if $skipped {
         @notes.push: "checks were not run (--no-checks): $skipped invariant{$skipped == 1 ?? ' has' !! 's have'} a test naming {$skipped == 1 ?? 'it' !! 'them'}, unassessed here";
         $unassessed = True;
@@ -925,11 +949,11 @@ constant GATE-HOOK-MARK is export = '# iz4 gate hook';
 #| with the commit: no command to remember.  Anything else committing (a
 #| script, an agent: no terminal on standard error) is refused as before.
 constant GATE-HOOK-ENFORCE is export = q:to/END/.chomp;
-    iz4 gate --staged --enforce && exit 0
+    iz4 gate --staged --enforce --brief && exit 0
     rc=$?
     { [ "$rc" = 2 ] || [ "$rc" = 3 ]; } && [ -t 2 ] && [ -r /dev/tty ] || exit $rc
     iz4 approve </dev/tty || exit $rc
-    exec iz4 gate --staged --enforce
+    exec iz4 gate --staged --enforce --brief
     END
 
 #| The pre-commit hook: the gate on the staged tree.  Advisory unless
@@ -939,6 +963,6 @@ sub gate-hook-text(Bool :$enforce = False --> Str) is export {
     #!/bin/sh
     {GATE-HOOK-MARK} (written by 'iz4 gate install'; delete this file to remove it)
     command -v iz4 >/dev/null 2>&1 || exit 0
-    {$enforce ?? GATE-HOOK-ENFORCE !! 'iz4 gate --staged; exit 0'}
+    {$enforce ?? GATE-HOOK-ENFORCE !! 'iz4 gate --staged --brief; exit 0'}
     END
 }

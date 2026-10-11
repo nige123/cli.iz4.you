@@ -174,6 +174,33 @@ Two levels of approval:
   key). A signed approval whose document was edited afterwards does not
   verify.
 
+## MVP mode
+
+While a project is still finding out what it must keep, waiting for a yes
+on every change costs more than it protects. `iz4 mode mvp` puts one line
+in the IZ4:
+
+```text
+# MVP: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.
+```
+
+While it is there, a change to the project's own invariants does not wait
+for agreement, a failing test of one does not hold a commit, and the gate
+says one line (`iz4: MVP mode, 1 change to what it promises, 1 invariant
+test failing. Nothing waits on you; ...`). `iz4 check` says where things
+stand in a line and asks for nothing. Tools get `"outcome":"pass"` with
+`"intent_mode":"mvp"` and the counts, so a pass in MVP mode is never
+mistaken for agreement.
+
+The foundation holds exactly as ever. `iz4 mode solid` takes the line out
+and says how many invariants have a test. Moving either way is itself a
+change a person agrees to, so MVP mode cannot be slipped in to get a change
+past them. The line is in the file, not in anyone's settings: everyone
+with the file, and CI, sees the same mode.
+
+`iz4 gate --brief` gives a pass in one line in either mode; the hooks use
+it, so a commit that changes nothing promised is not a wall of text.
+
 The gate is there to help a project keep its word, not to tell anyone off.
 When the software and the IZ4 come to disagree, the question is which of
 them is right, and only a person knows.

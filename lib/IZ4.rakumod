@@ -5,7 +5,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.16.3';
+constant VERSION is export = '0.17.0';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -263,6 +263,35 @@ constant EXAMPLES is export = q:to/END/;
     The right-hand column is not automatically an invariant either: the
     project owner decides what must remain true.
     END
+
+# ---------------------------------------------------------------- mode
+
+#| Put a file into MVP mode or make it solid.  Only the one comment line
+#| comes or goes.  Returns 'mvp', 'solid' or 'unchanged'.
+sub set-mode(IO::Path $path, Str $mode where 'mvp' | 'solid' --> Str) is export {
+    my $doc = check-doc($path);
+    require-named($doc, $path);
+    return 'unchanged' if $doc.mvp == ($mode eq 'mvp');
+    my @lines = $path.lines;
+    if $mode eq 'solid' {
+        my @kept;
+        for @lines.kv -> $i, $l {
+            if $l ~~ /^ '#' \s* 'MVP:' / {
+                @kept.pop if @kept && @kept[*-1].trim eq '' && ($i + 1 >= @lines.elems || @lines[$i + 1].trim eq '');
+                next;
+            }
+            @kept.push($l);
+        }
+        $path.spurt(@kept.join("\n") ~ "\n");
+        return 'solid';
+    }
+    # after the comments the file opens with, before IS FOR WHAT
+    my $at = @lines.first({ $_ ~~ /^ 'IS FOR' / }, :k) // @lines.elems;
+    $at-- while $at > 0 && @lines[$at - 1].trim eq '';
+    @lines.splice($at, 0, '', MVP-COMMENT);
+    $path.spurt(@lines.join("\n") ~ "\n");
+    'mvp';
+}
 
 # ---------------------------------------------------------------- init
 
