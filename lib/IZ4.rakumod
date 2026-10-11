@@ -822,6 +822,79 @@ sub relink-tests(IZ4::Document $before, IO::Path $root, %names --> List) is expo
 
 # ---------------------------------------------------------------- suggest
 
+#| The prompt for a first draft of what a system is for and who it is
+#| for, read off the repository.  The reply is two lines.
+sub purpose-prompt(Str :$evidence = '' --> Str) is export {
+    q:to/END/ ~ $evidence ~ "\n";
+    You are helping a developer write the first two lines of the IZ4 file
+    for the system in this repository.  IZ4 means Is For.
+
+    Read the evidence below and answer two questions in plain words, one
+    sentence each, as the people who own this would say it.  Say what it
+    is for, not how it is built: no frameworks, languages or file names.
+    If you cannot tell, say what you can and keep it short.
+
+    Reply with exactly two lines and nothing else:
+    FOR WHAT: <what this system is for>
+    FOR WHO: <who it is for>
+
+    Evidence from the codebase:
+    END
+}
+
+#| The two answers out of a reply, or an empty hash when either is missing.
+sub parse-purpose(Str $reply --> Hash) is export {
+    my $what = ($reply ~~ / ^^ \h* 'FOR WHAT:' \h* (\N+) /) ?? ~$0 !! '';
+    my $who  = ($reply ~~ / ^^ \h* 'FOR WHO:'  \h* (\N+) /) ?? ~$0 !! '';
+    $what.trim ne '' && $who.trim ne '' ?? %( for-what => $what.trim, for-who => $who.trim ) !! %();
+}
+
+#| The prompt for new words for an invariant that the software no longer
+#| keeps: what is true of the software now, said as an invariant.
+sub reword-prompt(Str :$id!, Str :$text!, Str :$because = '', Str :$failure = '', Str :$evidence = '' --> Str) is export {
+    qq:to/END/ ~ $evidence ~ "\n";
+    A system's IZ4 file holds the few things that must stay true of it.
+    One of them no longer matches the software, and its owner has decided
+    the software is right and the words are out of date.
+
+    INVARIANT $id
+    $text
+    BECAUSE
+    {$because || '(no reason given)'}
+
+    What its test reported:
+    {$failure || '(nothing)'}
+
+    Write the invariant again so that it says what is true of the software
+    now, keeping as much of the original promise as still holds.  One or
+    two plain sentences.  No implementation detail.  If you cannot tell
+    what is true now, say so instead.
+
+    Reply with exactly one line and nothing else:
+    INVARIANT: <the new words>
+    or
+    CANNOT: <why not>
+
+    Evidence from the codebase:
+    END
+}
+
+#| The new words out of a reply, or Str.
+sub parse-reword(Str $reply --> Str) is export {
+    ($reply ~~ / ^^ \h* 'INVARIANT:' \h* (\N+) /) ?? (~$0).trim !! Str;
+}
+
+#| Give an invariant new words, keeping its name and its reason.  The name
+#| stays because the promise is the same one, brought up to date; Git
+#| keeps the words it had.
+sub revise-invariant(IO::Path $path, Str $ref, Str $text --> Str) is export {
+    my $doc = check-doc($path);
+    my $inv = invariant-or-die($doc, $path, $ref);
+    user-error('an invariant needs words') if $text.trim eq '';
+    rewrite-invariant($path, $doc, $inv, $text.trim, $inv.because // '');
+    $inv.id;
+}
+
 #| The prompt for repository analysis.  Its job is to keep IZ4 small.
 sub suggest-prompt(Str :$current = '', Str :$evidence = '' --> Str) is export {
     q:to/END/ ~ ($current.trim || '(none yet)') ~ "\n\nEvidence from the codebase:\n" ~ $evidence ~ "\n";
@@ -835,8 +908,8 @@ sub suggest-prompt(Str :$current = '', Str :$evidence = '' --> Str) is export {
     Do not try to make IZ4 complete.  Try to make it small.
 
     Every IZ4 carries the foundation word for word: Invariant Zero, humans
-    first, then do no harm, human agency, honesty and the foundation
-    holds.  Do not restate it; propose only this project's own invariants.
+    first, then do no harm, human agency, honesty and the keystone.
+    Do not restate it; propose only this project's own invariants.
 
     The golden test: if the whole system were rewritten tomorrow,
     would we regret not telling the people and agents rebuilding it this?

@@ -58,9 +58,17 @@ is $rc, 2, 'approve without a person at a terminal records nothing';
 like $out, / 'At a terminal, they run:   iz4 approve' /, 'and names the one command';
 
 # ---- one command: the key and the name are found, the approval is sent ------
-($rc, $out, $err) = iz4-talk($r, "a\ny\n", 'approve', :env(%known));
+# three things change in a first IZ4, and they are asked about one at a time
+($rc, $out, $err) = iz4-talk($r, "y\nn\n", 'approve', :env(%known));
+is $rc, 2, 'a no to any one of them agrees to nothing';
+like $out, / '1 of 3' .* 'Is that right? [y/n]' .* '2 of 3' /, 'each change is its own small question';
+unlike $out, / '3 of 3' /, 'and nothing more is asked after a no';
+like $out, / 'nothing is agreed and nothing was recorded' /, 'said plainly';
+is g($r, 'for-each-ref', 'refs/iz4/approvals/'), '', 'and no approval exists';
+($rc, $out, $err) = iz4-talk($r, "y\ny\ny\ny\n", 'approve', :env(%known));
 is $rc, 0, 'iz4 approve alone is enough' or diag "$out\n$err";
-like $out, / 'You sign as owner@example.com with ' \S+ 'id_ed25519 (listed in ' /, 'it says who signs, with which key, and how it knew';
+like $out, / 'in 3 ways. One at a time:' .* '3 of 3' /, 'all three were put to the person';
+like $out, / 'Signed as owner@example.com with ' \S+ 'id_ed25519 (listed in ' /, 'it says who signed, with which key, and how it knew';
 like $out, / 'Recorded: ssh-signature approval by owner@example.com' /, 'the approval is signed';
 like $out, / 'Sent to origin. Nothing more for you to do' /, 'and sent on, when the person says yes';
 my $tree = g($r, 'write-tree');
@@ -73,7 +81,7 @@ g($r, 'commit', '-qm', 'one');
 ($key.Str ~ '.pub').IO.unlink;
 change($r);
 ($rc, $out, $err) = iz4-talk($r, "a\nn\n", 'approve', :env(%known));
-like $out, / 'You sign as owner@example.com' /, 'a key with no .pub beside it is still recognised';
+like $out, / 'Signed as owner@example.com' /, 'a key with no .pub beside it is still recognised';
 like $out, / 'Not sent. When you want it there: git push origin refs/iz4/approvals/' /, 'saying no to sending leaves the exact command';
 g($r, 'commit', '-qm', 'two');
 
@@ -81,7 +89,7 @@ g($r, 'commit', '-qm', 'two');
 change($r);
 ($rc, $out, $err) = iz4-talk($r, "\na\nn\n", 'approve', :env(%known));
 is $rc, 0, 'an empty answer is asked again, not taken as revise';
-like $out, / 'Type a to accept, r to reject, or v to revise.' /, 'with the three choices spelled out';
+like $out, / 'Type y if that is what you mean, n if it is not.' /, 'with the choices spelled out';
 g($r, 'commit', '-qm', 'three');
 
 # ---- no key the gate knows: said once, remembered ---------------------------
@@ -91,11 +99,11 @@ change($r);
 like $out, / 'Recorded: terminal approval by t@test' /, 'with no key found, the approval is a terminal one';
 like $out, / 'say once which key is yours' .* 'iz4 approve --sign=KEY --by=YOU' /, 'and iz4 says the one thing to do, once';
 ($rc, $out, $err) = iz4-talk($r, "a\nn\n", 'approve', "--sign={$key}", '--by=owner@example.com', :env(%none));
-like $out, / 'You sign as owner@example.com with ' \S+ ' (as you said)' /, 'said outright, it is used';
+like $out, / 'Signed as owner@example.com with ' \S+ ' (as you said)' /, 'said outright, it is used';
 g($r, 'commit', '-qm', 'four');
 change($r);
 ($rc, $out, $err) = iz4-talk($r, "a\nn\n", 'approve', :env(%none));
-like $out, / 'You sign as owner@example.com with ' \S+ ' (as last time)' /, 'and the next approval needs nothing said';
+like $out, / 'Signed as owner@example.com with ' \S+ ' (as last time)' /, 'and the next approval needs nothing said';
 like $out, / 'Recorded: ssh-signature approval' /, 'and is signed';
 ($rc, $out, $err) = iz4-talk($r, "a\n", 'approve', '--sign=/nowhere/key', '--by=x@example.com', :env(%none));
 isnt $rc, 0, 'a key that is not there is refused before anything is asked';
@@ -114,7 +122,7 @@ my $hook = gate-hook-text(:enforce);
 like $hook, / 'iz4 gate --staged --enforce && exit 0' /, 'the hook runs the gate';
 like $hook, / '[ -t 2 ]' .* 'iz4 approve </dev/tty' .* 'exec iz4 gate --staged --enforce' /,
     'and where a person is committing at a terminal, asks them there and goes on with the commit';
-like $hook, / '[ "$rc" = 2 ]' .* '|| exit $rc' /, 'anything else committing is refused as before, with the same exit code';
+like $hook, / '[ "$rc" = 2 ]' .* '[ "$rc" = 3 ]' .* '|| exit $rc' /, 'anything else committing is refused as before, with the same exit code';
 unlike gate-hook-text(), / 'approve' /, 'an advisory hook asks nothing';
 
 done-testing;

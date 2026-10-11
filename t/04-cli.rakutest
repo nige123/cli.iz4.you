@@ -126,7 +126,7 @@ like $out, /"next:\n  1. iz4 because no-first-contact.shop.example.com \"why it 
     'and the next steps are listed in order, one command each, ending with a check';
 ($rc, $out, $err) = iz4($dir, 'check', '--strict');
 is $rc, 1, '--strict, for a gate, fails the check on any cross';
-like $out, /"  then: iz4 check --strict again\nNOT OK IZ4: 2 to remedy above (--strict) - do the next steps above"/, 'and the verdict says so last, after the steps';
+like $out, /"  then: iz4 check --strict again\nNOT YET IZ4: 2 to remedy above (--strict) - do the next steps above"/, 'and the verdict says so last, after the steps';
 
 # ---- a failing check says what to do next, then that it is not OK ----------------
 {
@@ -137,7 +137,7 @@ like $out, /"  then: iz4 check --strict again\nNOT OK IZ4: 2 to remedy above (--
     like $out, /'✗ IS FOR WHAT: missing'/, 'an empty answer is a cross, not a tick';
     like $out, /"next:\n  1. iz4 add for-what \"what it is for\"\n  2. iz4 add for-who \"who it is for\"\n  3. iz4 foundation restore\n  4. iz4 because something.shop.example.com \"why it must survive\"\n"/,
         'the structural fixes come first, in line order, then the crosses';
-    like $out, /'  then: iz4 check again' \n 'NOT OK IZ4: 3 errors - do the next steps above'/, 'the verdict is last, after the steps';
+    like $out, /'  then: iz4 check again' \n 'NOT YET IZ4: 3 errors - do the next steps above'/, 'the verdict is last, after the steps';
     ok !$out.contains("\n  1. iz4 add for-what \"what it is for\"\n  2. iz4 add for-what"), 'a step is listed once even when two lines call for it';
 }
 
@@ -388,9 +388,9 @@ sub legacy-iz4(IO::Path $dir, Str $name = 'IZ4' --> IO::Path) {
     like $out, /'✓ structure: valid'/, 'though it is read, and is structurally sound';
     like $out, /"✗ format: numbered invariants, the format of earlier versions - 'iz4 migrate'"/, 'the format is a cross';
     like $out, /"next:\n  1. iz4 migrate\n"/, 'and the first next step is iz4 migrate';
-    ok $out.ends-with("NOT OK IZ4: numbered invariants are the earlier format - run 'iz4 migrate', then 'iz4 check' again\n"), 'the verdict is NOT OK, with that step';
+    ok $out.ends-with("NOT YET IZ4: numbered invariants are the earlier format - run 'iz4 migrate', then 'iz4 check' again\n"), 'the verdict is NOT OK, with that step';
     ($rc, $out, $err) = iz4($old, 'check', 'old.iz4');
-    like $out, /"next:\n  1. iz4 migrate\n  then: iz4 check again\nNOT OK old.iz4:"/, 'with nothing else to set up, it is the one next step';
+    like $out, /"next:\n  1. iz4 migrate\n  then: iz4 check again\nNOT YET old.iz4:"/, 'with nothing else to set up, it is the one next step';
     ($rc, $out, $err) = iz4($old, 'show', 'invariant', '5');
     like $out, /^ 'INVARIANT 5' \n 'People control'/, 'a numbered file still answers by number';
 

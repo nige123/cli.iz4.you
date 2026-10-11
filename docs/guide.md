@@ -361,7 +361,7 @@ checks, run from the candidate tree:
   ✓ t/owner-adjusted.prices.honeywillow.com.sh (owner-adjusted.prices.honeywillow.com) passed
 touches, by their own words (for a person to look at, not a finding): charged-once.orders.honeywillow.com
 approval: none for this candidate tree
-outcome: agreement-required - a commitment or protection changes; a person has to agree
+outcome: agreement-required - this changes what the software promises, so it waits for your yes
 next:
   1. iz4 approve
   then: iz4 gate --staged again
@@ -567,12 +567,12 @@ OK IZ4 (2 to remedy above)
 A tick is a file fact that was mechanically verified. A cross says how to
 remedy it, and never fails the check; only structural errors do. A gate
 that should stop on a cross runs `iz4 check --strict`, which exits 1 and
-ends `NOT OK` while anything remains to remedy; the same flag does the
+ends `NOT YET` while anything remains to remedy; the same flag does the
 same for `iz4 agent status` and `iz4 review`. Whatever
 is not in place ends in a numbered `next:` list, one command per step in
 the order that clears the most first, or, where iz4 must not touch your
 words, what to change by hand and on which line. A failing check ends
-`NOT OK` after that list; so does `iz4 agent status` and `iz4 foundation
+`NOT YET` after that list; so does `iz4 agent status` and `iz4 foundation
 restore` when something remains. Whether your
 software actually keeps its invariants is never a tick, because a checker
 cannot know. That line stays a question mark, and review against

@@ -88,7 +88,7 @@ is evidence-for($old-doc, $old)<state><6>, 'none', 'legacy: Invariant 56 is not 
 my ($lrc, $lout, $lerr) = iz4($old, 'check');
 ok $lrc == 1 && $lout.contains('✗ evidence: Invariant 6 has no test naming it'), 'legacy: check still reports evidence, by number';
 unlike $lout, /"'iz4 test' scaffolds one"/, 'legacy: and does not offer a scaffold it would refuse to write';
-like $lout, /'NOT OK' .* "run 'iz4 migrate'"/, 'legacy: check fails with the one next step';
+like $lout, /'NOT YET' .* "run 'iz4 migrate'"/, 'legacy: check fails with the one next step';
 ($lrc, $lout, $lerr) = iz4($old, 'test', '--list');
 ok $lrc == 0 && $lout ~~ /'named' \s+ 'Invariant 5' \s+ 't/codes.t'/ && $lout ~~ /'none' \s+ 'Invariant 6'/, 'legacy: iz4 test list still reads it';
 ($lrc, $lout, $lerr) = iz4($old, 'test');

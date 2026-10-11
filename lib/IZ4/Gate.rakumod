@@ -138,29 +138,38 @@ sub export-tree(IO::Path $root, Str $tree, Bool :$tests-only = False --> IO::Pat
     my $dir   = $*TMPDIR.add($tag);
     my $index = $*TMPDIR.add("$tag.index");
     $dir.mkdir;
-    # GIT_INDEX_FILE points git at the temporary index for these two calls
-    # only. Restored by hand: 'temp' on a key that did not exist leaves it
-    # present and empty, and every later git command in a linked test then
-    # fails to write its own index.
-    my $had   = %*ENV<GIT_INDEX_FILE>:exists;
-    my $was   = %*ENV<GIT_INDEX_FILE>;
-    %*ENV<GIT_INDEX_FILE> = $index.Str;
-    LEAVE { if $had { %*ENV<GIT_INDEX_FILE> = $was } else { %*ENV<GIT_INDEX_FILE>:delete }; try $index.unlink }
-    my ($rc, $out, $err) = g($root, 'read-tree', $tree);
+    # Git is pointed at a temporary index through the environment of these
+    # calls alone.  The process's own environment is never changed: a
+    # GIT_INDEX_FILE left set would send every later git command, here or
+    # in a linked test, to an index that is not the repository's.
+    my %env = %*ENV, GIT_INDEX_FILE => $index.Str;
+    my &gi = sub (*@args) {
+        my $p = try run 'git', '-C', $root.Str, |@args, :out, :err, :%env;
+        return (127, '', 'git is not installed or cannot be run') without $p;
+        my $o = $p.out.slurp(:close);
+        my $e = $p.err.slurp(:close);
+        ($p.exitcode, $o, $e);
+    };
+    my ($rc, $out, $err) = gi('read-tree', $tree);
+    try $index.unlink if $rc != 0;
     gate-error("cannot read tree $tree: {$err.trim.lines.head // ''}") if $rc != 0;
     if $tests-only {
         # Only the files that could be tests: enough to see which invariants
         # have a test naming them, without writing a whole tree to disk.
-        ($rc, $out, $err) = g($root, 'ls-tree', '-r', '--name-only', $tree);
-        gate-error("cannot list tree $tree: {$err.trim.lines.head // ''}") if $rc != 0;
-        my @paths = $out.lines.grep({ is-test-path($_) });
+        ($rc, $out, $err) = gi('ls-tree', '-r', '--name-only', $tree);
+        my @paths = $rc == 0 ?? $out.lines.grep({ is-test-path($_) }) !! ();
+        my $bad = $rc != 0 ?? "cannot list tree $tree: {$err.trim.lines.head // ''}" !! '';
         for @paths.rotor(200, :partial) -> @some {
-            ($rc, $, $err) = g($root, 'checkout-index', '-f', '--prefix=' ~ $dir.Str ~ '/', '--', |@some);
-            gate-error("cannot check out test files of $tree: {$err.trim.lines.head // ''}") if $rc != 0;
+            last if $bad;
+            ($rc, $, $err) = gi('checkout-index', '-f', '--prefix=' ~ $dir.Str ~ '/', '--', |@some);
+            $bad = "cannot check out test files of $tree: {$err.trim.lines.head // ''}" if $rc != 0;
         }
+        try $index.unlink;
+        gate-error($bad) if $bad;
         return $dir;
     }
-    ($rc, $, $err) = g($root, 'checkout-index', '-a', '-f', '--prefix=' ~ $dir.Str ~ '/');
+    ($rc, $, $err) = gi('checkout-index', '-a', '-f', '--prefix=' ~ $dir.Str ~ '/');
+    try $index.unlink;
     gate-error("cannot check out tree $tree: {$err.trim.lines.head // ''}") if $rc != 0;
     $dir;
 }
@@ -553,9 +562,9 @@ sub proposal-lines(%p --> List) is export {
                 @l.push: 'The foundation moves to named invariants, with new words', "  before: {%c<before>}", "  after:  {%c<after>}", "  {%c<detail>}";
             }
             when 'removed-file'  { @l.push: 'The IZ4 is removed: every commitment with it' }
-            when 'invalid'       { @l.push: "BLOCKED: the candidate IZ4 does not parse: {%c<detail>}" }
-            when 'foundation'    { @l.push: "BLOCKED: {%c<detail>}", '  The foundation is the same in every IZ4; no project approval can change it (keystone.iz4.you)' }
-            when 'reused-name' | 'format-regressed' { @l.push: "BLOCKED: {%c<detail>}" }
+            when 'invalid'       { @l.push: "To put right: the candidate IZ4 does not parse: {%c<detail>}" }
+            when 'foundation'    { @l.push: "To put right: {%c<detail>}", '  The foundation is the same in every IZ4; no project approval can change it (keystone.iz4.you)' }
+            when 'reused-name' | 'format-regressed' { @l.push: "To put right: {%c<detail>}" }
         }
     }
     for |%p<protections> -> %t {
@@ -884,7 +893,7 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
             @next.push: 'iz4 check' if @changes.grep({ .<kind> eq 'invalid' });
             @next.push: 'give the invariant a name the file has never used' if @changes.grep({ .<kind> eq 'reused-name' });
             @next.push: "keep the named IZ4; 'iz4 show invariants' lists the names" if @changes.grep({ .<kind> eq 'format-regressed' });
-            @next.push: "make {.<file>} pass, or if the invariant no longer holds, change the IZ4 and its test together and seek agreement" for @checks.grep({ .<outcome> eq 'failed' });
+            @next.push: "iz4 approve   ({.<file>} fails: it asks which is right, the software or the invariant, and helps with either)" for @checks.grep({ .<outcome> eq 'failed' }).head(1);
         }
         when 'agreement-required' {
             # one command, and nothing to look up: approve finds the change, the key and where to send it
@@ -910,14 +919,15 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
 
 constant GATE-HOOK-MARK is export = '# iz4 gate hook';
 
-#| What an enforcing hook runs.  When the gate needs agreement and a person
+#| What an enforcing hook runs.  When the gate needs agreement, or an
+#| invariant no longer holds, and a person
 #| is committing at a terminal, it asks them there and then and goes on
 #| with the commit: no command to remember.  Anything else committing (a
 #| script, an agent: no terminal on standard error) is refused as before.
 constant GATE-HOOK-ENFORCE is export = q:to/END/.chomp;
     iz4 gate --staged --enforce && exit 0
     rc=$?
-    [ "$rc" = 2 ] && [ -t 2 ] && [ -r /dev/tty ] || exit $rc
+    { [ "$rc" = 2 ] || [ "$rc" = 3 ]; } && [ -t 2 ] && [ -r /dev/tty ] || exit $rc
     iz4 approve </dev/tty || exit $rc
     exec iz4 gate --staged --enforce
     END

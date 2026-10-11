@@ -136,7 +136,7 @@ checks, run from the candidate tree:
   ✓ t/owner-adjusted.prices.honeywillow.com.sh (owner-adjusted.prices.honeywillow.com) passed
 touches, by their own words (for a person to look at, not a finding): charged-once.orders.honeywillow.com
 approval: none for this candidate tree
-outcome: agreement-required - a commitment or protection changes; a person has to agree
+outcome: agreement-required - this changes what the software promises, so it waits for your yes
 next:
   1. iz4 approve
   then: iz4 gate --staged again
@@ -174,6 +174,10 @@ Two levels of approval:
   key). A signed approval whose document was edited afterwards does not
   verify.
 
+The gate is there to help a project keep its word, not to tell anyone off.
+When the software and the IZ4 come to disagree, the question is which of
+them is right, and only a person knows.
+
 A person types one command and looks nothing up:
 
 ```text
@@ -187,6 +191,26 @@ send the approval to `origin`, so the gate there has it. Only on a machine
 where it can find no such key does it need telling, once:
 `iz4 approve --sign=KEY --by=YOU`; that is remembered (`git config
 --global iz4.approveKey`, `iz4.approveAs`).
+
+It asks one thing at a time. Each change to what the software promises is
+shown alone, with "Is that right? [y/n]"; a no to any of them agrees to
+nothing. Where an invariant's test fails, it asks first which is right:
+
+```text
+The software and the IZ4 disagree about charged-once.shop.example.com.
+  It says: An order is never charged twice.
+  Its test, t/charged-once.t, fails.
+
+Which is right?
+  s  the invariant: the software should keep it, and I will fix the software
+  i  the software: bring the invariant up to date
+  w  neither needs it any more: withdraw the invariant
+```
+
+`i` offers new words, drafted by the agent already on the machine when
+there is one, and keeps the invariant's name and reason. `w` takes it out
+with its tests. Either way the change is then put to the person like any
+other, and their yes is what is recorded.
 
 Committing by hand needs no command at all. The enforcing hook that `iz4
 gate install --enforce` writes asks at the terminal when the commit

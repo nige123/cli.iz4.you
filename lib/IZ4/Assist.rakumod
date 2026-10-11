@@ -27,6 +27,20 @@ sub agent-suggest(IO::Path $dir = $*CWD, Str :$cmd, Str :$current = '' --> Hash)
 }
 
 
+#| A first draft of what this is for and who it is for.  Dies when the
+#| agent fails; an empty hash when its reply had no usable answer.
+sub agent-purpose(IO::Path $dir = $*CWD, Str :$cmd --> Hash) is export {
+    die NO-AGENT-RUNNER unless agent-reachable(:$cmd);
+    parse-purpose(ask-agent(purpose-prompt(evidence => gather-context($dir)), :root($dir), :$cmd));
+}
+
+#| New words for an invariant the software has moved on from.  Str when
+#| the agent could not say; dies when it fails.
+sub agent-reword(IO::Path $root, Str :$id!, Str :$text!, Str :$because = '', Str :$failure = '', Str :$cmd --> Str) is export {
+    die NO-AGENT-RUNNER unless agent-reachable(:$cmd);
+    parse-reword(ask-agent(reword-prompt(:$id, :$text, :$because, :$failure, evidence => gather-context($root)), :$root, :$cmd));
+}
+
 #| Ask the agent command for a draft.  Dies when the agent fails.
 sub agent-draft($doc, $inv, IO::Path $root, Str :$lang!, Str :$path!, Str :$cmd, Str :$layout = '' --> Hash) is export {
     die NO-AGENT-RUNNER unless agent-reachable(:$cmd);

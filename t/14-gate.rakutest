@@ -114,13 +114,13 @@ is g($r, 'for-each-ref', 'refs/iz4/approvals/'), '', 'no approval ref was writte
 # a person at a terminal rejects: nothing recorded
 ($rc, $out, $err) = iz4-talk($r, "r\n", 'approve', '--staged');
 is $rc, 2, 'a rejection exits 2';
-like $out, /'Rejected: nothing recorded'/, 'and records nothing';
+like $out, /'nothing is agreed and nothing was recorded'/, 'and records nothing';
 is g($r, 'for-each-ref', 'refs/iz4/approvals/'), '', 'still no approval ref';
 
 # a person at a terminal accepts: a terminal approval, bound to this exact tree
-($rc, $out, $err) = iz4-talk($r, "a\n", 'approve', '--staged');
+($rc, $out, $err) = iz4-talk($r, "a\n" x 9, 'approve', '--staged');
 is $rc, 0, 'an acceptance exits 0';
-like $out, /'Agreement covers exactly: repository ' <xdigit>+ ', base ' <xdigit>+ ', candidate tree ' <xdigit>+/, 'the proposal says exactly what agreement covers';
+like $out, /'It covers exactly this change: alter the tree, the base or the proposal and it is asked again.'/, 'the person is told exactly what their yes covers';
 like $out, /'Recorded: terminal approval by t@test for tree ' <xdigit>**12 ' at refs/iz4/approvals/' <xdigit>+/, 'and where the approval went';
 like $out, /'counts for local checks only'/, 'a terminal approval says what it is good for';
 like g($r, 'for-each-ref', 'refs/iz4/approvals/'), /'refs/iz4/approvals/' $tree6/, 'the approval ref names the candidate tree';
@@ -143,7 +143,7 @@ if $have-ssh {
     run 'ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', $key.Str, :out, :err;
     my $signers = $keys.add('allowed_signers');
     $signers.spurt("owner\@example.com {$key.IO.extension('pub', :parts(0)).slurp}");
-    ($rc, $out, $err) = iz4-talk($r, "a\n", 'approve', '--staged', "--sign={$key}", '--by=owner@example.com');
+    ($rc, $out, $err) = iz4-talk($r, "a\n" x 9, 'approve', '--staged', "--sign={$key}", '--by=owner@example.com');
     is $rc, 0, 'a signed approval is recorded' or diag $err;
     like $out, /'Recorded: ssh-signature approval by owner@example.com'/, 'and named as such';
     ($rc, $out, $err) = gate($r, '--staged', '--enforce', "--approvers={$signers}");
@@ -203,7 +203,7 @@ is $rc, 1, 'an unknown revision is an operational error, exit 1 even in advisory
 is json($out, 'outcome'), 'error', 'reported as error, never pass';
 
 # an approval made by revision is bound to that commit's tree and base
-($rc, $out, $err) = iz4-talk($r, "a\n", 'approve', '--candidate=HEAD');
+($rc, $out, $err) = iz4-talk($r, "a\n" x 9, 'approve', '--candidate=HEAD');
 is $rc, 0, 'approving by revision works';
 ($rc, $out, $err) = gate($r, '--candidate=HEAD', '--json');
 is json($out, 'outcome'), 'pass', 'and satisfies the gate for that revision';
@@ -232,12 +232,12 @@ $sp.spurt($sp.slurp ~ "\nINVARIANT {$CONTACT}\nSomething else entirely.\n\nBECAU
 g($r, 'add', 'IZ4');
 ($rc, $out, $err) = gate($r, '--staged', '--enforce');
 is $rc, 3, 'reusing a withdrawn name is blocked';
-like $out, /"BLOCKED: INVARIANT {$CONTACT} was withdrawn before; a retired name is never given to a different invariant"/, 'and says why';
+like $out, /"To put right: INVARIANT {$CONTACT} was withdrawn before; a retired name is never given to a different invariant"/, 'and says why';
 like $out, /"next:\n" .* 'give the invariant a name the file has never used'/, 'with the way out';
 ($rc, $out, $err) = gate($r, '--staged', '--json');
 ok change($out, 'reused-name', CONTACT), 'as reused-name in the result';
 is json($out, 'outcome'), 'blocked', 'outcome blocked';
-($rc, $out, $err) = iz4-talk($r, "a\n", 'approve', '--staged');
+($rc, $out, $err) = iz4-talk($r, "a\n" x 9, 'approve', '--staged');
 is $rc, 3, 'and no approval can lift it';
 g($r, 'checkout', 'HEAD', '--', 'IZ4'); g($r, 'reset', '-q', 'IZ4');
 
@@ -336,9 +336,9 @@ like $out, /'outcome: blocked'/, 'outcome blocked';
 is json($out, 'outcome'), 'blocked', 'in advisory mode the outcome is the same';
 is $rc, 0, 'and the exit code is still 0 there';
 # an approval cannot lift a blocked outcome
-($rc, $out, $err) = iz4-talk($r, "a\n", 'approve', '--staged');
+($rc, $out, $err) = iz4-talk($r, "a\n" x 9, 'approve', '--staged');
 is $rc, 3, 'approve refuses a blocked candidate';
-like $out, /'Nothing to approve: a blocked finding is not a proposal'/, 'and says so';
+like $out, /'The software and the IZ4 disagree about ' \S+ .* 'Which is right?' .* 'nothing changed'/, 'it asks which is right instead, and a yes is not one of the answers';
 g($r, 'checkout', 'HEAD', '--', 'lib/profile.txt'); g($r, 'reset', '-q', 'lib');
 
 # ---- the foundation cannot be weakened by any project ---------------------
@@ -405,7 +405,7 @@ like $out, /'pre-commit hook: installed (advisory'/, 'the advisory hook installs
 my $hook = $r.add('.git/hooks/pre-commit');
 like $hook.slurp, /'iz4 gate --staged; exit 0'/, 'and never refuses';
 ($rc, $out, $err) = gate($r, '--install-hook', '--enforce');
-like $out, /'pre-commit hook: updated (enforce'/, 'the enforcing hook replaces it';
+like $out, /'pre-commit hook: updated (it asks you at the terminal when a commit changes what the software promises'/, 'the enforcing hook replaces it';
 like $hook.slurp, /'iz4 gate --staged --enforce'/, 'and refuses on any outcome but pass';
 $hook.spurt("#!/bin/sh\necho mine\n");
 ($rc, $out, $err) = gate($r, '--install-hook');
@@ -500,7 +500,7 @@ is $hook.slurp, "#!/bin/sh\necho mine\n", 'and is left alone';
     is kinds(@c), 'reused-name', 'yet against a base that retired the name it is reused-name';
     is @c[0]<id>, CONTACT, 'under that name';
     is verdict(@c), 'blocked', 'which is blocked, not approvable';
-    like proposal-lines(%( changes => @c.List, protections => () )).join("\n"), /"BLOCKED: INVARIANT {$CONTACT} was withdrawn before"/, 'and reads as such';
+    like proposal-lines(%( changes => @c.List, protections => () )).join("\n"), /"To put right: INVARIANT {$CONTACT} was withdrawn before"/, 'and reads as such';
     @c = commitment-changes($retired, named($vis, block(CONTACT, 'Employers cannot contact someone first.', 'No new inbox.')));
     is kinds(@c), 'reused-name', 'even with the words it had before';
 
@@ -533,7 +533,7 @@ is $hook.slurp, "#!/bin/sh\necho mine\n", 'and is left alone';
     @c = commitment-changes($base, $numbered);
     is kinds(@c), 'format-regressed', 'a named base with a numbered candidate is format-regressed, and nothing else';
     is verdict(@c), 'blocked', 'which is blocked';
-    like proposal-lines(%( changes => @c.List, protections => () )).join("\n"), /'BLOCKED: the candidate goes back to numbered invariants'/, 'and reads as such';
+    like proposal-lines(%( changes => @c.List, protections => () )).join("\n"), /'To put right: the candidate goes back to numbered invariants'/, 'and reads as such';
 
     # ---- the same through the command, with a test that protects the invariant
     my $m = repo;
@@ -578,7 +578,7 @@ is $hook.slurp, "#!/bin/sh\necho mine\n", 'and is left alone';
     like change($out, 'protection-removed', VIS), /'tests/visible.sh'/, 'in the result too';
     $t.spurt("#!/bin/sh\n# INVARIANT {$VIS}\ngrep -q 'visible: private' lib/profile.txt\n");
     g($m, 'add', '-A');
-    ($rc, $out, $err) = iz4-talk($m, "a\n", 'approve', '--staged');
+    ($rc, $out, $err) = iz4-talk($m, "a\n" x 9, 'approve', '--staged');
     is $rc, 0, 'a person can agree to the move' or diag $out ~ $err;
     like $out, /"Invariant 5 is named {$VIS}; its words are unchanged"/, 'having been shown what it names';
     g($m, 'commit', '-qm', 'named');
@@ -609,11 +609,11 @@ is $hook.slurp, "#!/bin/sh\necho mine\n", 'and is left alone';
     g($m, 'add', 'IZ4');
     ($rc, $out, $err) = gate($m, '--staged', '--enforce');
     is $rc, 3, 'going back to numbered invariants is blocked';
-    like $out, /'BLOCKED: the candidate goes back to numbered invariants; the base names them'/, 'and says why';
+    like $out, /'To put right: the candidate goes back to numbered invariants; the base names them'/, 'and says why';
     like $out, /"keep the named IZ4"/, 'with the next step';
     ($rc, $out, $err) = gate($m, '--staged', '--json');
     is changes($out, 'format-regressed').elems, 1, 'as format-regressed';
-    ($rc, $out, $err) = iz4-talk($m, "a\n", 'approve', '--staged');
+    ($rc, $out, $err) = iz4-talk($m, "a\n" x 9, 'approve', '--staged');
     is $rc, 3, 'which no approval can lift';
 }
 
@@ -625,3 +625,4 @@ g($plain, 'add', '-A');
 is $rc, 1, 'a repository without an IZ4 is told so (the gate needs one to find the root)';
 
 done-testing;
+

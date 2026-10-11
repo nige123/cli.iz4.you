@@ -1,0 +1,156 @@
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+
+# The life of an IZ4, as a friend would keep it: it drafts the file with
+# the agent already on the machine, and when the software and the IZ4
+# come to disagree it asks which is right and helps with either.
+
+unless have-git() { skip-rest 'no git available'; exit }
+
+my $config = temp-dir.add('gitconfig');
+$config.spurt('');
+%*ENV<GIT_CONFIG_GLOBAL> = $config.Str;
+%*ENV<IZ4_INTERACTIVE> = '0';
+%*ENV<IZ4_NO_321> = '1';
+
+sub g(IO::Path $r, *@a) { my $p = run 'git', '-C', $r.Str, |@a, :out, :err; my $o = $p.out.slurp(:close); $p.err.slurp(:close); $o.trim }
+#| An agent that answers every prompt with the same text.
+sub agent-saying(Str $text --> Str) { my $f = temp-dir.add('reply'); $f.spurt($text); "cat {$f}" }
+
+# ---- init drafts with the agent that is here --------------------------------
+{
+    my $d = temp-dir;
+    my %env = IZ4_AGENT_CMD => agent-saying("FOR WHAT: Taking orders for a small bakery.\nFOR WHO: The baker and the people who buy bread.\n");
+    # Enter keeps the first answer; the second is typed over; no invariant yet
+    my ($rc, $out, $err) = iz4-talk($d, "\nThe baker.\nn\n", 'init', '--/agents', :%env);
+    is $rc, 0, 'init with an agent on the machine' or diag "$out\n$err";
+    like $out, / 'Reading this repository with ' .* 'to draft the IZ4 with you' /, 'it says what it is doing and with what';
+    like $out, / 'It looks like this is for:' \n '  Taking orders for a small bakery.' /, 'the draft is shown, not written';
+    like $out, / 'Enter keeps that; or type your own.' /, 'and the person keeps it or types their own';
+    my $iz4 = $d.add('IZ4').slurp;
+    like $iz4, / 'IS FOR WHAT?' \n 'Taking orders for a small bakery.' /, 'Enter kept the drafted answer';
+    like $iz4, / 'IS FOR WHO?' \n 'The baker.' /, 'and what the person typed replaced the other';
+    unlike $iz4, / 'people who buy bread' /, 'the words in the file are the ones they chose';
+}
+{
+    my $d = temp-dir;
+    my ($rc, $out, $err) = iz4-talk($d, "A thing.\nSome people.\nn\n", 'init', '--/agents', :env(%( IZ4_AGENT_CMD => 'false' )));
+    is $rc, 0, 'an agent that fails does not stop init';
+    like $out, / 'No draft came back, so two questions instead.' /, 'it says so in a line and asks instead';
+    like $d.add('IZ4').slurp, / 'IS FOR WHAT?' \n 'A thing.' /, 'and the answers are the person\'s';
+}
+{
+    my $d = temp-dir;
+    my ($rc, $out, $err) = iz4-talk($d, "A thing.\nSome people.\nn\n", 'init', '--/agents', :env(%( IZ4_AGENT_CMD => '' )));
+    unlike $out, / 'Reading this repository' /, 'with no agent at all, init simply asks';
+    is parse-purpose("nonsense"), %(), 'a reply with no answers in it is no draft';
+}
+
+# ---- the commit hook installs itself ----------------------------------------
+{
+    my $d = temp-dir;
+    g($d, 'init', '-q');
+    my ($rc, $out, $err) = iz4($d, 'init', '--for-what=A thing.', '--for-who=Some people.', '--/agents', :env(%( IZ4_ENFORCE => '1' )));
+    is $rc, 0, 'init in a Git repository' or diag $err;
+    like $out, / 'Commit hook: ' \S+ .* 'it asks you about it there and then.' /, 'says the commit hook is in, and what it is for';
+    my $hook = $d.add('.git/hooks/pre-commit');
+    ok $hook.f && $hook.slurp.contains('iz4 approve </dev/tty'), 'and it is the one that asks a person at the terminal';
+    my $plain = temp-dir;
+    ($rc, $out, $err) = iz4($plain, 'init', '--for-what=A thing.', '--for-who=Some people.', '--/agents', :env(%( IZ4_ENFORCE => '1' )));
+    unlike $out, / 'Commit hook' /, 'where there is no repository there is no hook to speak of';
+    my $own = temp-dir;
+    g($own, 'init', '-q');
+    $own.add('.git/hooks').mkdir;
+    $own.add('.git/hooks/pre-commit').spurt("#!/bin/sh\necho mine\n");
+    ($rc, $out, $err) = iz4($own, 'init', '--for-what=A thing.', '--for-who=Some people.', '--/agents', :env(%( IZ4_ENFORCE => '1' )));
+    is $rc, 0, 'a hook the project already has does not stop init';
+    is $own.add('.git/hooks/pre-commit').slurp, "#!/bin/sh\necho mine\n", 'and is left exactly as it was';
+}
+
+# ---- when the software and the IZ4 disagree ---------------------------------
+sub shop(--> IO::Path) {
+    my $r = temp-dir;
+    g($r, 'init', '-q');
+    g($r, 'config', 'user.email', 't@test');
+    g($r, 'config', 'user.name', 'Test');
+    iz4($r, 'init', '--for-what=Taking orders.', '--for-who=People buying things.', '--/agents');
+    iz4($r, 'add', 'invariant', 'An order is never charged twice.', '--name=charged-once', '--namespace=shop.example.com', '--because=It costs trust.', '--force');
+    $r.add('t').mkdir;
+    $r.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
+    $r.add('t/charged-once.t').chmod(0o755);
+    g($r, 'add', '-A');
+    my ($rc, $out, $err) = iz4-talk($r, "y\n" x 9, 'approve', :env(%( IZ4_CHECK_CMD => 'sh {file}' )));
+    die "setup: $out $err" if $rc != 0;
+    g($r, 'commit', '-qm', 'start');
+    # the software moves on: the invariant's test now fails
+    $r.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\necho 'charged 2 times' >&2\nexit 1\n");
+    g($r, 'add', '-A');
+    $r;
+}
+my $ID = 'charged-once.shop.example.com';
+my %sh = IZ4_CHECK_CMD => 'sh {file}';
+
+{
+    my $r = shop;
+    my ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', :env(%sh));
+    is $rc, 3, 'a failing invariant test stops the change';
+    like $out, / 'next:' \n '  1. iz4 approve' \s+ '(t/charged-once.t fails: it asks which is right, the software or the invariant' /,
+        'and the next step is the one command, which helps';
+    ($rc, $out, $err) = iz4($r, 'approve', :env(%sh));
+    is $rc, 3, 'with nobody at a terminal nothing is decided';
+    like $out, / "At a terminal, 'iz4 approve' asks which is right, the software or the invariant." /, 'and it says where the question will be asked';
+
+    # s: the invariant is right
+    ($rc, $out, $err) = iz4-talk($r, "s\n", 'approve', :env(%sh));
+    is $rc, 3, 'choosing to fix the software changes nothing';
+    like $out, / "The software and the IZ4 disagree about $ID." .* 'It says: An order is never charged twice.' .* 'Which is right?' /, 'the question is asked in plain words';
+    like $out, / 'Then the invariant stays as it is. Fix the software and commit again' /, 'and the answer is taken as given';
+    like $r.add('IZ4').slurp, / 'An order is never charged twice.' /, 'the IZ4 is untouched';
+    unlike $out, / 'BLOCKED' | 'violat' | 'refus' /, 'nobody is told off';
+}
+{
+    # i: the software is right; the words come up to date, one question at a time
+    my $r = shop;
+    my %env = |%sh, IZ4_AGENT_CMD => agent-saying("INVARIANT: An order is charged once per delivery.\n");
+    # i, Enter keeps the suggested words, Y takes the old test out, then y to each change, n to nothing else
+    my ($rc, $out, $err) = iz4-talk($r, "i\n\ny\n" ~ "y\n" x 6, 'approve', :%env);
+    is $rc, 0, 'bringing the invariant up to date ends in an agreement' or diag "$out\n$err";
+    like $out, / 'It could say:' \n '  An order is charged once per delivery.' /, 'the agent on the machine offers words';
+    like $out, / "$ID now says: An order is charged once per delivery." /, 'Enter keeps them';
+    like $out, / 't/charged-once.t checks the old words. Take it out' /, 'its old test is asked about, once';
+    like $r.add('IZ4').slurp, / "INVARIANT $ID" \n 'An order is charged once per delivery.' \n \n 'BECAUSE' \n 'It costs trust.' /, 'the name and the reason are kept';
+    nok $r.add('t/charged-once.t').e, 'and the test of the old words is gone';
+    like $out, / "$ID revised" .* 'Is that right? [y/n]' /, 'the change is then put to the person like any other';
+    like $out, / 'Recorded: terminal approval' /, 'and their yes is recorded';
+    ($rc, $out, $err) = iz4($r, 'gate', '--staged', :env(%sh), '--json');
+    like $out, / '"outcome":"pass"' /, 'after which the gate passes';
+    like g($r, 'status', '--short'), / ^ 'M  IZ4' \n 'D  t/charged-once.t' $ /, "all of it staged in the repository's own index, nowhere else";
+}
+{
+    # i with words of the person's own, and no agent
+    my $r = shop;
+    my ($rc, $out, $err) = iz4-talk($r, "i\nAn order is charged at most once a day.\nn\n" ~ "y\n" x 6, 'approve', :env(%( |%sh, IZ4_AGENT_CMD => '' )));
+    like $out, / 'What should it say now?' /, 'with no agent, it simply asks for the words';
+    like $r.add('IZ4').slurp, / 'An order is charged at most once a day.' /, 'and writes the ones typed';
+    ok $r.add('t/charged-once.t').e, 'a no keeps the old test';
+}
+{
+    # w: it no longer matters
+    my $r = shop;
+    my ($rc, $out, $err) = iz4-talk($r, "w\n" ~ "y\n" x 6, 'approve', :env(%sh));
+    is $rc, 0, 'withdrawing ends in an agreement' or diag "$out\n$err";
+    like $out, / "$ID is withdrawn; its name is retired" /, 'said plainly';
+    unlike $r.add('IZ4').slurp, / ^^ "INVARIANT $ID" /, 'the invariant is out of the file';
+    like $out, / "$ID removed" .* 'Is that right? [y/n]' /, 'and its going is agreed to like any other change';
+}
+{
+    my $r = shop;
+    my ($rc, $out, $err) = iz4-talk($r, "x\n\n", 'approve', :env(%sh));
+    is $rc, 3, 'no answer decides nothing';
+    like $out, / 'Type s, i or w.' /, 'a slip is asked again';
+    like $r.add('IZ4').slurp, / 'An order is never charged twice.' /, 'and the IZ4 is as it was';
+}
+
+done-testing;

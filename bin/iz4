@@ -151,6 +151,17 @@ sub read-line(--> Str) {
 
 sub tell(Str $line) { say $line }
 
+#| Show a drafted answer and let the person keep it with Enter or type
+#| their own.  The words that go in the file are the ones they chose.
+sub keep-or-type(Str $lead, Str $draft, Str $what --> Str) {
+    say '';
+    say $lead;
+    say "  $draft";
+    my $said = ask("Enter keeps that; or type your own.\n> ");
+    user-error("iz4 init needs $what") without $said;
+    $said.trim eq '' ?? $draft !! $said.trim;
+}
+
 sub ask-required(Str $prompt, Str $what --> Str) {
     for ^3 {
         my $answer = (ask($prompt) // user-error("$what: no answer")).trim;
@@ -261,6 +272,22 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Bool :$agent, Bool :$agents) {
             user-error("iz4 init needs two answers: what this is for, and who it is for.\n"
                 ~ "On a terminal it asks; in a script pass --for-what=... --for-who=...");
         }
+        if $talk && (!$what.defined || !$who.defined) {
+            # Whatever agent is on this machine drafts it with them: 321 is made
+            # sure of first, since it is what reaches one.  Nothing is written
+            # until the person has seen each answer and kept it or typed their own.
+            my %d = (try ensure-driver()) // %();
+            say "321 {%d<version>} installed at {%d<path>}: it is how iz4 reaches the agent you already use." if (%d<state> // '') eq 'installed';
+            if agent-reachable() {
+                say "Reading this repository with {agent-label()} to draft the IZ4 with you ...";
+                my %p = (try agent-purpose($*CWD)) // %();
+                if %p {
+                    $what //= keep-or-type('It looks like this is for:', %p<for-what>, 'what it is for');
+                    $who  //= keep-or-type('And it is for:', %p<for-who>, 'who it is for');
+                }
+                else { say "No draft came back, so two questions instead." }
+            }
+        }
         $what //= ask-required("What is this for?\n> ", 'what it is for');
         $who  //= ask-required("Who is it for?\n> ", 'who it is for');
         my $path = init(:for-what($what), :for-who($who));
@@ -278,12 +305,26 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Bool :$agent, Bool :$agents) {
             say "{SKILL-PATH}: {install-skill(:$root)}" if $agents === True || $root.add('.claude').d;
         }
 
+        # The commit hook installs itself too, where this is a Git repository:
+        # it is what notices a change to what the software promises and asks
+        # the person about it there and then.  IZ4_ENFORCE=0 leaves it out.
+        if (%*ENV<IZ4_ENFORCE> // '') ne '0' && git($path, 'rev-parse', '--git-dir')[0] == 0 {
+            my $state = try install-hook($path, :hook<pre-commit>, :text(gate-hook-text(:enforce)),
+                                         :mark(GATE-HOOK-MARK), :manual('iz4 gate --staged'));
+            say $state.defined
+                ?? "Commit hook: $state. When a commit changes what this software promises, it asks you about it there and then."
+                !! "Commit hook left alone: {$!.message.lines.head}";
+        }
+
         say '';
         say "Every IZ4 carries the foundation word for word, from Invariant Zero, humans first ('iz4 foundation' shows it).";
         say "Your own are named under your project's domain, like owner-adjusted.honeywillow.com.";
         if $talk {
             say '';
-            return coach-into($path) if yes-no(ask('Add an invariant now? [Y/n] '), :default);
+            if yes-no(ask('Add an invariant now? [Y/n] '), :default) {
+                # with an agent here, it reads the code for the few things worth keeping; else one question at a time
+                return agent-reachable() && review-suggestions($path, :quiet) ?? 0 !! coach-into($path);
+            }
         }
         0;
     }
@@ -635,7 +676,7 @@ multi MAIN('check', Str $file?, Bool :$strict = False) {
         say-next(@next, :then($strict ?? 'iz4 check --strict' !! 'iz4 check')) if @next;
         if $doc.ok && $doc.legacy {
             # read, and still governing, but not the current format: never OK
-            say "NOT OK $name: numbered invariants are the earlier format - run 'iz4 migrate', then 'iz4 check' again";
+            say "NOT YET $name: numbered invariants are the earlier format - run 'iz4 migrate', then 'iz4 check' again";
             1;
         }
         elsif $doc.ok && !($strict && $crosses) {
@@ -644,11 +685,11 @@ multi MAIN('check', Str $file?, Bool :$strict = False) {
         }
         elsif $doc.ok {
             # --strict, for a gate: a cross is a failure, and the verdict says so last
-            say "NOT OK $name: $crosses to remedy above (--strict) - do the next steps above, then 'iz4 check --strict' again";
+            say "NOT YET $name: $crosses to remedy above (--strict) - do the next steps above, then 'iz4 check --strict' again";
             1;
         }
         else {
-            say "NOT OK $name: $errors error{$errors == 1 ?? '' !! 's'} - do the next steps above, then 'iz4 check' again";
+            say "NOT YET $name: $errors error{$errors == 1 ?? '' !! 's'} - do the next steps above, then 'iz4 check' again";
             1;
         }
     }
@@ -934,8 +975,24 @@ multi MAIN('suggest', Str :$file) {
         my $dir  = $path.defined ?? $path.parent !! $*CWD;
         my $reply = try agent-suggest($dir, current => ($path.defined ?? $path.slurp !! ''));
         user-error("agent suggestion failed: {$!.message.lines.head}; nothing was added") without $reply;
-        my %s = %$reply;
+        show-suggestions(%$reply, $path);
+        0;
+    }
+}
 
+#| From init: ask the agent for candidates and go through them.  False
+#| when the agent could not be asked, so the caller can coach instead.
+sub review-suggestions(IO::Path $path, Bool :$quiet = False --> Bool) {
+    my $reply = try agent-suggest($path.parent, current => $path.slurp);
+    without $reply {
+        say "The agent could not be asked ({$!.message.lines.head}), so one question at a time instead." unless $quiet && !$!.message;
+        return False;
+    }
+    show-suggestions(%$reply, $path);
+    True;
+}
+
+sub show-suggestions(%s, $path) {
         my ($strong, $possible) = %s<found><strong possible>;
         my $left = %s<implementation> + %s<not-iz4>;
         say 'Analysed repository.';
@@ -947,7 +1004,7 @@ multi MAIN('suggest', Str :$file) {
         say "Left out $left as implementation or not IZ4 (for example: {%s<implementation>[0]<text> // %s<not-iz4>[0]<text>})." if $left;
         unless %s<strong> || %s<possible> {
             say "Nothing stood out as enduring intent. That is a fine answer; 'iz4 add' when something does.";
-            return 0;
+            return;
         }
 
         if !$path.defined || !interactive() {
@@ -963,7 +1020,7 @@ multi MAIN('suggest', Str :$file) {
             say $path.defined
                 ?? "Nothing was added. Review them on a terminal with 'iz4 suggest', or add one with 'iz4 add'."
                 !! "Nothing was added. Run 'iz4 init' first, then 'iz4 suggest' again.";
-            return 0;
+            return;
         }
 
         say "Let's review the strongest one first.";
@@ -978,8 +1035,6 @@ multi MAIN('suggest', Str :$file) {
             next if $answer.starts-with('n');
             coach-into($path, :candidate(%c<text>), :suggested-because(%c<because>));
         }
-        0;
-    }
 }
 
 multi MAIN('log', Str $file?) {
@@ -1400,8 +1455,8 @@ sub gate-lines(%r --> List) {
     @l.push: "  note: $_" for |%r<notes>;
     my %why =
         pass => 'no commitment or protection changed, and every check that could run passed',
-        'agreement-required' => 'a commitment or protection changes; a person has to agree',
-        blocked => 'a definite finding that no approval can lift',
+        'agreement-required' => 'this changes what the software promises, so it waits for your yes',
+        blocked => 'something here needs putting right first; a yes cannot stand in for it',
         unassessed => 'a check could not be run, so this is not a pass';
     @l.push: "outcome: {%r<outcome>} - {%why{%r<outcome>} // ''}";
     @l;
@@ -1481,8 +1536,8 @@ multi MAIN('gate', Bool :$install-hook!, Bool :$enforce = False, Bool :$force = 
         my $state = install-hook($path, :$force, :hook<pre-commit>, :text(gate-hook-text(:$enforce)),
                                  :mark(GATE-HOOK-MARK), :manual('iz4 gate --staged'));
         say "pre-commit hook: $state (" ~ ($enforce
-            ?? 'enforce: a commit whose gate outcome is not pass is refused here; git commit --no-verify skips it, which a protected boundary catches'
-            !! 'advisory: the gate speaks and never refuses; --enforce to make it refuse') ~ ')';
+            ?? 'it asks you at the terminal when a commit changes what the software promises, and holds a commit made by a script or an agent until you have answered'
+            !! 'advisory: it tells you what a commit changes and never holds one; --enforce makes it wait for your answer') ~ ')';
         0;
     }
 }
@@ -1534,30 +1589,44 @@ multi MAIN('approve', Str :$base, Str :$candidate, Bool :$staged = False, Str :$
     attempt :intent, { approve-command(:$base, :$candidate, :$sign, :$by, :$out, :$note, :$file) }
 }
 
-sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out, Str :$note = '', Str :$file --> Int) {
+sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out, Str :$note = '', Str :$file, Bool :$resolved = False --> Int) {
     {
         my $root = gate-root($file);
         user-error("--sign needs --by=YOU, the name the gate knows your key by. Once is enough: it is remembered.") if $sign.defined && !$by.defined;
         # the checks run here too: a person is only ever shown a proposal for a tree that is not blocked
-        my %r = run-gate($root, :staged(!$candidate.defined), :$base, :$candidate);
+        # the same command the gate runs a linked test with, so both see the same result
+        my $cmd = %*ENV<IZ4_CHECK_CMD> // do {
+            my ($rc, $o, $) = git($root.add(ROOT-NAME), 'config', '--get', 'iz4.checkCmd');
+            $rc == 0 && $o.trim ne '' ?? $o.trim !! Str;
+        };
+        my %r = run-gate($root, :staged(!$candidate.defined), :$base, :$candidate, :check-cmd($cmd));
         my %p = changes => %r<changes>, protections => %r<protections>;
         if %r<outcome> eq 'blocked' {
+            # An invariant whose test fails is not a wall: it is a question for the
+            # person, and they can answer it here.  Anything else blocked is shown.
+            my @failed  = %r<checks>.grep({ .<outcome> eq 'failed' });
+            my $only-tests = !%r<changes>.grep({ .<kind> eq any(<invalid foundation reused-name format-regressed>) });
+            if @failed && $only-tests && interactive() && !$candidate.defined && !$resolved {
+                return %EXIT-CODE<blocked> unless settle-failed($root, @failed);
+                return approve-command(:$base, :$candidate, :$sign, :$by, :$out, :$note, :$file, :resolved);
+            }
             say $_ for proposal-lines(%p);
-            say "  ✗ {.<file>} ({.<invariants>.join(', ')}) failed" ~ (.<detail> ?? ": {.<detail>}" !! '') for %r<checks>.grep({ .<outcome> eq 'failed' });
-            say 'Nothing to approve: a blocked finding is not a proposal. Fix it first.';
+            say "  ✗ {.<file>} ({.<invariants>.join(', ')}) failed" ~ (.<detail> ?? ": {.<detail>}" !! '') for @failed;
+            say @failed && $only-tests
+                ?? "Nothing to agree to yet: an invariant no longer holds. At a terminal, 'iz4 approve' asks which is right, the software or the invariant."
+                !! 'Nothing to approve: a blocked finding is not a proposal. Fix it first.';
             return %EXIT-CODE<blocked>;
         }
         unless needs-agreement(%p) {
             say "Nothing needs agreement for candidate tree {%r<candidate>.substr(0, 12)}: no commitment or protection changed.";
             return 0;
         }
-        say "Proposal for candidate tree {%r<candidate>.substr(0, 12)} ({%r<candidate_ref>}) against "
-          ~ (%r<base> eq 'none' ?? 'no base' !! "base {%r<base>.substr(0, 12)} ({%r<base_ref>})") ~ ':';
-        say "  $_" for proposal-lines(%p);
-        say '';
-        say "Agreement covers exactly: repository {%r<repository>.substr(0, 12)}, base {%r<base>.substr(0, 12)}, candidate tree {%r<candidate>.substr(0, 12)},";
-        say "proposal digest {%r<proposal_digest>.substr(0, 12)}. Any change to the tree, the base or the proposal needs a new agreement.";
+        # one thing at a time: each change is its own small question
+        my @items = |%r<changes>.map({ %( changes => ($_,), protections => () ) }),
+                    |%r<protections>.map({ %( changes => (), protections => ($_,) ) });
         unless interactive() {
+            say "This change alters what the software promises:";
+            say "  $_" for proposal-lines(%p);
             say '';
             say 'pending: agreement needs a person. At a terminal, they run:   iz4 approve';
             say 'Nothing was recorded.';
@@ -1565,43 +1634,131 @@ sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out
         }
         # who signs, found for them: said outright, last time's, or the key of theirs the gate here already trusts
         my %signer = $sign.defined ?? %( key => home-path($sign), by => $by, found => 'as you said' ) !! find-signer($root);
-        if %signer {
-            user-error("there is no key at {%signer<key>}") unless %signer<key>.f;
-            say "You sign as {%signer<by>} with {%signer<key>} ({%signer<found>}).";
-        }
-        my $answer = '';
-        for ^3 {
-            my $said = ask('Accept, reject, or revise? [a/r/v] ');
-            last without $said;                         # end of input: no answer
-            $answer = $said.trim.lc;
-            last if $answer ne '';
-            say 'Type a to accept, r to reject, or v to revise.';
-        }
-        if $answer.starts-with('a') {
-            my $who = %signer<by> // $by // do {
-                my ($rc, $o, $) = git($root.add(ROOT-NAME), 'config', 'user.email');
-                $rc == 0 && $o.trim ne '' ?? $o.trim !! (%*ENV<USER> // 'someone at this terminal');
-            };
-            my %snap = repository => %r<repository>, base => (%r<base> eq 'none' ?? Str !! %r<base>), candidate => %r<candidate>;
-            my %a = approval-body(%snap, %r<proposal_digest>, :by($who), :method(%signer ?? 'ssh-signature' !! 'terminal'), :$note);
-            %a<signature> = sign-approval(%a, %signer<key>) if %signer;
-            my $ref = store-approval($root, %a);
-            if $out.defined { $out.IO.spurt(json-encode(%a) ~ "\n"); say "approval written to $out" }
-            say "Recorded: {%a<method>} approval by $who for tree {%r<candidate>.substr(0, 12)} at $ref";
-            $*IZ4-INTENT-CHANGED = True;      # a person agreed to a change of intent: enforcement is made sure of
-            unless %signer {
-                say 'A terminal approval counts for local checks only. For a signed one, say once which key is yours:';
-                say '  iz4 approve --sign=KEY --by=YOU      (remembered after that)';
-                return 0;
+        user-error("there is no key at {%signer<key>}") if %signer && !%signer<key>.f;
+
+        say @items == 1
+            ?? 'This change alters what the software promises. Is it what you mean?'
+            !! "This change alters what the software promises in {+@items} ways. One at a time:";
+        for @items.kv -> $i, %item {
+            say '';
+            say "{$i + 1} of {+@items}" if @items > 1;
+            say "  $_" for proposal-lines(%item);
+            my $yes = Bool;
+            for ^3 {
+                my $said = ask('Is that right? [y/n] ');
+                last without $said;                         # end of input: no answer
+                my $a = $said.trim.lc;
+                $yes = True  if $a.starts-with('y') || $a.starts-with('a');
+                $yes = False if $a.starts-with('n') || $a.starts-with('r') || $a.starts-with('v');
+                last if $yes.defined;
+                say 'Type y if that is what you mean, n if it is not.';
             }
-            remember-signer($root, %signer<key>, $who) if %signer<found> eq 'as you said';
-            send-approval($root, $ref);
+            unless $yes {
+                say '';
+                say $yes.defined
+                    ?? 'Then nothing is agreed and nothing was recorded. Put the IZ4 or its tests the way you mean them, and commit again.'
+                    !! 'No answer, so nothing was recorded.';
+                return %EXIT-CODE<agreement-required>;
+            }
+        }
+        my $who = %signer<by> // $by // do {
+            my ($rc, $o, $) = git($root.add(ROOT-NAME), 'config', 'user.email');
+            $rc == 0 && $o.trim ne '' ?? $o.trim !! (%*ENV<USER> // 'someone at this terminal');
+        };
+        my %snap = repository => %r<repository>, base => (%r<base> eq 'none' ?? Str !! %r<base>), candidate => %r<candidate>;
+        my %a = approval-body(%snap, %r<proposal_digest>, :by($who), :method(%signer ?? 'ssh-signature' !! 'terminal'), :$note);
+        %a<signature> = sign-approval(%a, %signer<key>) if %signer;
+        my $ref = store-approval($root, %a);
+        if $out.defined { $out.IO.spurt(json-encode(%a) ~ "\n"); say "approval written to $out" }
+        say '';
+        say "Recorded: {%a<method>} approval by $who for tree {%r<candidate>.substr(0, 12)} at $ref";
+        say "Signed as $who with {%signer<key>} ({%signer<found>})." if %signer;
+        say "It covers exactly this change: alter the tree, the base or the proposal and it is asked again.";
+        $*IZ4-INTENT-CHANGED = True;      # a person agreed to a change of intent: enforcement is made sure of
+        unless %signer {
+            say 'A terminal approval counts for local checks only. For a signed one, say once which key is yours:';
+            say '  iz4 approve --sign=KEY --by=YOU      (remembered after that)';
             return 0;
         }
-        if $answer.starts-with('r') { say 'Rejected: nothing recorded. The gate still requires agreement for this tree.'; return %EXIT-CODE<agreement-required> }
-        say 'Revise the IZ4 or the tests, stage the result, and run iz4 approve again. Nothing recorded.';
-        %EXIT-CODE<agreement-required>;
+        remember-signer($root, %signer<key>, $who) if %signer<found> eq 'as you said';
+        send-approval($root, $ref);
+        0;
     }
+}
+
+#| An invariant's test fails: the software and the IZ4 disagree, and only
+#| the person knows which is right.  One invariant at a time, one question
+#| at a time.  True when the IZ4 was brought into line and staged, so the
+#| change can be put to them; False when they will fix the software, or
+#| gave no answer.  Nothing is decided for them.
+sub settle-failed(IO::Path $root, @failed --> Bool) {
+    my $path = $root.add(ROOT-NAME);
+    my $changed = False;
+    for @failed -> %c {
+        my $doc = check-doc($path);
+        my @own = %c<invariants>.grep({ $doc.invariant($_).defined });
+        unless @own {
+            say "{%c<file>} fails, and it stands for the foundation ({%c<invariants>.join(', ')}): that part is the software's to put right.";
+            return False;
+        }
+        for @own -> $id {
+            my $inv = $doc.invariant($id);
+            say '';
+            say "The software and the IZ4 disagree about $id.";
+            say "  It says: {$inv.text}";
+            say "  Its test, {%c<file>}, fails" ~ (%c<detail> ?? ": {%c<detail>}" !! '.');
+            say '';
+            say 'Which is right?';
+            say '  s  the invariant: the software should keep it, and I will fix the software';
+            say '  i  the software: bring the invariant up to date';
+            say '  w  neither needs it any more: withdraw the invariant';
+            my $a = '';
+            for ^3 {
+                my $said = ask('[s/i/w] ');
+                last without $said;
+                $a = $said.trim.lc.substr(0, 1);
+                last if $a eq any(<s i w>);
+                say 'Type s, i or w.';
+            }
+            given $a {
+                when 'i' {
+                    my $draft = agent-reachable()
+                        ?? (try { say "Asking {agent-label()} what is true of the software now ..."; agent-reword($root, :$id, text => $inv.text, because => ($inv.because // ''), failure => (%c<detail> // '')) })
+                        !! Str;
+                    say '';
+                    if $draft.defined { say 'It could say:'; say "  $draft" }
+                    my $said = ask($draft.defined ?? "Enter keeps that; or type the words you mean.\n> " !! "What should it say now?\n> ");
+                    return False without $said;
+                    my $words = $said.trim eq '' ?? ($draft // '') !! $said.trim;
+                    if $words eq '' { say 'No words, so nothing changed.'; return False }
+                    revise-invariant($path, $id, $words);
+                    git($path, 'add', '--', ROOT-NAME);
+                    say "$id now says: $words";
+                    # its test checked the old words
+                    my $only-this = !$doc.invariants.grep({ .id.defined && .id ne $id && names-identity(($root.add(%c<file>).slurp), .id) });
+                    if $only-this && yes-no(ask("{%c<file>} checks the old words. Take it out, so a new one can be written ('iz4 test')? [Y/n] "), :default) {
+                        git($path, 'rm', '-q', '-f', '--', %c<file>);
+                        say "Removed {%c<file>}.";
+                    }
+                    $changed = True;
+                }
+                when 'w' {
+                    my %t = withdrawal-tests($path, $doc, $id);
+                    withdraw-invariant($path, $id);
+                    git($path, 'add', '--', ROOT-NAME);
+                    for remove-tests($root, %t<remove>) { git($path, 'add', '-A', '--', $_); say "Removed $_." }
+                    say "$id is withdrawn; its name is retired, and Git keeps its words.";
+                    $changed = True;
+                }
+                when 's' {
+                    say "Then the invariant stays as it is. Fix the software and commit again; {%c<file>} will tell you when it holds.";
+                    return False;
+                }
+                default { say 'No answer, so nothing changed.'; return False }
+            }
+        }
+    }
+    $changed;
 }
 
 #| A signed approval is no use to the gate on the far side until it is
