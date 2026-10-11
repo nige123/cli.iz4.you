@@ -49,7 +49,7 @@ foundation word for word: human intention protected, the same blocks in
 every IZ4, beginning with Invariant Zero, humans first, explained at
 [iz4.you/invariant-zero](https://iz4.you/invariant-zero). It is part of
 the grammar: `iz4 check` refuses a file where any of it is missing or altered,
-and `iz4 foundation --restore` puts them back.
+and `iz4 foundation restore` puts them back.
 
 It is small enough that an agent can read all of it before every meaningful
 change. And it need not sit beside software at all: a data room, an archive or
@@ -79,7 +79,7 @@ on x86-64 and arm64, macOS 11 or newer on Apple silicon and Intel, and
 64-bit Windows 10 or newer.
 
 From then on, `iz4 update` brings it to the newest release, and
-`iz4 update --check` only says whether there is one. It downloads the file
+`iz4 update check` only says whether there is one. It downloads the file
 for your machine, verifies it and proves it runs before replacing itself.
 
 Where no file is published for your system, or it will not run there, the
@@ -335,7 +335,7 @@ BECAUSE and the evidence that would show it holds. A candidate goes through
 the same coaching as `iz4 add`, and nothing is written without your yes.
 
 `iz4 review` takes a commit, a range or `--staged`; `--offline` skips the
-agent; `--strict` exits 1 on a reported conflict. `iz4 review --install-hook`
+agent; `--strict` exits 1 on a reported conflict. `iz4 review install`
 writes an advisory pre-push hook that reviews what you are about to push
 (never into a shared `core.hooksPath` directory: it tells you the line to
 add there instead), and the workflow `iz4 register --github` writes runs the offline review on
@@ -386,12 +386,18 @@ proposal, so it cannot sit inside the tree it approves and stops applying
 the moment any of them changes. A terminal yes counts for local checks;
 `--sign=KEY --by=PRINCIPAL` signs it with an SSH key, and
 `iz4 gate --enforce --approvers=FILE` at a protected boundary accepts only
-that. `iz4 gate --install-hook` writes a pre-commit hook, advisory or
+that. `iz4 gate install` writes a pre-commit hook, advisory or
 `--enforce`, and never over a hook that is not its own. What each tier is
 worth, the CI step, and the contract a harness such as 321 calls:
 [docs/gate.md](gate.md).
 
 ## Commands
+
+`iz4 help` is the short version of this: one screen of the everyday
+commands, `iz4 help add` for one command with an example, and `iz4 help
+more` for the rest. An action is a word (`iz4 gate install`, `iz4
+foundation restore`); a flag only adjusts one. The flags that used to be
+actions still work, so earlier scripts and hooks do.
 
 ```text
 iz4 init                         ask what and who, write the IZ4, offer a first invariant
@@ -403,7 +409,7 @@ iz4 add invariant TEXT --name=NAME --because=WHY
                                    --force past a challenge)
 iz4 add for-what|for-who TEXT    set IS FOR WHAT or IS FOR WHO (--replace)
 iz4 because NAME WHY             say why an invariant must survive (--replace)
-iz4 because [NAME] --split       move a reason folded into the invariant's
+iz4 split [NAME]                 move a reason folded into the invariant's
                                    own text under BECAUSE
 iz4 withdraw NAME                take an invariant out, once you confirm; its
                                    name is retired for good, Git keeps the
@@ -414,18 +420,20 @@ iz4 gate [--staged|--candidate=REV [--base=REV|none]]
                                    compared, the tests naming invariants run:
                                    pass, agreement-required, blocked, unassessed
                                    or error (--enforce: the exit code; --json;
-                                   --approvers=FILE; --install-hook [--enforce])
+                                   --approvers=FILE)
+iz4 gate install [--enforce]     the gate as a pre-commit hook
 iz4 approve [--staged|--candidate=REV]
                                  the proposal, for a person to accept, reject or
                                    revise; a detached approval for that exact
                                    tree (--sign=KEY --by=PRINCIPAL to sign it)
 iz4 review [RANGE|--staged]      which invariants a change touches, your agent's
                                    assessment, and any invariant it reveals
-                                   (--offline, --strict, --for-push, --install-hook)
+                                   (--offline, --strict, --for-push)
+iz4 review install               the review as a pre-push hook
 iz4 suggest                      a few candidate invariants from an agent, reviewed
 iz4 invariants [FILE]            the effective invariants: the foundation and yours
-iz4 foundation [--restore FILE]  the foundation as every file carries it; --restore
-                                   writes it back where it is missing or altered
+iz4 foundation                   the foundation as every file carries it
+iz4 foundation restore [FILE]    write it back where it is missing or altered
 iz4 show [FILE] [PART]           the file, or for-what, for-who or invariants
 iz4 show invariant NAME          one invariant by its name; the first part alone
                                    will do where only one begins with it
@@ -434,15 +442,18 @@ iz4 check [FILE] [--strict]      ticks for what is true, crosses with remedies
 iz4 name LINE NAME               name the unnamed INVARIANT on that line
 iz4 migrate [FILE] [--namespace=DOMAIN] [--names=5=NAME,6=NAME]
                                  move an IZ4 from numbered invariants to named
-                                   ones; your words are not touched (--dry-run)
-iz4 test [NAME ...] [--list]     a test for each invariant without one: drafted
+                                   ones; your words are not touched
+iz4 migrate preview              what that would change, writing nothing
+iz4 test [NAME ...]              a test for each invariant without one: drafted
                                    by your agent for your approval on a terminal,
                                    a born-red scaffold otherwise (--/draft)
-iz4 update [--check]             bring iz4 to the latest published version
+iz4 test list                    the evidence each invariant has
+iz4 update                       bring iz4 to the latest published version
+iz4 update check                 say whether there is a newer one
 iz4 log [FILE]                   the Git history of your intent
 iz4 diff [FILE] [REV [REV]]      what changed, working tree by default
 iz4 agent [install|status]       hand the invariants to a coding agent
-iz4 agent install --hooks        ask an environment driver (321) to wire iz4 into
+iz4 agent install hooks        ask an environment driver (321) to wire iz4 into
                                    the agent harnesses here: the context only, or
                                    with --strict everything the harness can enforce;
                                    iz4 writes no harness configuration itself
@@ -495,7 +506,7 @@ On a terminal with an agent (IZ4_AGENT_CMD), 'iz4 test' drafts the real test for
 A scaffold is born red on purpose, and check reports it as scaffolded, not
 as evidence. The name has to be whole: `visible-by-choice` alone, or a
 longer name that merely contains the full one, links nothing, and a mention
-in prose outside the test directories never counts. `iz4 test --list`
+in prose outside the test directories never counts. `iz4 test list`
 shows the state of each invariant, and `iz4 test contact-by-invitation`
 writes one.
 
@@ -561,7 +572,7 @@ is not in place ends in a numbered `next:` list, one command per step in
 the order that clears the most first, or, where iz4 must not touch your
 words, what to change by hand and on which line. A failing check ends
 `NOT OK` after that list; so does `iz4 agent status` and `iz4 foundation
---restore` when something remains. Whether your
+restore` when something remains. Whether your
 software actually keeps its invariants is never a tick, because a checker
 cannot know. That line stays a question mark, and review against
 `iz4 invariants` is how it gets answered.
@@ -693,7 +704,7 @@ of your own invariants needs a name, and a name is a person's to choose: on
 a terminal `iz4 migrate` asks, and in a script the names are given
 (`iz4 migrate --namespace=honeywillow.com
 --names=5=owner-adjusted.prices,6=charged-once.orders`). With a name
-missing and nobody to ask, it writes nothing and exits 2. `--dry-run` shows
+missing and nobody to ask, it writes nothing and exits 2. `iz4 migrate preview` shows
 the mapping and writes nothing. Only the header line of each of your
 invariants changes: not a word of their text or reasons. The gate then
 shows the move as a change for a person to agree to. More in
@@ -773,7 +784,7 @@ and to report each affected invariant as mechanically verified, supported by
 evidence, apparently consistent, uncertain or conflicting.
 
 `iz4 agent install` writes a short managed section into `AGENTS.md`, and
-`CLAUDE.md` with `--claude`. `--skill` adds a portable skill that carries the
+`CLAUDE.md` with `iz4 agent install claude`. `iz4 agent install skill` adds a portable skill that carries the
 protocol and the foundation for places the CLI cannot reach.
 `iz4 agent status --strict` is the version for CI. On every command that
 has it, `--strict` means one thing: exit 1 while anything remains to
@@ -792,7 +803,7 @@ iz4 does not install itself into agent environments. Claude Code, Codex, Pi
 and the rest each keep configuration somewhere different and change it
 often; an *environment driver* holds that knowledge. 321 is the reference
 multi-harness driver and installs and drives iz4 wherever 321 is used.
-`iz4 agent install --hooks` asks it to: the context only by default, so
+`iz4 agent install hooks` asks it to: the context only by default, so
 nothing is refused, and with `--strict` everything the harness can enforce.
 Where 321 finds a harness in use with nothing wired, a plain
 `iz4 agent install` asks for the advisory set; it never replaces or
@@ -833,7 +844,7 @@ The IZ4 intent is recorded, but harness enforcement is currently inactive.
 ```
 
 `IZ4_ENFORCE=0` switches the step off (for scripts and CI), as does
-`IZ4_NO_321=1`. `iz4 agent install --hooks` does the same bootstrap when
+`IZ4_NO_321=1`. `iz4 agent install hooks` does the same bootstrap when
 asked outright; where no driver can be had, it says what was not installed,
 and with `--strict` it fails.
 
@@ -866,7 +877,7 @@ iz4 conveniences  ->  321  ->  iz4 core
 The calls go one way. iz4's core (the file, `check`, the gate, `approve`,
 the agent packet and the machine interface) never runs 321 and knows no
 agent harness; its conveniences (suggest, review, test drafting,
-`agent install --hooks`, `agent status`) may ask 321; and 321 calls only
+`agent install hooks`, `agent status`) may ask 321; and 321 calls only
 the core. Hooks that 321 installs call 321, which calls iz4, so a harness
 changing its events changes 321 and nothing here.
 
@@ -875,7 +886,7 @@ installed: `iz4 suggest`, `iz4 review` and the test drafting in `iz4 test`
 become read-only runs of 321's prompt package, on whatever harness 321
 picks and can hold to the package's limits (no writes, no shell, no
 network beyond the model), answered in text. 321 is also the environment
-driver: `iz4 agent install --hooks` asks it to wire iz4 into every harness
+driver: `iz4 agent install hooks` asks it to wire iz4 into every harness
 it knows, and `iz4 agent status` quotes what it says is enforced, so nobody
 reads a written hook as an enforced one. A run 321 launches in a repository
 that keeps an IZ4 is governed without anything being installed: the context

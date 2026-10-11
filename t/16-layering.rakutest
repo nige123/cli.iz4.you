@@ -21,7 +21,7 @@ my $lib  = $root.add('lib');
 # ---- every module is in exactly one layer --------------------------------
 my @CORE        = <IZ4 IZ4::Grammar IZ4::Document IZ4::Git IZ4::Evidence IZ4::Review IZ4::Gate
                    IZ4::Machine IZ4::Agent IZ4::Register IZ4::Coach>;
-my @CONVENIENCE = <IZ4::Launcher IZ4::Assist IZ4::Integrations>;
+my @CONVENIENCE = <IZ4::Launcher IZ4::Assist IZ4::Integrations IZ4::Help>;
 my @LEGACY      = <IZ4::LegacyHook>;
 
 sub file-of(Str $module --> IO::Path) { $lib.add($module.subst('::', '/', :g) ~ '.rakumod') }
@@ -151,7 +151,7 @@ for (%with, %without) -> %env {
     ok driver-was-run(), "a convenience command ('iz4 agent status') does ask 321, so the checks above could have caught a call";
     forget;
     ($rc, $out, $err) = iz4($r, 'agent', 'install', '--hooks', '--strict', :env(%with));
-    like $log.slurp, / ^^ 'iz4 install' /, "'iz4 agent install --hooks' hands the wiring to 321 ('321 iz4 install')";
+    like $log.slurp, / ^^ 'iz4 install' /, "'iz4 agent install hooks' hands the wiring to 321 ('321 iz4 install')";
     nok $r.add('.claude/settings.json').e, 'and iz4 itself writes no harness settings';
 }
 
@@ -287,7 +287,7 @@ for (%with, %without) -> %env {
         # asked for hooks outright with no 321: the same bootstrap, then the wiring
         $r = fresh-repo; $bindir = temp-dir;
         ($rc, $out, $err) = iz4($r, 'agent', 'install', '--hooks', '--strict', :env(env-for($bindir, release('0.4.0'))));
-        ok $rc == 0 && $bindir.add('321').f, "'iz4 agent install --hooks' installs the driver when it is missing" or diag "$rc\n$out\n$err";
+        ok $rc == 0 && $bindir.add('321').f, "'iz4 agent install hooks' installs the driver when it is missing" or diag "$rc\n$out\n$err";
         like $out, /'hooks via 321 0.4.0'/, 'and hands the wiring to it';
     }
     else { skip 'no 321 is published for this system', 1 }
@@ -304,7 +304,7 @@ for (%with, %without) -> %env {
 
 # ---- wiring an earlier iz4 left: still answered, recognised, never extended -
 # Exactly what iz4 0.14.1 wrote into Claude Code's project settings with
-# 'iz4 agent install --hooks --strict'.
+# 'iz4 agent install hooks --strict'.
 {
     my $r = fresh-repo;
     g($r, 'add', '-A'); g($r, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'init');

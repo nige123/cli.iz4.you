@@ -202,11 +202,11 @@ reported as `uncertain` in the agent protocol.
 
 | Tier | What runs | Worth |
 |---|---|---|
-| local hook | `iz4 gate --install-hook` writes a pre-commit hook that runs `iz4 gate --staged` (advisory) or `--staged --enforce`; it never overwrites a hook that is not iz4's | timely feedback for the developer or agent at the keyboard; `git commit --no-verify`, an edited hook, a changed `core.hooksPath` or a different tool all skip it |
+| local hook | `iz4 gate install` writes a pre-commit hook that runs `iz4 gate --staged` (advisory) or `--staged --enforce`; it never overwrites a hook that is not iz4's | timely feedback for the developer or agent at the keyboard; `git commit --no-verify`, an edited hook, a changed `core.hooksPath` or a different tool all skip it |
 | protected boundary | the same `iz4 gate --candidate=HEAD --base=<merge base> --enforce --approvers=FILE` run by CI on the protected branch, or by a server-side hook, from an iz4 installation and an allowed-signers file the candidate cannot change | the check the first tier cannot be trusted for, repeated where the candidate has no authority, with human agreement validated independently |
 
 With a hooks directory shared by every repository on a machine
-(`core.hooksPath`), `iz4 gate --install-hook` refuses to write and prints
+(`core.hooksPath`), `iz4 gate install` refuses to write and prints
 the line to add. Make a shared hook opt-in per repository, so it never
 fires in a temporary repository some test suite creates:
 

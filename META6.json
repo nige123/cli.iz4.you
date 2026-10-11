@@ -14,6 +14,7 @@
         "IZ4::Agent": "lib/IZ4/Agent.rakumod",
         "IZ4::Assist": "lib/IZ4/Assist.rakumod",
         "IZ4::Coach": "lib/IZ4/Coach.rakumod",
+        "IZ4::Help": "lib/IZ4/Help.rakumod",
         "IZ4::Document": "lib/IZ4/Document.rakumod",
         "IZ4::Evidence": "lib/IZ4/Evidence.rakumod",
         "IZ4::Gate": "lib/IZ4/Gate.rakumod",

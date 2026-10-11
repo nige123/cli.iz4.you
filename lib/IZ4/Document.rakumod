@@ -172,7 +172,7 @@ constant FOUNDATION-COMMENT is export =
     "# The foundation, Invariants 0 to 4: the same words in every IZ4.\n"
     ~ "# Invariant Zero, humans-first.iz4.you, is the foundation of the foundation.\n"
     ~ "# 'iz4 check' refuses a file where any of it is missing or altered, and\n"
-    ~ "# 'iz4 foundation --restore' puts it back.";
+    ~ "# 'iz4 foundation restore' puts it back.";
 
 #| The foundation as it is written into every file: the comment, then the
 #| five invariants with their BECAUSE, each block ending in a blank line.
@@ -398,7 +398,7 @@ method foundation-status(--> Str) {
         if $!legacy;
     $!foundation-intact
         ?? "the foundation: Invariants 0 to 4, in the file word for word (sha256 {FOUNDATION-DIGEST.substr(0, 12)})"
-        !! "the foundation is missing or altered - 'iz4 foundation --restore' writes it back";
+        !! "the foundation is missing or altered - 'iz4 foundation restore' writes it back";
 }
 
 #| Problems sorted by line, formatted as "NAME:LINE: message".
@@ -558,7 +558,7 @@ method !validate-named() {
                     my $because-block = self!because-after($b);
                     @!foundation-spans.push: ($b.line, $because-block.defined ?? $because-block.last-line !! $b.last-line);
                     if %foundation{$label}:exists {
-                        self!problem($b.line, "duplicate INVARIANT $label (first at line {%foundation{$label}})", :fix('iz4 foundation --restore'));
+                        self!problem($b.line, "duplicate INVARIANT $label (first at line {%foundation{$label}})", :fix('iz4 foundation restore'));
                         $foundation-broken = True;
                     }
                     elsif foundation-matches($label, $b.text, $because-block.defined ?? $because-block.text !! Str) {
@@ -569,11 +569,11 @@ method !validate-named() {
                         $foundation-broken = True;
                         with foundation-earlier($label, $b.text, $because-block.defined ?? $because-block.text !! Str) -> $version {
                             self!problem($b.line, "INVARIANT $label reads as iz4 $version wrote it, and the foundation's wording has "
-                                ~ "changed since ('iz4 foundation --restore' brings it up to date; 'iz4 foundation' shows the words)", :fix('iz4 foundation --restore'));
+                                ~ "changed since ('iz4 foundation restore' brings it up to date; 'iz4 foundation' shows the words)", :fix('iz4 foundation restore'));
                         }
                         else {
                             self!problem($b.line, "INVARIANT $label is part of the foundation and must read exactly as it does "
-                                ~ "in every IZ4; it is not yours to edit ('iz4 foundation --restore' puts it back)", :fix('iz4 foundation --restore'));
+                                ~ "in every IZ4; it is not yours to edit ('iz4 foundation restore' puts it back)", :fix('iz4 foundation restore'));
                         }
                     }
                     $last-was-invariant = False;
@@ -640,7 +640,7 @@ method !validate-named() {
     self!validate-missing-purpose(%seen);
     my @missing = foundation-ids().grep({ !(%foundation{$_}:exists) });
     self!problem(@!lines.elems max 1, "the foundation is missing: every IZ4 carries {@missing.join(', ')} word for word "
-        ~ "('iz4 foundation --restore' writes {@missing == 1 ?? 'it' !! 'them'})", :fix('iz4 foundation --restore'))
+        ~ "('iz4 foundation restore' writes {@missing == 1 ?? 'it' !! 'them'})", :fix('iz4 foundation restore'))
         if @missing;
     $!foundation-intact = !@missing && !$foundation-broken;
 }

@@ -13,6 +13,7 @@ use IZ4::Git;
 use IZ4::Gate;
 use IZ4::Agent;
 use IZ4::Coach;
+use IZ4::Help;
 use IZ4::Review;
 use IZ4::Evidence;
 use IZ4::Machine;
@@ -27,182 +28,25 @@ use IZ4::LegacyHook;
 my %*SUB-MAIN-OPTS = :named-anywhere;
 $*OUT.out-buffer = False;   # a closed pipe fails at the write, leaving nothing to flush at exit
 
+#| What is shown when a command line is not understood, or --help is
+#| given.  Short on purpose: the command's own help when it names one,
+#| and otherwise the first screen.
 sub USAGE() {
-    print q:to/END/;
-    IZ4 means Is For.  An IZ4 says what your system is for, who it is
-    for, and the handful of things that must remain true for it to keep
-    serving them.  It is deliberately small: never a specification.
-
-    Usage:
-      iz4 init                         ask what this is for and who
-                                           it is for, write the IZ4, and offer
-                                           to find a first invariant
-                                           (scripts: --for-what=... --for-who=...;
-                                            --/agents: skip AGENTS.md and friends)
-      iz4 add                          find an invariant, coached: one useful
-                                           question at a time, and a BECAUSE
-      iz4 add invariant TEXT --name=NAME --because=WHY
-                                         the fast path, for when you already
-                                           know. NAME is a few lower-case words
-                                           joined by hyphens (owner-adjusted);
-                                           it goes under your project's domain,
-                                           taken from the file, or given once
-                                           with --namespace=honeywillow.com
-                                           (--force past a challenge)
-      iz4 add for-what TEXT            set IS FOR WHAT (--replace once set)
-      iz4 add for-who TEXT             set IS FOR WHO  (--replace once set)
-      iz4 because NAME WHY             say why an invariant must survive
-                                           (--replace once set)
-      iz4 because NAME --split         move the reason folded into an
-                                           invariant's own text under BECAUSE;
-                                           'iz4 because --split' does every one
-      iz4 withdraw NAME                take an invariant out, once you confirm:
-                                           its name is retired for good and Git
-                                           keeps its words. The tests that exist
-                                           only for it are removed with it, shown
-                                           to you first; a test that also names
-                                           another invariant, or that Git does not
-                                           hold as it is, is left (--keep-tests
-                                           leaves them all). The foundation cannot
-                                           be withdrawn (scripts: --force)
-      iz4 review [RANGE] [--staged]    review a change against the invariants:
-                                           which ones it touches (offline), then
-                                           your agent's assessment and any
-                                           invariant the change reveals, for you
-                                           to approve (--offline: no agent;
-                                           --strict: exit 1 on a conflict;
-                                           --for-push: what is about to be pushed;
-                                           --install-hook [--force]: advisory
-                                           pre-push hook)
-      iz4 gate [--staged | --candidate=REV [--base=REV|none]]
-                                     does the change alter a commitment? Compares
-                                       two trees (never the working directory):
-                                       the IZ4 and the tests naming invariants,
-                                       and runs those tests from the candidate.
-                                       Outcome: pass, agreement-required,
-                                       blocked, unassessed, error. Advisory
-                                       unless --enforce, which makes the outcome
-                                       the exit code (0, 2, 3, 4, 1). --json;
-                                       --approval=FILE, --approvers=FILE (allowed
-                                       signers); --no-checks; --timeout=S;
-                                       --check-cmd='... \{file\}' (or
-                                       IZ4_CHECK_CMD, or git config
-                                       iz4.checkCmd);
-                                       --install-hook [--enforce] [--force]: a
-                                       pre-commit hook on the staged tree
-      iz4 approve [--staged | --candidate=REV [--base=REV|none]]
-                                     show the proposal (exact before/after, the
-                                       protections touched, what the agreement
-                                       covers) and let a person accept, reject or
-                                       revise it. Accepting records a detached
-                                       approval under refs/iz4/approvals/<tree>;
-                                       --sign=KEY --by=PRINCIPAL signs it for an
-                                       acceptance boundary. A script never gets a
-                                       yes here: without a terminal it exits 2
-      iz4 suggest                      ask an agent (through 321, or your own
-                                           IZ4_AGENT_CMD) for a few candidate
-                                           invariants, then review them
-      iz4 invariants [FILE]            the effective invariants: the foundation
-                                           and this project's own
-      iz4 foundation [--restore FILE]  the foundation every IZ4 carries word for
-                                           word; --restore writes it back into a
-                                           file where it is missing or altered
-      iz4 show [FILE] [PART]           print the IZ4, or for-what, for-who or
-                                           invariants
-      iz4 show invariant NAME          print one invariant by its name (the
-                                           first part alone will do where only
-                                           one begins with it; 0 to 4, or zero,
-                                           finds the foundation by its order)
-      iz4 check [FILE] [--strict]      tick what is true, cross what needs a
-                                           remedy; exit 1 only on errors, or on
-                                           any cross with --strict (for a gate)
-      iz4 name LINE NAME               name the unnamed INVARIANT on that line
-      iz4 migrate [FILE] [--namespace=DOMAIN] [--names=5=NAME,6=NAME]
-                                     move an IZ4 from numbered invariants to
-                                       named ones: the foundation by its fixed
-                                       mapping, each of your own under a name
-                                       you choose (asked for on a terminal).
-                                       Your words are not touched. --dry-run
-                                       shows what would change
-      iz4 test [NAME ...] [--lang=L]   a test for each invariant that has
-                                           none, in the repository's own test
-                                           language: on a terminal with an
-                                           agent (321 or IZ4_AGENT_CMD), a
-                                           drafted real test you approve, marked for
-                                           review until you delete the mark;
-                                           otherwise a born-red scaffold
-                                           (--/draft: scaffold only; --list:
-                                           the evidence each invariant has)
-      iz4 log [FILE]                   Git history of the IZ4
-      iz4 diff [FILE] [REV [REV]]      Git diff of the IZ4
-      iz4 agent [--json]               print the agent packet: the protocol
-                                           and the effective invariants
-      iz4 agent install [--claude] [--skill] [--hooks [--strict]]
-                                     add a managed section to AGENTS.md
-                                       (--claude: CLAUDE.md too; --skill:
-                                       the portable skill). iz4 wires no
-                                       harness itself: --hooks asks an
-                                       environment driver (321) to, the
-                                       context only, or with --strict
-                                       everything the harness can enforce.
-                                       Where the driver finds a harness in
-                                       use with nothing wired, the advisory
-                                       set is asked for by default
-                                       (--/hooks: leave the harness alone)
-      iz4 discover [--json] [--dir=D]  does an IZ4 govern this directory?
-      iz4 context [--json]             what to tell an agent before it works:
-                                         a short instruction and the
-                                         effective invariants
-      iz4 check action [--json]        one consequential action, as JSON on
-                                         standard input (operation, target,
-                                         parameters, ...): does it need a
-                                         person's decision?
-      iz4 check change [--worktree | --staged | --candidate=REV [--base=REV|none]]
-                                     does the change alter a commitment? The
-                                       gate, in the check vocabulary;
-                                       --worktree looks at uncommitted work
-                                       and touches no index
-      iz4 verify [--worktree | --staged | --candidate=REV] [--summary=FILE]
-                                     what can be established about finished
-                                       work: structure, change, and, given
-                                       the agent's last words, its report.
-                                       These five are the machine interface
-                                       an environment driver calls (--json;
-                                       result pass | warn | block |
-                                       needs_human, exit 0 | 0 | 3 | 2);
-                                       docs/drivers.md
-      iz4 hook session-start|pre-edit|stop
-                                         DEPRECATED, compatibility only: the
-                                           hook an iz4 before 0.15 wired into
-                                           Claude Code. It still answers so
-                                           that wiring keeps working until a
-                                           driver adopts it (321 iz4 install);
-                                           nothing new is wired to it
-      iz4 agent status [--json] [--strict]
-                                         report spec validity and integration
-                                           state, and what the driver (321)
-                                           says is enforced in each harness
-                                           (--strict for CI)
-      iz4 register [--url=U --token=T] connect this IZ4 to the IZ4 register
-                     [--github [--force]]  (sign up first: iz4.you); connected,
-                                           with the card published, a plain
-                                           'iz4 register' records a registration
-                                           checkpoint of the committed
-                                           declaration at HEAD
-      iz4 report [--dry-run|--strict]  submit evidence (never the text)
-      iz4 badge                        print the card link and badge snippets
-      iz4 version                      print the tool version
-      iz4 update [--check]             update this iz4 to the latest published
-                                           version (--check: only say whether one
-                                           exists); a developer checkout with
-                                           local changes is left alone
-
-    The golden test for an invariant: if the whole system were
-    rewritten tomorrow, would we regret not telling the people and agents
-    rebuilding it this?
-
-    END
-    print EXAMPLES;
+    my @words = @*ARGS.grep({ !.starts-with('-') });
+    my $wanted = so @*ARGS.grep('--help' | '-h' | '-?');
+    # the longest leading run of words that names a command
+    my $t;
+    for (2, 1) -> $n { last if $t.defined; $t = topic(@words.head($n).join(' ')) if @words >= $n }
+    if $wanted { print $t.defined ?? help-topic($t) !! help-index(); return }
+    if $t.defined {
+        note "iz4 {$t.name} was not given what it needs. Here is how it is called:";
+        note '';
+        note help-topic($t);
+    }
+    elsif @words {
+        note help-for([@words[0]])[0];
+    }
+    else { print help-index() }
 }
 
 # Run a command body; user errors become one-line messages and exit 1.
@@ -387,6 +231,21 @@ sub choose-identity(IO::Path $path, Str $name? is copy, Str :$namespace, Str :$t
     my $ns = choose-namespace($path, :$namespace);
     (full-identity($name, $ns), $ns);
 }
+
+# ------------------------------------------------------------ help
+
+#| 'iz4' alone, and 'iz4 help': the first screen.  'iz4 help add': one
+#| command.  'iz4 help more': the rest.  Always short.
+multi MAIN() { print help-index(); exit 0 }
+multi MAIN('help', *@words) {
+    my ($text, $known) = help-for(@words);
+    if $known { print $text; exit 0 }
+    note $text;
+    exit 1;
+}
+multi MAIN(Bool :h($h)!) { print help-index(); exit 0 }
+# people type this out of habit; it is the same as 'iz4 version'
+multi MAIN(Bool :$version!) { MAIN('version') }
 
 # ------------------------------------------------------------ init
 
@@ -582,9 +441,39 @@ multi MAIN('withdraw', Str $which, Str :$file, Bool :$force = False, Bool :$keep
     }
 }
 
+# ------------------------------------------------------------ words for actions
+#
+# An action is a word.  Each of these is the same command as the flag
+# beside it, which still works: hooks and scripts written before call it.
+
+multi MAIN('foundation', 'restore', Str $file?) { MAIN('foundation', |($file // Empty), :restore) }
+multi MAIN('split', Str $which?, Str :$file) { MAIN('because', |($which // Empty), :split, |(:$file if $file.defined)) }
+multi MAIN('test', 'list', Str :$file) { MAIN('test', :list, |(:$file if $file.defined)) }
+multi MAIN('update', 'check') { MAIN('update', :check) }
+multi MAIN('migrate', 'preview', Str $file?, Str :$namespace, Str :$names) {
+    MAIN('migrate', |($file // Empty), :dry-run, |(:$namespace if $namespace.defined), |(:$names if $names.defined));
+}
+multi MAIN('report', 'preview', Str :$file, Str :$release, Str :$run-id) {
+    MAIN('report', :dry-run, |(:$file if $file.defined), |(:$release if $release.defined), |(:$run-id if $run-id.defined));
+}
+multi MAIN('gate', 'install', Bool :$enforce = False, Bool :$force = False, Str :$file) {
+    MAIN('gate', :install-hook, :$enforce, :$force, |(:$file if $file.defined));
+}
+multi MAIN('review', 'install', Bool :$force = False, Str :$file) {
+    MAIN('review', :install-hook, :$force, |(:$file if $file.defined));
+}
+#| 'iz4 agent install claude skill hooks': what to install, as words.
+multi MAIN('agent', 'install', *@what where { .elems > 0 }, Bool :$strict = False, Str :$file) {
+    my @known = <claude skill hooks>;
+    my @bad = @what.grep({ $_ ne any(@known) });
+    if @bad { note "iz4 agent install takes {@known.join(', ')}; not '{@bad[0]}'.\n"; note help-topic(topic('agent install')); exit 1 }
+    MAIN('agent', 'install', :claude(so @what.grep('claude')), :skill(so @what.grep('skill')),
+         |(:hooks if @what.grep('hooks')), :$strict, |(:$file if $file.defined));
+}
+
 # ------------------------------------------------------------ read
 
-#| The foundation as every file carries it; --restore writes it into
+#| The foundation as every file carries it; 'restore' writes it into
 #| the file when it is missing or altered.
 multi MAIN('foundation', Str $file?, Bool :$restore = False) {
     attempt {
@@ -607,7 +496,7 @@ multi MAIN('foundation', Str $file?, Bool :$restore = False) {
         }
         my $doc = check-doc($path);
         say "  now: {$doc.foundation-status}";
-        say-next(['iz4 check'], :then('iz4 foundation --restore')) unless $doc.foundation-intact;
+        say-next(['iz4 check'], :then('iz4 foundation restore')) unless $doc.foundation-intact;
         $doc.foundation-intact ?? 0 !! 1;
     }
 }
@@ -664,7 +553,7 @@ multi MAIN('check', Str $file?, Bool :$strict = False) {
         @rows.push: $doc.for-who.defined && $doc.for-who ne ''
             ?? ('✓', "IS FOR WHO: {short($doc.for-who)}", '')
             !! ('✗', "IS FOR WHO: missing - who is this for? ('iz4 add for-who ...')", 'iz4 add for-who "who it is for"');
-        @rows.push: ($doc.foundation-intact ?? '✓' !! '✗', $doc.foundation-status, $doc.foundation-intact ?? '' !! 'iz4 foundation --restore');
+        @rows.push: ($doc.foundation-intact ?? '✓' !! '✗', $doc.foundation-status, $doc.foundation-intact ?? '' !! 'iz4 foundation restore');
 
         # A file still in the numbered format is read, and still governs,
         # but it is not current: one cross, one next step.
@@ -692,7 +581,7 @@ multi MAIN('check', Str $file?, Bool :$strict = False) {
             my @bare   = $doc.unexplained-invariants;
             my @folded = @bare.grep({ split-reason(.text)[1].defined }).map({ .id // 'unnamed' });
             my @plain  = @bare.grep({ !split-reason(.text)[1].defined }).map({ .id // 'unnamed' });
-            @rows.push: ('✗', "BECAUSE: {lbls(@folded)} carr{@folded == 1 ?? 'ies' !! 'y'} the reason inside the invariant - 'iz4 because --split' moves it under BECAUSE", $doc.legacy ?? '' !! 'iz4 because --split')
+            @rows.push: ('✗', "BECAUSE: {lbls(@folded)} carr{@folded == 1 ?? 'ies' !! 'y'} the reason inside the invariant - 'iz4 split' moves it under BECAUSE", $doc.legacy ?? '' !! 'iz4 split')
                 if @folded;
             @rows.push: ('✗', "BECAUSE: missing for {lbls(@plain)} - write under each why it must survive ('iz4 because NAME WHY')",
                 $doc.legacy ?? '' !! @plain.map({ "iz4 because $_ \"why it must survive\"" }).join("\n"))
@@ -805,7 +694,7 @@ multi MAIN('test', *@which, Str :$file, Str :$lang, Bool :$list = False, Bool :$
             return 0;
         }
         require-named($doc, $path);
-        my @only = @which.map({ resolve-identity($doc, $_) // user-error("no invariant '$_' in {display-name($path)}; 'iz4 test --list' shows the names") });
+        my @only = @which.map({ resolve-identity($doc, $_) // user-error("no invariant '$_' in {display-name($path)}; 'iz4 test list' shows the names") });
         for @only { user-error("no invariant $_ in {display-name($path)} of its own to test") unless $doc.invariant($_) }
         my $language = $lang // detect-language($root);
         user-error("no scaffold for language '$language'; --lang takes one of {LANGUAGES.join(', ')}")
@@ -859,7 +748,7 @@ multi MAIN('test', *@which, Str :$file, Str :$lang, Bool :$list = False, Bool :$
         unless @drafted || @done {
             say @only
                 ?? "Nothing to write: {@only.join(', ')} already ha{@only == 1 ?? 's' !! 've'} a test naming it (or its file exists)."
-                !! "Nothing to write: every invariant already has a test naming it, or its file exists ('iz4 test --list').";
+                !! "Nothing to write: every invariant already has a test naming it, or its file exists ('iz4 test list').";
         }
         0;
     }

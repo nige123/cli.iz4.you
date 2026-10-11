@@ -2,7 +2,7 @@
 
 Every IZ4 carries the foundation word for word: Invariants 0 to 4. It is
 part of the format: the CLI holds the reference copy, `iz4 check` refuses a file where
-one is missing or altered, and `iz4 foundation --restore` writes them back.
+one is missing or altered, and `iz4 foundation restore` writes them back.
 A project cannot redefine, remove or override them. They are short on
 purpose, 301 words with their reasons, written as plain instructions that a
 person or an AI can take in at a glance.
@@ -144,7 +144,7 @@ now begins "The foundation is these invariants:". It lists them by name, so
 it does not need to count them, and the foundation is spoken of as the
 foundation, in its order 0 to 4, beginning with Invariant Zero. Nothing
 else in the text changed. A file that still carries the earlier sentence
-is told it is out of date, and `iz4 foundation --restore` brings it up to
+is told it is out of date, and `iz4 foundation restore` brings it up to
 date.
 
 The numbered text stays readable: a file not yet migrated is recognised by

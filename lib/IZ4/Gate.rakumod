@@ -819,7 +819,7 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
 
     given $outcome {
         when 'blocked' {
-            @next.push: 'iz4 foundation --restore' if @changes.grep({ .<kind> eq 'foundation' });
+            @next.push: 'iz4 foundation restore' if @changes.grep({ .<kind> eq 'foundation' });
             @next.push: 'iz4 check' if @changes.grep({ .<kind> eq 'invalid' });
             @next.push: 'give the invariant a name the file has never used' if @changes.grep({ .<kind> eq 'reused-name' });
             @next.push: "keep the named IZ4; 'iz4 show invariants' lists the names" if @changes.grep({ .<kind> eq 'format-regressed' });
@@ -855,7 +855,7 @@ constant GATE-HOOK-MARK is export = '# iz4 gate hook';
 sub gate-hook-text(Bool :$enforce = False --> Str) is export {
     qq:to/END/;
     #!/bin/sh
-    {GATE-HOOK-MARK} (written by 'iz4 gate --install-hook'; delete this file to remove it)
+    {GATE-HOOK-MARK} (written by 'iz4 gate install'; delete this file to remove it)
     command -v iz4 >/dev/null 2>&1 || exit 0
     {$enforce ?? 'iz4 gate --staged --enforce' !! 'iz4 gate --staged; exit 0'}
     END

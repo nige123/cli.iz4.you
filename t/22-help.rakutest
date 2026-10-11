@@ -1,0 +1,100 @@
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4::Help;
+
+# Help is read by a person in the middle of something else.  Each screen
+# has to fit in their head: these tests hold the sizes down.
+
+%*ENV<IZ4_NO_321> = '1';
+my $dir = temp-dir;
+my $bin = $?FILE.IO.resolve.parent(2).add('bin/iz4');
+
+sub run-iz4(*@args) {
+    my ($code, $out, $err) = iz4($dir, |@args, :env(%( HOME => ~$dir )));
+    %( :$out, :$err, :$code );
+}
+
+subtest 'the first screen is short' => {
+    my $r = run-iz4();
+    is $r<code>, 0, 'iz4 alone is not an error';
+    ok $r<out>.lines.elems <= 16, "it fits a small window ({$r<out>.lines.elems} lines)";
+    is run-iz4('help')<out>, $r<out>, 'iz4 help says the same';
+    is run-iz4('--help')<out>, $r<out>, 'and so does --help';
+    is run-iz4('-h')<out>, $r<out>, 'and -h';
+    like run-iz4('--version')<out>, / ^ 'iz4 ' \d+ '.' \d+ /, '--version answers too, out of habit';
+    like $r<out>, / 'iz4 help COMMAND' /, 'it says how to ask about one command';
+    like $r<out>, / 'iz4 help more' /, 'and where the rest is';
+    nok $r<out>.contains('--json'), 'nothing for tools on the first screen';
+    for $r<out>.lines.grep(*.starts-with('  iz4 ')).rotor(5, :partial) {
+        pass 'commands are listed';
+    }
+    my @groups = $r<out>.split(/\n\n/).map({ .lines.grep(*.starts-with('  iz4 ')).elems }).grep(* > 0);
+    ok @groups.all <= 5, "no group asks a person to hold more than five things ({@groups})";
+}
+
+subtest 'every command has its own short help' => {
+    for topics() -> $t {
+        my $text = help-topic($t);
+        ok $text.lines.elems <= 14, "iz4 help {$t.name} is short ({$text.lines.elems} lines)";
+        ok $t.example.chars, "iz4 help {$t.name} gives an example";
+        ok $text.lines.all.chars <= 110, "iz4 help {$t.name} has no line too long to read";
+    }
+    my $r = run-iz4('help', 'add');
+    is $r<code>, 0, 'iz4 help add works';
+    like $r<out>, / ^ 'iz4 add:' /, 'and is about add';
+    is run-iz4('add', '--help')<out>, $r<out>, 'iz4 add --help says the same';
+    is run-iz4('help', 'gate', 'install')<out>, run-iz4('help', 'gate')<out>, 'an action is explained with its command';
+    ok run-iz4('help', 'more')<out>.lines.elems <= 36, 'the rest is one screen too';
+    is run-iz4('help', 'machine')<code>, 0, 'what tools need is kept apart';
+}
+
+subtest 'every command iz4 has can be asked about' => {
+    my $src = $bin.slurp;
+    my @commands = $src.match(/ ^^ 'multi MAIN(' \h* \' (<[a..z-]>+) \' /, :g).map({ ~.[0] }).unique;
+    ok @commands > 15, "found the commands ({@commands.elems})";
+    for @commands.grep(* ne 'help') -> $c {
+        ok help-for([$c])[1], "iz4 help $c";
+    }
+}
+
+subtest 'a slip gets one line back, not a wall' => {
+    my $r = run-iz4('chek');
+    isnt $r<code>, 0, 'an unknown command fails';
+    ok $r<err>.lines.elems <= 3, 'in a few lines';
+    like $r<err>, / 'iz4 help check' /, 'and suggests the command meant';
+    my $h = run-iz4('help', 'nonsense');
+    is $h<code>, 1, 'help for a command that is not there fails';
+    like $h<err>, / "'iz4 help' lists the commands" /, 'and says where to look';
+    my $g = run-iz4('gate', '--bogus');
+    isnt $g<code>, 0, 'a command called wrongly fails';
+    like $g<err>, / 'iz4 gate --staged' /, 'and shows how that one command is called';
+    nok $g<err>.contains('iz4 withdraw'), 'not every command there is';
+}
+
+subtest 'actions are words' => {
+    for topics() -> $t {
+        for $t.usage -> $u {
+            nok $u ~~ / '--' [ restore | split | list | check | 'dry-run' | 'install-hook' | claude | skill | hooks ] >> /,
+                "iz4 help {$t.name} offers no flag that is really an action: $u";
+        }
+    }
+    ok run-iz4('init', '--for-what=Taking orders.', '--for-who=People buying things.', '--/agents')<code> == 0, 'an IZ4 to work on';
+    my $file = $dir.add('IZ4');
+    like run-iz4('foundation', 'restore')<out>, / 'already there' /, 'iz4 foundation restore';
+    is run-iz4('foundation', '--restore')<out>, run-iz4('foundation', 'restore')<out>, 'the flag still works, for scripts written before';
+    is run-iz4('test', 'list')<out>, run-iz4('test', '--list')<out>, 'iz4 test list';
+    is run-iz4('migrate', 'preview')<out>, run-iz4('migrate', '--dry-run')<out>, 'iz4 migrate preview';
+    my $before = $file.slurp;
+    run-iz4('migrate', 'preview');
+    is $file.slurp, $before, 'a preview changes nothing';
+    my $bad = run-iz4('agent', 'install', 'everything');
+    isnt $bad<code>, 0, 'iz4 agent install refuses a word it does not know';
+    like $bad<err>, / 'claude, skill, hooks' /, 'and names the ones it takes';
+    run('git', 'init', '-q', :cwd($dir));
+    my $gi = run-iz4('gate', 'install');
+    is $gi<code>, 0, 'iz4 gate install';
+    ok $dir.add('.git/hooks/pre-commit').e, 'installs the hook';
+}
+
+done-testing;

@@ -135,7 +135,7 @@ like $out, /"  then: iz4 check --strict again\nNOT OK IZ4: 2 to remedy above (--
     my ($rc, $out, $err) = iz4($broken, 'check');
     is $rc, 1, 'structural errors fail the check';
     like $out, /'✗ IS FOR WHAT: missing'/, 'an empty answer is a cross, not a tick';
-    like $out, /"next:\n  1. iz4 add for-what \"what it is for\"\n  2. iz4 add for-who \"who it is for\"\n  3. iz4 foundation --restore\n  4. iz4 because something.shop.example.com \"why it must survive\"\n"/,
+    like $out, /"next:\n  1. iz4 add for-what \"what it is for\"\n  2. iz4 add for-who \"who it is for\"\n  3. iz4 foundation restore\n  4. iz4 because something.shop.example.com \"why it must survive\"\n"/,
         'the structural fixes come first, in line order, then the crosses';
     like $out, /'  then: iz4 check again' \n 'NOT OK IZ4: 3 errors - do the next steps above'/, 'the verdict is last, after the steps';
     ok !$out.contains("\n  1. iz4 add for-what \"what it is for\"\n  2. iz4 add for-what"), 'a step is listed once even when two lines call for it';
@@ -144,7 +144,7 @@ like $out, /"  then: iz4 check --strict again\nNOT OK IZ4: 2 to remedy above (--
 # ---- because: check points at a folded reason, and the command moves it ---------
 ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'No price is sent unexplained. A confidently wrong price sells work at a loss.', '--name=no-unexplained-price', '--force');
 ($rc, $out, $err) = iz4($dir, 'check');
-like $out, /'✗ BECAUSE: no-unexplained-price.shop.example.com carries the reason inside the invariant' .* "'iz4 because --split'"/,
+like $out, /'✗ BECAUSE: no-unexplained-price.shop.example.com carries the reason inside the invariant' .* "'iz4 split'"/,
     'check says when the reason is folded into the invariant';
 like $out, /'✗ BECAUSE: missing for no-first-contact.shop.example.com'/, 'and separately which have none';
 ($rc, $out, $err) = iz4($dir, 'because', '--split');

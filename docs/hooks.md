@@ -48,7 +48,7 @@ them all is the job of an *environment driver*. [321](https://321.do) is the
 reference driver, and [drivers.md](drivers.md) is the interface any driver
 calls.
 
-`iz4 agent install --hooks` asks 321 to do the wiring: 321 knows each
+`iz4 agent install hooks` asks 321 to do the wiring: 321 knows each
 harness's settings file, event names and quirks, wires iz4 in as strongly as
 the harness allows, verifies it, and keeps up with the harness as it
 changes. Without `--strict` it wires the context only, so nothing is
@@ -57,7 +57,7 @@ quotes what 321 says is enforced, so nobody reads a written hook as an
 enforced one. With no 321 new enough (0.4.0 or later), or with
 `IZ4_NO_321=1`, iz4 says that it defines the checks and installs no hooks,
 names what to install, and writes no harness's configuration: a warning for
-`--hooks`, a failure for `--hooks --strict`.
+`iz4 agent install hooks`, a failure with `--strict`.
 
 ### Hooks an earlier iz4 wrote
 
@@ -99,7 +99,7 @@ help, and Git supplies two more that every harness passes through.
 
 | Harness | Session start | Before an edit | Turn end | Notes |
 |---|---|---|---|---|
-| Claude Code | SessionStart | PreToolUse | Stop | Supported by 321: `321 iz4 install`, or `iz4 agent install --hooks` which asks 321. |
+| Claude Code | SessionStart | PreToolUse | Stop | Supported by 321: `321 iz4 install`, or `iz4 agent install hooks` which asks 321. |
 | Cursor | hooks.json `beforeSubmitPrompt` | `beforeShellExecution` / MCP hooks | `stop` | Field names differ; an adapter maps them. Not yet verified against a live install. |
 | Gemini CLI | settings hooks, tool-call hooks | `BeforeTool` | `AfterAgent` | Same shape as Claude Code's; not yet verified. |
 | GitHub Copilot agent | hooks in `.github/hooks` | `preToolUse` | `sessionEnd` | Not yet verified. |
@@ -113,7 +113,7 @@ and can confirm its hook interface, the adapter is small and welcome.
 
 Whatever the harness, the agent commits and pushes with Git:
 
-- **Pre-push:** `iz4 review --install-hook` writes an advisory pre-push
+- **Pre-push:** `iz4 review install` writes an advisory pre-push
   hook that reviews what is about to be pushed; `IZ4_REVIEW_STRICT=1`
   makes it fail the push on a reported conflict.
 - **CI:** `iz4 agent status --strict` fails a build whose entry points are

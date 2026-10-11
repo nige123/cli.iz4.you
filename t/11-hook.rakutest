@@ -91,7 +91,7 @@ if have-git() {
         like $o, /'"hooks":"unknown"'/, 'and in JSON the hooks are unknown: iz4 looked only for its own';
         my $section = $plain.add('AGENTS.md').slurp;
         like $section, /'To the people who own this repository' .* '321 iz4 install'/, 'the managed section tells the owners the command that wires the checks in';
-        unlike $section, /'iz4 agent install --hooks'/, 'and no longer one that installs nothing';
+        unlike $section, /'iz4 agent install hooks'/, 'and no longer one that installs nothing';
     }
     nok $repo.add('.claude/settings.json').e, 'nothing in this file ever wrote a harness\'s settings';
     my ($hrc, $hout, $herr) = iz4-talk($repo, '{"session_id":"z9","tool_input":{"file_path":"lib/Y.pm"}}', 'hook', 'pre-edit');

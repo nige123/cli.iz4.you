@@ -262,7 +262,7 @@ constant HOOK-MARK = '# iz4 review hook';
 sub hook-text(--> Str) is export {
     qq:to/END/;
     #!/bin/sh
-    {HOOK-MARK} (written by 'iz4 review --install-hook'; delete this file to remove it)
+    {HOOK-MARK} (written by 'iz4 review install'; delete this file to remove it)
     command -v iz4 >/dev/null 2>&1 || exit 0
     if [ -n "\$IZ4_REVIEW_STRICT" ]; then iz4 review --for-push --strict; else iz4 review --for-push; exit 0; fi
     END

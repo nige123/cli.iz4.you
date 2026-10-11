@@ -227,8 +227,8 @@ sub expected-integrations(IO::Path :$root! --> List) is export {
 #| The command that installs or refreshes one integration.
 sub install-hint(Str $name --> Str) is export {
     given $name {
-        when 'CLAUDE.md' { "run 'iz4 agent install --claude'" }
-        when SKILL-PATH  { "run 'iz4 agent install --skill'" }
+        when 'CLAUDE.md' { "run 'iz4 agent install claude'" }
+        when SKILL-PATH  { "run 'iz4 agent install skill'" }
         default          { "run 'iz4 agent install'" }
     }
 }

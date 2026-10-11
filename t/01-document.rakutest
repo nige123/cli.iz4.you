@@ -97,7 +97,7 @@ for foundation-ids() -> $id {
 }
 my $none = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n");
 nok $none.ok, 'a file without the foundation fails';
-like $none.errors[0].Str, /'the foundation is missing' .* 'humans-first.iz4.you, do-no-harm.iz4.you' .* 'iz4 foundation --restore'/, 'and the error names what is missing and how to write it';
+like $none.errors[0].Str, /'the foundation is missing' .* 'humans-first.iz4.you, do-no-harm.iz4.you' .* 'iz4 foundation restore'/, 'and the error names what is missing and how to write it';
 nok $none.foundation-intact, 'and is not intact';
 my $altered = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n").subst('Do not harm people,', 'Do not harm people much,'));
 nok $altered.ok, 'an altered foundation fails';
@@ -158,10 +158,10 @@ is $said.namespace, 'honeywillow.com', 'the namespace comment wins over what one
 nok $minimal.namespace.defined, 'a file with no invariant of its own has no namespace yet';
 
 # ---- every problem carries its next step ----------------------------------
-is $missing.fixes, ('iz4 add for-what "what it is for"', 'iz4 add for-who "who it is for"', 'iz4 foundation --restore'),
+is $missing.fixes, ('iz4 add for-what "what it is for"', 'iz4 add for-who "who it is for"', 'iz4 foundation restore'),
     'fixes are the next steps for the errors, in line order';
 my $twice = IZ4::Document.parse("IZ4\n\nINVARIANT a.shop.example.com\nSomething.\n\nINVARIANT a.shop.example.com\nAgain.\n");
-is $twice.fixes.grep(* eq 'iz4 foundation --restore').elems, 1, 'a step that clears several errors is listed once';
+is $twice.fixes.grep(* eq 'iz4 foundation restore').elems, 1, 'a step that clears several errors is listed once';
 ok $twice.fixes.first(*.contains('line 6')), 'and the duplicate names its line';
 
 # ---- the numbered format of earlier versions is read, as legacy ------------

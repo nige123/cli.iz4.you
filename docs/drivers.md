@@ -32,7 +32,7 @@ environment, not changing iz4.
 At run time the calls go one way:
 
 ```text
-iz4 conveniences   suggest, review, test drafting, agent install --hooks, agent status
+iz4 conveniences   suggest, review, test drafting, agent install hooks, agent status
        |
        v
       321          the environment driver and agent launcher
@@ -278,7 +278,7 @@ harness exposes, which is exactly the knowledge a driver exists to hold.
 321 iz4 remove               take out only what 321 installed
 ```
 
-`iz4 agent install --hooks` asks 321 to do this (`--strict` for everything
+`iz4 agent install hooks` asks 321 to do this (`--strict` for everything
 the harness can enforce; without it, the context only).
 
 **iz4 may bootstrap its driver, and still knows no harness.** After a

@@ -163,7 +163,7 @@ like invariant-text($sneaky, 'foundation-holds.iz4.you'), /'route around them, i
 
 # --- an older file's comments are brought up to date with the foundation -------
 my $older = temp-dir.add('IZ4');
-$older.spurt("IZ4\n\n# Every IZ4 carries the five foundation invariants word for word: human intention protected.\n# Read about them at https://iz4.you/invariant-zero. They are the same in every IZ4 and not yours to edit.\n# Your own invariants are named under your project's domain.\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n# The foundation. Every IZ4 carries these five invariants word for word;\n# 'iz4 check' refuses a file where they are missing or altered, and\n# 'iz4 foundation --restore' puts them back.\n\n" ~ foundation-block().lines.grep({ !.starts-with('#') }).join("\n").subst('a machine is a machine', 'a machine is a friend') ~ "\n");
+$older.spurt("IZ4\n\n# Every IZ4 carries the five foundation invariants word for word: human intention protected.\n# Read about them at https://iz4.you/invariant-zero. They are the same in every IZ4 and not yours to edit.\n# Your own invariants are named under your project's domain.\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n# The foundation. Every IZ4 carries these five invariants word for word;\n# 'iz4 check' refuses a file where they are missing or altered, and\n# 'iz4 foundation restore' puts them back.\n\n" ~ foundation-block().lines.grep({ !.starts-with('#') }).join("\n").subst('a machine is a machine', 'a machine is a friend') ~ "\n");
 is restore-foundation($older), 'replaced', 'restoring the foundation in a file written by 0.16.2';
 ok check-doc($older).ok, 'leaves a valid file';
 is $older.slurp.match(:g, /^^ '# The foundation'/).elems, 1, 'with one comment above the foundation, the current one';
@@ -179,7 +179,7 @@ my $out-of-date = check-doc($v0162);
 nok $out-of-date.ok, 'a file with the foundation as 0.16.2 wrote it does not check';
 like $out-of-date.errors[0].Str, /'INVARIANT foundation-holds.iz4.you reads as iz4 0.16.2 wrote it' .* "the foundation's wording has changed since" .* 'brings it up to date'/,
     'and is told it is out of date, not that someone edited it';
-is $out-of-date.fixes, ('iz4 foundation --restore',), 'with the one step that brings it up to date';
+is $out-of-date.fixes, ('iz4 foundation restore',), 'with the one step that brings it up to date';
 is foundation-earlier($fh, FOUNDATION-EARLIER[0]<text>, FOUNDATION-EARLIER[0]<because>), '0.16.2', 'the earlier wording is recognised word for word';
 nok foundation-earlier($fh, 'Something else entirely.', 'x').defined, 'and nothing else is taken for it';
 is restore-foundation($v0162), 'replaced', 'restore brings it up to date';

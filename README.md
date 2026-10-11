@@ -90,7 +90,8 @@ iz4 check         ticks what is true of the file, and says what to do next
 iz4 test          a test for each invariant that has none
 iz4 gate          does this change alter a commitment? only a person can agree
 iz4 migrate       moves a file from numbered invariants to named ones
-iz4 --help        everything else
+iz4 help          the commands, on one short screen
+iz4 help add      one command, with an example
 ```
 
 A check never claims more than it established: whether software keeps its

@@ -90,7 +90,7 @@ ok $lrc == 1 && $lout.contains('✗ evidence: Invariant 6 has no test naming it'
 unlike $lout, /"'iz4 test' scaffolds one"/, 'legacy: and does not offer a scaffold it would refuse to write';
 like $lout, /'NOT OK' .* "run 'iz4 migrate'"/, 'legacy: check fails with the one next step';
 ($lrc, $lout, $lerr) = iz4($old, 'test', '--list');
-ok $lrc == 0 && $lout ~~ /'named' \s+ 'Invariant 5' \s+ 't/codes.t'/ && $lout ~~ /'none' \s+ 'Invariant 6'/, 'legacy: iz4 test --list still reads it';
+ok $lrc == 0 && $lout ~~ /'named' \s+ 'Invariant 5' \s+ 't/codes.t'/ && $lout ~~ /'none' \s+ 'Invariant 6'/, 'legacy: iz4 test list still reads it';
 ($lrc, $lout, $lerr) = iz4($old, 'test');
 ok $lrc == 1 && $lerr.contains('numbered format') && $lerr.contains("Run 'iz4 migrate'"), 'legacy: iz4 test writes nothing and points at iz4 migrate';
 ok !$old.add('t/invariant-6.t').e && $old.add('t').dir.elems == 2, 'legacy: no scaffold appeared';
