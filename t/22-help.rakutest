@@ -86,7 +86,7 @@ subtest 'actions are words' => {
     my $current = $file.slurp;
     $file.spurt($current.subst("# The foundation: the same words: the same words in every IZ4.\n"
             ~ "# Invariant Zero, humans-first.iz4.you, is the foundation of the foundation.\n"
-            ~ "# 'iz4 check' refuses a file where any of it is missing or altered, and\n"
+            ~ "# If any of it goes missing or changes, 'iz4 check' says so and\n"
             ~ "# 'iz4 foundation restore' puts it back.",
         "# The foundation. Every IZ4 carries these five invariants word for word;\n"
             ~ "# 'iz4 check' refuses a file where they are missing or altered, and\n"

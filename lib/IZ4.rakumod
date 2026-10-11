@@ -5,7 +5,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.17.0';
+constant VERSION is export = '0.17.1';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -200,6 +200,7 @@ sub with-foundation(IZ4::Document $doc, @source --> List) {
             || $l.starts-with('# Invariant Zero, humans-first.iz4.you, is the foundation')
             || $l.starts-with("# 'iz4 check' refuses a file where any of it is missing")
             || $l.starts-with("# 'iz4 foundation restore' puts it back")
+            || $l.starts-with('# If any of it goes missing or changes,')
             || $l.starts-with("# 'iz4 check' refuses a file where they are missing")
             || $l.starts-with("# 'iz4 foundation restore' puts them back")
             # as written before an action was a word
@@ -234,15 +235,19 @@ sub with-foundation(IZ4::Document $doc, @source --> List) {
 #| Write the foundation into an IZ4 that lacks it or has an altered one.
 #| Only the foundation's own blocks (with their BECAUSE) and the
 #| foundation comment are touched; every other line stays.  Returns
-#| 'unchanged', 'written' or 'replaced'.  Run on request only: this is the
+#| 'unchanged', 'written', 'replaced', or 'tidied' when the words were
+#| right and only the comments an earlier version wrote came up to date.  Run on request only: this is the
 #| one case where the tool rewrites lines, because the foundation was
 #| never the owner's words to keep.
 sub restore-foundation(IO::Path $path --> Str) is export {
     my $doc = IZ4::Document.load($path);
     require-named($doc, $path);
-    return 'unchanged' if $doc.foundation-intact;
+    my $was = $path.slurp;
+    my $now = with-foundation($doc, $was.lines).join("\n") ~ "\n";
+    # the words are right but the comments around them are an earlier version's
+    return $now eq $was ?? 'unchanged' !! do { $path.spurt($now); 'tidied' } if $doc.foundation-intact;
     my $replaced = so $doc.foundation-spans;
-    $path.spurt(with-foundation($doc, $path.slurp.lines).join("\n") ~ "\n");
+    $path.spurt($now);
     $replaced ?? 'replaced' !! 'written';
 }
 

@@ -571,6 +571,7 @@ multi MAIN('foundation', Str $file?, Bool :$restore = False) {
             when 'unchanged' { say "{display-name($path)}: the foundation is already there, word for word" }
             when 'written'   { say "{display-name($path)}: wrote the foundation after IS FOR WHO?" }
             when 'replaced'  { say "{display-name($path)}: replaced the foundation with its current words" }
+            when 'tidied'    { say "{display-name($path)}: the foundation was right; the comments around it are brought up to date" }
         }
         my $doc = check-doc($path);
         say "  now: {$doc.foundation-status}";

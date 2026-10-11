@@ -199,7 +199,7 @@ constant FOUNDATION-LEGACY is export = (
 constant FOUNDATION-COMMENT is export =
     "# The foundation: the same words in every IZ4.\n"
     ~ "# Invariant Zero, humans-first.iz4.you, is the foundation of the foundation.\n"
-    ~ "# 'iz4 check' refuses a file where any of it is missing or altered, and\n"
+    ~ "# If any of it goes missing or changes, 'iz4 check' says so and\n"
     ~ "# 'iz4 foundation restore' puts it back.";
 
 #| The foundation as it is written into every file: the comment, then the

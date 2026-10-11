@@ -120,6 +120,14 @@ nok check-doc($bare).ok, 'without the foundation a file is not a valid IZ4';
 is restore-foundation($bare), 'written', 'restore writes it';
 ok check-doc($bare).foundation-intact, 'and the file is then intact';
 is restore-foundation($bare), 'unchanged', 'a second restore changes nothing';
+# the words right, the comments an earlier version's: only the comments come up to date
+my $stale = temp-dir.add('IZ4');
+$stale.spurt($bare.slurp.subst("# If any of it goes missing or changes, 'iz4 check' says so and", "# 'iz4 check' refuses a file where any of it is missing or altered, and")
+    .subst(FOUNDATION-URL, 'https://iz4.you/invariant-zero'));
+ok check-doc($stale).ok, 'a file with current words and an earlier comment still checks';
+is restore-foundation($stale), 'tidied', 'restore brings its comments up to date';
+is $stale.slurp, $bare.slurp, 'to exactly what a current file carries';
+unlike FOUNDATION-COMMENT, / 'refuse' /, 'and the comment every file carries tells nobody off';
 my $edited = $bare.slurp.subst('a machine is a machine', 'a machine is a colleague');
 $bare.spurt($edited);
 nok check-doc($bare).ok, 'an edited foundation fails';

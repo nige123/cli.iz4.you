@@ -13,7 +13,7 @@ Developers and project owners, and the coding agents working alongside them.
 
 # The foundation: the same words in every IZ4.
 # Invariant Zero, humans-first.iz4.you, is the foundation of the foundation.
-# 'iz4 check' refuses a file where any of it is missing or altered, and
+# If any of it goes missing or changes, 'iz4 check' says so and
 # 'iz4 foundation restore' puts it back.
 
 INVARIANT humans-first.iz4.you
