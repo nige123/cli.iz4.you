@@ -4,33 +4,64 @@
 
 # iz4
 
-**IZ4 means Is For. It helps you hold on to the few truths your software
-must never accidentally lose.**
+**IZ4 means Is For. One small file that keeps what your software is for
+from wearing away.**
 
 An `IZ4` file beside your code answers three questions and nothing else:
 what is this for, who is it for, and what must remain true for it to keep
-serving them. It is not a specification. `iz4` is the command-line tool
-that helps you write it, check it, and keep people and coding agents from
-building it away by accident.
-
-[iz4.you](https://iz4.you) is the canonical reference. This page is the
-short version.
+serving them. `iz4` is the command-line tool that helps you write it, check
+it, and keep people and coding agents from building it away by accident.
 
 ```text
 IZ4
 
 IS FOR WHAT?
-Helping people find work they love to do.
+love2·do helps people put the work they love into words, and helps the
+hiring side describe a role honestly enough to attract that person.
 
 IS FOR WHO?
-People looking for work.
+People looking for work they would come alive doing, and the employers
+hoping to find them.
 
-INVARIANT visible-by-choice.jobs.example.com
-People control whether their profile is visible.
+INVARIANT come-alive.matching.love2.do
+A match answers "would they come alive doing this work?". It must never
+quietly degrade into competence, credential or keyword matching.
 
 BECAUSE
-Looking for work should not mean surrendering privacy.
+Plenty of people could do a job. The point is finding the one they'd love.
 ```
+
+(Every IZ4 also carries [the foundation](#the-foundation); `iz4 init`
+writes it for you.)
+
+## Why you'll want one
+
+Good software makes promises. Private profiles stay private. A match means
+someone would love the work. Nobody gets sold.
+
+Those promises usually live in someone's head. Then that person moves on, a
+refactor lands, an agent tidies up, and a promise quietly disappears. Nobody
+meant it. Nobody noticed.
+
+An IZ4 writes them down, beside the code, small enough to read before every
+change.
+
+- **Know what you're touching.** If people depend on it, it's in the file,
+  with its reason. No more archaeology.
+- **Agents read it first.** `iz4 agent` hands it to whatever coding agent
+  you use. Switch models and the file stays the same.
+- **Promises change only by agreement.** `iz4 gate` spots a change that
+  alters a commitment, and `iz4 approve` is a person's yes, never a
+  script's.
+- **Promises you can run.** `iz4 test` writes a test for each invariant
+  that has none.
+- **Something to be proud of.** Your README says what the code does. Your
+  IZ4 says who it's for and what you promise them, in a page anyone can
+  read in a minute.
+
+Not a mega-spec that no one reads. A human-sized file, with human intention
+protection at its core. [iz4.you](https://iz4.you) is the full reference;
+this page is the short version.
 
 ## The foundation
 
@@ -57,7 +88,7 @@ project's own invariants have names and no numbers.
 ## Your own invariants
 
 Each has a name, written like a domain name under a domain your project
-answers for: `owner-adjusted.prices.honeywillow.com`. The name is how
+answers for: `come-alive.matching.love2.do`. The name is how
 people, tests and tools refer to it, and it never changes. Order in the
 file means nothing. Each should say why it must survive, under `BECAUSE`.
 
@@ -128,7 +159,7 @@ change the Foundation and it is your protocol, under your own name.
 Registering a project on [iz4.you](https://iz4.you) includes the standard
 [IZ4 Trademark Licence](https://iz4.you/legal/trademark-licence)
 (`iz4-trademark-licence/1.0-draft`): permission to use the IZ4 name and
-badge while the project keeps Invariants 0-4 intact. You accept it on the
+badge while the project keeps the foundation intact. You accept it on the
 site when you publish the card, never in the CLI, and `iz4 register` says
 so before you connect. [TRADEMARKS.md](TRADEMARKS.md) is the short version
 of what you may do with the marks, and
