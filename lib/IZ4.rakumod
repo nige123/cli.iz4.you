@@ -140,7 +140,10 @@ sub display-name(IO::Path $path, IO::Path :$cwd = $*CWD --> Str) is export {
 # ---------------------------------------------------------------- teaching
 
 #| Where the foundation is explained, for a reader with no CLI.
-constant FOUNDATION-URL is export = 'https://iz4.you/invariant-zero';
+constant FOUNDATION-URL is export = 'https://iz4.you/foundation';
+
+#| Where earlier versions said it was; that address redirects here.
+my constant OLD-FOUNDATION-URL = 'https://iz4.you/invariant-zero';
 
 #| The lines every new IZ4 opens with, so a reader knows what the
 #| foundation below is, what it protects, and where to read about it.
@@ -153,16 +156,19 @@ constant INHERITANCE-COMMENT is export =
 #| foundation is restored or a file is migrated.
 my @OLD-HEADERS =
     ("# Every IZ4 inherits Invariants 0-4: human intention protected.",
-     "# Read them at {FOUNDATION-URL} ('iz4 invariants' prints them).",
+     "# Read them at {OLD-FOUNDATION-URL} ('iz4 invariants' prints them).",
      '# Project invariants begin at 5.'),
     ("# Every IZ4 carries Invariants 0-4, the foundation, word for word: human intention protected.",
-     "# Read about them at {FOUNDATION-URL}. They are the same in every IZ4 and not yours to edit.",
+     "# Read about them at {OLD-FOUNDATION-URL}. They are the same in every IZ4 and not yours to edit.",
      '# Your own invariants begin at 5.'),
     ("# Every IZ4 carries the five foundation invariants word for word: human intention protected.",
-     "# Read about them at {FOUNDATION-URL}. They are the same in every IZ4 and not yours to edit.",
+     "# Read about them at {OLD-FOUNDATION-URL}. They are the same in every IZ4 and not yours to edit.",
      "# Your own invariants are named under your project's domain."),
     ("# Every IZ4 carries the foundation, Invariants 0 to 4, word for word: human intention protected.",
-     "# It begins with Invariant Zero, humans first: {FOUNDATION-URL}. It is the same in every IZ4 and not yours to edit.",
+     "# It begins with Invariant Zero, humans first: {OLD-FOUNDATION-URL}. It is the same in every IZ4 and not yours to edit.",
+     "# Your own invariants are named under your project's domain."),
+    ("# Every IZ4 carries the foundation word for word: human intention protected.",
+     "# It begins with Invariant Zero, humans first: {OLD-FOUNDATION-URL}. It is the same in every IZ4 and not yours to edit.",
      "# Your own invariants are named under your project's domain.");
 
 #| Refuse to write to a file still in the numbered format: one next step.

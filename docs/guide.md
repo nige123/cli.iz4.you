@@ -47,7 +47,7 @@ Each invariant has a name, written like a domain name, and the name is how
 people, tests and tools refer to it. Every file also carries the
 foundation word for word: human intention protected, the same blocks in
 every IZ4, beginning with Invariant Zero, humans first, explained at
-[iz4.you/invariant-zero](https://iz4.you/invariant-zero). It is part of
+[iz4.you/foundation](https://iz4.you/foundation). It is part of
 the grammar: `iz4 check` refuses a file where any of it is missing or altered,
 and `iz4 foundation restore` puts them back.
 

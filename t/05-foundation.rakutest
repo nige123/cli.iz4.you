@@ -127,6 +127,16 @@ like check-doc($bare).report.join, /'INVARIANT honesty.iz4.you is part of the fo
 is restore-foundation($bare), 'replaced', 'restore replaces it';
 ok check-doc($bare).ok && $bare.slurp.contains('a machine is a machine'), 'with the words every IZ4 carries';
 
+# a header naming the foundation's old address is brought up to date
+my $old-header = temp-dir.add('IZ4');
+$old-header.spurt("IZ4\n\n# Every IZ4 carries the five foundation invariants word for word: human intention protected.\n"
+    ~ "# Read about them at https://iz4.you/invariant-zero. They are the same in every IZ4 and not yours to edit.\n"
+    ~ "# Your own invariants are named under your project's domain.\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n");
+is restore-foundation($old-header), 'written', 'restoring a file with the old address in its header';
+ok $old-header.slurp.contains("humans first: {FOUNDATION-URL}.") && !$old-header.slurp.contains('iz4.you/invariant-zero'),
+    'names the foundation at its own address, once';
+is FOUNDATION-URL, 'https://iz4.you/foundation', 'which is iz4.you/foundation';
+
 # restore touches only the foundation: a project's own words, wherever they sit, stay byte for byte
 my $mixed = temp-dir.add('IZ4');
 my @blocks = foundation-block().split(/ <?before 'INVARIANT '> /);

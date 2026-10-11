@@ -38,7 +38,7 @@ length; see [the foundation](foundation.md).)
 - **A comment** is a line starting with `#`. Comments are for people.
   `iz4 init` writes a few: that the file carries the foundation, beginning
   with Invariant Zero, word for word; where to read about them,
-  https://iz4.you/invariant-zero; and, above the foundation, that it is not
+  https://iz4.you/foundation; and, above the foundation, that it is not
   the owner's to edit. Two kinds of comment the tool writes it also reads
   back, because they record a decision and nothing else in the file does:
   the withdrawal line (below) and the one line naming the project's
