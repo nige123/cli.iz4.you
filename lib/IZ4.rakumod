@@ -191,7 +191,10 @@ sub with-foundation(IZ4::Document $doc, @source --> List) {
             || $l.starts-with("# 'iz4 check' refuses a file where any of it is missing")
             || $l.starts-with("# 'iz4 foundation restore' puts it back")
             || $l.starts-with("# 'iz4 check' refuses a file where they are missing")
-            || $l.starts-with("# 'iz4 foundation restore' puts them back");
+            || $l.starts-with("# 'iz4 foundation restore' puts them back")
+            # as written before an action was a word
+            || $l.starts-with("# 'iz4 foundation --restore' puts it back")
+            || $l.starts-with("# 'iz4 foundation --restore' puts them back");
     }
     my $anchor = $doc.blocks.first(*.kind eq 'IS FOR WHO') // $doc.blocks.first(*.kind eq 'IS FOR WHAT');
     my $at = $doc.foundation-spans ?? $doc.foundation-spans.map(*[0]).min - 1
