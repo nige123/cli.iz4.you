@@ -554,7 +554,7 @@ sub proposal-lines(%p --> List) is export {
             }
             when 'removed-file'  { @l.push: 'The IZ4 is removed: every commitment with it' }
             when 'invalid'       { @l.push: "BLOCKED: the candidate IZ4 does not parse: {%c<detail>}" }
-            when 'foundation'    { @l.push: "BLOCKED: {%c<detail>}", '  The foundation is the same in every IZ4; no project approval can change it (foundation-holds.iz4.you)' }
+            when 'foundation'    { @l.push: "BLOCKED: {%c<detail>}", '  The foundation is the same in every IZ4; no project approval can change it (keystone.iz4.you)' }
             when 'reused-name' | 'format-regressed' { @l.push: "BLOCKED: {%c<detail>}" }
         }
     }

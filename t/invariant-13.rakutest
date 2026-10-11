@@ -12,7 +12,7 @@ use IZ4;
 use IZ4::Document;
 
 # the five foundation names mean the same in every IZ4
-is foundation-ids(), <humans-first.iz4.you do-no-harm.iz4.you human-agency.iz4.you honesty.iz4.you foundation-holds.iz4.you>,
+is foundation-ids(), <humans-first.iz4.you do-no-harm.iz4.you human-agency.iz4.you honesty.iz4.you keystone.iz4.you>,
     'the foundation is five names';
 my $dir = temp-dir;
 my $iz4 = minimal-iz4(:$dir);

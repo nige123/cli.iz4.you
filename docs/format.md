@@ -28,7 +28,7 @@ BECAUSE
 Job seekers should not acquire another unsolicited inbox.
 ```
 
-(Every file also carries the foundation, Invariants 0 to 4, left out here for
+(Every file also carries the foundation, left out here for
 length; see [the foundation](foundation.md).)
 
 ## The rules
@@ -65,10 +65,10 @@ length; see [the foundation](foundation.md).)
   line marks the withdrawal where the block stood, and `iz4 add` checks the
   Git history as well as the text. The same words under a new name are a
   new invariant, and the old name's going is a withdrawal.
-- **The foundation** is the same blocks in every file, Invariants 0 to 4,
+- **The foundation** is the same blocks in every file,
   beginning with Invariant Zero:
   `INVARIANT humans-first.iz4.you`, `do-no-harm.iz4.you`,
-  `human-agency.iz4.you`, `honesty.iz4.you` and `foundation-holds.iz4.you`,
+  `human-agency.iz4.you`, `honesty.iz4.you` and `keystone.iz4.you`,
   each with its BECAUSE, word for word as `iz4 foundation` prints them.
   Wrapping is free; the words are not. `iz4 init` writes them after IS FOR
   WHO?, but they may stand anywhere. The reference copy lives in the CLI.
@@ -181,7 +181,7 @@ iz4 migrate
 ```
 
 `iz4 migrate` moves the foundation by a fixed mapping (0 `humans-first`,
-1 `do-no-harm`, 2 `human-agency`, 3 `honesty`, 4 `foundation-holds`, all
+1 `do-no-harm`, 2 `human-agency`, 3 `honesty`, 4 `keystone`, all
 under `iz4.you`) and writes its current words. Each of the project's own
 needs a name, and a name is a person's to choose: on a terminal it asks,
 in a script they are given (`--namespace=honeywillow.com

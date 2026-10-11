@@ -15,7 +15,7 @@ my $doc = check-doc($path);
 ok $doc.ok && !$doc.warnings, 'a freshly initialised IZ4 is valid';
 nok $doc.invariants, 'and demands no invariants';
 ok $path.slurp.lines.elems <= 12 + foundation-block().lines.elems, 'and is tiny: no template to fill in beyond the foundation';
-like $path.slurp, /'carries the foundation, Invariants 0 to 4, word for word: human intention protected' .* 'Invariant Zero, humans first' .* 'https://iz4.you/invariant-zero'/,
+like $path.slurp, /'carries the foundation word for word: human intention protected' .* 'Invariant Zero, humans first' .* 'https://iz4.you/invariant-zero'/,
     'it tells a reader that the five are the foundation, what they protect, and where to read about them';
 like $path.slurp, /"Your own invariants are named under your project's domain"/, 'and how its own will be named';
 ok $path.slurp.contains(foundation-block()), 'and carries the foundation itself, after IS FOR WHO?';
@@ -89,7 +89,7 @@ is show-text($path, 'for-what'), "Helping people find work they love to do.\n", 
 like show-text($path, 'invariants'), /^ 'INVARIANT visible-by-choice.shop.example.com' \n .* 'BECAUSE' /, 'show invariants lists the project ones';
 unlike show-text($path, 'invariants'), /'humans-first.iz4.you'/, 'without the inherited ones';
 my $effective = effective-text(check-doc($path));
-like $effective, /'IS FOR WHAT' .* 'IS FOR WHO' .* 'INVARIANT humans-first.iz4.you' \n .* 'INVARIANT foundation-holds.iz4.you' \n .* 'INVARIANT visible-by-choice.shop.example.com' \n /,
+like $effective, /'IS FOR WHAT' .* 'IS FOR WHO' .* 'INVARIANT humans-first.iz4.you' \n .* 'INVARIANT keystone.iz4.you' \n .* 'INVARIANT visible-by-choice.shop.example.com' \n /,
     'the effective set is IS FOR, then the five foundation invariants, then the project\'s own';
 like invariant-text($path, "visible-by-choice.$NS"), /^ 'INVARIANT visible-by-choice.shop.example.com' \n 'People control'/, 'show invariant accepts the full name';
 like invariant-text($path, 'visible-by-choice'), /^ 'INVARIANT visible-by-choice.shop.example.com' \n 'People control'/,
@@ -135,7 +135,7 @@ is show-text($path), $path.slurp, 'show prints the whole file';
     ok $w.slurp.ends-with("# INVARIANT later.$NS was withdrawn on {Date.today}; its name is retired.\n"), 'withdrawing the last one leaves no trailing blank';
     throws-like { withdraw-invariant($w, "nothing-unexplained.$NS") }, X::IZ4, message => /'already withdrawn'/, 'twice is refused';
     for foundation-ids() -> $id {
-        throws-like { withdraw-invariant($w, $id) }, X::IZ4, message => /'cannot be withdrawn' .* 'foundation-holds.iz4.you'/, "the foundation's $id cannot be withdrawn";
+        throws-like { withdraw-invariant($w, $id) }, X::IZ4, message => /'cannot be withdrawn' .* 'keystone.iz4.you'/, "the foundation's $id cannot be withdrawn";
     }
     throws-like { withdraw-invariant($w, 'humans-first') }, X::IZ4, message => /'cannot be withdrawn'/, 'nor by its short name';
     throws-like { withdraw-invariant($w, "nonesuch.$NS") }, X::IZ4, message => /"no invariant 'nonesuch.$NS'"/, 'a name the file never held is refused';
@@ -199,7 +199,7 @@ my $OWN = "\nINVARIANT 5\nPeople control whether their profile is visible.\n\nBE
     is %plan<own>.map(*<number>), (5, 7), "the project's own invariants are listed by their old numbers";
     is %plan<withdrawn>, (6,), 'with the numbers its comments say were withdrawn';
     is legacy-foundation-map().map({ "{.key}={.value}" }),
-        <0=humans-first.iz4.you 1=do-no-harm.iz4.you 2=human-agency.iz4.you 3=honesty.iz4.you 4=foundation-holds.iz4.you>,
+        <0=humans-first.iz4.you 1=do-no-harm.iz4.you 2=human-agency.iz4.you 3=honesty.iz4.you 4=keystone.iz4.you>,
         "the foundation's mapping is fixed";
     is $old.slurp, $was, 'planning writes nothing';
 

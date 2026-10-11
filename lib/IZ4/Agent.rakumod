@@ -26,9 +26,8 @@ constant AGENT-PROTOCOL is export = q:to/END/;
     As a coding agent working in a repository that keeps one:
 
     1.  Read the effective invariants before planning or changing anything:
-        IS FOR WHAT, IS FOR WHO, the foundation (Invariants 0 to 4,
-        named under iz4.you, beginning with Invariant Zero:
-        humans-first.iz4.you) and the project's own (named under its own
+        IS FOR WHAT, IS FOR WHO, the foundation (named under iz4.you,
+        beginning with Invariant Zero: humans-first.iz4.you) and the project's own (named under its own
         domain).  The foundation binds every project.  An invariant's
         name is its identity: cite it whole, exactly as written.
     2.  Ask of every consequential change: does it preserve every

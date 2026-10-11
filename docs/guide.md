@@ -550,7 +550,7 @@ $ iz4 check
 ✓ structure: valid
 ✓ IS FOR WHAT: Helping people find work they love to do.
 ✓ IS FOR WHO: People looking for work.
-✓ the foundation: all five invariants, in the file word for word (sha256 99d6c2c1776b)
+✓ the foundation: in the file word for word (sha256 a04d8673fc15)
 ✓ invariants: 2 of your own, named under jobs.example.com
 ✗ BECAUSE: missing for contact-by-invitation.jobs.example.com - write under each why it must survive ('iz4 because NAME WHY')
 ✗ evidence: contact-by-invitation.jobs.example.com, visible-by-choice.jobs.example.com have no test naming them - 'iz4 test' scaffolds one
@@ -673,7 +673,7 @@ The foundation, by its fixed mapping (its words change too: read them with 'iz4 
   Invariant 1  ->  do-no-harm.iz4.you
   Invariant 2  ->  human-agency.iz4.you
   Invariant 3  ->  honesty.iz4.you
-  Invariant 4  ->  foundation-holds.iz4.you
+  Invariant 4  ->  keystone.iz4.you
 Invariants are named under a domain your project answers for, like honeywillow.com.
 You are asked once: later invariants take it from the file.
 Which domain? [honeywillow.com]
@@ -756,9 +756,9 @@ it to conceal harm.
 BECAUSE
 People can only stay in charge of what they can see truly.
 
-INVARIANT foundation-holds.iz4.you
+INVARIANT keystone.iz4.you
 The foundation is these invariants: humans-first.iz4.you, do-no-harm.iz4.you,
-human-agency.iz4.you, honesty.iz4.you and foundation-holds.iz4.you. They always
+human-agency.iz4.you, honesty.iz4.you and keystone.iz4.you. They always
 bind everyone who builds, runs, uses or changes the system. Nothing may weaken,
 override or route around them, including this one. Where anything conflicts with
 them, or they conflict with each other, never work around it: pause what is

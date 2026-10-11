@@ -120,7 +120,7 @@ is install-skill(:root($dir)), 'updated', 'stale skill regenerated';
 # ---- status -----------------------------------------------------------
 my %s = agent-status($sp, :root($dir));
 is %s<schema>, 'iz4-agent-status/4', 'status schema is versioned';
-ok %s<iz4><valid> && %s<iz4><binding>.contains('the foundation: Invariants 0 to 4'), 'status: valid spec, foundation reported';
+ok %s<iz4><valid> && %s<iz4><binding>.contains('the foundation: in the file word for word'), 'status: valid spec, foundation reported';
 nok %s<iz4><binding>.contains('0-4'), 'and not by number';
 is %s<integrations><AGENTS.md>, 'current', 'status: AGENTS.md integration current';
 like %s<note>, /'never that an agent read'/, 'status wording claims nothing about agents';

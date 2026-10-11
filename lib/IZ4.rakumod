@@ -145,7 +145,7 @@ constant FOUNDATION-URL is export = 'https://iz4.you/invariant-zero';
 #| The lines every new IZ4 opens with, so a reader knows what the
 #| foundation below is, what it protects, and where to read about it.
 constant INHERITANCE-COMMENT is export =
-    "# Every IZ4 carries the foundation, Invariants 0 to 4, word for word: human intention protected.\n"
+    "# Every IZ4 carries the foundation word for word: human intention protected.\n"
     ~ "# It begins with Invariant Zero, humans first: {FOUNDATION-URL}. It is the same in every IZ4 and not yours to edit.\n"
     ~ "# Your own invariants are named under your project's domain.";
 
@@ -160,6 +160,9 @@ my @OLD-HEADERS =
      '# Your own invariants begin at 5.'),
     ("# Every IZ4 carries the five foundation invariants word for word: human intention protected.",
      "# Read about them at {FOUNDATION-URL}. They are the same in every IZ4 and not yours to edit.",
+     "# Your own invariants are named under your project's domain."),
+    ("# Every IZ4 carries the foundation, Invariants 0 to 4, word for word: human intention protected.",
+     "# It begins with Invariant Zero, humans first: {FOUNDATION-URL}. It is the same in every IZ4 and not yours to edit.",
      "# Your own invariants are named under your project's domain.");
 
 #| Refuse to write to a file still in the numbered format: one next step.
@@ -187,6 +190,7 @@ sub with-foundation(IZ4::Document $doc, @source --> List) {
         %drop{$i + 1} = True if $l.starts-with('# The foundation, Invariants 0-4.')
             || $l.starts-with('# The foundation. Every IZ4 carries these five invariants')
             || $l.starts-with('# The foundation, Invariants 0 to 4:')
+            || $l.starts-with('# The foundation: the same words in every IZ4.')
             || $l.starts-with('# Invariant Zero, humans-first.iz4.you, is the foundation')
             || $l.starts-with("# 'iz4 check' refuses a file where any of it is missing")
             || $l.starts-with("# 'iz4 foundation restore' puts it back")
@@ -353,6 +357,8 @@ sub resolve-identity(IZ4::Document $doc, Str $ref, :@also --> Str) is export {
     # foundation: a project's own invariants have no numbers.
     return foundation-at(0) if $raw.lc eq 'zero' | 'iz';
     return foundation-at(+$raw) if $raw ~~ /^ <[0..4]> $/;
+    # a foundation invariant asked for by a name it used to have answers under the one it has now
+    with foundation-renamed($raw) // foundation-renamed($raw ~ '.' ~ FOUNDATION-NAMESPACE) { return $_ }
     my @all = |foundation-ids(), |$doc.invariants.map(*.id).grep(*.defined), |$doc.retired, |@also;
     return $raw if @all.first(* eq $raw).defined;
     my @starts = @all.grep(*.starts-with("$raw.")).unique;
@@ -396,14 +402,14 @@ sub invariant-text(IO::Path $path, Str $ref --> Str) is export {
 #| keeps the words, and the name is retired: it is never given to a
 #| different invariant.  The tests that exist only for it go with it
 #| (withdrawal-tests, remove-tests): the caller does that, after asking.  The foundation cannot be withdrawn by any
-#| project (foundation-holds.iz4.you).  Returns the invariant as it was.
+#| project (keystone.iz4.you).  Returns the invariant as it was.
 #| The caller confirms with a person first: this discards their words
 #| only on their say-so.
 sub withdraw-invariant(IO::Path $path, Str $ref --> IZ4::Document::Invariant) is export {
     my $doc = IZ4::Document.load($path);
     require-named($doc, $path);
     my $id = resolve-identity($doc, $ref) // $ref;
-    user-error("INVARIANT $id is part of the foundation: it binds every project and cannot be withdrawn by one (foundation-holds.iz4.you)")
+    user-error("INVARIANT $id is part of the foundation: it binds every project and cannot be withdrawn by one (keystone.iz4.you)")
         if is-foundation-id($id);
     my $inv = $doc.invariant($id);
     without $inv {

@@ -478,7 +478,7 @@ multi MAIN('agent', 'install', *@what where { .elems > 0 }, Bool :$strict = Fals
 multi MAIN('foundation', Str $file?, Bool :$restore = False) {
     attempt {
         unless $restore {
-            say 'The foundation, Invariants 0 to 4:';
+            say 'The foundation:';
             for FOUNDATION -> %f {
                 say sprintf('  %d  %-26s%s', %f<legacy>, %f<id>, %f<id> eq INVARIANT-ZERO ?? 'Invariant Zero: the foundation of the foundation' !! '').trim-trailing;
             }
@@ -491,7 +491,7 @@ multi MAIN('foundation', Str $file?, Bool :$restore = False) {
         my $path = resolve-target($file);
         given restore-foundation($path) {
             when 'unchanged' { say "{display-name($path)}: the foundation is already there, word for word" }
-            when 'written'   { say "{display-name($path)}: wrote the foundation, Invariants 0 to 4, after IS FOR WHO?" }
+            when 'written'   { say "{display-name($path)}: wrote the foundation after IS FOR WHO?" }
             when 'replaced'  { say "{display-name($path)}: replaced the foundation with its current words" }
         }
         my $doc = check-doc($path);

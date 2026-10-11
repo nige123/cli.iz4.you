@@ -93,7 +93,7 @@ sub topics(--> List) is export {
       ['iz4 invariants'], 'What a person or an agent should read before a consequential change.', 'iz4 invariants'),
     t('foundation', 'Reading', 'the foundation every IZ4 carries',
       ['iz4 foundation', 'iz4 foundation restore'],
-      'Invariants 0 to 4, beginning with Invariant Zero. restore writes it back into a file where it is missing, altered or out of date.',
+      'The same words in every IZ4, beginning with Invariant Zero. restore writes it back into a file where it is missing, altered or out of date.',
       'iz4 foundation restore'),
     t('log', 'Reading', 'the history of the IZ4', ['iz4 log'], 'Git history of the file.', 'iz4 log'),
     t('diff', 'Reading', 'what changed in the IZ4', ['iz4 diff', 'iz4 diff REV', 'iz4 diff REV REV'], 'Git diff of the file.', 'iz4 diff HEAD~1'),

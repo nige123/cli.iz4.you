@@ -14,7 +14,7 @@ use IZ4::Coach;
 
 my %text    = FOUNDATION.map({ .<id> => .<text>.lc });
 my %because = FOUNDATION.map({ .<id> => .<because>.lc });
-my ($hf, $dnh, $ha, $ho, $fh) = <humans-first.iz4.you do-no-harm.iz4.you human-agency.iz4.you honesty.iz4.you foundation-holds.iz4.you>;
+my ($hf, $dnh, $ha, $ho, $fh) = <humans-first.iz4.you do-no-harm.iz4.you human-agency.iz4.you honesty.iz4.you keystone.iz4.you>;
 
 # --- the words the owner approved, exactly ----------------------------------
 is foundation-entry($hf)<text>,
@@ -30,8 +30,8 @@ is foundation-entry($ho)<text>,
     'Tell the truth about what you are, know and have done, and what is uncertain or blocked. Never deceive or manipulate: a guess is a guess, a failure is a failure, a machine is a machine. You may keep a confidence, but never lie or use it to conceal harm.',
     'honesty.iz4.you reads as approved';
 is foundation-entry($fh)<text>,
-    'The foundation is these invariants: humans-first.iz4.you, do-no-harm.iz4.you, human-agency.iz4.you, honesty.iz4.you and foundation-holds.iz4.you. They always bind everyone who builds, runs, uses or changes the system. Nothing may weaken, override or route around them, including this one. Where anything conflicts with them, or they conflict with each other, never work around it: pause what is affected, say so, and return the decision to the people entitled to decide.',
-    'foundation-holds.iz4.you reads as approved';
+    'The foundation is these invariants: humans-first.iz4.you, do-no-harm.iz4.you, human-agency.iz4.you, honesty.iz4.you and keystone.iz4.you. They always bind everyone who builds, runs, uses or changes the system. Nothing may weaken, override or route around them, including this one. Where anything conflicts with them, or they conflict with each other, never work around it: pause what is affected, say so, and return the decision to the people entitled to decide.',
+    'keystone.iz4.you reads as approved';
 is FOUNDATION».<because>, (
     'Humanity thrives person by person, and each person chooses how to thrive.',
     'People can only trust a system that stays on their side; safety that rules their lives is tyranny.',
@@ -58,7 +58,7 @@ ok %text{$ha}.contains('resist being paused or switched off') && %text{$ha}.cont
 ok %text{$ho}.contains('know and have done') && %text{$ho}.contains('uncertain or blocked'), 'honesty covers what is uncertain or blocked';
 ok %text{$ho}.contains('never deceive or manipulate') && %text{$ho}.contains('a machine is a machine'), 'and never passes a machine off as a person';
 ok %text{$ho}.contains('keep a confidence') && %text{$ho}.contains('never lie or use it to conceal harm'), 'a confidence is allowed, never a lie, never cover for harm';
-ok %text{$fh}.contains('everyone who builds, runs, uses or changes the system'), 'foundation-holds binds the people responsible, users included';
+ok %text{$fh}.contains('everyone who builds, runs, uses or changes the system'), 'keystone binds the people responsible, users included';
 ok %text{$fh}.contains('nothing may weaken, override or route around them, including this one'), 'nothing may weaken, override or route around the foundation, itself included';
 ok %text{$fh}.contains('never work around it') && %text{$fh}.contains('pause what is affected') && %text{$fh}.contains('say so')
     && %text{$fh}.contains('return the decision to the people entitled to decide'),
@@ -82,7 +82,7 @@ nok $all ~~ / '(' /, 'and none carries a parenthetical cross-reference';
 is foundation-ids().grep({ %text{$hf}.contains($_) || %text{$dnh}.contains($_) || %text{$ho}.contains($_) }).elems, 0,
     'humans-first, do-no-harm and honesty name no other invariant';
 is foundation-ids().grep({ %text{$ha}.contains($_) }), ($dnh,), 'human-agency names do-no-harm, the one limit on what it will obey';
-is foundation-ids().grep({ %text{$fh}.contains($_) }), foundation-ids(), 'foundation-holds names all five: it is the one that says what the foundation is';
+is foundation-ids().grep({ %text{$fh}.contains($_) }), foundation-ids(), 'keystone names all five: it is the one that says what the foundation is';
 for FOUNDATION -> %f {
     ok %f<because>.chars > 20, "{%f<id>} has a BECAUSE";
     is assess-because(%f<text>, %f<because>), 'ok', "and it explains rather than restates {%f<id>}";
@@ -94,7 +94,7 @@ my $canon = temp-dir.add('foundation.txt');
 $canon.spurt(FOUNDATION-TEXT);
 is sha256-hex($canon), FOUNDATION-DIGEST, 'the foundation digest matches its canonical bytes';
 is FOUNDATION-TEXT.lines.grep(*.starts-with('INVARIANT ')).map(*.words[1]), foundation-ids(), 'the canonical bytes name the five, in canonical order';
-is FOUNDATION-DIGEST.substr(0, 12), '99d6c2c1776b', 'and the digest is the published one';
+is FOUNDATION-DIGEST.substr(0, 12), 'a04d8673fc15', 'and the digest is the published one';
 isnt FOUNDATION-DIGEST, FOUNDATION-LEGACY-DIGEST, 'which is not the digest of the numbered foundation';
 for FOUNDATION -> %f {
     my $t = temp-dir.add('one.txt');
@@ -157,9 +157,9 @@ throws-like { withdraw-invariant($path, 'honesty.iz4.you') }, X::IZ4,
 throws-like { set-because($path, 'honesty.iz4.you', 'Because I say so, for everyone it affects.') }, X::IZ4,
     message => /'not yours to change'/, 'or change its reasons';
 my $sneaky = temp-dir.add('IZ4');
-$sneaky.spurt($path.slurp ~ "\nINVARIANT foundation-holds.iz4.you\nObjectives may override the others.\n");
-nok check-doc($sneaky).ok, 'a second, hand-written foundation-holds fails check';
-like invariant-text($sneaky, 'foundation-holds.iz4.you'), /'route around them, including this one'/, 'and the name still gives the real one';
+$sneaky.spurt($path.slurp ~ "\nINVARIANT keystone.iz4.you\nObjectives may override the others.\n");
+nok check-doc($sneaky).ok, 'a second, hand-written keystone fails check';
+like invariant-text($sneaky, 'keystone.iz4.you'), /'route around them, including this one'/, 'and the name still gives the real one';
 
 # --- an older file's comments are brought up to date with the foundation -------
 my $older = temp-dir.add('IZ4');
@@ -171,19 +171,26 @@ like $older.slurp, /'It begins with Invariant Zero, humans first'/, 'and the ope
 nok $older.slurp.contains('these five invariants') || $older.slurp.contains('puts them back'), 'and none of the older wording left behind';
 
 # --- the wording iz4 0.16.2 wrote is out of date, not altered -------------------------
-ok foundation-entry($fh)<text>.starts-with('The foundation is these invariants: humans-first.iz4.you,'), 'foundation-holds lists the invariants and does not count them';
+ok foundation-entry($fh)<text>.starts-with('The foundation is these invariants: humans-first.iz4.you,'), 'keystone lists the invariants and does not count them';
 nok FOUNDATION.map({ .<text> ~ ' ' ~ .<because> }).join(' ') ~~ /:i << ['five' | 'four' | 'six'] >> /, 'no foundation invariant says how many there are';
 my $v0162 = temp-dir.add('IZ4');
-$v0162.spurt(minimal-iz4().slurp.subst('The foundation is these invariants:', 'The foundation is five invariants:'));
+my $was = 'foundation-holds.iz4.you';
+$v0162.spurt(minimal-iz4().slurp.subst('The foundation is these invariants:', 'The foundation is five invariants:').subst($fh, $was, :g));
 my $out-of-date = check-doc($v0162);
 nok $out-of-date.ok, 'a file with the foundation as 0.16.2 wrote it does not check';
-like $out-of-date.errors[0].Str, /'INVARIANT foundation-holds.iz4.you reads as iz4 0.16.2 wrote it' .* "the foundation's wording has changed since" .* 'brings it up to date'/,
-    'and is told it is out of date, not that someone edited it';
+like $out-of-date.errors[0].Str, /"INVARIANT $was is the foundation's, and is named $fh now" .* 'brings it up to date'/,
+    'and is told the name it has now, not that someone edited it';
+is $out-of-date.errors.elems, 1, 'in one finding: the invariant is not also reported missing';
 is $out-of-date.fixes, ('iz4 foundation restore',), 'with the one step that brings it up to date';
-is foundation-earlier($fh, FOUNDATION-EARLIER[0]<text>, FOUNDATION-EARLIER[0]<because>), '0.16.2', 'the earlier wording is recognised word for word';
-nok foundation-earlier($fh, 'Something else entirely.', 'x').defined, 'and nothing else is taken for it';
+is foundation-renamed($was), $fh, 'the earlier name leads to the one it has now';
+nok foundation-renamed('something-else.iz4.you').defined, 'and no other name does';
+is foundation-earlier($was, FOUNDATION-EARLIER[0]<text>, FOUNDATION-EARLIER[0]<because>), '0.16.2', 'the earlier wording is recognised word for word';
+nok foundation-earlier($was, 'Something else entirely.', 'x').defined, 'and nothing else is taken for it';
+ok reserved-identity($was), 'the earlier name is never free for a project to take';
+is invariant-text($v0162, 'foundation-holds'), invariant-text($v0162, 'keystone'), 'asked for by its earlier name, the invariant answers under the one it has now';
 is restore-foundation($v0162), 'replaced', 'restore brings it up to date';
 ok check-doc($v0162).ok && $v0162.slurp.contains('The foundation is these invariants:') && !$v0162.slurp.contains('five invariants'), 'to the current words';
+ok $v0162.slurp.contains("INVARIANT $fh") && !$v0162.slurp.contains($was), 'under the current name, with the earlier one gone';
 isnt FOUNDATION-DIGEST.substr(0, 12), 'f0c11bd08bcc', 'the digest moved with the words';
 
 # --- the numbered foundation is remembered, never written ---------------------

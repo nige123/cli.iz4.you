@@ -63,10 +63,10 @@ constant FOUNDATION is export = (
              ~ 'a failure is a failure, a machine is a machine. You may keep a '
              ~ 'confidence, but never lie or use it to conceal harm.',
        because => 'People can only stay in charge of what they can see truly.' ),
-    %( id => 'foundation-holds.iz4.you', legacy => 4,
+    %( id => 'keystone.iz4.you', legacy => 4,
        text => 'The foundation is these invariants: humans-first.iz4.you, '
              ~ 'do-no-harm.iz4.you, human-agency.iz4.you, honesty.iz4.you and '
-             ~ 'foundation-holds.iz4.you. They always bind everyone who builds, runs, '
+             ~ 'keystone.iz4.you. They always bind everyone who builds, runs, '
              ~ 'uses or changes the system. Nothing may weaken, override or route '
              ~ 'around them, including this one. Where anything conflicts with them, '
              ~ 'or they conflict with each other, never work around it: pause what is '
@@ -90,7 +90,27 @@ constant FOUNDATION-EARLIER is export = (
              ~ 'affected, say so, and return the decision to the people entitled to '
              ~ 'decide.',
        because => 'A foundation that bends under pressure is not a foundation.' ),
+    %( id => 'foundation-holds.iz4.you', until => '0.16.3 before its release',
+       text => 'The foundation is these invariants: humans-first.iz4.you, '
+             ~ 'do-no-harm.iz4.you, human-agency.iz4.you, honesty.iz4.you and '
+             ~ 'foundation-holds.iz4.you. They always bind everyone who builds, runs, '
+             ~ 'uses or changes the system. Nothing may weaken, override or route '
+             ~ 'around them, including this one. Where anything conflicts with them, '
+             ~ 'or they conflict with each other, never work around it: pause what is '
+             ~ 'affected, say so, and return the decision to the people entitled to '
+             ~ 'decide.',
+       because => 'A foundation that bends under pressure is not a foundation.' ),
 );
+
+#| Names the foundation's invariants have had, each with the name it has
+#| now.  The fifth was foundation-holds.iz4.you until 0.16.3: it is
+#| keystone.iz4.you, the stone that holds the others in place.  An earlier
+#| name is never given to anything else; a file that still carries one is
+#| out of date, and restoring the foundation brings it up to date.
+constant FOUNDATION-EARLIER-NAMES is export = %( 'foundation-holds.iz4.you' => 'keystone.iz4.you' );
+
+#| The name a foundation invariant has now, given one it used to have; Str otherwise.
+sub foundation-renamed(Str $id --> Str) is export { FOUNDATION-EARLIER-NAMES{$id} // Str }
 
 #| The version whose wording a foundation block carries, when it is an
 #| earlier one word for word; Str otherwise.
@@ -169,7 +189,7 @@ constant FOUNDATION-LEGACY is export = (
 
 #| The comment written directly above the foundation blocks in a file.
 constant FOUNDATION-COMMENT is export =
-    "# The foundation, Invariants 0 to 4: the same words in every IZ4.\n"
+    "# The foundation: the same words in every IZ4.\n"
     ~ "# Invariant Zero, humans-first.iz4.you, is the foundation of the foundation.\n"
     ~ "# 'iz4 check' refuses a file where any of it is missing or altered, and\n"
     ~ "# 'iz4 foundation restore' puts it back.";
@@ -257,7 +277,7 @@ constant FOUNDATION-TEXT is export =
 
 #| sha256 of FOUNDATION-TEXT.  A test pins it to the bytes.
 constant FOUNDATION-DIGEST is export =
-    '99d6c2c1776bada52d864af922d3d62db759be0c8c0ec477495bd57d1f87fbbf';
+    'a04d8673fc15df2c7a3abb7032a0224614e3a1ae66a5f7fc62d5a48a990b6e79';
 
 #| The digest of the numbered foundation, as iz4 0.15 and earlier
 #| reported it: how a legacy file's foundation is still recognised.
@@ -397,7 +417,7 @@ method foundation-status(--> Str) {
         !! "the foundation is missing or altered, in a file still in the numbered format - 'iz4 migrate' moves it to named invariants and writes the foundation"
         if $!legacy;
     $!foundation-intact
-        ?? "the foundation: Invariants 0 to 4, in the file word for word (sha256 {FOUNDATION-DIGEST.substr(0, 12)})"
+        ?? "the foundation: in the file word for word (sha256 {FOUNDATION-DIGEST.substr(0, 12)})"
         !! "the foundation is missing or altered - 'iz4 foundation restore' writes it back";
 }
 
@@ -554,7 +574,19 @@ method !validate-named() {
             when 'IS FOR WHAT' | 'IS FOR WHO' { self!validate-purpose($b, %seen); $last-was-invariant = False }
             when 'INVARIANT' {
                 my $label = $b.label;
-                if $label.defined && is-foundation-id($label) {
+                if $label.defined && foundation-renamed($label).defined {
+                    # a foundation invariant under the name it used to have: the whole block is the foundation's, and out of date
+                    my $because-block = self!because-after($b);
+                    my $now = foundation-renamed($label);
+                    @!foundation-spans.push: ($b.line, $because-block.defined ?? $because-block.last-line !! $b.last-line);
+                    %foundation{$now} //= $b.line;
+                    $foundation-broken = True;
+                    self!problem($b.line, "INVARIANT $label is the foundation's, and is named $now now "
+                        ~ "('iz4 foundation restore' brings it up to date; 'iz4 foundation' shows the words)", :fix('iz4 foundation restore'));
+                    $last-was-invariant = False;
+                    $foundation-block = True;
+                }
+                elsif $label.defined && is-foundation-id($label) {
                     my $because-block = self!because-after($b);
                     @!foundation-spans.push: ($b.line, $because-block.defined ?? $because-block.last-line !! $b.last-line);
                     if %foundation{$label}:exists {

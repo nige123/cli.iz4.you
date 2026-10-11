@@ -88,7 +88,7 @@ like with-inv('Owner_Adjusted').errors[0].fix, /'rename the invariant on line ' 
 
 # ---- the foundation: five names, word for word, anywhere ------------------
 
-is FOUNDATION».<id>, <humans-first.iz4.you do-no-harm.iz4.you human-agency.iz4.you honesty.iz4.you foundation-holds.iz4.you>,
+is FOUNDATION».<id>, <humans-first.iz4.you do-no-harm.iz4.you human-agency.iz4.you honesty.iz4.you keystone.iz4.you>,
     'the foundation is exactly these five names';
 is FOUNDATION».<legacy>, (0, 1, 2, 3, 4), 'each remembers the number it carried, as history only';
 for foundation-ids() -> $id {
@@ -116,7 +116,7 @@ my @blocks = $F.split(/ <?before 'INVARIANT '> /);
 my $shuffled = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n" ~ @blocks[0] ~ @blocks[1 .. *].reverse.join);
 ok $shuffled.ok && $shuffled.foundation-intact, 'and so is the foundation in another order';
 is $doc.foundation-spans.elems, 5, 'the document knows where each foundation block is';
-like $doc.foundation-status, /'the foundation: Invariants 0 to 4, in the file word for word (sha256 99d6c2c1776b)'/, 'every file carries it, and the status says so';
+like $doc.foundation-status, /'the foundation: in the file word for word (sha256 a04d8673fc15)'/, 'every file carries it, and the status says so';
 
 # the foundation has an order, 0 to 4, and Invariant Zero comes first
 is INVARIANT-ZERO, 'humans-first.iz4.you', 'Invariant Zero is humans-first.iz4.you';
@@ -124,7 +124,7 @@ is foundation-ids().map({ foundation-order($_) }), (0, 1, 2, 3, 4), 'the foundat
 is (0 .. 4).map({ foundation-at($_) }), foundation-ids(), 'and each place gives its name back';
 nok foundation-order('mine.shop.example.com').defined, "a project's own invariant has no place in that order";
 nok foundation-at(5).defined, 'and there is nothing at 5';
-like FOUNDATION-COMMENT, /'The foundation, Invariants 0 to 4' .* 'Invariant Zero, humans-first.iz4.you, is the foundation of the foundation'/,
+like FOUNDATION-COMMENT, /'The foundation: the same words in every IZ4' .* 'Invariant Zero, humans-first.iz4.you, is the foundation of the foundation'/,
     'the comment written above the foundation in every new file says so';
 nok FOUNDATION-COMMENT ~~ /:i 'five'/, 'without counting it out';
 

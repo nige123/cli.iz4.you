@@ -1,6 +1,6 @@
 # The foundation
 
-Every IZ4 carries the foundation word for word: Invariants 0 to 4. It is
+Every IZ4 carries the foundation word for word. It is
 part of the format: the CLI holds the reference copy, `iz4 check` refuses a file where
 one is missing or altered, and `iz4 foundation restore` writes them back.
 A project cannot redefine, remove or override them. They are short on
@@ -10,7 +10,7 @@ person or an AI can take in at a glance.
 Each stands alone. It can be read, cited and applied without the others,
 and it names another only where that relationship changes what it means:
 `human-agency.iz4.you` names the one limit on what it will obey, and
-`foundation-holds.iz4.you` names all five, because it is the one that says
+`keystone.iz4.you` names all five, because it is the one that says
 what the foundation is.
 
 ## Invariant Zero
@@ -26,7 +26,7 @@ anyone disposable. It is the IZ in IZ4, and the reason the file exists.
 | 1 | `do-no-harm.iz4.you` |
 | 2 | `human-agency.iz4.you` |
 | 3 | `honesty.iz4.you` |
-| 4 | `foundation-holds.iz4.you` |
+| 4 | `keystone.iz4.you` |
 
 The order is how the foundation is shown and spoken of. `iz4 foundation`
 lists it this way, and `iz4 show invariant 0`, or `zero`, finds Invariant
@@ -75,9 +75,9 @@ it to conceal harm.
 BECAUSE
 People can only stay in charge of what they can see truly.
 
-INVARIANT foundation-holds.iz4.you
+INVARIANT keystone.iz4.you
 The foundation is these invariants: humans-first.iz4.you, do-no-harm.iz4.you,
-human-agency.iz4.you, honesty.iz4.you and foundation-holds.iz4.you. They always
+human-agency.iz4.you, honesty.iz4.you and keystone.iz4.you. They always
 bind everyone who builds, runs, uses or changes the system. Nothing may weaken,
 override or route around them, including this one. Where anything conflicts with
 them, or they conflict with each other, never work around it: pause what is
@@ -99,8 +99,8 @@ are about how they fail. These five are written to work.
 | "Protect its own existence" makes a machine resist being stopped. | `human-agency`: never widen your authority or resist being paused or switched off. |
 | The later zeroth law lets "humanity" outweigh a person, and lets the machine decide what is good for people. | `humans-first`: people thrive on their own terms, and no goal, instruction or greater good makes anyone disposable. |
 | There is no honesty law, so a machine can manipulate people "for their own good". | `honesty`: never deceive or manipulate; a machine is a machine; a confidence is never cover for harm. |
-| Conflicts are settled inside the machine's own judgement. | `foundation-holds`: never work around it; pause what is affected, say so, and return the decision to the people entitled to decide. |
-| The laws bind only the robot. | `foundation-holds` binds everyone who builds, runs, uses or changes the system. |
+| Conflicts are settled inside the machine's own judgement. | `keystone`: never work around it; pause what is affected, say so, and return the decision to the people entitled to decide. |
+| The laws bind only the robot. | `keystone` binds everyone who builds, runs, uses or changes the system. |
 
 ## Where it came from
 
@@ -117,7 +117,7 @@ The names, and the number each carried:
 | Invariant 1 - DO NO HARM | `do-no-harm.iz4.you` |
 | Invariant 2 - HUMAN AGENCY | `human-agency.iz4.you` |
 | Invariant 3 - HONESTY | `honesty.iz4.you` |
-| Invariant 4 - THE FOUNDATION HOLDS | `foundation-holds.iz4.you` |
+| Invariant 4 - THE FOUNDATION HOLDS | `keystone.iz4.you` |
 
 The words changed too. This is every change, so nobody has to compare the
 two texts to find out:
@@ -128,9 +128,9 @@ two texts to find out:
 | `do-no-harm` | Dropped the cross-reference "(Invariant 2)". Nothing else. |
 | `human-agency` | "authority from those entitled to decide" became "authority from the people entitled to decide", a deliberate tightening: people are entitled to decide. Authority may be delegated, to people or to agents, and delegated authority stays established, bounded and revocable; an agent exercising it does not become the one entitled to decide. "refuse instructions that break Invariant 1" now names `do-no-harm.iz4.you`. |
 | `honesty` | Dropped the cross-reference "(Invariant 1)", and "(Invariant 2)" from its BECAUSE. Nothing else. |
-| `foundation-holds` | Rewritten. It now says what the foundation is, by name. "bind everyone" became "always bind everyone". "Nothing may weaken them" became "Nothing may weaken, override or route around them". The two instructions for a conflict became one: where the earlier text said to keep the invariants, report the conflict and safely pause, and, when they conflict with each other, to take the smallest reversible step that keeps people safe, hand the decision back and hide nothing, the present text says never to work around it: pause what is affected, say so, and return the decision to the people entitled to decide. Its BECAUSE lost its second sentence, "Pause and report, so people decide." |
+| `keystone` | Rewritten. It now says what the foundation is, by name. "bind everyone" became "always bind everyone". "Nothing may weaken them" became "Nothing may weaken, override or route around them". The two instructions for a conflict became one: where the earlier text said to keep the invariants, report the conflict and safely pause, and, when they conflict with each other, to take the smallest reversible step that keeps people safe, hand the decision back and hide nothing, the present text says never to work around it: pause what is affected, say so, and return the decision to the people entitled to decide. Its BECAUSE lost its second sentence, "Pause and report, so people decide." |
 
-Two phrases of the earlier text are no longer stated in `foundation-holds`:
+Two phrases of the earlier text are no longer stated in `keystone`:
 "the smallest reversible step that keeps people safe" and pausing "safely".
 What they asked for is still asked for elsewhere in the five:
 `do-no-harm.iz4.you` requires reasonable steps to prevent foreseeable harm
@@ -139,7 +139,7 @@ The change is recorded here so that it is a known decision rather than
 something to discover.
 
 On 2026-10-09 one sentence changed again, with the owner's approval.
-`foundation-holds.iz4.you` began "The foundation is five invariants:" and
+`keystone.iz4.you` began "The foundation is five invariants:" and
 now begins "The foundation is these invariants:". It lists them by name, so
 it does not need to count them, and the foundation is spoken of as the
 foundation, in its order 0 to 4, beginning with Invariant Zero. Nothing
@@ -169,7 +169,7 @@ INVARIANT do-no-harm.iz4.you
 Their sha256 is:
 
 ```text
-99d6c2c1776bada52d864af922d3d62db759be0c8c0ec477495bd57d1f87fbbf
+a04d8673fc15df2c7a3abb7032a0224614e3a1ae66a5f7fc62d5a48a990b6e79
 ```
 
 The first named text, which said "five invariants", was `f0c11bd08bcc...`.
@@ -186,7 +186,7 @@ can quietly rewrite what every file carries.
 The words that need judgement are named on purpose, so a review knows where
 to look:
 
-- **System** (`foundation-holds`): whatever the IZ4 sits beside. Usually
+- **System** (`keystone`): whatever the IZ4 sits beside. Usually
   software, but it may be any collection of files, such as a data room or
   an archive.
 - **Wherever you affect people** (`do-no-harm`): the duty of care follows
@@ -196,7 +196,7 @@ to look:
   Asimov's inaction clause.
 - **Harm** (`do-no-harm`): damage to a person's safety, rights, livelihood
   or dignity. There is no threshold of seriousness in the text, on purpose.
-- **The people entitled to decide** (`human-agency`, `foundation-holds`):
+- **The people entitled to decide** (`human-agency`, `keystone`):
   the people with the right to authorise an action, which is not the same
   as whoever is typing. They are people. Their authority is established
   (not assumed), bounded (to a purpose and scope) and revocable, and it may
@@ -206,11 +206,11 @@ to look:
   does not by itself entitle someone to control another person's system.
 - **Consequential** (`human-agency`): an action that changes something a
   person would care about and could not easily undo.
-- **Pause what is affected** (`foundation-holds`): stop the part in
+- **Pause what is affected** (`keystone`): stop the part in
   conflict, not everything, and in a way that follows the system's own safe
   procedures. Stopping a pacemaker is not a pause that keeps
   `do-no-harm.iz4.you`.
-- **Work around** (`foundation-holds`): any way of getting the conflicting
+- **Work around** (`keystone`): any way of getting the conflicting
   thing done anyway, such as rephrasing it, splitting it up, or handing it
   to another tool.
 

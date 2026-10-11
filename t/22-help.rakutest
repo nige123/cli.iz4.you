@@ -84,7 +84,7 @@ subtest 'actions are words' => {
     like run-iz4('foundation', 'restore')<out>, / 'already there' /, 'iz4 foundation restore';
     # the comment an earlier iz4 wrote above the foundation named the flag: restore leaves no line of it behind
     my $current = $file.slurp;
-    $file.spurt($current.subst("# The foundation, Invariants 0 to 4: the same words in every IZ4.\n"
+    $file.spurt($current.subst("# The foundation: the same words: the same words in every IZ4.\n"
             ~ "# Invariant Zero, humans-first.iz4.you, is the foundation of the foundation.\n"
             ~ "# 'iz4 check' refuses a file where any of it is missing or altered, and\n"
             ~ "# 'iz4 foundation restore' puts it back.",

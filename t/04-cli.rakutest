@@ -108,7 +108,7 @@ is $rc, 0, 'check passes';
 like $out, /'✓ structure: valid' \n
             '✓ IS FOR WHAT: Helping people find work they love to do.' \n
             '✓ IS FOR WHO: People looking for work.' \n
-            '✓ the foundation: Invariants 0 to 4, in the file word for word' .* \n
+            '✓ the foundation: in the file word for word' .* \n
             '✓ invariants: 1 of your own, named under shop.example.com' \n
             '✓ BECAUSE: every invariant says why it must survive' \n/, 'ticks for what is true';
 like $out, /'? the system keeps its invariants (the foundation and its own 1): uncertain'/, 'conformance is uncertain, never a tick';
@@ -163,7 +163,7 @@ ok $rc == 1 && $err.contains("no invariant 'nonesuch'"), 'and a name the file do
 # ---- the effective invariant set -------------------------------------------------
 ($rc, $out, $err) = iz4($dir, 'invariants');
 is $rc, 0, 'iz4 invariants exits 0';
-like $out, /'INVARIANT humans-first.iz4.you' \n .* 'INVARIANT foundation-holds.iz4.you' \n .* 'INVARIANT private-stay-private.shop.example.com' \n 'Private profiles'/,
+like $out, /'INVARIANT humans-first.iz4.you' \n .* 'INVARIANT keystone.iz4.you' \n .* 'INVARIANT private-stay-private.shop.example.com' \n 'Private profiles'/,
     'it shows the five foundation invariants and the project invariants together';
 ($rc, $out, $err) = iz4($dir, 'show', 'invariant', 'human-agency');
 like $out, /^ 'INVARIANT human-agency.iz4.you' \n .* 'BECAUSE'/, 'show invariant human-agency is the inherited foundation';
@@ -288,7 +288,7 @@ ok $rc == 1 && $err.contains('nothing was added'), 'a failing agent adds nothing
     ($rc, $out, $err) = iz4($wd, 'add', 'invariant', 'Something different altogether.', '--name=nothing-unexplained', '--because=A different reason entirely.', '--force');
     ok $rc == 1 && $err.contains('used before') && $err.contains('never reused'), 'the retired name cannot be given to a different invariant';
     unlike $wd.add('IZ4').slurp, /^^ "INVARIANT $id" $$/, 'and nothing was added under it';
-    for 'humans-first.iz4.you', 'foundation-holds.iz4.you', 'honesty' -> $f {
+    for 'humans-first.iz4.you', 'keystone.iz4.you', 'honesty' -> $f {
         ($rc, $out, $err) = iz4($wd, 'withdraw', $f, '--force');
         is $rc, 1, "the foundation's $f is refused even with --force";
         like $err, /'cannot be withdrawn'/, 'because the foundation is not the project\'s';
@@ -431,7 +431,7 @@ sub legacy-iz4(IO::Path $dir, Str $name = 'IZ4' --> IO::Path) {
     my @names = "--namespace=$NS", '--names=5=visible-by-choice,6=no-first-contact';
     ($rc, $out, $err) = iz4($old, 'migrate', |@names, '--dry-run');
     is $rc, 0, 'a dry run exits 0';
-    like $out, /'Invariant 0  ->  humans-first.iz4.you' .* 'Invariant 4  ->  foundation-holds.iz4.you'/, 'it shows the fixed mapping of the foundation';
+    like $out, /'Invariant 0  ->  humans-first.iz4.you' .* 'Invariant 4  ->  keystone.iz4.you'/, 'it shows the fixed mapping of the foundation';
     like $out, /'Your own, under shop.example.com:' .* 'Invariant 5' \h+ '->  visible-by-choice.shop.example.com' .* 'Invariant 6' \h+ '->  no-first-contact.shop.example.com'/,
         'and the names your own would carry';
     ok $out.ends-with("Dry run: nothing was written.\n"), 'and says nothing was written';
@@ -494,12 +494,12 @@ sub legacy-iz4(IO::Path $dir, Str $name = 'IZ4' --> IO::Path) {
     my $d = temp-dir;
     iz4($d, 'init', '--for-what=Things.', '--for-who=People.', '--/agents');
     my ($rc, $out, $err) = iz4($d, 'foundation');
-    like $out, /^ 'The foundation, Invariants 0 to 4:' \n '  0  humans-first.iz4.you' \s+ 'Invariant Zero: the foundation of the foundation' \n '  1  do-no-harm.iz4.you' \n/,
+    like $out, /^ 'The foundation:' \n '  0  humans-first.iz4.you' \s+ 'Invariant Zero: the foundation of the foundation' \n '  1  do-no-harm.iz4.you' \n/,
         'iz4 foundation lists it in its order, and says what Invariant Zero is';
-    like $out, /'  4  foundation-holds.iz4.you' \n \n '# The foundation, Invariants 0 to 4'/, 'down to 4, then the blocks every file carries';
+    like $out, /'  4  keystone.iz4.you' \n \n '# The foundation: the same words'/, 'down to 4, then the blocks every file carries';
     nok $out.lines.grep(/ \s $/), 'with no trailing spaces';
     nok $out ~~ /:i 'these five' | 'five foundation'/, 'and it is called the foundation, not counted out';
-    for (0 => 'humans-first', 1 => 'do-no-harm', 2 => 'human-agency', 3 => 'honesty', 4 => 'foundation-holds') -> (:key($n), :value($name)) {
+    for (0 => 'humans-first', 1 => 'do-no-harm', 2 => 'human-agency', 3 => 'honesty', 4 => 'keystone') -> (:key($n), :value($name)) {
         ($rc, $out, $err) = iz4($d, 'show', 'invariant', ~$n);
         ok $rc == 0 && $out.starts-with("INVARIANT $name.iz4.you\n"), "show invariant $n finds $name.iz4.you by its place in the foundation";
     }

@@ -36,7 +36,7 @@ my constant VIS  = 'visible-by-choice.shop.example.com';
 my $VIS = VIS;
 my constant TEST = 'tests/visible-by-choice.sh';
 my $TEST = TEST;
-my @FIVE = <humans-first.iz4.you do-no-harm.iz4.you human-agency.iz4.you honesty.iz4.you foundation-holds.iz4.you>;
+my @FIVE = <humans-first.iz4.you do-no-harm.iz4.you human-agency.iz4.you honesty.iz4.you keystone.iz4.you>;
 my $r = repo;
 my $sp = minimal-iz4(:dir($r));
 add-invariant($sp, 'People control whether their profile is visible.', :name(VIS), :because('Privacy.'));
