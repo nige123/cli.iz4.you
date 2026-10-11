@@ -173,7 +173,7 @@ uncertain or conflicting, in its own words.
  "proposed_invariant_change":{"kind":"change","summary":"1 commitment change(s), 0 protection change(s)",
    "changes":[{"kind":"revised","id":"owner-adjusted.prices.honeywillow.com",
      "before_digest":"3d8c...","after_digest":"ab6a..."}],"proposal_digest":"...",
-   "agree_with":"iz4 approve --candidate=<tree> --base=HEAD --sign=<key> --by=<principal>"},
+   "agree_with":"iz4 approve --candidate=<tree> --base=HEAD"},
  "iz4":{"file":"/repo/IZ4","sha256":"..."},
  "limits":"what this check did not establish",
  "exit_code":2,"tool":"iz4/0.16.0"}

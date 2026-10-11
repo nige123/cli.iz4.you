@@ -1,0 +1,120 @@
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4::Gate;
+
+# Agreeing to a change is a person's act, and it should cost them one
+# command and nothing to look up: iz4 approve finds the change, their
+# key and their name, and sends the approval where it is needed.
+
+unless have-git() { skip-rest 'no git available'; exit }
+unless so (try run 'ssh-keygen', '-Y', 'sign', :out, :err).defined { skip-rest 'ssh-keygen -Y not available'; exit }
+
+my $config = temp-dir.add('gitconfig');
+$config.spurt('');
+%*ENV<GIT_CONFIG_GLOBAL> = $config.Str;
+%*ENV<IZ4_INTERACTIVE> = '0';
+%*ENV<IZ4_NO_321> = '1';
+
+sub g(IO::Path $r, *@a) { my $p = run 'git', '-C', $r.Str, |@a, :out, :err; my $o = $p.out.slurp(:close); $p.err.slurp(:close); $o.trim }
+
+my $n = 0;
+#| Stage one more invariant: a change that needs agreement.
+sub change(IO::Path $r) {
+    $n++;
+    my ($rc, $out, $err) = iz4($r, 'add', 'invariant', "Thing $n is never lost.", "--name=kept-$n", '--namespace=shop.example.com', "--because=Reason $n.", '--force');
+    die "could not add: $out $err" if $rc != 0;
+    g($r, 'add', '-A');
+}
+
+my $r = temp-dir;
+g($r, 'init', '-q');
+g($r, 'config', 'user.email', 't@test');
+g($r, 'config', 'user.name', 'Test');
+iz4($r, 'init', '--for-what=Taking orders.', '--for-who=People buying things.', '--/agents');
+my $far = temp-dir;
+g($far, 'init', '-q', '--bare');
+g($r, 'remote', 'add', 'origin', $far.Str);
+
+# a machine as a person has it: a key of their own, and a gate that lists it
+my $ssh = temp-dir;
+my $key = $ssh.add('id_ed25519');
+run 'ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', $key.Str, :out, :err;
+my $signers = temp-dir.add('allowed_signers');
+$signers.spurt("# who may approve\nowner\@example.com {($key.Str ~ '.pub').IO.slurp}");
+my $other = $ssh.add('another');                       # a key the gate does not list, found first by name
+run 'ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', $other.Str, :out, :err;
+$ssh.add('config').spurt("Host *\n");                  # and a file that is no key at all
+my %known = IZ4_SSH_DIR => $ssh.Str, IZ4_APPROVERS => $signers.Str;
+
+# ---- the gate asks for one command -----------------------------------------
+change($r);
+my ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', :env(%known));
+is $rc, 2, 'a change of commitment needs agreement';
+like $out, / "next:\n  1. iz4 approve\n" /, 'and the next step is one command with nothing to fill in';
+nok $out.contains('<key>') || $out.contains('git push'), 'no key, no name and no second command to go looking for';
+($rc, $out, $err) = iz4($r, 'approve', :env(%known));
+is $rc, 2, 'approve without a person at a terminal records nothing';
+like $out, / 'At a terminal, they run:   iz4 approve' /, 'and names the one command';
+
+# ---- one command: the key and the name are found, the approval is sent ------
+($rc, $out, $err) = iz4-talk($r, "a\ny\n", 'approve', :env(%known));
+is $rc, 0, 'iz4 approve alone is enough' or diag "$out\n$err";
+like $out, / 'You sign as owner@example.com with ' \S+ 'id_ed25519 (listed in ' /, 'it says who signs, with which key, and how it knew';
+like $out, / 'Recorded: ssh-signature approval by owner@example.com' /, 'the approval is signed';
+like $out, / 'Sent to origin. Nothing more for you to do' /, 'and sent on, when the person says yes';
+my $tree = g($r, 'write-tree');
+is g($far, 'rev-parse', '--verify', '-q', "refs/iz4/approvals/$tree"), g($r, 'rev-parse', "refs/iz4/approvals/$tree"), 'the far side has it';
+($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', :env(%known));
+is $rc, 0, 'and the enforcing gate now passes' or diag $out;
+g($r, 'commit', '-qm', 'one');
+
+# the key is found without its .pub file beside it
+($key.Str ~ '.pub').IO.unlink;
+change($r);
+($rc, $out, $err) = iz4-talk($r, "a\nn\n", 'approve', :env(%known));
+like $out, / 'You sign as owner@example.com' /, 'a key with no .pub beside it is still recognised';
+like $out, / 'Not sent. When you want it there: git push origin refs/iz4/approvals/' /, 'saying no to sending leaves the exact command';
+g($r, 'commit', '-qm', 'two');
+
+# ---- a slip of the fingers is not an answer ---------------------------------
+change($r);
+($rc, $out, $err) = iz4-talk($r, "\na\nn\n", 'approve', :env(%known));
+is $rc, 0, 'an empty answer is asked again, not taken as revise';
+like $out, / 'Type a to accept, r to reject, or v to revise.' /, 'with the three choices spelled out';
+g($r, 'commit', '-qm', 'three');
+
+# ---- no key the gate knows: said once, remembered ---------------------------
+my %none = IZ4_SSH_DIR => temp-dir.Str, IZ4_APPROVERS => $signers.Str;
+change($r);
+($rc, $out, $err) = iz4-talk($r, "a\n", 'approve', :env(%none));
+like $out, / 'Recorded: terminal approval by t@test' /, 'with no key found, the approval is a terminal one';
+like $out, / 'say once which key is yours' .* 'iz4 approve --sign=KEY --by=YOU' /, 'and iz4 says the one thing to do, once';
+($rc, $out, $err) = iz4-talk($r, "a\nn\n", 'approve', "--sign={$key}", '--by=owner@example.com', :env(%none));
+like $out, / 'You sign as owner@example.com with ' \S+ ' (as you said)' /, 'said outright, it is used';
+g($r, 'commit', '-qm', 'four');
+change($r);
+($rc, $out, $err) = iz4-talk($r, "a\nn\n", 'approve', :env(%none));
+like $out, / 'You sign as owner@example.com with ' \S+ ' (as last time)' /, 'and the next approval needs nothing said';
+like $out, / 'Recorded: ssh-signature approval' /, 'and is signed';
+($rc, $out, $err) = iz4-talk($r, "a\n", 'approve', '--sign=/nowhere/key', '--by=x@example.com', :env(%none));
+isnt $rc, 0, 'a key that is not there is refused before anything is asked';
+like $err, / 'there is no key at /nowhere/key' /, 'in plain words';
+
+# ---- nothing is found by accident -------------------------------------------
+is find-signer($r, :approvers($signers)).elems, 3, 'the remembered signer is found';
+g($r, 'config', '--global', '--unset', 'iz4.approveKey');
+{
+    temp %*ENV<IZ4_SSH_DIR> = temp-dir.Str;
+    is find-signer($r, :approvers($signers)).elems, 0, 'with nothing remembered and no key of theirs listed, nobody is guessed';
+}
+
+# ---- committing by hand: no command at all ----------------------------------
+my $hook = gate-hook-text(:enforce);
+like $hook, / 'iz4 gate --staged --enforce && exit 0' /, 'the hook runs the gate';
+like $hook, / '[ -t 2 ]' .* 'iz4 approve </dev/tty' .* 'exec iz4 gate --staged --enforce' /,
+    'and where a person is committing at a terminal, asks them there and goes on with the commit';
+like $hook, / '[ "$rc" = 2 ]' .* '|| exit $rc' /, 'anything else committing is refused as before, with the same exit code';
+unlike gate-hook-text(), / 'approve' /, 'an advisory hook asks nothing';
+
+done-testing;

@@ -138,7 +138,7 @@ touches, by their own words (for a person to look at, not a finding): charged-on
 approval: none for this candidate tree
 outcome: agreement-required - a commitment or protection changes; a person has to agree
 next:
-  1. iz4 approve --staged
+  1. iz4 approve
   then: iz4 gate --staged again
 advisory: this run refuses nothing; --enforce makes the outcome the exit code
 ```
@@ -167,13 +167,32 @@ Two levels of approval:
   It is recorded as such, with the Git user as a label. It counts in
   advisory mode and for local hooks. It is not evidence a protected
   boundary can check, because whoever has the shell can write one.
-- **signed**: `iz4 approve --sign=KEY --by=PRINCIPAL` signs the document
-  with an SSH key (`ssh-keygen -Y sign`). `iz4 gate --enforce` accepts an
-  approval only when it verifies against the allowed-signers file named by
-  `--approvers` or `IZ4_APPROVERS` (the sshd `allowed_signers` format:
-  principal, options, key), with the principal in `--by`. A signed
-  approval whose document was edited afterwards does not verify. Push it
-  for the boundary to fetch: `git push origin refs/iz4/approvals/<tree>`.
+- **signed**: the document is signed with an SSH key (`ssh-keygen -Y
+  sign`). `iz4 gate --enforce` accepts an approval only when it verifies
+  against the allowed-signers file named by `--approvers` or
+  `IZ4_APPROVERS` (the sshd `allowed_signers` format: principal, options,
+  key). A signed approval whose document was edited afterwards does not
+  verify.
+
+A person types one command and looks nothing up:
+
+```text
+iz4 approve
+```
+
+It takes the staged change. It signs with the key and name used last time,
+or else with the key in `~/.ssh` that the allowed-signers file already
+lists, under the name it is listed by, and says which. It then offers to
+send the approval to `origin`, so the gate there has it. Only on a machine
+where it can find no such key does it need telling, once:
+`iz4 approve --sign=KEY --by=YOU`; that is remembered (`git config
+--global iz4.approveKey`, `iz4.approveAs`).
+
+Committing by hand needs no command at all. The enforcing hook that `iz4
+gate install --enforce` writes asks at the terminal when the commit
+alters a commitment, records the answer and goes on with the commit. It
+asks only where standard error is a terminal, so a script or an agent
+committing is refused exactly as before and cannot answer for anyone.
 
 Who may approve is whoever holds a key in that file. The file lives with
 the enforcing installation, not in the candidate tree. 123.do or another

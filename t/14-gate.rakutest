@@ -74,7 +74,7 @@ like $out, /'"kind":"purpose"'/, 'and so is IS FOR WHAT';
 is $rc, 2, 'under --enforce agreement-required is exit 2';
 like $out, /"INVARIANT {$VIS} added: People control whether their profile is visible."/, 'the proposal shows the exact wording';
 like $out, /"✓ {$TEST} ({$VIS}) passed"/, 'the linked test was run from the candidate tree';
-like $out, /"next:\n  1. iz4 approve --staged"/, 'and the next step is a person approving';
+like $out, /"next:\n  1. iz4 approve" \n/, 'and the next step is a person approving';
 g($r, 'commit', '-qm', 'init');
 
 # ---- a routine change passes without anyone being asked -------------------
@@ -107,7 +107,7 @@ my $tree6 = json(gate($r, '--staged', '--json')[1], 'candidate');
 # approving is a person's act: a script gets a pending state and nothing is recorded
 ($rc, $out, $err) = iz4($r, 'approve', '--staged');
 is $rc, 2, 'approve without a terminal exits 2: pending';
-like $out, /'pending: agreement needs a person at a terminal'/, 'and says so';
+like $out, /'pending: agreement needs a person. At a terminal, they run:   iz4 approve'/, 'and says so, with the one command';
 like $out, /'Nothing was recorded'/, 'recording nothing';
 is g($r, 'for-each-ref', 'refs/iz4/approvals/'), '', 'no approval ref was written';
 
@@ -133,7 +133,7 @@ like $out, /'"level":"terminal"'/, 'and is labelled terminal';
 ($rc, $out, $err) = gate($r, '--staged', '--enforce');
 is $rc, 2, 'enforce: a terminal approval is not accepted at an acceptance boundary';
 like $out, /'approval: invalid - a terminal approval by t@test is not accepted under --enforce'/, 'and says why';
-like $out, /'iz4 approve --staged --sign=<key> --by=<principal>'/, 'and how to get one that is';
+like $out, /"next:\n  1. iz4 approve" \n/, 'and the way to one that is, is the same one command';
 
 # ---- a signed approval, verified against an allowed-signers file ----------
 my $have-ssh = so (try run 'ssh-keygen', '-Y', 'sign', :out, :err).defined;

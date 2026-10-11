@@ -363,7 +363,7 @@ touches, by their own words (for a person to look at, not a finding): charged-on
 approval: none for this candidate tree
 outcome: agreement-required - a commitment or protection changes; a person has to agree
 next:
-  1. iz4 approve --staged
+  1. iz4 approve
   then: iz4 gate --staged again
 advisory: this run refuses nothing; --enforce makes the outcome the exit code
 ```
@@ -383,10 +383,11 @@ at a terminal. A script gets `pending` and exit 2; there is no `--yes`.
 Accepting records a detached approval under `refs/iz4/approvals/<tree>`,
 bound to the repository, the base, the exact candidate tree and the
 proposal, so it cannot sit inside the tree it approves and stops applying
-the moment any of them changes. A terminal yes counts for local checks;
-`--sign=KEY --by=PRINCIPAL` signs it with an SSH key, and
-`iz4 gate --enforce --approvers=FILE` at a protected boundary accepts only
-that. `iz4 gate install` writes a pre-commit hook, advisory or
+the moment any of them changes. `iz4 approve` is the whole command: it
+finds the staged change, your key and your name, signs, and offers to send
+the approval on. A terminal yes counts for local checks; a protected
+boundary running `iz4 gate --enforce --approvers=FILE` accepts only a
+signed one. `iz4 gate install` writes a pre-commit hook, advisory or
 `--enforce`, and never over a hook that is not its own. What each tier is
 worth, the CI step, and the contract a harness such as 321 calls:
 [docs/gate.md](gate.md).
@@ -425,7 +426,7 @@ iz4 gate install [--enforce]     the gate as a pre-commit hook
 iz4 approve [--staged|--candidate=REV]
                                  the proposal, for a person to accept, reject or
                                    revise; a detached approval for that exact
-                                   tree (--sign=KEY --by=PRINCIPAL to sign it)
+                                   tree, signed with the key it finds for you
 iz4 review [RANGE|--staged]      which invariants a change touches, your agent's
                                    assessment, and any invariant it reveals
                                    (--offline, --strict, --for-push)
@@ -696,7 +697,7 @@ References to 'Invariant N' elsewhere (documents, comments, commit messages) are
 next:
   1. iz4 check
   2. iz4 gate --staged   (after 'git add': it shows the move as a change to agree to)
-  3. iz4 approve --staged
+  3. iz4 approve
 ```
 
 The foundation moves by a fixed mapping and takes its current words. Each

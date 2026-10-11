@@ -872,7 +872,7 @@ sub migrate-command(Str $file, Str :$namespace, Str :$names, Bool :$dry-run, Boo
             }
         }
         say "References to 'Invariant N' elsewhere (documents, comments, commit messages) are yours to update: iz4 does not rewrite them.";
-        say-next(['iz4 check', "iz4 gate --staged   (after 'git add': it shows the move as a change to agree to)", 'iz4 approve --staged'], :then(Str));
+        say-next(['iz4 check', "iz4 gate --staged   (after 'git add': it shows the move as a change to agree to)", 'iz4 approve'], :then(Str));
         0;
     }
 }
@@ -1537,7 +1537,7 @@ multi MAIN('approve', Str :$base, Str :$candidate, Bool :$staged = False, Str :$
 sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out, Str :$note = '', Str :$file --> Int) {
     {
         my $root = gate-root($file);
-        user-error('--sign needs --by=<principal>, the name the allowed-signers file knows the key by') if $sign.defined && !$by.defined;
+        user-error("--sign needs --by=YOU, the name the gate knows your key by. Once is enough: it is remembered.") if $sign.defined && !$by.defined;
         # the checks run here too: a person is only ever shown a proposal for a tree that is not blocked
         my %r = run-gate($root, :staged(!$candidate.defined), :$base, :$candidate);
         my %p = changes => %r<changes>, protections => %r<protections>;
@@ -1559,32 +1559,68 @@ sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out
         say "proposal digest {%r<proposal_digest>.substr(0, 12)}. Any change to the tree, the base or the proposal needs a new agreement.";
         unless interactive() {
             say '';
-            say 'pending: agreement needs a person at a terminal. Run iz4 approve there (with --sign=<key> --by=<principal> for an acceptance boundary).';
+            say 'pending: agreement needs a person. At a terminal, they run:   iz4 approve';
             say 'Nothing was recorded.';
             return %EXIT-CODE<agreement-required>;
         }
-        my $answer = (ask('Accept, reject, or revise? [a/r/v] ') // '').trim.lc;
+        # who signs, found for them: said outright, last time's, or the key of theirs the gate here already trusts
+        my %signer = $sign.defined ?? %( key => home-path($sign), by => $by, found => 'as you said' ) !! find-signer($root);
+        if %signer {
+            user-error("there is no key at {%signer<key>}") unless %signer<key>.f;
+            say "You sign as {%signer<by>} with {%signer<key>} ({%signer<found>}).";
+        }
+        my $answer = '';
+        for ^3 {
+            my $said = ask('Accept, reject, or revise? [a/r/v] ');
+            last without $said;                         # end of input: no answer
+            $answer = $said.trim.lc;
+            last if $answer ne '';
+            say 'Type a to accept, r to reject, or v to revise.';
+        }
         if $answer.starts-with('a') {
-            my $who = $by // do {
+            my $who = %signer<by> // $by // do {
                 my ($rc, $o, $) = git($root.add(ROOT-NAME), 'config', 'user.email');
                 $rc == 0 && $o.trim ne '' ?? $o.trim !! (%*ENV<USER> // 'someone at this terminal');
             };
             my %snap = repository => %r<repository>, base => (%r<base> eq 'none' ?? Str !! %r<base>), candidate => %r<candidate>;
-            my %a = approval-body(%snap, %r<proposal_digest>, :by($who), :method($sign.defined ?? 'ssh-signature' !! 'terminal'), :$note);
-            %a<signature> = sign-approval(%a, $sign.IO) if $sign.defined;
+            my %a = approval-body(%snap, %r<proposal_digest>, :by($who), :method(%signer ?? 'ssh-signature' !! 'terminal'), :$note);
+            %a<signature> = sign-approval(%a, %signer<key>) if %signer;
             my $ref = store-approval($root, %a);
             if $out.defined { $out.IO.spurt(json-encode(%a) ~ "\n"); say "approval written to $out" }
             say "Recorded: {%a<method>} approval by $who for tree {%r<candidate>.substr(0, 12)} at $ref";
             $*IZ4-INTENT-CHANGED = True;      # a person agreed to a change of intent: enforcement is made sure of
-            say $sign.defined
-                ?? "An acceptance boundary accepts it once $who is in its allowed-signers file: git push origin $ref"
-                !! 'A terminal approval counts for local checks only; an acceptance boundary needs --sign=<key> --by=<principal>.';
+            unless %signer {
+                say 'A terminal approval counts for local checks only. For a signed one, say once which key is yours:';
+                say '  iz4 approve --sign=KEY --by=YOU      (remembered after that)';
+                return 0;
+            }
+            remember-signer($root, %signer<key>, $who) if %signer<found> eq 'as you said';
+            send-approval($root, $ref);
             return 0;
         }
         if $answer.starts-with('r') { say 'Rejected: nothing recorded. The gate still requires agreement for this tree.'; return %EXIT-CODE<agreement-required> }
         say 'Revise the IZ4 or the tests, stage the result, and run iz4 approve again. Nothing recorded.';
         %EXIT-CODE<agreement-required>;
     }
+}
+
+#| A signed approval is no use to the gate on the far side until it is
+#| there.  Offer to send it, so a person has no second command to find.
+sub send-approval(IO::Path $root, Str $ref) {
+    my $anchor = $root.add(ROOT-NAME);
+    my ($rc, $remotes, $) = git($anchor, 'remote');
+    my @remotes = $rc == 0 ?? $remotes.lines.grep(*.trim ne '') !! ();
+    return unless @remotes;                       # nowhere to send it: the local gate has it already
+    my $remote = @remotes.first('origin') // @remotes[0];
+    my $said = ask("Send it to $remote too, so the gate there accepts it? [Y/n] ");
+    if !$said.defined || $said.trim.lc.starts-with('n') {
+        say "Not sent. When you want it there: git push $remote $ref";
+        return;
+    }
+    my ($prc, $, $perr) = git($anchor, 'push', $remote, $ref);
+    say $prc == 0
+        ?? "Sent to $remote. Nothing more for you to do: the commit can go ahead."
+        !! "Could not send it ({$perr.trim.lines.tail // 'git push failed'}). When you can: git push $remote $ref";
 }
 
 multi MAIN('badge', Str :$file) {

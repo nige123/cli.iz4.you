@@ -605,6 +605,67 @@ sub sign-approval(%approval, IO::Path $key --> Str) is export {
     $sig.slurp;
 }
 
+#| A leading ~ as a shell would have read it: a person who types
+#| --sign=~/.ssh/key means their home directory.
+sub home-path(Str $path --> IO::Path) is export {
+    ($path.starts-with('~/') ?? $*HOME.add($path.substr(2)) !! $path.IO);
+}
+
+#| The allowed-signers file an approval will be judged against here:
+#| the one named, else IZ4_APPROVERS, else the machine's own.
+sub approvers-file(IO::Path $given? --> IO::Path) is export {
+    return $given if $given.defined;
+    with %*ENV<IZ4_APPROVERS> { return home-path($_) if .trim ne '' }
+    my $own = $*HOME.add('.config/iz4/allowed_signers');
+    $own.f ?? $own !! IO::Path;
+}
+
+# The public half of a key: the .pub beside it, or asked of ssh-keygen
+# with an empty passphrase so it never stops to ask for one.
+sub public-half(IO::Path $key --> Str) {
+    my $pub = ($key.Str ~ '.pub').IO;
+    return ($pub.slurp.words[1] // '') if $pub.f;
+    my $p = try run 'ssh-keygen', '-y', '-P', '', '-f', $key.Str, :out, :err;
+    return '' without $p;
+    my $out = $p.out.slurp(:close); $p.err.slurp(:close);
+    $p.exitcode == 0 ?? ($out.words[1] // '') !! '';
+}
+
+#| Who signs here, found so a person never has to say: the key and name
+#| used last time (git config iz4.approveKey, iz4.approveAs), else the
+#| key of their own that the allowed-signers file already lists, under
+#| the name it lists it by.  Returns key, by and found (how), or nothing.
+sub find-signer(IO::Path $root, IO::Path :$approvers --> Hash) is export {
+    my $anchor = $root.add(ROOT-NAME);
+    my ($rc, $key, $) = git($anchor, 'config', 'iz4.approveKey');
+    my ($rc2, $as, $) = git($anchor, 'config', 'iz4.approveAs');
+    if $rc == 0 && $rc2 == 0 && $key.trim ne '' && $as.trim ne '' && home-path($key.trim).f {
+        return %( key => home-path($key.trim), by => $as.trim, found => 'as last time' );
+    }
+    my $file = approvers-file($approvers);
+    my $dir  = (%*ENV<IZ4_SSH_DIR> // '') ne '' ?? %*ENV<IZ4_SSH_DIR>.IO !! $*HOME.add('.ssh');
+    return %() unless $file.defined && $file.f && $dir.d;
+    my %listed;                     # public key => the name it is listed under
+    for $file.lines.grep({ .trim ne '' && !.starts-with('#') }) -> $l {
+        my @w = $l.words;
+        my $at = @w.first({ .starts-with('ssh-') || .starts-with('ecdsa-') || .starts-with('sk-') }, :k);
+        %listed{@w[$at + 1]} //= @w[0].split(',')[0] if $at.defined && @w[$at + 1].defined;
+    }
+    for $dir.dir.grep({ .f && .extension ne 'pub' }).sort(*.basename) -> $k {
+        next unless (try $k.lines.head // '') ~~ / 'PRIVATE KEY' /;
+        my $pub = public-half($k);
+        return %( key => $k, by => %listed{$pub}, found => "listed in {$file}" ) if $pub ne '' && (%listed{$pub}:exists);
+    }
+    %();
+}
+
+#| Remember who signed and with what, so the next approval asks nothing.
+sub remember-signer(IO::Path $root, IO::Path $key, Str $by) is export {
+    my $anchor = $root.add(ROOT-NAME);
+    git($anchor, 'config', '--global', 'iz4.approveKey', $key.absolute);
+    git($anchor, 'config', '--global', 'iz4.approveAs', $by);
+}
+
 #| Verify a signature against an allowed-signers file (the sshd format:
 #| principal, options, key).  Returns '' when it verifies, else why not.
 sub verify-signature(%approval, IO::Path $approvers --> Str) is export {
@@ -826,11 +887,10 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
             @next.push: "make {.<file>} pass, or if the invariant no longer holds, change the IZ4 and its test together and seek agreement" for @checks.grep({ .<outcome> eq 'failed' });
         }
         when 'agreement-required' {
-            my $sign = $enforce ?? ' --sign=<key> --by=<principal>' !! '';
+            # one command, and nothing to look up: approve finds the change, the key and where to send it
             @next.push: %snap<selection> eq 'staged'
-                ?? "iz4 approve --staged$sign"
-                !! "iz4 approve --candidate={%snap<candidate_ref>}" ~ (%snap<base_ref> eq 'none' ?? ' --base=none' !! "") ~ $sign;
-            @next.push: 'git push origin ' ~ APPROVAL-REFS ~ %snap<candidate> ~ '   (so the acceptance boundary can fetch the approval)' if $enforce;
+                ?? 'iz4 approve'
+                !! "iz4 approve --candidate={%snap<candidate_ref>}" ~ (%snap<base_ref> eq 'none' ?? ' --base=none' !! "");
         }
         when 'unassessed' {
             for @checks.grep({ .<outcome> eq any(<timeout unassessed>) }) {
@@ -850,6 +910,18 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
 
 constant GATE-HOOK-MARK is export = '# iz4 gate hook';
 
+#| What an enforcing hook runs.  When the gate needs agreement and a person
+#| is committing at a terminal, it asks them there and then and goes on
+#| with the commit: no command to remember.  Anything else committing (a
+#| script, an agent: no terminal on standard error) is refused as before.
+constant GATE-HOOK-ENFORCE is export = q:to/END/.chomp;
+    iz4 gate --staged --enforce && exit 0
+    rc=$?
+    [ "$rc" = 2 ] && [ -t 2 ] && [ -r /dev/tty ] || exit $rc
+    iz4 approve </dev/tty || exit $rc
+    exec iz4 gate --staged --enforce
+    END
+
 #| The pre-commit hook: the gate on the staged tree.  Advisory unless
 #| written with :enforce.
 sub gate-hook-text(Bool :$enforce = False --> Str) is export {
@@ -857,6 +929,6 @@ sub gate-hook-text(Bool :$enforce = False --> Str) is export {
     #!/bin/sh
     {GATE-HOOK-MARK} (written by 'iz4 gate install'; delete this file to remove it)
     command -v iz4 >/dev/null 2>&1 || exit 0
-    {$enforce ?? 'iz4 gate --staged --enforce' !! 'iz4 gate --staged; exit 0'}
+    {$enforce ?? GATE-HOOK-ENFORCE !! 'iz4 gate --staged; exit 0'}
     END
 }

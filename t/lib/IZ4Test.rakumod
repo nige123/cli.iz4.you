@@ -12,6 +12,9 @@ INIT {
     # follows a change of intent (ensure the driver, activate enforcement)
     # is off unless a test turns it on against a stand-in.
     %*ENV<IZ4_ENFORCE> = '0';
+    # and no test signs with a real person's key: approve looks here for keys, and finds none
+    %*ENV<IZ4_SSH_DIR> = $*TMPDIR.add("iz4-test-no-keys-{$*PID}").Str;
+    %*ENV<IZ4_APPROVERS>:delete;
     # and an identity, so a test's commits work on a machine with none set
     %*ENV<GIT_AUTHOR_NAME>  = %*ENV<GIT_COMMITTER_NAME>  = 'iz4 test';
     %*ENV<GIT_AUTHOR_EMAIL> = %*ENV<GIT_COMMITTER_EMAIL> = 't@test';
