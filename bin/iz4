@@ -1660,6 +1660,34 @@ multi MAIN('discover', Bool :$json = False, Str :$dir) {
     }
 }
 
+#| The questions that help a person write an invariant, as data, so a page
+#| that is not a terminal can ask them.
+multi MAIN('draft', 'questions') {
+    attempt { say json-encode(draft-questions()); 0 }
+}
+
+#| Questions about a draft, as data.  With a name and a file, also whether
+#| the name can be used there, and the digest the invariant would have.
+multi MAIN('draft', 'check', Str :$for = '', Str :$rule = '', Str :$because = '', Str :$name, Str :$file) {
+    attempt {
+        my %r = draft-check(:reach($for), :$rule, :$because);
+        with $name {
+            my $path = resolve-target($file);
+            my $doc = check-doc($path);
+            my $id = $doc.form eq 'arms' ?? arms-identity($name, $doc.domain // 'example.com') !! full-identity($name, project-namespace($path));
+            %r<identity> = $id;
+            try {
+                check-new-name($path, $doc, $id);
+                CATCH { when X::IZ4 { %r<findings>.push: %( arm => 'NAME', code => 'name', level => 'ask', message => .message ); %r<ok> = False } }
+            }
+            %r<digest> = invariant-digest($id, $rule.trim, $because.trim, |($doc.form eq 'arms' ?? (:reach($for.trim)) !! ()))
+                if $rule.trim ne '' && ($doc.form ne 'arms' || $for.trim ne '');
+        }
+        say json-encode(%r);
+        0;
+    }
+}
+
 multi MAIN('context', Bool :$json = False, Str :$file) {
     attempt {
         my %c = context(resolve-target($file));

@@ -666,9 +666,9 @@ cannot know. That line stays a question mark, and review against
   (`humans-first.iz4.you:` and so on), word for word as in every other IZ4 of
   this form, at the end behind a rule-off. They are not the owner's to edit: a
   missing or altered one is an error.
-- Project invariants are named under the header's domain, and written by their
-  first part: `private-stays-private` is `private-stays-private.honeywillow.com`
-  wherever it is cited. A name, once given, is never reused for a different
+- Project invariants are named under the header's domain and written without it:
+  `private-stays-private` is `private-stays-private.honeywillow.com`, and an
+  area label comes along (`owner-adjusted.prices`) wherever it is cited. A name, once given, is never reused for a different
   invariant.
 - Order means nothing. Where a block sits in the file is presentation, and
   nothing refers to an invariant by its position.

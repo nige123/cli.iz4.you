@@ -605,6 +605,17 @@ method !parse() {
     self!validate;
 }
 
+#| The whole identity a heading names, in the three-arm form.  A name goes
+#| under the header's domain, area labels and all (come-alive.matching under
+#| love2.do is come-alive.matching.love2.do), unless it is already whole: it
+#| ends with that domain, or it is one of the foundation's.  Written under
+#| the foundation's namespace without being one of the five, it is left as
+#| written for the reserved-name check to refuse.
+sub arms-identity(Str $name, Str $domain --> Str) is export {
+    return $name if is-foundation-id($name) || $name.ends-with('.' ~ $domain) || $name.ends-with('.' ~ FOUNDATION-NAMESPACE);
+    $name ~ '.' ~ $domain;
+}
+
 #| The three-arm form: its grammar's matches turned into Parts and
 #| Invariants, then judged.  Every problem has its line.
 method !parse-arms(Str $text, $m) {
@@ -665,7 +676,7 @@ method !arms-invariant($v, %ids, %foundation, $broken is rw, &line-of, &last-of)
     my $h    = $v<heading>;
     my $line = line-of($h);
     my $name = ~$h<name>;
-    my $id   = $name.contains('.') ?? $name !! $name ~ '.' ~ ($!domain // 'example.com');
+    my $id   = arms-identity($name, $!domain // 'example.com');
     @!blocks.push: Part.new(:kind('INVARIANT'), :label($name), :$line, :last-line($line), :lines());
 
     my %arm;                    # label => Part
@@ -694,7 +705,7 @@ method !arms-invariant($v, %ids, %foundation, $broken is rw, &line-of, &last-of)
     if $problem {
         self!problem($line, $name.contains('.')
             ?? "'$name' is not a name an invariant can have: $problem"
-            !! "'$name' is not a name an invariant can have: $problem (a name without dots goes under the project's domain, $!domain)",
+            !! "'$name' is not a name an invariant can have: $problem (a name goes under the project's domain, $!domain, unless it already ends with it)",
             :fix("rename the invariant on line $line: lower-case words joined by hyphens"));
     }
 

@@ -935,6 +935,8 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
 
     my $outcome = $blocked ?? 'blocked' !! $agree ?? 'agreement-required' !! $unassessed ?? 'unassessed' !! 'pass';
     %r<outcome>   = $outcome;
+    # the proposal in plain words, for a person who is not reading JSON: a web page shows these lines
+    %r<words>     = proposal-lines(%( changes => %r<changes>, protections => %r<protections> )).Array;
     %r<exit_code> = $enforce ?? %EXIT-CODE{$outcome} !! 0;
 
     given $outcome {

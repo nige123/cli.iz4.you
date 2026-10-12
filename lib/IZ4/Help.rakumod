@@ -133,6 +133,10 @@ sub topics(--> List) is export {
       ['iz4 help', 'iz4 help COMMAND', 'iz4 help more', 'iz4 help machine'], '', 'iz4 help add'),
 
     t('discover', 'For tools', 'does an IZ4 govern this directory?', ['iz4 discover --json'], '', 'iz4 discover --json'),
+    t('draft', 'For tools', 'the three questions for writing an invariant, and a check of an answer',
+      ['iz4 draft questions', 'iz4 draft check --for=WHAT --rule=RULE --because=WHY'],
+      'JSON for a page that is not a terminal. It asks questions and never refuses: a person decides. With --name and a file it also says whether the name can be used and what the digest would be.',
+      'iz4 draft questions'),
     t('context', 'For tools', 'what to tell an agent before it works', ['iz4 context --json'], '', 'iz4 context --json'),
     t('check action', 'For tools', 'does one action need a person?',
       ['iz4 check action --json'], 'The action is JSON on standard input: operation, target, parameters.', "echo '\{\"operation\":\"write\",\"target\":\"IZ4\"\}' | iz4 check action --json"),

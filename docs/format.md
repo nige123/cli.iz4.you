@@ -109,9 +109,11 @@ told it with the invariants.
   invariants are still settling ([the gate](gate.md#mvp-mode)). The `# MVP:`
   line changes what the gate asks, so adding or removing it is itself a change
   a person agrees to.
-- **A name without dots** goes under the header's domain: `private-stays-private`
-  is `private-stays-private.jobs.example.com`. A name with dots is already a
-  whole identity. A name and its whole identity are one invariant, never two.
+- **A name goes under the header's domain,** area labels and all:
+  `private-stays-private` is `private-stays-private.jobs.example.com`, and
+  `come-alive.matching` under `love2.do` is `come-alive.matching.love2.do`. A
+  name that already ends with the domain, or is one of the foundation's, is
+  whole. A name and its whole identity are one invariant, never two.
 - **Order means nothing,** and file order never creates precedence. By
   convention the project's own invariants come first and the foundation last,
   behind a rule-off comment, so a reader meets the project before the common

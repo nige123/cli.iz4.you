@@ -21,10 +21,12 @@ use IZ4::Gate;
 use IZ4::Agent;
 use IZ4::Evidence;
 use IZ4::Review;
+use IZ4::Coach;
 
 constant DISCOVER-SCHEMA is export = 'iz4-discover/2';
 constant CONTEXT-SCHEMA  is export = 'iz4-context/1';
 constant CHECK-SCHEMA    is export = 'iz4-check/2';
+constant DRAFT-SCHEMA    is export = 'iz4-draft/1';
 
 constant PASS        is export = 'pass';
 constant WARN        is export = 'warn';
@@ -465,4 +467,78 @@ sub check-lines(%r --> List) is export {
     }
     @l.push("not established: {%r<limits>}") if %r<limits>;
     @l;
+}
+
+
+# ------------------------------------------------------------ drafting
+# What a page that is not a terminal needs to help a person write an
+# invariant: the three questions, and a stateless check of an answer.  The
+# check only raises questions.  It never refuses, never rewrites a word,
+# and a person decides what goes into the file.
+
+#| The three questions, in order, with what each is for.
+sub draft-questions(--> Hash) is export {
+    %(
+        schema => DRAFT-SCHEMA, tool => "iz4/{VERSION}", kind => 'questions',
+        questions => [
+            %( id => 'reach',  arm => 'FOR',     prompt => REACH-QUESTION, required => True, max_words => DRAFT-REACH-WORDS,
+               help => 'The people, data or actions it covers. "The system" is too wide to say anything: ask what is inside it.' ),
+            %( id => 'rule',   arm => 'RULE',    prompt => 'What must remain true for them?', required => True, max_words => DRAFT-WORDS,
+               help => 'A complete statement, using must, must not, always or never where they read naturally. A property or a prohibition, not a task.' ),
+            %( id => 'reason', arm => 'BECAUSE', prompt => 'Why must that survive?', required => False, max_words => DRAFT-BECAUSE-WORDS,
+               help => 'The human reason. It explains the rule; it must not add a condition or an exception to it.' ),
+        ],
+        golden_test => GOLDEN-TEST,
+        note => 'a person decides what must remain true; these questions help them say it',
+    );
+}
+
+#| Questions about a draft, never a verdict.  Each finding has an arm, a
+#| code, a level ('ask': worth an answer before accepting it; 'note': worth
+#| a second look) and a message in plain words.  ok is True when nothing is
+#| left to ask, which is not the same as the invariant being right.
+sub draft-check(Str :$reach = '', Str :$rule = '', Str :$because = '' --> Hash) is export {
+    my @f;
+    my sub finding(Str $arm, Str $code, Str $level, Str $message) { @f.push: %( :$arm, :$code, :$level, :$message ) }
+    my ($r, $u, $b) = $reach.trim, $rule.trim, $because.trim;
+
+    if $r eq '' { finding 'FOR', 'empty', 'ask', REACH-QUESTION }
+    elsif vague-reach($r) { finding 'FOR', 'vague', 'ask', 'That covers a lot, and an invariant is only as clear as its reach. Which people, data or actions exactly?' }
+    elsif too-long($r, DRAFT-REACH-WORDS) { finding 'FOR', 'long', 'note', "That is {draft-words($r)} words; a reach is easier to read in {DRAFT-REACH-WORDS} or fewer." }
+
+    if $u eq '' { finding 'RULE', 'empty', 'ask', 'What must remain true?' }
+    else {
+        my %a = assess-candidate($u);
+        given %a<kind> {
+            when 'task'           { finding 'RULE', 'task', 'ask', 'That reads like work to do. IZ4 records what must stay true: is there a lasting truth behind it?' }
+            when 'mechanism'      { finding 'RULE', 'mechanism', 'ask', "{%a<signal>} sounds like how it is done today. What must remain true if it is replaced?" }
+            when 'implementation' { finding 'RULE', 'implementation', 'ask', "That sounds like an implementation choice ({%a<signal>}). If it were replaced tomorrow, could it still serve the same people and purpose?" }
+            when 'requirement'    { finding 'RULE', 'requirement', 'ask', "That reads like a requirement or setting for today's product ({%a<signal>}). Would people be let down if it changed?" }
+            when 'vague'          { finding 'RULE', 'vague', 'ask', 'Say a little more: what exactly must remain true, and for whom?' }
+        }
+        finding 'RULE', 'long', 'note', "That is {draft-words($u)} words; a rule is easier to read in {DRAFT-WORDS} or fewer." if too-long($u);
+        finding 'RULE', 'pressure', 'note', 'A phrase like "even when" or "unless inconvenient" may be hiding a loophole. Pressure is for testing a draft, not for writing into the rule: does it still hold under a deadline, a migration, a retry?'
+            if $u ~~ /:i <|w> [ 'even when' | 'even if' | 'unless' ] <|w> /;
+    }
+
+    if $b eq '' { finding 'BECAUSE', 'empty', 'note', 'Without a reason this is easy to remove by accident. Why must it survive?' }
+    else {
+        finding 'BECAUSE', 'circular', 'ask', 'That restates the rule. Who would be harmed, surprised or let down if it stopped being true, and why?'
+            if $u ne '' && assess-because($u, $b) eq 'circular';
+        finding 'BECAUSE', 'condition', 'ask', 'A reason explains; it must not add a condition or an exception to the rule. If the rule has a limit, the rule should say so.'
+            if $b ~~ /:i ^ [ 'unless' | 'except' | 'only if' | 'only when' | 'provided' ] <|w> /;
+        finding 'BECAUSE', 'long', 'note', "That is {draft-words($b)} words; a reason is easier to read in {DRAFT-BECAUSE-WORDS} or fewer." if too-long($b, DRAFT-BECAUSE-WORDS);
+    }
+
+    my %r =
+        schema => DRAFT-SCHEMA, tool => "iz4/{VERSION}", kind => 'check',
+        arms => %( for => $r, rule => $u, because => $b ),
+        findings => @f.Array,
+        ok => !@f.first({ .<level> eq 'ask' }),
+        note => 'these are questions, not a verdict: a person decides what must remain true';
+    if $r ne '' && $u ne '' {
+        %r<reads> = "For $r, $u" ~ ($b ne '' ?? " Because $b" !! '');
+        %r<lines> = arms-invariant-lines('name', $r, $u, $b).Array;
+    }
+    %r;
 }

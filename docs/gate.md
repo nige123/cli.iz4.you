@@ -123,7 +123,8 @@ check being run, so they stay fast.
 `--json` prints the result as `iz4-gate/2`: `outcome`, `exit_code`,
 `mode`, `repository` (the root commit), `base`, `candidate` (tree
 hashes), `changes`, `protections`, `checks`, `touches`, `approval`,
-`proposal_digest`, `notes`, `next`. The identifiers are what an approval
+`proposal_digest`, `notes`, `next`, and `words`: the proposal as plain-language
+lines, for a page that shows a person what they would be agreeing to. The identifiers are what an approval
 binds to and what a harness or CI should quote. An invariant is always
 given by its name: each change, protection and touch carries `id`, and
 each check carries `invariants`, a list of names.

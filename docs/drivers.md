@@ -107,6 +107,31 @@ The instruction also asks for the per-invariant report that `verify` looks
 for, so an agent given only this context is never checked for something it
 was not asked.
 
+### `iz4 draft questions` and `iz4 draft check`
+
+For a page that is not a terminal, such as a product owner's: the questions
+that help a person write an invariant, and questions about an answer.
+Always JSON, schema `iz4-draft/1`, exit 0.
+
+`iz4 draft questions` gives the three questions in order, Reach, Rule, Reason
+(`id` `reach`, `rule`, `reason`; each with its `arm`, `prompt`, `help`,
+`required` and `max_words`), and the golden test.
+
+`iz4 draft check --for=WHAT --rule=RULE --because=WHY` gives `arms` as it
+read them, `findings`, `ok`, and, once the reach and the rule are there,
+`reads` (the invariant read aloud, "For ..., ... Because ...") and `lines`
+(the arms as they would be written). A finding is `arm`, `code`, `level` and
+a `message` in plain words. Level `ask` is worth an answer before accepting
+the draft (an empty or too wide reach, a rule that reads as a task or a
+mechanism, a reason that restates the rule or opens with a condition);
+`note` is worth a second look (a long arm, an "even when" in the rule, no
+reason yet). `ok` is true when nothing is left to ask, which is not the same
+as the invariant being right. It never refuses and never rewrites a word:
+the person decides what must remain true. With `--name=NAME` and a file it
+also gives the whole `identity` the name would have, a finding if the name
+cannot be used there, and the `digest` the invariant would have. Nothing is
+written.
+
 ### `iz4 check action`
 
 One consequential action, before it happens. The action is JSON on standard

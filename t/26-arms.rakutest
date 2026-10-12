@@ -7,6 +7,7 @@ use IZ4::Gate;
 use IZ4::Agent;
 use IZ4::Integrations;
 use IZ4::Coach;
+use IZ4::Machine;
 
 # The three-arm form: a name, then FOR (what it reaches), RULE (what must
 # remain true throughout that reach) and BECAUSE (why it matters to
@@ -71,6 +72,33 @@ END
     ok check-doc($p).ok && check-doc($p).invariant("private-stays-private.$NS").defined, 'a dotted name is taken as the whole identity';
     my $both = arms-file("a-rule:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n\na-rule.$NS:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n");
     ok check-doc($both).errors.first({ .message.contains('duplicate') }).defined, 'a short name and its full identity are one invariant, not two';
+}
+
+# an area label goes under the domain with the name: come-alive.matching under love2.do
+{
+    my $d = temp-dir;
+    my $p = init(:dir($d), :for-what('Helping people find work.'), :for-who('People looking.'), :namespace('love2.do'));
+    $p.spurt($p.slurp.subst("# ----", "come-alive.matching:\n  FOR: every match\n  RULE: A match must never degrade into keyword matching.\n  BECAUSE: The point is the work they would love.\n\n# ----"));
+    my $doc = check-doc($p);
+    ok $doc.ok, 'a name with an area label checks' or diag $doc.report.join("\n");
+    ok $doc.invariant('come-alive.matching.love2.do').defined, 'and is that area under the domain';
+    is arms-short-name($doc, 'come-alive.matching.love2.do'), 'come-alive.matching', 'and is written short, area and all';
+    is arms-identity('come-alive.matching.love2.do', 'love2.do'), 'come-alive.matching.love2.do', 'a name that already ends with the domain is whole';
+    is arms-identity('humans-first.iz4.you', 'love2.do'), 'humans-first.iz4.you', "as is one of the foundation's";
+    set-reach($p, 'come-alive.matching', 'every match, however it is made');
+    ok check-doc($p).ok && check-doc($p).invariants[0].reach.contains('however'), 'and the commands take it by either name';
+}
+
+# the examples in the README and the format page are real: each checks
+for <README.md docs/format.md> -> $doc-file {
+    my $root = $?FILE.IO.parent.parent;
+    my $block = $root.add($doc-file).slurp.match(/ '```text' \n ( 'IZ4 ' \S+ \n .*? ) '```' /)[0].Str;
+    my $d = temp-dir;
+    my $f = $d.add('IZ4');
+    $f.spurt($block.subst(/ \n '# ' '-' ** 10 .* $/, "\n"));
+    restore-foundation($f);
+    my $checked = check-doc($f);
+    ok $checked.ok, "the first three-arm example in $doc-file checks" or diag $checked.report.join("\n");
 }
 
 # ---- mistakes are reported by line -------------------------------------------
@@ -310,6 +338,56 @@ like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n")
     @answers = 'A code works once and only once.', 'y', 'A code that works twice lets someone sign in as you.', 'y';
     %r = coach-invariant(:ask(-> $ { @answers.shift }), :tell(-> $ {}));
     nok %r<reach>.defined, 'a named file\'s coach has no reach question';
+}
+
+# ---- the web contract: the three questions, and questions about an answer ---------------
+{
+    my %q = draft-questions();
+    is %q<schema>, 'iz4-draft/1', 'the questions have a schema';
+    is %q<questions>.map(*<id>), ('reach', 'rule', 'reason'), 'three questions, in the order Reach, Rule, Reason';
+    is %q<questions>.map(*<arm>), ('FOR', 'RULE', 'BECAUSE'), 'each is an arm of the file';
+    is %q<questions>[0]<prompt>, 'Who or what does this cover?', 'the first asks for the reach';
+    is %q<questions>.map(*<max_words>), (15, 25, 20), 'with the budget each arm is drafted within';
+
+    my %ok = draft-check(:reach('private profiles'), :rule('The system must never expose a private profile in public search.'), :because('Looking for work must not cost someone their current job.'));
+    ok %ok<ok> && !%ok<findings>, 'a clear draft has nothing to ask';
+    is %ok<reads>, 'For private profiles, The system must never expose a private profile in public search. Because Looking for work must not cost someone their current job.', 'and reads aloud as For ..., ... Because ...';
+    is %ok<lines>[0], 'name:', 'with the lines it would be written as';
+
+    sub codes(*%a --> Str) { draft-check(|%a)<findings>.map({ "{.<arm>}:{.<code>}" }).join(' ') }
+    is codes(:reach('the system'), :rule('X must hold.'), :because('Jobs matter.')), 'FOR:vague', 'a reach as wide as "the system" is asked about';
+    like codes(:reach(''), :rule(''), :because('')), /'FOR:empty' .* 'RULE:empty' .* 'BECAUSE:empty'/, 'an empty answer is asked for';
+    like codes(:reach('every order'), :rule('Passwords must use Argon2.'), :because('Leaks hurt people.')), /'RULE:mechanism'/, 'a mechanism is asked about, as the coach does';
+    like codes(:reach('every order'), :rule('Add a retry button.'), :because('Leaks hurt people.')), /'RULE:task'/, 'and a task';
+    like codes(:reach('every order'), :rule('A customer must not be charged twice, even when a payment is retried after a failure.'), :because('It costs trust.')), /'RULE:pressure'/, 'an "even when" is flagged for a second look, never refused';
+    ok draft-check(:reach('every order'), :rule('A customer must not be charged twice, even when a payment is retried.'), :because('It costs people money.'))<ok>, 'and a note alone does not stop a draft being ok';
+    like codes(:reach('every order'), :rule('A customer must never be charged twice.'), :because('Unless the bank says otherwise, double charges hurt.')), /'BECAUSE:condition'/, 'a BECAUSE that opens with a condition is asked about: a reason explains, it does not condition';
+    like codes(:reach('every order'), :rule('Orders are never charged twice.'), :because('Orders are never charged twice.')), /'BECAUSE:circular'/, 'a reason that restates the rule is asked about';
+    like codes(:reach('every order'), :rule(('word' xx 40).join(' ') ~ ' must hold.'), :because('It matters to people.')), /'RULE:long'/, 'a long rule is noted';
+
+    my $d = temp-dir;
+    my $p = init(:dir($d), :for-what('Taking orders.'), :for-who('People buying things.'), :namespace('shop.example.com'));
+    add-invariant($p, 'A customer must never be charged twice.', :name('charged-once.shop.example.com'), :because('It costs trust.'), :reach('every order'));
+    my ($rc, $out, $err) = iz4($d, 'draft', 'check', '--for=every refund', '--rule=A refund must go back the way it came.', '--because=Money must not change shape.', '--name=refunds-return');
+    is $rc, 0, 'iz4 draft check answers';
+    like $out, /'"identity":"refunds-return.shop.example.com"'/, 'with the whole identity a name would have';
+    like $out, /'"digest":"' <[0..9a..f]> ** 64 '"'/, 'and the digest the invariant would have';
+    like $out, /'"ok":true'/, 'a usable name leaves nothing to ask';
+    ($rc, $out, $err) = iz4($d, 'draft', 'check', '--for=every order', '--rule=An order must never be lost.', '--because=People paid.', '--name=charged-once');
+    like $out, /'"code":"name"' .* '"ok":false'/, 'a name already in use is asked about, with the reason';
+    ($rc, $out, $err) = iz4($d, 'draft', 'questions');
+    like $out, /'"schema":"iz4-draft/1"'/, 'iz4 draft questions gives the questions as JSON';
+
+    # a proposal in plain words, for a page
+    my $r = temp-dir;
+    run 'git', '-C', $r.Str, 'init', '-q';
+    run 'git', '-C', $r.Str, 'config', 'user.email', 't@t'; run 'git', '-C', $r.Str, 'config', 'user.name', 't';
+    init(:dir($r), :for-what('Taking orders.'), :for-who('People buying things.'), :namespace('shop.example.com'));
+    run 'git', '-C', $r.Str, 'add', '-A'; run 'git', '-C', $r.Str, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'a';
+    add-invariant($r.add('IZ4'), 'A customer must never be charged twice.', :name('charged-once.shop.example.com'), :because('It costs trust.'), :reach('every order'));
+    run 'git', '-C', $r.Str, 'add', '-A';
+    ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--json');
+    like $out, /'"words":[' .* 'INVARIANT charged-once.shop.example.com added: A customer must never be charged twice.' .* 'FOR every order'/, 'the gate result carries the proposal in plain words';
 }
 
 # ---- agents are told how to read an invariant ---------------------------------------------------

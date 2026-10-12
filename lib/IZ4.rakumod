@@ -5,7 +5,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.18.0';
+constant VERSION is export = '0.18.1';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -632,10 +632,10 @@ sub names-ever-used(IO::Path $path --> List) is export {
     if $rc == 0 {
         for $log.lines -> $l {
             @names.push(~$0) if $l ~~ /^ <[+\-]> 'INVARIANT' \h+ (\S+) \h* $/ && !numbered-label(~$0);
-            # the three-arm form: a name and a colon, whole when it has dots, else under the domain
+            # the three-arm form: a name and a colon, made whole under the file's domain
             if $l ~~ /^ <[+\-]> (<[a..z 0..9]> <[\w.\-]>*) ':' \h* $/ {
                 my $n = ~$0;
-                @names.push($n.contains('.') ?? $n !! ($doc.domain.defined ?? $n ~ '.' ~ $doc.domain !! $n));
+                @names.push($doc.domain.defined ?? arms-identity($n, $doc.domain) !! $n);
             }
         }
     }
@@ -736,12 +736,11 @@ sub add-invariant(IO::Path $path, Str $text, Str :$name!, Str :$because, Str :$n
 }
 
 #| How a project's own invariant is written in the three-arm form: its
-#| first part alone when the rest is the file's domain, else whole.
+#| name without the file's domain (area labels kept), else whole.
 sub arms-short-name(IZ4::Document $doc, Str $id --> Str) is export {
     my $d = $doc.domain // return $id;
     return $id unless $id.ends-with(".$d") && $id.chars > $d.chars + 1;
-    my $short = $id.substr(0, $id.chars - $d.chars - 1);
-    $short.contains('.') ?? $id !! $short;
+    $id.substr(0, $id.chars - $d.chars - 1);
 }
 
 #| The one line that tells a reader, and the next 'iz4 add', which domain
@@ -983,8 +982,7 @@ sub migrate-arms(IO::Path $path, %reach, Str :$namespace --> List) is export {
     for $doc.invariants -> $inv {
         my $to = $inv.because-line.defined
             ?? $doc.blocks.first({ .kind eq 'BECAUSE' && .line == $inv.because-line }).last-line !! $inv.last-line;
-        my $short = $inv.id.ends-with(".$domain") && $inv.id.substr(0, $inv.id.chars - $domain.chars - 1) !~~ /\./
-            ?? $inv.id.substr(0, $inv.id.chars - $domain.chars - 1) !! $inv.id;
+        my $short = $inv.id.ends-with(".$domain") ?? $inv.id.substr(0, $inv.id.chars - $domain.chars - 1) !! $inv.id;
         replace-span($inv.line, $to, arms-invariant-lines($short, %reach{$inv.id}.trim, $inv.text, $inv.because // ''));
     }
     my @out = with-foundation($doc, @lines, :to-arms, :last).join("\n").lines.grep(* ne $drop);
@@ -1029,6 +1027,7 @@ sub relink-tests(IZ4::Document $before, IO::Path $root, %names --> List) is expo
 #| theirs to keep at any length.
 constant DRAFT-WORDS is export = 25;
 constant DRAFT-BECAUSE-WORDS is export = 20;
+constant DRAFT-REACH-WORDS is export = 15;
 
 #| How many words a draft runs to.
 sub draft-words(Str $text --> Int) is export { $text.words.elems }
