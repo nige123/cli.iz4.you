@@ -110,7 +110,7 @@ jobs:
           "$bin" add invariant 'A release binary runs on its own.' --where='a release binary is installed' --protects='a person installing it without a runtime' --name=runs-alone
           "$bin" check
           "$bin" invariants | grep -q 'runs-alone.smoke.example.com:'
-          "$bin" show invariant keystone | grep -q 'keystone.iz4.you:'
+          "$bin" show invariant binding | grep -q 'binding.iz4.you:'
           git add -A && git commit -qm smoke
           "$bin" report --dry-run | grep -q '"outcome":"passed"'
           "$bin" agent install
