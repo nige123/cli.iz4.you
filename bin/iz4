@@ -1037,6 +1037,12 @@ sub review-suggestions(IO::Path $path, Bool :$quiet = False --> Bool) {
     True;
 }
 
+#| Said beside a draft that still runs long, so the person cuts it
+#| rather than keeping words nobody will read.
+sub long-note(Str $text --> Str) {
+    "That is {draft-words($text)} words, which is long to read before every change. Say it shorter if you keep it.";
+}
+
 sub show-suggestions(%s, $path) {
         my ($strong, $possible) = %s<found><strong possible>;
         my $left = %s<implementation> + %s<not-iz4>;
@@ -1055,10 +1061,12 @@ sub show-suggestions(%s, $path) {
         if !$path.defined || !interactive() {
             for %s<strong>.list -> %c {
                 say "\nStrong candidate: {%c<text>}";
+                say "  {long-note(%c<text>)}" if too-long(%c<text>);
                 say "  BECAUSE: {%c<because>}" if %c<because>;
             }
             for %s<possible>.list -> %c {
                 say "\nPossible, needs your intent: {%c<text>}";
+                say "  {long-note(%c<text>)}" if too-long(%c<text>);
                 say "  Only you can say: {%c<question>}" if %c<question>;
             }
             say '';
@@ -1074,6 +1082,7 @@ sub show-suggestions(%s, $path) {
         for @queue -> %c {
             say '';
             say %c<kind> eq 'strong' ?? "Candidate: {%c<text>}" !! "Possible: {%c<text>}";
+            say long-note(%c<text>) if too-long(%c<text>);
             say "Only you can say: {%c<question>}" if %c<question>;
             my $answer = (ask('Consider it? [Y/n/q] ') // 'q').trim.lc;
             last if $answer.starts-with('q');

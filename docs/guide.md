@@ -272,6 +272,13 @@ an invariant. It proposes a few, strongest first, and each one goes through
 the same questions before anything is added. Where the answer depends on
 product intent, you get the question to ask, not an invented answer.
 
+Drafts are kept brief, because an IZ4 is not a specification and a long
+invariant is skimmed: one plain sentence of at most 25 words, and a
+shorter reason. A draft that runs long is sent back once to be said
+shorter. If it still comes back long, iz4 shows it with its word count
+so you can cut it. The budget is for drafts only: your own words are
+yours at any length.
+
 ### Withdrawing one
 
 Intent changes. When an invariant no longer must remain true, `iz4

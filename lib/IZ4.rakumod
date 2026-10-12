@@ -5,7 +5,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.17.1';
+constant VERSION is export = '0.17.2';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -856,6 +856,71 @@ sub relink-tests(IZ4::Document $before, IO::Path $root, %names --> List) is expo
 
 # ---------------------------------------------------------------- suggest
 
+#| How long a drafted line may be, in words.  An IZ4 is read before every
+#| change; a line longer than this is skimmed, and a skimmed invariant is
+#| a lost one.  The budget is for drafts only: a person's own words are
+#| theirs to keep at any length.
+constant DRAFT-WORDS is export = 25;
+constant DRAFT-BECAUSE-WORDS is export = 20;
+
+#| How many words a draft runs to.
+sub draft-words(Str $text --> Int) is export { $text.words.elems }
+
+#| True when a draft is longer than a person will read.
+sub too-long(Str $text, Int $limit = DRAFT-WORDS --> Bool) is export { draft-words($text) > $limit }
+
+#| What every drafting prompt says about length.
+sub brevity-rule(--> Str) is export {
+    qq:to/END/;
+    Be brief.  An IZ4 is not a specification: it is read before every
+    change, and a long line is skimmed.  Each invariant is one plain
+    sentence of at most {DRAFT-WORDS} words, and each reason at most {DRAFT-BECAUSE-WORDS}.  State the
+    one promise and stop: no lists, exceptions, examples or mechanisms.
+    If it needs an 'and', it is probably two invariants; give the stronger.
+    Too long: 'Customer payment details, including card numbers, expiry
+    dates and billing addresses, are never written to logs, caches,
+    analytics events or error reports in any environment.'
+    Right: 'Payment details never leave the payment system.'
+    END
+}
+
+#| The prompt that asks for drafts to be said again, shorter.  Each item
+#| is a pair of the words and the most they may run to.
+sub shorten-prompt(@items --> Str) is export {
+    my $list = @items.kv.map(-> $i, $item { "{$i + 1} (at most {$item[1]} words): {$item[0]}" }).join("\n");
+    qq:to/END/ ~ $list ~ "\n";
+    These lines were drafted for a system's IZ4 file, which holds the few
+    things that must stay true of it.  They are too long.  An IZ4 is not
+    a specification: a long line is skimmed, and a skimmed invariant is
+    a lost one.
+
+    Say each again in one plain sentence within its limit.  Keep the one
+    promise that matters most and drop lists, exceptions, examples and
+    mechanisms.  Where a line holds two promises, keep the stronger.
+    Never add anything that was not there.
+
+    Reply with one line for each and nothing else, in exactly this form:
+    1: <the shorter words>
+
+    The lines:
+    END
+}
+
+#| The shorter words out of a reply, by their number.  A line that is
+#| missing, empty or still too long is left out, so the caller keeps
+#| what it had.
+sub parse-shorter(Str $reply, @items --> Hash) is export {
+    my %out;
+    for $reply.lines -> $line {
+        next unless $line ~~ / ^ \h* (\d+) \h* <[:.)]> \h* (\N+) /;
+        my ($n, $text) = +$0, (~$1).trim;
+        next unless 1 <= $n <= +@items && $text ne '';
+        next if too-long($text, @items[$n - 1][1]);
+        %out{$n - 1} = $text;
+    }
+    %out;
+}
+
 #| The prompt for a first draft of what a system is for and who it is
 #| for, read off the repository.  The reply is two lines.
 sub purpose-prompt(Str :$evidence = '' --> Str) is export {
@@ -866,7 +931,9 @@ sub purpose-prompt(Str :$evidence = '' --> Str) is export {
     Read the evidence below and answer two questions in plain words, one
     sentence each, as the people who own this would say it.  Say what it
     is for, not how it is built: no frameworks, languages or file names.
-    If you cannot tell, say what you can and keep it short.
+    If you cannot tell, say what you can and keep it short.  Each answer
+    is at most 20 words: a person reads these two lines before every
+    change, so they must take a breath to read, not a minute.
 
     Reply with exactly two lines and nothing else:
     FOR WHAT: <what this system is for>
@@ -900,9 +967,11 @@ sub reword-prompt(Str :$id!, Str :$text!, Str :$because = '', Str :$failure = ''
     {$failure || '(nothing)'}
 
     Write the invariant again so that it says what is true of the software
-    now, keeping as much of the original promise as still holds.  One or
-    two plain sentences.  No implementation detail.  If you cannot tell
-    what is true now, say so instead.
+    now, keeping as much of the original promise as still holds.  One
+    plain sentence of at most {DRAFT-WORDS} words, and no longer than the original
+    unless it must be.  No implementation detail, lists or exceptions: an
+    IZ4 is not a specification.  If you cannot tell what is true now, say
+    so instead.
 
     Reply with exactly one line and nothing else:
     INVARIANT: <the new words>
@@ -931,7 +1000,7 @@ sub revise-invariant(IO::Path $path, Str $ref, Str $text --> Str) is export {
 
 #| The prompt for repository analysis.  Its job is to keep IZ4 small.
 sub suggest-prompt(Str :$current = '', Str :$evidence = '' --> Str) is export {
-    q:to/END/ ~ ($current.trim || '(none yet)') ~ "\n\nEvidence from the codebase:\n" ~ $evidence ~ "\n";
+    q:to/END/.subst('BREVITY-RULE', brevity-rule().chomp) ~ ($current.trim || '(none yet)') ~ "\n\nEvidence from the codebase:\n" ~ $evidence ~ "\n";
     You are helping a developer find the few enduring invariants of the
     system in this repository, for its IZ4 file.
 
@@ -968,8 +1037,9 @@ sub suggest-prompt(Str :$current = '', Str :$evidence = '' --> Str) is export {
     - For IMPLEMENTATION and NOT IZ4 give at most 3 of the most tempting
       examples, so the developer sees why they were left out.
 
+    BREVITY-RULE
     Reply with one item per line and nothing else, in exactly this form:
-    STRONG | what must remain true, in one sentence | BECAUSE: why it must survive | evidence
+    STRONG | what must remain true, in one short sentence | BECAUSE: why it must survive, shorter still | evidence
     POSSIBLE | the candidate | the question only the owner can answer
     IMPLEMENTATION | what you observed | where it belongs instead
     NOT IZ4 | what you observed | where it belongs instead

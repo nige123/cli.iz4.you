@@ -35,6 +35,7 @@ ok $rc == 1 && !$iz4.slurp.contains('PostgreSQL'), 'an implementation choice is 
 # suggestions to an agent are capped and told to keep the file small
 my $prompt = suggest-prompt(current => '', evidence => 'x').words.join(' ');
 like $prompt, /'Do not try to make IZ4 complete. Try to make it small.'/, 'the agent is told to keep it small';
+like $prompt, /'at most 25 words'/, 'and to keep each invariant brief, so the file is read and not skimmed';
 is parse-suggestions((1..40).map({ "STRONG | Rule $_. | because | t" }).join("\n"))<strong>.elems, 5, 'a flood of candidates is capped before a person sees it';
 
 done-testing;

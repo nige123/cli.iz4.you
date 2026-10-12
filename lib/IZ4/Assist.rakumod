@@ -23,7 +23,30 @@ sub agent-suggest(IO::Path $dir = $*CWD, Str :$cmd, Str :$current = '' --> Hash)
     my $prompt = suggest-prompt(:$current, evidence => gather-context($dir));
     die NO-AGENT-RUNNER unless agent-reachable(:$cmd);
     note "asking agent ({$cmd // agent-label()}) for candidate invariants in {$dir.resolve} ...";
-    parse-suggestions(ask-agent($prompt, :root($dir), :$cmd));
+    my %s = parse-suggestions(ask-agent($prompt, :root($dir), :$cmd));
+    # every drafted line a person is about to read, with the most it may run to
+    my (@where, @items);
+    my sub slot(%c, $key, $limit) { @where.push: (%c, $key); @items.push: (%c{$key} // '', $limit) }
+    for %s<strong>.list   -> %c { slot(%c, 'text', DRAFT-WORDS); slot(%c, 'because', DRAFT-BECAUSE-WORDS) }
+    for %s<possible>.list -> %c { slot(%c, 'text', DRAFT-WORDS) }
+    my @short = shorter(@items, :root($dir), :$cmd);
+    for @where.kv -> $i, ($c, $key) { $c{$key} = @short[$i] }
+    %s;
+}
+
+#| Drafts that run long are asked for again, shorter, in one more pass.
+#| The same number of lines comes back in the same order.  Where the
+#| agent fails, or its second try is no shorter, the first draft stands:
+#| a long draft a person can cut is better than none, and the person is
+#| told it is long.
+sub shorter(@items, IO::Path :$root = $*CWD, Str :$cmd --> List) is export {
+    my @long = @items.grep({ too-long($_[0], $_[1]) }, :k);
+    return @items.map(*[0]).List unless @long;
+    my @ask = @items[@long];
+    my %got = (try parse-shorter(ask-agent(shorten-prompt(@ask), :$root, :$cmd), @ask)) // %();
+    my @out = @items.map(*[0]);
+    for @long.kv -> $i, $at { @out[$at] = $_ with %got{$i} }
+    @out.List;
 }
 
 
@@ -31,14 +54,20 @@ sub agent-suggest(IO::Path $dir = $*CWD, Str :$cmd, Str :$current = '' --> Hash)
 #| agent fails; an empty hash when its reply had no usable answer.
 sub agent-purpose(IO::Path $dir = $*CWD, Str :$cmd --> Hash) is export {
     die NO-AGENT-RUNNER unless agent-reachable(:$cmd);
-    parse-purpose(ask-agent(purpose-prompt(evidence => gather-context($dir)), :root($dir), :$cmd));
+    my %p = parse-purpose(ask-agent(purpose-prompt(evidence => gather-context($dir)), :root($dir), :$cmd));
+    return %p unless %p;
+    my ($what, $who) = shorter(((%p<for-what>, DRAFT-WORDS), (%p<for-who>, DRAFT-WORDS)), :root($dir), :$cmd);
+    %( for-what => $what, for-who => $who );
 }
 
 #| New words for an invariant the software has moved on from.  Str when
 #| the agent could not say; dies when it fails.
 sub agent-reword(IO::Path $root, Str :$id!, Str :$text!, Str :$because = '', Str :$failure = '', Str :$cmd --> Str) is export {
     die NO-AGENT-RUNNER unless agent-reachable(:$cmd);
-    parse-reword(ask-agent(reword-prompt(:$id, :$text, :$because, :$failure, evidence => gather-context($root)), :$root, :$cmd));
+    my $new = parse-reword(ask-agent(reword-prompt(:$id, :$text, :$because, :$failure, evidence => gather-context($root)), :$root, :$cmd));
+    return $new without $new;
+    # words that were already long may stay as long as they were, never longer
+    shorter((($new, max(DRAFT-WORDS, draft-words($text))),), :$root, :$cmd)[0];
 }
 
 #| Ask the agent command for a draft.  Dies when the agent fails.

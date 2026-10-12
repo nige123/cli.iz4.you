@@ -256,6 +256,42 @@ is %s<possible>[0]<question>, 'Is sharing with partners ever acceptable?', 'poss
 is %s<implementation>.elems + %s<not-iz4>.elems, 2, 'implementation and not-IZ4 items are recognised';
 is %s<strong>[0]<because>, '1', "a leading 'because' is stripped from the suggested BECAUSE";
 
+# ---- drafts are brief: the prompts say so, and a long one is asked for again --
+like $prompt, /'at most 25 words'/, 'the agent is given a word budget for an invariant';
+like $prompt, /'not a specification'/, 'and told an IZ4 is not a specification';
+like purpose-prompt(evidence => 'x'), /'at most 20 words'/, 'what it is for and who for are budgeted too';
+like reword-prompt(id => 'a.example.com', text => 'Old.', evidence => 'x'), /'at most 25 words'/, 'and so are new words for an old invariant';
+my $wordy = ('word' xx 40).join(' ') ~ '.';
+ok too-long($wordy) && !too-long('Payment details never leave the payment system.'), 'a draft past the budget is too long; a plain sentence is not';
+my @asked = ($wordy, 25), ($wordy, 20);
+like shorten-prompt(@asked), /'1 (at most 25 words): word' .* '2 (at most 20 words): word'/, 'a long draft is sent back with its own limit';
+is-deeply parse-shorter("1: Short now.\n2: $wordy\n3: Not asked for.\nchatter", @asked), %( 0 => 'Short now.' ),
+    'only a shorter answer to a line that was asked about is taken';
+{
+    my $d = temp-dir;
+    my $count = $d.add('asked');
+    # an agent that drafts long, and says it shorter when asked to
+    my $cmd = "echo x >> $count; if grep -q 'They are too long'; then echo '1: Payments stay private.'; echo '2: People trust it.'; else echo 'STRONG | $wordy | BECAUSE: $wordy | README'; echo 'POSSIBLE | Short one. | Is it?'; fi";
+    my %got = agent-suggest($d, :$cmd);
+    is %got<strong>[0]<text>, 'Payments stay private.', 'a long drafted invariant comes back shorter';
+    is %got<strong>[0]<because>, 'People trust it.', 'and so does a long reason';
+    is %got<possible>[0]<text>, 'Short one.', 'a draft that was already brief is left alone';
+    is $count.lines.elems, 2, 'which takes one more pass, not one per line';
+    # an agent that cannot say it shorter: the first draft stands
+    $count.unlink;
+    %got = agent-suggest($d, cmd => "echo x >> $count; cat >/dev/null; echo 'STRONG | $wordy | BECAUSE: why | README'");
+    is %got<strong>[0]<text>, $wordy, 'when the agent will not shorten it, the first draft stands for the person to cut';
+    is $count.lines.elems, 2, 'after one try, not a loop';
+    # brief drafts cost no second pass
+    $count.unlink;
+    agent-suggest($d, cmd => "echo x >> $count; cat >/dev/null; echo 'STRONG | Brief. | BECAUSE: why | README'");
+    is $count.lines.elems, 1, 'brief drafts are not sent back';
+    is-deeply agent-purpose($d, cmd => "if grep -q 'They are too long'; then echo '1: Keeping promises.'; else echo 'FOR WHAT: $wordy'; echo 'FOR WHO: Developers.'; fi"),
+        %( for-what => 'Keeping promises.', for-who => 'Developers.' ), 'a long answer to what it is for is shortened too';
+    is agent-reword($d, id => 'a.example.com', text => 'Old words.', cmd => "if grep -q 'They are too long'; then echo '1: New words.'; else echo 'INVARIANT: $wordy'; fi"),
+        'New words.', 'and so are new words for an invariant the software moved on from';
+}
+
 my $agent-dir = temp-dir;
 throws-like { agent-suggest($agent-dir, :cmd('false')) }, X::AdHoc, message => /'agent command failed'/,
     'a failing agent is an error, never an invented answer';
