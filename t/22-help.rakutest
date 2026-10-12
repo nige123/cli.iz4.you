@@ -82,19 +82,12 @@ subtest 'actions are words' => {
     ok run-iz4('init', '--namespace=shop.example.com', '--for-what=Taking orders.', '--for-who=People buying things.', '--/agents')<code> == 0, 'an IZ4 to work on';
     my $file = $dir.add('IZ4');
     like run-iz4('foundation', 'restore')<out>, / 'already there' /, 'iz4 foundation restore';
-    # the comment an earlier iz4 wrote above the foundation named the flag: restore leaves no line of it behind
+    # the foundation as an earlier iz4 wrote it, its last invariant under the name it had then: restore brings it up to date
     my $current = $file.slurp;
-    $file.spurt($current.subst("# The foundation: the same words: the same words in every IZ4.\n"
-            ~ "# Invariant Zero, humans-first.iz4.you, is the foundation of the foundation.\n"
-            ~ "# If any of it goes missing or changes, 'iz4 check' says so and\n"
-            ~ "# 'iz4 foundation restore' puts it back.",
-        "# The foundation. Every IZ4 carries these five invariants word for word;\n"
-            ~ "# 'iz4 check' refuses a file where they are missing or altered, and\n"
-            ~ "# 'iz4 foundation --restore' puts them back.")
-        .subst('The foundation is these invariants:', 'The foundation is five invariants:'));
-    isnt $file.slurp, $current, 'a file as iz4 0.16.2 wrote it';
+    $file.spurt($current.subst('binding.iz4.you:', 'keystone.iz4.you:'));
+    isnt $file.slurp, $current, 'a file as iz4 0.18 wrote it';
     run-iz4('foundation', 'restore');
-    is $file.slurp, $current, 'restore replaces the comment earlier versions wrote, whichever way it named the command';
+    is $file.slurp, $current, 'restore brings it up to date';
     is run-iz4('foundation', '--restore')<out>, run-iz4('foundation', 'restore')<out>, 'the flag still works, for scripts written before';
     is run-iz4('test', 'list')<out>, run-iz4('test', '--list')<out>, 'iz4 test list';
     is run-iz4('migrate', 'preview')<out>, run-iz4('migrate', '--dry-run')<out>, 'iz4 migrate preview';

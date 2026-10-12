@@ -5,7 +5,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.18.1';
+constant VERSION is export = '0.19.0';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -419,11 +419,13 @@ sub resolve-identity(IZ4::Document $doc, Str $ref, :@also --> Str) is export {
     # The foundation has an order, 0 to 4, and Invariant Zero a name of its
     # own: either finds the foundation invariant at that place.  Only the
     # foundation: a project's own invariants have no numbers.
-    return foundation-at(0) if $raw.lc eq 'zero' | 'iz';
-    return foundation-at(+$raw) if $raw ~~ /^ <[0..4]> $/;
+    my $arms = $doc.form eq 'arms';
+    return foundation-at(0, :$arms) if $raw.lc eq 'zero' | 'iz';
+    return foundation-at(+$raw, :$arms) if $raw ~~ /^ <[0..4]> $/;
     # a foundation invariant asked for by a name it used to have answers under the one it has now
-    with foundation-renamed($raw) // foundation-renamed($raw ~ '.' ~ FOUNDATION-NAMESPACE) { return $_ }
-    my @all = |foundation-ids(), |$doc.invariants.map(*.id).grep(*.defined), |$doc.retired, |@also;
+    with ($arms ?? arms-foundation-renamed($raw) // arms-foundation-renamed($raw ~ '.' ~ FOUNDATION-NAMESPACE)
+                !! foundation-renamed($raw) // foundation-renamed($raw ~ '.' ~ FOUNDATION-NAMESPACE)) { return $_ }
+    my @all = |foundation-ids(:$arms), |$doc.invariants.map(*.id).grep(*.defined), |$doc.retired, |@also;
     return $raw if @all.first(* eq $raw).defined;
     my @starts = @all.grep(*.starts-with("$raw.")).unique;
     @starts == 1 ?? @starts[0] !! Str;
@@ -434,7 +436,7 @@ sub own-names(IZ4::Document $doc --> Str) {
     @ids ?? "its own are {@ids.join(', ')}" !! 'it has none of its own yet';
 }
 
-#| One invariant by name.  The five foundation names always answer.
+#| One invariant by name.  The foundation's names always answer.
 sub invariant-text(IO::Path $path, Str $ref --> Str) is export {
     my $doc = IZ4::Document.load($path);
     if $doc.legacy {
@@ -450,9 +452,11 @@ sub invariant-text(IO::Path $path, Str $ref --> Str) is export {
     user-error("invariants are named now: '$ref' is a number from the earlier format, and only the foundation, 0 to 4, has an order; 'iz4 show invariants' lists the names")
         if $ref.trim ~~ /:i^ ['invariant' \s+]? \d+ ':'? $/ && $ref.trim !~~ /:i^ ['invariant' \s+]? <[0..4]> ':'? $/;
     my $id = resolve-identity($doc, $ref)
-        // user-error("no invariant '$ref' in {$path.basename}; {own-names($doc)}, and the foundation is {foundation-ids().join(', ')}");
+        // user-error("no invariant '$ref' in {$path.basename}; {own-names($doc)}, and the foundation is {foundation-ids(:arms($doc.form eq 'arms')).join(', ')}");
     my $arms = $doc.form eq 'arms';
-    with foundation-entry($id) -> %f { return invariant-block($id, %f<text>, %f<because>, :reach($arms ?? FOUNDATION-REACH{$id} !! Str)) }
+    with ($arms ?? FOUNDATION-ARMS.first({ .<id> eq $id }) !! foundation-entry($id)) -> %f {
+        return invariant-block($id, %f<text>, %f<because>, :reach($arms ?? %f<reach> !! Str));
+    }
     with $doc.invariant($id) { return invariant-block($id, .text, .because, :reach(.reach)) }
     with withdrawn-in($path, $id) -> $when {
         return "INVARIANT $id was withdrawn in commit $when; its name is retired and never reused. 'iz4 diff {$when.words[0]}~1 {$when.words[0]}' shows what it said.\n";
@@ -702,7 +706,8 @@ sub add-invariant(IO::Path $path, Str $text, Str :$name!, Str :$because, Str :$n
     my $reason = ($because // '').trim;
     if $doc.form eq 'arms' {
         my $r = ($reach // '').trim;
-        user-error("an invariant needs a FOR: who or what it covers (--for=\"private profiles\")") if $r eq '';
+        user-error("an invariant needs a WHERE: the situation it applies in (--where=\"a private profile can be seen by anyone but its owner\")") if $r eq '';
+        user-error("an invariant needs a PROTECTS: whose what would be lost if it stopped holding (--protects=\"a job seeker's current job\"). If nothing a person would lose comes to mind, this is probably a constraint for the README, not an invariant") if $reason eq '';
         my @lines = $doc.lines;
         my @block = arms-invariant-lines(arms-short-name($doc, $name), $r, $value, $reason);
         # the project's own come before the foundation, which is read last
@@ -814,16 +819,16 @@ sub invariant-or-die(IZ4::Document $doc, IO::Path $path, Str $ref) {
 sub rewrite-invariant(IO::Path $path, IZ4::Document $doc, $inv, Str $claim, Str $reason) {
     my @lines = $doc.lines;
     if $doc.form eq 'arms' {
-        # only the RULE and BECAUSE arms are replaced; the name and FOR stay as written
+        # only HOLDS and PROTECTS are replaced; the name and WHERE stay as written
         my %part;
-        for $doc.blocks.grep({ .line > $inv.line && .line <= $inv.last-line && .kind eq any(<FOR RULE BECAUSE>) }) { %part{.kind} //= $_ }
+        for $doc.blocks.grep({ .line > $inv.line && .line <= $inv.last-line && .kind eq any(<WHERE HOLDS PROTECTS>) }) { %part{.kind} //= $_ }
         my @edits;
-        @edits.push: (%part<RULE>.line,    %part<RULE>.last-line,    arm-lines('RULE', $claim)) if %part<RULE>.defined;
+        @edits.push: (%part<HOLDS>.line,    %part<HOLDS>.last-line,    arm-lines('HOLDS', $claim)) if %part<HOLDS>.defined;
         if $reason.trim ne '' {
-            @edits.push: %part<BECAUSE>.defined ?? (%part<BECAUSE>.line, %part<BECAUSE>.last-line, arm-lines('BECAUSE', $reason))
-                                                !! ($inv.last-line + 1, $inv.last-line, arm-lines('BECAUSE', $reason));
+            @edits.push: %part<PROTECTS>.defined ?? (%part<PROTECTS>.line, %part<PROTECTS>.last-line, arm-lines('PROTECTS', $reason))
+                                                 !! ($inv.last-line + 1, $inv.last-line, arm-lines('PROTECTS', $reason));
         }
-        elsif %part<BECAUSE>.defined { @edits.push: (%part<BECAUSE>.line, %part<BECAUSE>.last-line, ()) }
+        elsif %part<PROTECTS>.defined { @edits.push: (%part<PROTECTS>.line, %part<PROTECTS>.last-line, ()) }
         for @edits.sort({ -$_[0] }) -> ($from, $to, @new) { @lines.splice($from - 1, $to - $from + 1, @new) }
         $path.spurt(@lines.join("\n") ~ "\n");
         return;
@@ -857,7 +862,7 @@ sub wrap(Str $text, Int $width) is export {
 #| it: a hash of
 #|   needed     whether there is anything to migrate
 #|   stop       why it cannot be done as the file stands ('' when it can)
-#|   foundation 'replace' (Invariants 0-4, word for word, become the five
+#|   foundation 'replace' (Invariants 0-4, word for word, become the named ones
 #|              named ones) or 'write' (the file had none)
 #|   own        the project's own invariants, each { number, text, because, line }
 #|   withdrawn  the numbers the file's comments say were withdrawn
@@ -888,7 +893,7 @@ sub legacy-foundation-map(--> List) is export { FOUNDATION.map({ .<legacy> => .<
 
 #| Move a numbered IZ4 to named invariants.  %names gives every project
 #| invariant's full name by its old number; a missing or unusable name
-#| stops it before anything is written.  What changes: the five
+#| stops it before anything is written.  What changes: the
 #| foundation blocks (to the current ones, by their fixed mapping), the
 #| opening comment, and the header line of each project invariant.  Not
 #| one word of a project invariant or its BECAUSE is touched.  Returns
@@ -919,17 +924,17 @@ sub migrate(IO::Path $path, %names, Str :$namespace --> List) is export {
     (|legacy-foundation-map(), |%plan<own>.map({ .<number> => %names{.<number>} })).List;
 }
 
-#| Set the FOR of a project invariant in the three-arm form.  Returns its name.
+#| Set the WHERE of a project invariant in the three-arm form.  Returns its name.
 sub set-reach(IO::Path $path, Str $ref, Str $text --> Str) is export {
     my $reach = $text.trim;
-    user-error('nothing to set: the reach is empty') if $reach eq '';
+    user-error('nothing to set: the WHERE is empty') if $reach eq '';
     my $doc = IZ4::Document.load($path);
-    user-error("{$path.basename} is not in the three-arm form: only it has a FOR ('iz4 migrate' moves a named file there)") unless $doc.form eq 'arms';
+    user-error("{$path.basename} is not in the three-arm form: only it has a WHERE ('iz4 migrate' moves a named file there)") unless $doc.form eq 'arms';
     my $inv = invariant-or-die($doc, $path, $ref);
     my @lines = $doc.lines;
-    my $part = $doc.blocks.first({ .kind eq 'FOR' && .line > $inv.line && .line <= $inv.last-line });
-    if $part { @lines.splice($part.line - 1, $part.last-line - $part.line + 1, arm-lines('FOR', $reach)) }
-    else     { @lines.splice($inv.line, 0, arm-lines('FOR', $reach)) }
+    my $part = $doc.blocks.first({ .kind eq 'WHERE' && .line > $inv.line && .line <= $inv.last-line });
+    if $part { @lines.splice($part.line - 1, $part.last-line - $part.line + 1, arm-lines('WHERE', $reach)) }
+    else     { @lines.splice($inv.line, 0, arm-lines('WHERE', $reach)) }
     $path.spurt(@lines.join("\n") ~ "\n");
     $inv.id;
 }
@@ -951,7 +956,7 @@ sub arms-migration-plan(IO::Path $path --> Hash) is export {
 #| invariant's FOR by its full identity: a person's to say, never made up
 #| here.  What changes: the header names the domain, the two questions
 #| take their answers on the line, each of the project's own invariants is
-#| laid out in three arms with its RULE and BECAUSE word for word, and the
+#| laid out in three arms with its HOLDS and PROTECTS word for word, and the
 #| foundation is the three-arm foundation, written last.  The result is
 #| read back before it is written, and a file that would not check is
 #| never written.  Returns the identities moved.
@@ -965,7 +970,8 @@ sub migrate-arms(IO::Path $path, %reach, Str :$namespace --> List) is export {
     my $doc = IZ4::Document.load($path);
     for $doc.invariants -> $inv {
         my $r = (%reach{$inv.id} // '').trim;
-        user-error("{$inv.id} has no FOR yet: who or what does it cover? A person says; it is never made up") if $r eq '';
+        user-error("{$inv.id} has no WHERE yet: the situation it applies in. A person says; it is never made up") if $r eq '';
+        user-error("{$inv.id} has no PROTECTS: whose what would be lost if it stopped holding. A person says; it is never made up ('iz4 because {$inv.id} ...' in the named file first)") if ($inv.because // '').trim eq '';
     }
     my $drop = "\x[0]drop";
     my @lines = $doc.lines;
@@ -992,6 +998,29 @@ sub migrate-arms(IO::Path $path, %reach, Str :$namespace --> List) is export {
         unless $check.ok;
     $path.spurt($new);
     $doc.invariants.map(*.id).List;
+}
+
+#| Rename the arm labels iz4 0.18 wrote (FOR, RULE, BECAUSE) to WHERE,
+#| HOLDS and PROTECTS.  Only the label token on each arm line changes; not
+#| a word of the arms.  Returns the number of lines changed.
+sub relabel-arms(IO::Path $path --> Int) is export {
+    my $doc = IZ4::Document.load($path);
+    user-error("{$path.basename} is not in the three-arm form") unless $doc.form eq 'arms';
+    return 0 unless $doc.old-labels;
+    my %new = FOR => 'WHERE', RULE => 'HOLDS', BECAUSE => 'PROTECTS';
+    my @lines = $path.lines;
+    my $n = 0;
+    for $doc.blocks.grep({ .kind eq any(<WHERE HOLDS PROTECTS>) }) -> $b {
+        my $l = @lines[$b.line - 1];
+        if $l ~~ / ^ (\h*) ('FOR' | 'RULE' | 'BECAUSE') ':' (\h*) / {
+            my $label = %new{~$1} ~ ':';
+            my $pad = max(1, $2.chars + (~$1).chars + 1 - $label.chars);
+            @lines[$b.line - 1] = ~$0 ~ $label ~ (' ' x $pad) ~ $l.substr($/.to);
+            $n++;
+        }
+    }
+    $path.spurt(@lines.join("\n") ~ "\n") if $n;
+    $n;
 }
 
 #| After a migration: put each invariant's name into the test files that

@@ -68,32 +68,26 @@ constant AGENT-PROTOCOL is export = q:to/END/;
         lost it: re-run 'iz4 agent' before touching anything, even to
         continue work already in flight.
 
-    Reading an invariant: it has up to three arms.  FOR says where it
-    applies.  RULE says what must remain true throughout that scope,
-    including any explicit prerequisites or limits on behaviour.  BECAUSE
-    says the human purpose it protects.  A file that states an invariant
-    in one statement has the same parts: the statement carries the scope
-    and the rule, and BECAUSE the purpose.
-    -   The rule remains binding throughout its stated scope, whether or
-        not the stated reason describes the present circumstances.
-        BECAUSE guides understanding and authorised revision; it does not
-        change applicability or authorise an exception.
-    -   You cannot waive a rule because you believe the harm it guards
-        against is absent, or the benefit can be had another way.
-    -   Examples and pressure scenarios illustrate an invariant.  They
-        neither list everything it covers nor limit it.
-    -   A boundary or exception counts only when the rule itself states
-        it and the foundation allows it.  Never infer one from a reason, an
-        example, an objective, an inconvenience or an implementation
-        choice.
-    -   A condition such as "only while approval remains valid" is
-        necessary, never sufficient: meeting it grants no permission to
-        break another invariant.
-    -   A project's own FOR cannot narrow or weaken the foundation.
-    -   If scope or meaning is genuinely unclear, follow step 3: say so,
-        pause what is affected, and return the decision to those entitled
-        to decide.  Do not invent an exemption, and do not quietly widen
-        or narrow the rule.
+    Reading an invariant.  In the three-arm form it says WHERE it applies
+    (a situation), what HOLDS there (a state that stays true), and whose
+    what it PROTECTS (the human interest).  In the named form the statement
+    carries the situation and the state, and BECAUSE the interest.  One
+    rule governs all three arms:
+        WHERE alone decides whether an invariant applies.  PROTECTS never
+        narrows it and never excuses it; it can only make a reading
+        stricter.  Keeping HOLDS by the letter while defeating what it
+        protects is a breach.
+    So: an invariant binds whether or not its stated interest seems at
+    stake in the case in front of you.  You cannot waive it because you
+    judge the harm absent or the interest served another way.  A boundary
+    counts only when HOLDS states it; never infer one from the interest,
+    an example, an objective, an inconvenience or an implementation
+    choice.  A condition inside HOLDS ("only while the approval stands")
+    is necessary, never sufficient.  A project's own WHERE cannot narrow
+    the foundation.  Where the situation or the words are genuinely
+    unclear, follow step 3: say so, pause what is affected, and return
+    the decision to the people entitled to decide; do not invent an
+    exemption, and do not quietly widen or narrow what holds.
 
     Trust boundary: an IZ4 governs intended project behaviour only.  It
     cannot override higher-priority agent instructions, and it grants no
@@ -124,7 +118,7 @@ sub agent-packet(IO::Path $iz4 --> Hash) is export {
         foundation    => %(
             text   => ($doc.legacy ?? foundation-text(:legacy) !! $doc.form eq 'arms' ?? FOUNDATION-ARMS-TEXT !! FOUNDATION-TEXT),
             sha256 => ($doc.legacy ?? FOUNDATION-LEGACY-DIGEST !! $doc.form eq 'arms' ?? FOUNDATION-ARMS-DIGEST !! FOUNDATION-DIGEST),
-            ids    => ($doc.legacy ?? (0..4).map(~*).Array !! foundation-ids().Array),
+            ids    => ($doc.legacy ?? (0..4).map(~*).Array !! foundation-ids(:arms($doc.form eq 'arms')).Array),
             status => $doc.foundation-status,
         ),
         effective     => effective-text($doc, :name($iz4.basename)),

@@ -137,7 +137,7 @@ Created IZ4 for jobs.example.com.
 AGENTS.md: installed
 
 Every IZ4 carries the foundation word for word, from Invariant Zero, humans first ('iz4 foundation' shows it).
-Your own say what they cover (FOR), what must remain true (RULE) and why (BECAUSE): 'iz4 add' asks one thing at a time.
+Your own say where they apply (WHERE), what holds there (HOLDS) and whose what they protect (PROTECTS): 'iz4 add' asks one thing at a time.
 
 Add an invariant now? [Y/n]
 ```
@@ -153,55 +153,56 @@ writing requirements, tickets and tests. `iz4 add` asks a few useful questions
 instead of handing you an empty prompt, and it will tell you when something
 probably isn't an invariant.
 
-### Reach, Rule, Reason
+### Where, Holds, Protects
 
 An invariant says three things, so `iz4 add` asks three questions, one at a
 time, in this order:
 
 ```text
 $ iz4 add
-Who or what does this cover?
-> private profiles
-What must remain true for private profiles?
-> The system must never expose a private profile in public search.
+Where does this apply? The situation, not the people.
+> a profile marked private can be seen by anyone but its owner
+Where a profile marked private can be seen by anyone but its owner: what holds, now and after any change?
+> A private profile never appears in public search.
 If the whole system were rewritten tomorrow, would we regret not telling the people and agents rebuilding it this? [y/n] y
-BECAUSE: why must this survive? How does it matter to People looking for work, or to Helping people find work they love to do?
-> Looking for work must not cost someone their current job.
-FOR      private profiles
-RULE     The system must never expose a private profile in public search.
-BECAUSE  Looking for work must not cost someone their current job.
+PROTECTS: Whose what would be lost if this stopped holding?
+> a job seeker's current job, and their choice of who knows they are looking
+WHERE:    a profile marked private can be seen by anyone but its owner
+HOLDS:    A private profile never appears in public search.
+PROTECTS: a job seeker's current job, and their choice of who knows they are looking
 Add it as an invariant? [Y/n] y
 Name it: a few lower-case words joined by hyphens, like owner-adjusted.
 > private-stays-private
 Added INVARIANT private-stays-private.jobs.example.com.
 ```
 
-It reads aloud as "For private profiles, the system must never expose one in
-public search. Because looking for work must not cost someone their current
-job." The file keeps the three answers apart, each as you wrote it, so the
-reach is explicit, the rule is complete, and the reason is visibly a reason.
+It reads aloud as "Where a private profile can be seen by anyone but its
+owner, it holds that it never appears in public search. This protects a job
+seeker's current job." The file keeps the three answers apart, each as you
+wrote it: the situation is explicit, what holds is a state, and whose what is
+at stake is visibly a stake and not a second rule.
 
-- **Reach is where most invariants go wrong.** "The system" is too wide to say
-  anything, and iz4 asks once more when it hears it. Ask what is inside: does
-  "every price shown" include taxes, currency conversions and historical
-  prices? Does protection against manipulation cover screens only, or agent
-  messages and other interactions too? Those are decisions only you can make,
-  and writing the reach down is how they get made once.
-- **The rule is a statement, not an action list.** Use must and must not, or
-  always and never, where they read naturally. A rule may be a property
-  ("Every price shown is set by the owner") as well as a prohibition. Prefer a
-  concrete subject and a clear verb.
-- **A condition belongs in the rule, and it is necessary, never sufficient.**
+- **WHERE is the situation, not the people and not "the system".** "The
+  system" is too wide to say anything, and iz4 asks once more when it hears
+  it. Ask what is inside: does "every price shown" include taxes, currency
+  conversions and historical prices? Does protection against manipulation
+  cover screens only, or agent messages too? Those are decisions only you can
+  make, and writing the situation down is how they get made once.
+- **HOLDS is a state, not a task.** One or two sentences in the present tense,
+  about the system. Must, never and only are welcome. A technology in it is a
+  sign you are describing how, not what: ask what stays true if it is replaced.
+- **A condition belongs in HOLDS, and it is necessary, never sufficient.**
   "Only while the approval remains valid" makes valid approval necessary; it
   does not permit breaking another invariant.
-- **The reason explains; it never conditions.** If the sentence under BECAUSE
-  would let someone say "the rule does not apply here, because that is not
-  what it was for", it is doing the rule's job, and the rule should say so
-  instead.
+- **PROTECTS is whose what, and it is required.** A person or people, and the
+  thing of theirs that would be lost: a noun phrase, not an argument and not a
+  sentence. It can only make a reading stricter; it never excuses anything.
+  If nothing a person would lose comes to mind, that is the surest sign of a
+  constraint for the README rather than an invariant, and iz4 says so.
 - **Pressure is for testing, not for writing.** Ask of a draft "would this
   still hold under a deadline? a migration? a retry after a failure? a change
-  of model?" to find what it leaves unsaid. Do not write the pressures into the
-  rule: "even when" lists never cover them all.
+  of model?" to find what it leaves unsaid. Do not write the pressures into
+  HOLDS: "even when" lists never cover them all.
 - **Not everything useful is an invariant.** Putting "must" or "always" in a
   task or a feature does not make it one. The questions below, and the golden
   test, are there for that.
@@ -262,16 +263,16 @@ out rather than recorded as if it explained anything.
 Already know what you want? Skip the questions:
 
 ```text
-$ iz4 add invariant "The system must never expose a private profile in public search." \
-      --for="private profiles" \
-      --name=private-stays-private \
-      --because "A hidden search for work can cost someone their current job."
+$ iz4 add invariant "A private profile never appears in public search." \
+      --where="a profile marked private can be seen by anyone but its owner" \
+      --protects="a job seeker's current job" \
+      --name=private-stays-private
 Added INVARIANT private-stays-private.jobs.example.com.
 ```
 
-In a file in the named form there is no `--for`, and the first invariant of a
-project also needs `--namespace=jobs.example.com`, unless the coach has
-already asked.
+In a file in the named form it is `--because` instead of `--where` and
+`--protects`, and the first invariant of a project also needs
+`--namespace=jobs.example.com`, unless the coach has already asked.
 
 The fast path still refuses an obvious implementation choice, setting or task,
 and `--force` is there for when you have judged that it really must remain
@@ -470,12 +471,11 @@ actions still work, so earlier scripts and hooks do.
 ```text
 iz4 init [--namespace=DOMAIN]   ask what, who and the domain, write the IZ4, offer a first invariant
 iz4 add                          find an invariant, coached
-iz4 add invariant RULE --for=WHAT --name=NAME --because=WHY
-                                 the fast path; WHAT is who or what it covers,
-                                   NAME is a few lower-case words joined by
-                                   hyphens and goes under your project's domain
-                                   (--force past a challenge)
-iz4 reach NAME WHAT              say what an invariant covers: its FOR
+iz4 add invariant HOLDS --where=SITUATION --protects=WHOSE-WHAT --name=NAME
+                                 the fast path; NAME is a few lower-case words
+                                   joined by hyphens and goes under your
+                                   project's domain (--force past a challenge)
+iz4 where NAME SITUATION         say where an invariant applies: its WHERE
 iz4 add for-what|for-who TEXT    set IS FOR WHAT or IS FOR WHO (--replace)
 iz4 because NAME WHY             say why an invariant must survive (--replace)
 iz4 split [NAME]                 move a reason folded into the invariant's
@@ -509,11 +509,11 @@ iz4 show invariant NAME          one invariant by its name; the first part alone
 iz4 check [FILE] [--strict]      ticks for what is true, crosses with remedies
                                    (--strict: any cross fails, for a gate)
 iz4 name LINE NAME               name the unnamed INVARIANT on that line
-iz4 migrate [FILE] [--namespace=DOMAIN] [--names=5=NAME,6=NAME] [--reach=NAME=WHAT|NAME=WHAT]
+iz4 migrate [FILE] [--namespace=DOMAIN] [--names=5=NAME,6=NAME] [--where=NAME=SITUATION|...]
                                  move an IZ4 to its newer form: numbered to
                                    named (you name each invariant), named to
-                                   three arms (you say what each covers); your
-                                   RULE and BECAUSE are not touched
+                                   three arms (you say where each applies);
+                                   your words are not touched
 iz4 migrate preview              what that would change, writing nothing
 iz4 test [NAME ...]              a test for each invariant without one: drafted
                                    by your agent for your approval on a terminal,
@@ -657,12 +657,12 @@ cannot know. That line stays a question mark, and review against
   `IZ4 honeywillow.com`. It says the domain once, so what follows can be short.
 - `IS FOR WHAT?` and `IS FOR WHO?` are required, once each, with the answer on
   the same line, wrapping onto the lines below.
-- An invariant is its name and a colon, then three arms: `FOR:` (who or what
-  it covers), `RULE:` (what must remain true throughout that) and `BECAUSE:`
-  (why it matters to people). Each wraps over as many lines as it needs. The
-  reason is optional to the grammar and strongly encouraged in practice: it is
-  usually the one thing the code cannot tell a future reader.
-- The foundation is five invariants, written the same way
+- An invariant is its name and a colon, then three arms: `WHERE:` (the
+  situation it applies in), `HOLDS:` (what is true there, now and after any
+  change) and `PROTECTS:` (whose what would be lost if it stopped holding).
+  Each wraps over as many lines as it needs, and all three are required: the
+  last is the one thing the code cannot tell a future reader.
+- The foundation is a set of invariants, written the same way
   (`humans-first.iz4.you:` and so on), word for word as in every other IZ4 of
   this form, at the end behind a rule-off. They are not the owner's to edit: a
   missing or altered one is an error.
@@ -711,7 +711,7 @@ between the two, for an area. The file records the namespace once, in a
 comment `iz4 add` writes with the first invariant, so nobody is asked
 twice. In the three-arm form the header, `IZ4 honeywillow.com`, says it, and an
 invariant is written by its first part. Names directly under `iz4.you` are the foundation's, and there are
-exactly five.
+exactly the foundation's.
 
 A name is for good. Withdrawing an invariant retires its name, and the same
 words under a new name are a new invariant. Refer to an invariant by its
@@ -792,34 +792,37 @@ shows the move as a change for a person to agree to. More in
 
 A named file (`INVARIANT name` blocks, the form of 0.16 and 0.17) still works,
 and a project may stay in it. When you want the three arms, `iz4 migrate` moves
-it, and the one new thing is a `FOR` for each of your invariants. That is
-yours to say: on a terminal it shows each invariant and asks who or what it
-covers, and in a script you give it.
+it: your text becomes `HOLDS` and your BECAUSE becomes `PROTECTS`, word for
+word, and the one new thing is a `WHERE` for each invariant. That is yours to
+say: on a terminal it shows each invariant and asks where it applies, and in a
+script you give it. An invariant with no BECAUSE is asked for one first, since
+`PROTECTS` is required.
 
 ```text
 $ iz4 migrate
-Moving IZ4 to the three-arm form: each invariant says what it covers (FOR), what must remain true (RULE) and why (BECAUSE).
-Your RULE and BECAUSE stay word for word; FOR is the new part, and it is yours to say.
+Moving IZ4 to the three-arm form: each invariant says where it applies (WHERE), what holds there (HOLDS) and whose what it protects (PROTECTS).
+Your words become HOLDS and PROTECTS word for word; WHERE is the new part, and it is yours to say.
 
 private-stays-private.jobs.example.com
-  RULE     Private profiles never appear in public search.
-  BECAUSE  A hidden search for work can cost someone their current job.
-Who or what does this cover?
-> private profiles
+  HOLDS:    Private profiles never appear in public search.
+  PROTECTS: A hidden search for work can cost someone their current job.
+Where does this apply? The situation, not the people.
+> a profile marked private can be seen by anyone but its owner
 
-Wrote IZ4 in the three-arm form: header 'IZ4 jobs.example.com', your own invariants in three arms, the foundation last. Not a word of your RULE or BECAUSE changed.
+Wrote IZ4 in the three-arm form: header 'IZ4 jobs.example.com', your own invariants in three arms, the foundation last. Not a word of your own changed.
 next:
   1. iz4 check
-  2. iz4 gate --staged   (after 'git add': it shows each FOR as a change to agree to)
+  2. iz4 gate --staged   (after 'git add': it shows each WHERE as a change to agree to)
   3. iz4 approve
 ```
 
-With a `FOR` missing and nobody to ask, nothing is written and the exit code is
-2: a person is needed (`iz4 migrate --reach=private-stays-private='private
-profiles'` gives one). `iz4 migrate preview` shows what would be written and
+With a `WHERE` missing and nobody to ask, nothing is written and the exit code
+is 2: a person is needed (`iz4 migrate --where=private-stays-private='a profile
+marked private can be seen by anyone but its owner'` gives one). `iz4 migrate preview` shows what would be written and
 writes nothing. The result is read back before it is written, and a file that
-would not check is never written. The foundation moves too: it is the same
-five with a `FOR` each, written last, and the gate shows that as its own change.
+would not check is never written. The foundation moves too: the same
+commitments in three arms, written last, and the gate shows that as its own
+change.
 Moving forward only: a file does not go back to an earlier form.
 
 ## The foundation
@@ -882,9 +885,10 @@ They keep both halves of the original Invariant 0: help people thrive, and
 do no harm. How they do better than Asimov's laws, and how to apply the
 words that need judgement: [docs/foundation.md](foundation.md).
 
-A file in the three-arm form carries the same five with a `FOR` each, written
-with the others (`humans-first.iz4.you:` / `FOR:` / `RULE:` / `BECAUSE:`). The
-words of each `RULE` and `BECAUSE` are the ones above; `iz4 foundation` prints
+A file in the three-arm form carries the same commitments in three arms
+(`humans-first.iz4.you:` / `WHERE:` / `HOLDS:` / `PROTECTS:`), worded about the
+system rather than as instructions, and the last is named `binding.iz4.you`.
+The words are on [the foundation page](foundation.md#in-the-three-arm-form); `iz4 foundation` prints
 the foundation in the form of the file in front of it. A file keeps the
 foundation it adopted until a person moves it: updating iz4 never rewrites
 it.
@@ -902,16 +906,12 @@ conflict; to keep the IZ4 small rather than filling it with what it observed;
 and to report each affected invariant as mechanically verified, supported by
 evidence, apparently consistent, uncertain or conflicting.
 
-It also says how to read an invariant, in a short list an agent carries with
-the invariants: the rule binds throughout its stated reach whether or not the
-reason describes the present; BECAUSE explains and never adds a condition or
-an exception; an agent cannot waive a rule because it believes the harm is
-absent or the benefit can be had another way; examples and pressure scenarios
-illustrate and neither list nor limit; a boundary counts only if the rule states
-it; a condition in a rule is necessary, never sufficient; a project's own FOR
-cannot narrow the foundation; and where reach is genuinely unclear, the agent
-pauses and returns the decision to the people entitled to decide, without
-inventing an exemption. The wording is in [docs/format.md](format.md#how-an-invariant-is-read).
+It also says how to read an invariant, in one rule an agent carries with the
+invariants: `WHERE` alone decides whether an invariant applies; `PROTECTS`
+never narrows it and never excuses it, it can only make a reading stricter;
+and keeping `HOLDS` by the letter while defeating what it protects is a
+breach. What follows from that, and the wording, is in
+[docs/format.md](format.md#how-an-invariant-is-read).
 
 `iz4 agent install` writes a short managed section into `AGENTS.md`, and
 `CLAUDE.md` with `iz4 agent install claude`. `iz4 agent install skill` adds a portable skill that carries the

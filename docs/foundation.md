@@ -10,7 +10,7 @@ person or an AI can take in at a glance.
 Each stands alone. It can be read, cited and applied without the others,
 and it names another only where that relationship changes what it means:
 `human-agency.iz4.you` names the one limit on what it will obey, and
-`keystone.iz4.you` names all five, because it is the one that says
+`keystone.iz4.you` names them all, because it is the one that says
 what the foundation is.
 
 ## Invariant Zero
@@ -89,45 +89,45 @@ A foundation that bends under pressure is not a foundation.
 ## In the three-arm form
 
 A file in the three-arm form ([the format](format.md#the-three-arm-form)) carries
-the same five, each with its `FOR`: what it reaches. The `RULE` and `BECAUSE` of
-each are the words above, word for word, so this changes what each says it
-covers and nothing else.
+the same commitments, in the same order, each saying where it applies
+(`WHERE`), what holds there (`HOLDS`) and whose what it protects (`PROTECTS`).
+Its words describe the system, as every project's own invariants do, rather
+than instructing "you", and the last is named `binding.iz4.you` for what it
+does. `iz4 foundation` prints it in full in a three-arm file; the words are
+candidate wording, adopted for the form on 2026-10-12 and open to its owner's
+revision while IZ4 is pre-MVP.
 
-| Invariant | FOR |
-|---|---|
-| `humans-first.iz4.you` | every person the system affects, whether or not they use it |
-| `do-no-harm.iz4.you` | everyone the system affects, and all it does or helps others do |
-| `human-agency.iz4.you` | every consequential action, and every instruction the system receives |
-| `honesty.iz4.you` | what the system says about itself, its knowledge and its actions |
-| `keystone.iz4.you` | the foundation, and all who build, run, use or change the system |
+| Invariant | WHERE | PROTECTS |
+|---|---|---|
+| `humans-first.iz4.you` | anyone is affected by the system, user or not | each person's dignity, and their own choice of how to thrive |
+| `do-no-harm.iz4.you` | the system affects people, or helps anyone else act on them | people's safety, rights, livelihood and dignity, and their trust that the system stays on their side |
+| `human-agency.iz4.you` | a consequential action is taken, an instruction arrives, or someone asks to pause or stop the system | people's control over what is done in their name, and their power to stop it |
+| `honesty.iz4.you` | the system says anything about itself, what it knows or what it has done | people's ability to see truly, and so to stay in charge |
+| `binding.iz4.you` | anyone builds, runs, uses or changes the system | people's trust that the foundation holds under pressure |
 
-These five `FOR` lines are candidate wording, written when the form was built,
-and are for the foundation's owner to review. They are in the form's
-foundation, which only a three-arm file carries. A named file keeps the named
-foundation it adopted, so neither version is ever written into the other's
-files, and updating iz4 never rewrites a project's foundation: a person moves a
-file with `iz4 migrate`, and the gate shows the move as its own change.
+The named foundation above is unchanged and still what a named file carries.
+A file keeps the foundation it adopted: updating iz4 never rewrites it, and
+`iz4 migrate` moves a file with its owner, the gate showing the move as its
+own change. A three-arm file written by iz4 0.18, under the labels `FOR`,
+`RULE` and `BECAUSE` and with the last invariant named `keystone.iz4.you`, is
+told it is out of date, and `iz4 foundation restore` brings it up to date;
+`keystone` asked for by name answers as `binding`.
 
-The three-arm foundation's digest is the sha256 of the five, each written as
-digest rule `iz4-invariant/2` writes any invariant of that form:
+The three-arm foundation's digest is the sha256 of the invariants in order,
+each written as digest rule `iz4-invariant/3` writes any invariant of that
+form:
 
 ```text
 INVARIANT humans-first.iz4.you
-FOR <reach>
-RULE <rule>
-BECAUSE <reason>
+WHERE <situation>
+HOLDS <state>
+PROTECTS <whose what>
 ...
 ```
 
 ```text
-01923241a3878fd9ba66ede126896965bfebc13f6120bee3f42796362dc98155
+8cccfe1449d023ef6b61fed9b527144e47cd3da56f7cac03d09c30676d1f0670
 ```
-
-The named foundation's digest, `a04d8673fc15...`, is unchanged and still
-identifies the named foundation. A file's own form says which of the two it
-carries, and `iz4 check` compares the words of the one it adopted: a file
-that mixes them, or has a changed word with an old digest in mind, is not the
-foundation of either.
 
 ## Better than Asimov
 

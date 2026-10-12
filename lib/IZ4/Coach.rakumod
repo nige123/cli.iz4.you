@@ -20,7 +20,14 @@ constant GOLDEN-TEST is export =
 
 #| The opening question when there is no candidate yet.
 #| The first question of the three-arm form: Reach - Rule - Reason.
-constant REACH-QUESTION is export = 'Who or what does this cover?';
+constant REACH-QUESTION is export = 'Where does this apply? The situation, not the people.';
+
+#| The third question of the three-arm form: the human interest, as whose what.
+constant PROTECTS-QUESTION is export = 'Whose what would be lost if this stopped holding?';
+
+#| Said when nothing a person would lose comes to mind: the surest sign
+#| of a constraint rather than an invariant.
+constant NOTHING-PROTECTED is export = 'If nothing a person would lose comes to mind, this is probably a constraint for the README, not an invariant.';
 
 #| A reach too wide to say anything: asked about once, never refused.
 sub vague-reach(Str $reach --> Bool) is export {
@@ -259,7 +266,7 @@ sub coach-invariant(
     my sub ask-reach(--> Str) {
         my $r = answer(REACH-QUESTION ~ "\n> ");
         if $r ne '' && vague-reach($r) {
-            tell("That covers a lot, and an invariant is only as clear as its reach. Which people, data or actions exactly?");
+            tell("That covers a lot, and an invariant is only as clear as where it applies. Which situations exactly: which data, actions or moments?");
             my $more = answer('> ');
             $r = $more if $more ne '';
         }
@@ -270,7 +277,7 @@ sub coach-invariant(
         return %( outcome => 'skipped' ) if $reach eq '';
     }
     without $candidate {
-        tell($arms && $reach.defined ?? "What must remain true for $reach?" !! OPENING);
+        tell($arms && $reach.defined ?? "Where $reach: what holds, now and after any change?" !! OPENING);
         $candidate = answer('> ');
         return %( outcome => 'skipped' ) if $candidate eq '';
     }
@@ -376,27 +383,34 @@ sub coach-invariant(
 
     # the suggestion is shown exactly as it would be written
     my $hint = ($suggested-because // '').trim;
-    $hint = $hint.substr(0, 1).uc ~ $hint.substr(1) if $hint ne '';
-    my $because = answer("BECAUSE: why must this survive? How does it matter to $who, or to $what?"
+    $hint = $hint.substr(0, 1).uc ~ $hint.substr(1) if $hint ne '' && !$arms;
+    my $because = answer(($arms ?? "PROTECTS: {PROTECTS-QUESTION}" !! "BECAUSE: why must this survive? How does it matter to $who, or to $what?")
         ~ ($hint ne '' ?? "\n(enter to use the suggestion: $hint)" !! '') ~ "\n> ");
     $because = $hint if $because eq '' && $hint ne '';
     if assess-because($candidate, $because) eq 'circular' {
-        tell("That restates the invariant. Who would be harmed, surprised or let down if it stopped being true, and why?");
+        tell($arms ?? "That restates what holds. Whose what would be lost: which person, and what of theirs?"
+                   !! "That restates the invariant. Who would be harmed, surprised or let down if it stopped being true, and why?");
         $because = answer('> ');
         if assess-because($candidate, $because) ne 'ok' {
+            if $arms { tell(NOTHING-PROTECTED); return %( outcome => 'not-iz4', advice => 'the README' ) }
             tell("Leaving BECAUSE out for now: add one when the reason is clear.");
             $because = '';
         }
     }
     elsif $because eq '' {
-        tell("Without a BECAUSE this is easy to remove by accident; you can add one later.");
+        if $arms {
+            tell(NOTHING-PROTECTED ~ ' Say whose what, or press enter to leave it out.');
+            $because = answer('> ');
+            return %( outcome => 'not-iz4', advice => 'the README' ) if $because eq '';
+        }
+        else { tell("Without a BECAUSE this is easy to remove by accident; you can add one later.") }
     }
 
     my $label = $name.defined ?? "INVARIANT $name" !! 'an invariant';
     if $arms {
-        tell("FOR      $reach");
-        tell("RULE     $candidate");
-        tell("BECAUSE  {$because eq '' ?? '(none yet)' !! $because}");
+        tell("WHERE:    $reach");
+        tell("HOLDS:    $candidate");
+        tell("PROTECTS: $because");
     }
     my $confirm = yes-no(answer("Add it as $label? [Y/n] "), :default);
     return %( outcome => 'skipped' ) unless $confirm;

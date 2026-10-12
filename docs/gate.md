@@ -38,8 +38,8 @@ says.
 Commitments, from the IZ4 in each tree:
 
 - IS FOR WHAT or IS FOR WHO changed;
-- a project invariant added, revised (its text, its FOR or its BECAUSE) or
-  removed, each keyed by its name;
+- a project invariant added, revised (any of its arms, or its text or
+  BECAUSE in the named form) or removed, each keyed by its name;
 - the IZ4 removed altogether;
 - the candidate IZ4 does not parse (blocked);
 - a foundation invariant missing or altered (blocked, never approvable);
@@ -48,8 +48,8 @@ Commitments, from the IZ4 in each tree:
   `Invariant N is named ...`, and the foundation's new words (agreement
   required);
 - a named IZ4 moved to the three-arm form by `iz4 migrate`: the foundation
-  moving to its three-arm words, and each invariant's new `FOR`, shown with
-  its `RULE` and `BECAUSE` as unchanged (agreement required);
+  moving to its three-arm words, and each invariant's new `WHERE`, shown with
+  its `HOLDS` and `PROTECTS` as unchanged (agreement required);
 - a named IZ4 replaced by a numbered one, or a three-arm IZ4 by an earlier
   form (blocked: a file only moves forward).
 

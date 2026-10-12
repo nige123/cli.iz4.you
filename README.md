@@ -20,14 +20,15 @@ IS FOR WHAT?  Helping people find work they would come alive doing.
 IS FOR WHO?   People looking for that work, and the employers hoping to find them.
 
 come-alive.matching:
-  FOR:      every match the system makes
-  RULE:     A match must answer "would they come alive doing this work?"
-            and must never degrade into keyword matching.
-  BECAUSE:  Plenty of people could do a job. The point is finding the one
-            they'd love.
+  WHERE:    a person is matched to a role
+  HOLDS:    A match answers "would they come alive doing this work?" and
+            never degrades into keyword matching.
+  PROTECTS: a person's chance of the work they would love, not merely
+            a job they could do.
 ```
 
-Each invariant says what it covers, what must stay true there, and why.
+Each invariant says where it applies, what holds there, and whose what it
+protects.
 
 ## Why
 

@@ -9,9 +9,9 @@ use IZ4::Integrations;
 use IZ4::Coach;
 use IZ4::Machine;
 
-# The three-arm form: a name, then FOR (what it reaches), RULE (what must
-# remain true throughout that reach) and BECAUSE (why it matters to
-# people).  The header names the project's domain, the foundation is
+# The three-arm form: a name, then WHERE (the situation it applies in),
+# HOLDS (what is true there, now and after any change) and PROTECTS (whose
+# what would be lost if it stopped holding).  The header names the project's domain, the foundation is
 # written last, and the named form of earlier versions is still read.
 # These are deterministic checks of the file format and its tools; they
 # say nothing about how any model reads an invariant.
@@ -26,9 +26,9 @@ sub arms-file(Str $body = '' --> IO::Path) {
 }
 my $PRIVATE = q:to/END/;
 private-stays-private:
-  FOR:      private profiles
-  RULE:     The system must never expose a private profile in public search.
-  BECAUSE:  Looking for work must not cost someone their current job.
+  WHERE:    private profiles
+  HOLDS:    The system must never expose a private profile in public search.
+  PROTECTS: Looking for work must not cost someone their current job.
 END
 
 # ---- the form is read ---------------------------------------------------------
@@ -42,7 +42,7 @@ END
     my $inv = $doc.invariant("private-stays-private.$NS");
     ok $inv.defined, 'a short name is made whole under the domain';
     is $inv.reach, 'private profiles', 'FOR is the reach';
-    is $inv.text, 'The system must never expose a private profile in public search.', 'RULE is the text';
+    is $inv.text, 'The system must never expose a private profile in public search.', 'HOLDS is the text';
     is $inv.because, 'Looking for work must not cost someone their current job.', 'BECAUSE is the reason';
     ok $doc.foundation-intact, 'the foundation is there, word for word';
     is $doc.for-what, 'Helping people find work they love to do.', 'IS FOR WHAT? takes its answer on its line';
@@ -51,7 +51,7 @@ END
 
 # indentation and alignment are for the eye
 {
-    my $flat = arms-file("private-stays-private:\nFOR: private profiles\nRULE: The system must never expose a private profile\nin public search.\nBECAUSE: Looking for work must not cost someone\ntheir current job.\n");
+    my $flat = arms-file("private-stays-private:\nWHERE: private profiles\nHOLDS: The system must never expose a private profile\nin public search.\nPROTECTS: Looking for work must not cost someone\ntheir current job.\n");
     my $a = check-doc($flat).invariants[0];
     my $b = check-doc(arms-file($PRIVATE)).invariants[0];
     ok check-doc($flat).ok, 'a file with every line at column 0 checks';
@@ -60,7 +60,7 @@ END
 
 # comments are anywhere, and do not end an arm
 {
-    my $p = arms-file("# a note above\nprivate-stays-private:\n  FOR:   private profiles\n  RULE:  The system must never expose a private profile\n  # a note in the middle\n    in public search.\n  # another\n  BECAUSE: Looking for work must not cost someone their current job.\n# after\n");
+    my $p = arms-file("# a note above\nprivate-stays-private:\n  WHERE:   private profiles\n  HOLDS:  The system must never expose a private profile\n  # a note in the middle\n    in public search.\n  # another\n  PROTECTS: Looking for work must not cost someone their current job.\n# after\n");
     my $doc = check-doc($p);
     ok $doc.ok, 'comments sit between the lines of an arm' or diag $doc.report.join("\n");
     is $doc.invariants[0].text, 'The system must never expose a private profile in public search.', 'and the arm carries on past them';
@@ -68,9 +68,9 @@ END
 
 # a full identity is already whole; a project's own may be written either way
 {
-    my $p = arms-file("private-stays-private.$NS:\n  FOR: private profiles\n  RULE: The system must never expose a private profile.\n  BECAUSE: Jobs matter.\n");
+    my $p = arms-file("private-stays-private.$NS:\n  WHERE: private profiles\n  HOLDS: The system must never expose a private profile.\n  PROTECTS: Jobs matter.\n");
     ok check-doc($p).ok && check-doc($p).invariant("private-stays-private.$NS").defined, 'a dotted name is taken as the whole identity';
-    my $both = arms-file("a-rule:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n\na-rule.$NS:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n");
+    my $both = arms-file("a-rule:\n  WHERE: x\n  HOLDS: Y must hold.\n  PROTECTS: z\n\na-rule.$NS:\n  WHERE: x\n  HOLDS: Y must hold.\n  PROTECTS: z\n");
     ok check-doc($both).errors.first({ .message.contains('duplicate') }).defined, 'a short name and its full identity are one invariant, not two';
 }
 
@@ -78,7 +78,7 @@ END
 {
     my $d = temp-dir;
     my $p = init(:dir($d), :for-what('Helping people find work.'), :for-who('People looking.'), :namespace('love2.do'));
-    $p.spurt($p.slurp.subst("# ----", "come-alive.matching:\n  FOR: every match\n  RULE: A match must never degrade into keyword matching.\n  BECAUSE: The point is the work they would love.\n\n# ----"));
+    $p.spurt($p.slurp.subst("# ----", "come-alive.matching:\n  WHERE: every match\n  HOLDS: A match must never degrade into keyword matching.\n  PROTECTS: The point is the work they would love.\n\n# ----"));
     my $doc = check-doc($p);
     ok $doc.ok, 'a name with an area label checks' or diag $doc.report.join("\n");
     ok $doc.invariant('come-alive.matching.love2.do').defined, 'and is that area under the domain';
@@ -103,16 +103,16 @@ for <README.md docs/format.md> -> $doc-file {
 
 # ---- mistakes are reported by line -------------------------------------------
 sub problems(Str $body --> Str) { check-doc(arms-file($body)).errors.map(*.message).join(' | ') }
-like problems("a-rule:\n  FOR: x\n  BECAUSE: z\n"), /'a-rule: has no RULE'/, 'an invariant with no RULE is an error';
-like problems("a-rule:\n  RULE: Y must hold.\n  BECAUSE: z\n"), /'a-rule: has no FOR'/, 'and so is one with no FOR';
-unlike problems("a-rule:\n  FOR: x\n  RULE: Y must hold.\n"), /'BECAUSE'/, 'a missing BECAUSE is the reason still to give, not a parse error';
-like problems("a-rule:\n  FOR:\n  RULE: Y must hold.\n  BECAUSE: z\n"), /'FOR: of a-rule: is empty'/, 'an arm with a label and nothing after it is empty';
-like problems("a-rule:\n  FOR: x\n  FOR: y\n  RULE: Y must hold.\n  BECAUSE: z\n"), /'duplicate FOR'/, 'an arm twice is an error';
-like problems("FOR: x\nRULE: Y must hold.\n"), /'has no invariant name above it'/, 'an arm with no name above it is an error';
-like problems("a-rule:\n  FOR: x\n  RULE: Y must hold.\n\nsome stray words\n  BECAUSE: z\n"), /'belongs to an arm'/, 'text after a blank line, with no label, is not swallowed into an arm';
-like problems("Bad_Name:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n"), /'this text belongs to an arm'/, 'a heading that is not a lower-case name is not an invariant';
-like problems("under_score:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n"), /"'under_score' is not a name"/, 'an unusable name says why';
-like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n"), /'names directly under iz4.you are the foundation'/, "a project cannot take the foundation's namespace";
+like problems("a-rule:\n  WHERE: x\n  PROTECTS: z\n"), /'a-rule: has no HOLDS'/, 'an invariant with no HOLDS is an error';
+like problems("a-rule:\n  HOLDS: Y must hold.\n  PROTECTS: z\n"), /'a-rule: has no WHERE'/, 'and so is one with no WHERE';
+like problems("a-rule:\n  WHERE: x\n  HOLDS: Y must hold.\n"), /'a-rule: has no PROTECTS'/, 'and one with no PROTECTS: the interest is required, it is what carries intent';
+like problems("a-rule:\n  WHERE:\n  HOLDS: Y must hold.\n  PROTECTS: z\n"), /'WHERE: of a-rule: is empty'/, 'an arm with a label and nothing after it is empty';
+like problems("a-rule:\n  WHERE: x\n  WHERE: y\n  HOLDS: Y must hold.\n  PROTECTS: z\n"), /'duplicate WHERE'/, 'an arm twice is an error';
+like problems("WHERE: x\nHOLDS: Y must hold.\n"), /'has no invariant name above it'/, 'an arm with no name above it is an error';
+like problems("a-rule:\n  WHERE: x\n  HOLDS: Y must hold.\n\nsome stray words\n  PROTECTS: z\n"), /'belongs to an arm'/, 'text after a blank line, with no label, is not swallowed into an arm';
+like problems("Bad_Name:\n  WHERE: x\n  HOLDS: Y must hold.\n  PROTECTS: z\n"), /'this text belongs to an arm'/, 'a heading that is not a lower-case name is not an invariant';
+like problems("under_score:\n  WHERE: x\n  HOLDS: Y must hold.\n  PROTECTS: z\n"), /"'under_score' is not a name"/, 'an unusable name says why';
+like problems("humans.iz4.you:\n  WHERE: x\n  HOLDS: Y must hold.\n  PROTECTS: z\n"), /'names directly under iz4.you are the foundation'/, "a project cannot take the foundation's namespace";
 {
     my $p = arms-file($PRIVATE);
     $p.spurt($p.slurp.subst('IZ4 jobs.example.com', 'IZ4 iz4.you'));
@@ -128,27 +128,29 @@ like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n")
     is $doc.foundation-status, "the foundation: in the file word for word (sha256 {FOUNDATION-ARMS-DIGEST.substr(0, 12)})", 'a three-arm file reports the three-arm foundation digest';
     isnt FOUNDATION-ARMS-DIGEST, FOUNDATION-DIGEST, 'which is not the named foundation\'s';
     is sha256-text(FOUNDATION-ARMS-TEXT), FOUNDATION-ARMS-DIGEST, 'the digest is the digest of the canonical bytes: a declared version, its content and its digest agree';
-    is FOUNDATION-ARMS».<text>, FOUNDATION».<text>, 'the RULE of each is the named foundation\'s, word for word';
-    is FOUNDATION-ARMS».<because>, FOUNDATION».<because>, 'and so is the BECAUSE: only FOR is new';
-    is FOUNDATION-ARMS».<reach>.grep(*.defined).elems, 5, 'each of the five has a FOR';
-    for FOUNDATION-ARMS -> %f { ok %f<reach>.words.elems <= 15, "{%f<id>} FOR is at most 15 words ({%f<reach>.words.elems})" }
-    is FOUNDATION-ARMS».<id>, foundation-ids(), 'in the same order, under the same names';
+    is FOUNDATION-ARMS».<id>.tail, 'binding.iz4.you', 'the last is binding.iz4.you';
+    nok FOUNDATION-ARMS.map({ .<reach> ~ ' ' ~ .<text> ~ ' ' ~ .<because> }).join(' ') ~~ /:i << ['five' | 'four' | 'six'] >> /, 'and no foundation invariant counts the foundation';
+    ok FOUNDATION-ARMS.map(*<because>).all ~~ / 'people' | 'person' /, 'each PROTECTS names people';
+    ok FOUNDATION-ARMS.map(*<reach>).all.defined, 'each has a WHERE';
+    for FOUNDATION-ARMS -> %f { ok %f<reach>.words.elems <= 20, "{%f<id>} WHERE is at most 20 words ({%f<reach>.words.elems})" }
+    is FOUNDATION-ARMS».<id>, foundation-ids(:arms), 'in the same order as the named foundation, under its names but the last';
+    is FOUNDATION-ARMS».<legacy>, FOUNDATION».<legacy>, 'with the same order 0 to 4';
 
     # a changed word, with the digest unchanged, is not the foundation
     my $t = $p.slurp;
-    $p.spurt($t.subst('Respect every person', 'Ignore every person'));
+    $p.spurt($t.subst('dignity is', 'dignity is not'));
     ok !check-doc($p).foundation-intact, 'a changed word in the foundation is noticed';
-    nok foundation-arms-matches('humans-first.iz4.you', FOUNDATION-REACH{'humans-first.iz4.you'}, "Help people thrive.", 'x'), 'and the words are what is compared, not a digest anyone could leave alone';
-    $p.spurt($t.subst('every person the system affects, whether or not they use it', 'the current user'));
-    ok !check-doc($p).foundation-intact, 'a narrowed FOR is an altered foundation too';
+    nok foundation-arms-matches('humans-first.iz4.you', FOUNDATION-ARMS[0]<reach>, "People thrive.", 'x'), 'and the words are what is compared, not a digest anyone could leave alone';
+    $p.spurt($t.subst('anyone is affected by the system, user or not', 'the current user'));
+    ok !check-doc($p).foundation-intact, 'a narrowed WHERE is an altered foundation too';
     is restore-foundation($p), 'replaced', 'restore puts it back';
     ok check-doc($p).ok, 'and the file checks';
 
     # a mixed bundle: the named foundation's words with no FOR
-    my $mixed = $t.subst(/ 'humans-first.iz4.you:' \n '  FOR:' \N+ \n /, "humans-first.iz4.you:\n");
+    my $mixed = $t.subst(/ 'humans-first.iz4.you:' \n '  WHERE:' \N+ \n /, "humans-first.iz4.you:\n");
     $p.spurt($mixed);
     my $m = check-doc($p);
-    ok !$m.foundation-intact && $m.errors.first({ .message.contains('humans-first.iz4.you') }).defined, 'a foundation block with the three-arm words but no FOR is detected';
+    ok !$m.foundation-intact && $m.errors.first({ .message.contains('humans-first.iz4.you') }).defined, 'a foundation block with the three-arm words but no WHERE is detected';
     $p.spurt($t);
     $p.spurt($p.slurp.subst(/ 'INVARIANT ' /, 'x'));   # no effect: a three-arm file has none
     ok check-doc($p).ok, 'a three-arm file has no INVARIANT keyword to mix in';
@@ -158,8 +160,8 @@ like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n")
     init(:dir($named), :for-what('Taking orders.'), :for-who('People buying.'));
     my $nt = $named.add('IZ4').slurp;
     ok check-doc($named.add('IZ4')).foundation-intact && check-doc($named.add('IZ4')).form eq 'named', 'a named file keeps the named foundation it adopted';
-    $named.add('IZ4').spurt($nt.subst('INVARIANT humans-first.iz4.you', "INVARIANT humans-first.iz4.you\nFOR: every person"));
-    ok !check-doc($named.add('IZ4')).foundation-intact, 'and a FOR slipped into it makes it not the named foundation';
+    $named.add('IZ4').spurt($nt.subst('INVARIANT humans-first.iz4.you', "INVARIANT humans-first.iz4.you\nWHERE: every person"));
+    ok !check-doc($named.add('IZ4')).foundation-intact, 'and a WHERE slipped into it makes it not the named foundation';
 }
 
 # ---- the digest: fields, never one flat string ---------------------------------
@@ -168,12 +170,12 @@ like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n")
     is invariant-digest("a-rule.$NS", 'Y must hold.', 'Because z.', :reach('the whole  system')), $d, 'whitespace within a field is not a change';
     isnt invariant-digest("a-rule.$NS", 'Y must hold.', 'Because z.', :reach('private profiles')), $d, 'a different FOR is a different invariant';
     isnt invariant-digest("a-rule.$NS", 'Y must hold. Because z.', '', :reach('the whole system')), $d, 'a word cannot move from BECAUSE into RULE unnoticed';
-    isnt invariant-digest("a-rule.$NS", 'Y must hold.', 'Because z.'), $d, 'and the same words with no FOR are the named form\'s invariant, not this one';
+    isnt invariant-digest("a-rule.$NS", 'Y must hold.', 'Because z.'), $d, 'and the same words with no WHERE are the named form\'s invariant, not this one';
     my $composed = "caf\x[e9]";
     my $decomposed = "cafe\x[301]";
     is invariant-digest("a-rule.$NS", 'Y.', 'Z.', :reach($composed)), invariant-digest("a-rule.$NS", 'Y.', 'Z.', :reach($decomposed)), 'one word is one word however a keyboard composed it (Unicode normal form C)';
-    is canonical-arms('a-rule.x.com', 'F', 'R', 'B'), "INVARIANT a-rule.x.com\nFOR F\nRULE R\nBECAUSE B\n", 'the canonical bytes are one line per field, under its label';
-    is INVARIANT-DIGEST-RULE-ARMS, 'iz4-invariant/2', 'and the rule has its own name; /1 never changes';
+    is canonical-arms('a-rule.x.com', 'F', 'R', 'B'), "INVARIANT a-rule.x.com\nWHERE F\nHOLDS R\nPROTECTS B\n", 'the canonical bytes are one line per field, under its label';
+    is INVARIANT-DIGEST-RULE-ARMS, 'iz4-invariant/3', 'and the rule has its own name; /1 never changes';
 }
 
 # ---- writing: the tools keep the owner's words -----------------------------------
@@ -183,10 +185,11 @@ like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n")
         :because('Looking for work must not cost someone their current job.'), :reach('private profiles')), "private-stays-private.$NS", 'add writes an invariant';
     add-invariant($p, 'Every price shown must be set by the owner.', :name("owner-sets-prices.$NS"), :because('Owners answer to customers.'), :reach('every price shown'));
     my $t = $p.slurp;
-    like $t, /\n 'private-stays-private:' \n '  FOR:' \h+ 'private profiles' \n '  RULE:' \h+ 'The system must never' .* \n '  BECAUSE:' /, 'under its short name, in three arms';
+    like $t, /\n 'private-stays-private:' \n '  WHERE:' \h+ 'private profiles' \n '  HOLDS:' \h+ 'The system must never' .* \n '  PROTECTS:' /, 'under its short name, in three arms';
     ok $t.index('owner-sets-prices:') < $t.index('# ----'), 'the project\'s own come before the foundation, which is read last';
     ok check-doc($p).ok && check-doc($p).invariants.elems == 2, 'and the file checks';
-    throws-like { add-invariant($p, 'X must hold.', :name("no-reach.$NS")) }, X::IZ4, message => /'needs a FOR'/, 'an invariant with no FOR is refused';
+    throws-like { add-invariant($p, 'X must hold.', :name("no-reach.$NS")) }, X::IZ4, message => /'needs a WHERE'/, 'an invariant with no WHERE is refused';
+    throws-like { add-invariant($p, 'X must hold.', :name("no-stake.$NS"), :reach('x')) }, X::IZ4, message => /'needs a PROTECTS' .* 'constraint for the README'/, 'and one with nothing it protects: that is the sign of a constraint, not an invariant';
     throws-like { add-invariant($p, 'X must hold.', :name("private-stays-private.$NS"), :reach('x')) }, X::IZ4, message => /'already in'/, 'a name in use is refused';
     throws-like { add-invariant($p, 'X must hold.', :name("humans-first.iz4.you"), :reach('x')) }, X::IZ4, message => /'foundation'/, "and the foundation's names are";
 
@@ -199,7 +202,7 @@ like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n")
     is ($o.reach, $o.text, $o.because), ('every price shown, taxes included', 'Every price shown must be set by the owner, and the system must not adjust it.', 'Owners must be able to explain every price.'), 'each arm is replaced on its own';
     ok $doc.ok, 'and the file checks' or diag $doc.report.join("\n");
     is check-doc($p).invariant("private-stays-private.$NS").canonical, check-doc($p).invariant("private-stays-private.$NS").canonical, 'the other invariants are untouched';
-    ok $p.slurp.contains("private-stays-private:\n  FOR:      private profiles\n"), 'down to the line';
+    ok $p.slurp.contains("private-stays-private:\n  WHERE:    private profiles\n"), 'down to the line';
 
     withdraw-invariant($p, 'owner-sets-prices');
     like $p.slurp, /'# INVARIANT owner-sets-prices.' $NS ' was withdrawn on'/, 'withdrawing leaves a comment where it stood';
@@ -212,9 +215,9 @@ like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n")
 # ---- reading: the tools show the arms ---------------------------------------------
 {
     my $p = arms-file($PRIVATE);
-    like invariant-text($p, 'private-stays-private'), /^ "private-stays-private.$NS:" \n '  FOR:' \h+ 'private profiles' \n '  RULE:' \h+ 'The system must never' /, 'show invariant says the arms, under the whole identity';
-    like invariant-text($p, 'humans-first'), /'FOR:' \h+ 'every person the system affects'/, 'and so does the foundation';
-    like effective-text(check-doc($p)), /'FOR:' \h+ 'private profiles' .* 'RULE:'/, 'the effective set carries FOR';
+    like invariant-text($p, 'private-stays-private'), /^ "private-stays-private.$NS:" \n '  WHERE:' \h+ 'private profiles' \n '  HOLDS:' \h+ 'The system must never' /, 'show invariant says the arms, under the whole identity';
+    like invariant-text($p, 'humans-first'), /'WHERE:' \h+ 'anyone is affected by the system'/, 'and so does the foundation';
+    like effective-text(check-doc($p)), /'WHERE:' \h+ 'private profiles' .* 'HOLDS:'/, 'the effective set carries WHERE';
 }
 
 # ---- moving a named file to the form ---------------------------------------------------
@@ -227,14 +230,14 @@ like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n")
     my $named = check-doc($p);
     my %plan = arms-migration-plan($p);
     ok %plan<needed> && %plan<stop> eq '' && %plan<domain> eq $NS, 'the plan knows the domain the named file already shows';
-    throws-like { migrate-arms($p, %(), :namespace($NS)) }, X::IZ4, message => /'has no FOR yet'/, 'with no FOR for an invariant nothing is written: it is the owner\'s to say';
+    throws-like { migrate-arms($p, %(), :namespace($NS)) }, X::IZ4, message => /'has no WHERE yet'/, 'with no WHERE for an invariant nothing is written: it is the owner\'s to say';
     ok check-doc($p).form eq 'named', 'and the file is as it was';
     my %reach = "private-stays-private.$NS" => 'private profiles', "owner-prices.$NS" => 'every price shown';
     my @moved = migrate-arms($p, %reach);
     my $arms = check-doc($p);
     ok $arms.ok && $arms.form eq 'arms' && $arms.foundation-intact, 'the migrated file checks, in the new form, with the new foundation' or diag $arms.report.join("\n");
     is $arms.domain, $NS, 'its header names the domain';
-    is $arms.invariants.map(*.text), $named.invariants.map(*.text), 'every RULE is word for word what it was';
+    is $arms.invariants.map(*.text), $named.invariants.map(*.text), 'every HOLDS is word for word what it was';
     is $arms.invariants.map(*.because), $named.invariants.map(*.because), 'and every BECAUSE';
     is $arms.invariants.map(*.id), $named.invariants.map(*.id), 'under the same identities';
     is $arms.for-what, $named.for-what, 'IS FOR WHAT? is unchanged';
@@ -244,10 +247,10 @@ like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n")
 
     # the gate shows it, and a person agrees to it
     my @c = commitment-changes($named, $arms);
-    is @c.map(*<kind>).unique.sort, ('foundation-migrated', 'reach-added'), 'the gate sees the foundation moving and each reach added';
+    is @c.map(*<kind>).unique.sort, ('foundation-migrated', 'reach-added'), 'the gate sees the foundation moving and each WHERE added';
     ok needs-agreement(%( changes => @c, protections => [] )), 'which needs a person\'s agreement';
     ok !is-blocked(%( changes => @c, protections => [] )), 'and is not blocked';
-    like proposal-lines(%( changes => @c, protections => [] )).join("\n"), /'gains' | 'says what it covers: private profiles'/, 'in words a person reads';
+    like proposal-lines(%( changes => @c, protections => [] )).join("\n"), /'gains' | 'says where it applies: private profiles'/, 'in words a person reads';
     my @back = commitment-changes($arms, $named);
     ok @back.first({ .<kind> eq 'format-regressed' }).defined, 'going back to the earlier form is refused';
 }
@@ -256,11 +259,11 @@ like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n")
 {
     my $a = arms-file($PRIVATE);
     my $b = arms-file($PRIVATE);
-    $b.spurt($b.slurp.subst('FOR:      private profiles', 'FOR:      private and hidden profiles'));
+    $b.spurt($b.slurp.subst('WHERE:    private profiles', 'WHERE:    private and hidden profiles'));
     my @c = commitment-changes(check-doc($a), check-doc($b));
-    is @c.map(*<kind>), ('revised',), 'a changed FOR is a revision of the invariant';
+    is @c.map(*<kind>), ('revised',), 'a changed WHERE is a revision of the invariant';
     is @c[0]<before_reach after_reach>, ('private profiles', 'private and hidden profiles'), 'with the reach before and after';
-    like proposal-lines(%( changes => @c, protections => [] )).join("\n"), /'FOR before: private profiles' .* 'FOR after:  private and hidden profiles'/, 'which a person reads';
+    like proposal-lines(%( changes => @c, protections => [] )).join("\n"), /'WHERE before: private profiles' .* 'WHERE after:  private and hidden profiles'/, 'which a person reads';
     isnt @c[0]<before_digest>, @c[0]<after_digest>, 'and the digests differ';
 }
 
@@ -270,20 +273,20 @@ like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n")
     my ($rc, $out, $err) = iz4($d, 'init', '--for-what=Taking orders.', '--for-who=People buying things.', '--namespace=shop.example.com', '--/agents');
     is $rc, 0, 'init writes the three-arm form';
     like $d.add('IZ4').slurp, /^ 'IZ4 shop.example.com' \n/, 'with the domain in its header';
-    ($rc, $out, $err) = iz4($d, 'add', 'invariant', 'A customer is never charged twice for one order.', '--for=every order', '--name=charged-once', '--because=It costs people money and trust.');
-    is ($rc, $out), (0, "Added INVARIANT charged-once.shop.example.com.\n"), 'add takes the reach with --for';
-    ($rc, $out, $err) = iz4($d, 'add', 'invariant', 'Orders stay.', '--name=orders-stay', '--because=x.', '--force');
-    ok $rc == 1 && $err.contains('--for='), 'and without it a script is told what to say';
-    ($rc, $out, $err) = iz4($d, 'reach', 'charged-once', 'every order, including refunds');
-    is $rc, 0, 'iz4 reach says what an invariant covers';
+    ($rc, $out, $err) = iz4($d, 'add', 'invariant', 'A customer is never charged twice for one order.', '--where=every order', '--name=charged-once', '--protects=It costs people money and trust.');
+    is ($rc, $out), (0, "Added INVARIANT charged-once.shop.example.com.\n"), 'add takes the situation with --where';
+    ($rc, $out, $err) = iz4($d, 'add', 'invariant', 'Orders stay.', '--name=orders-stay', '--protects=x.', '--force');
+    ok $rc == 1 && $err.contains('--where='), 'and without it a script is told what to say';
+    ($rc, $out, $err) = iz4($d, 'where', 'charged-once', 'every order, including refunds');
+    is $rc, 0, 'iz4 where says where an invariant applies';
     ok check-doc($d.add('IZ4')).invariants[0].reach eq 'every order, including refunds', 'and writes it';
     ($rc, $out, $err) = iz4($d, 'check');
     is $rc, 0, 'check passes' or diag $out;
-    like $out, /'✓ the foundation: in the file word for word (sha256 ' ('01923241a387') /, 'and names the three-arm foundation by its digest';
+    like $out, /'✓ the foundation: in the file word for word (sha256 ' ('8cccfe1449d0') /, 'and names the three-arm foundation by its digest';
     ($rc, $out, $err) = iz4($d, 'foundation');
-    like $out, /'FOR:' \h+ 'every person the system affects' .* 'sha256 of the foundation text: 01923241a387'/, 'the foundation is shown in the form of the file here';
+    like $out, /'WHERE:' \h+ 'anyone is affected by the system' .* 'sha256 of the foundation text: 8cccfe1449d0'/, 'the foundation is shown in the form of the file here';
     ($rc, $out, $err) = iz4($d, 'show', 'invariant', 'charged-once');
-    like $out, /'charged-once.shop.example.com:' \n '  FOR:' \h+ 'every order, including refunds'/, 'show says it in three arms';
+    like $out, /'charged-once.shop.example.com:' \n '  WHERE:' \h+ 'every order, including refunds'/, 'show says it in three arms';
     ($rc, $out, $err) = iz4($d, 'discover', '--json');
     like $out, /'"format":"arms"'/, 'the machine interface names the form';
     like $out, /'"reach":"every order, including refunds"'/, 'and carries each reach';
@@ -296,16 +299,56 @@ like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n")
     add-invariant($d.add('IZ4'), 'Orders are never lost.', :name('orders-kept.shop.example.com'), :because('People paid.'), :namespace('shop.example.com'));
     my ($rc, $out, $err) = iz4($d, 'migrate');
     is $rc, 2, 'migrate with nobody to ask exits 2: a person is needed';
-    like $out, /'only you can say it' .* 'iz4 migrate --reach=orders-kept='/, 'and shows the command that gives it';
+    like $out, /'only you can say it' .* 'iz4 migrate --where=orders-kept='/, 'and shows the command that gives it';
     is check-doc($d.add('IZ4')).form, 'named', 'and wrote nothing';
-    ($rc, $out, $err) = iz4($d, 'migrate', 'preview', '--reach=orders-kept=every order');
+    ($rc, $out, $err) = iz4($d, 'migrate', 'preview', '--where=orders-kept=every order');
     like $out, /'Dry run: nothing was written'/, 'preview says what would be written';
     is check-doc($d.add('IZ4')).form, 'named', 'and writes nothing';
-    ($rc, $out, $err) = iz4($d, 'migrate', '--reach=orders-kept=every order');
+    ($rc, $out, $err) = iz4($d, 'migrate', '--where=orders-kept=every order');
     is $rc, 0, 'with the reach given it moves the file' or diag $err;
     is check-doc($d.add('IZ4')).form, 'arms', 'to the three-arm form';
-    ($rc, $out, $err) = iz4($d, 'migrate', '--reach=nonsense=x');
+    ($rc, $out, $err) = iz4($d, 'migrate', '--where=nonsense=x');
     ok $rc == 1 || $out.contains('nothing to migrate') || $err.contains('already'), 'and a second run does nothing';
+}
+
+# ---- a file iz4 0.18 wrote: its labels are read, warned about, and renamed ----------------
+{
+    my $p = arms-file($PRIVATE);
+    my $t = $p.slurp.subst('WHERE:    private profiles', 'FOR:      private profiles').subst('HOLDS:    The system', 'RULE:     The system').subst('PROTECTS: Looking', 'BECAUSE:  Looking');
+    $p.spurt($t);
+    my $doc = check-doc($p);
+    ok $doc.ok, 'a file with the labels 0.18 wrote still checks' or diag $doc.report.join("\n");
+    ok $doc.old-labels, 'and knows its labels are the earlier ones';
+    like $doc.warnings.map(*.Str).join, /'FOR: is the label iz4 0.18 wrote' .* 'iz4 migrate'/, 'with one warning that names the step';
+    is $doc.invariant("private-stays-private.$NS").reach, 'private profiles', 'the arms are read under their current names';
+    my $d = $p.parent;
+    my ($rc, $out, $err) = iz4($d, 'migrate');
+    is $rc, 0, 'iz4 migrate renames them' or diag $err;
+    like $out, /'Renamed the arm labels on 3 lines'/, 'three lines';
+    my $after = check-doc($p);
+    ok $after.ok && !$after.old-labels && !$after.warnings, 'and the file is current, with no warning';
+    is $after.invariant("private-stays-private.$NS").canonical, $doc.invariant("private-stays-private.$NS").canonical, 'not a word changed';
+    like $p.slurp, /'WHERE:    private profiles' \n '  HOLDS:    The system'/, 'and the columns still line up';
+    is iz4($d, 'migrate')[1], "IZ4 is already in the three-arm form; there is nothing to migrate.\n", 'a second run has nothing to do';
+}
+
+# the foundation as 0.18 wrote it, keystone and all, is out of date, not altered by hand
+{
+    my $p = arms-file;
+    my $old = FOUNDATION-ARMS-EARLIER;
+    my @blocks = $old.map({ arms-invariant-lines(.<id>, .<reach>, .<text>, .<because>).join("\n") });
+    my $t = $p.slurp;
+    $t = $t.subst(/ 'humans-first.iz4.you:' .* $ /, @blocks.join("\n\n") ~ "\n");
+    $p.spurt($t);
+    my $doc = check-doc($p);
+    nok $doc.ok, 'a file carrying the 0.18 three-arm foundation does not check';
+    like $doc.errors.map(*.message).join(' | '), /'keystone.iz4.you: is the foundation\'s, and is named binding.iz4.you now'/, 'the renamed invariant is told its name';
+    like $doc.errors.map(*.message).join(' | '), /'humans-first.iz4.you: reads as iz4 0.18 wrote it'/, 'and a reworded one is told it is out of date, not that someone edited it';
+    is $doc.fixes, ('iz4 foundation restore',), 'with the one step';
+    is $doc.foundation-was, '0.18', 'and the file knows which version it carries';
+    is invariant-text($p, 'keystone'), invariant-text($p, 'binding'), 'asked for by its earlier name, the invariant answers under the one it has now';
+    is restore-foundation($p), 'replaced', 'restore brings it up to date';
+    ok check-doc($p).ok && $p.slurp.contains('binding.iz4.you:') && !$p.slurp.contains('keystone'), 'to the current words and name';
 }
 
 # ---- the coach asks Reach - Rule - Reason, one thing at a time ---------------------------------
@@ -315,7 +358,7 @@ like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n")
     my %r = coach-invariant(:ask(-> $q { @asked.push($q); @answers.shift }), :tell(-> $ {}), :arms, for-what => 'Sign-in', for-who => 'People signing in');
     is %r<outcome>, 'add', 'the coach adds an invariant';
     is %r<reach>, 'every sign-in code', 'with the reach it asked for first';
-    like @asked[0], /'Who or what does this cover?'/, 'Reach is the first question';
+    like @asked[0], /'Where does this apply?'/, 'Reach is the first question';
     like @asked[1], /^ '> '/, 'then the rule';
     is %r<text>, 'A code works once and only once.', 'the rule is as said';
     like %r<because>, /'sign in as you'/, 'and the reason last';
@@ -324,7 +367,7 @@ like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n")
     @answers = 'the system', 'every sign-in code', 'A code works once and only once.', 'y', 'A code that works twice lets someone sign in as you.', 'y';
     %r = coach-invariant(:ask(-> $ { @answers.shift }), :tell(-> $ {}), :arms);
     is %r<reach>, 'every sign-in code', 'a vague reach is asked about again, and the answer is taken';
-    @answers = 'everything', '', 'A code works once.', 'y', 'Because.', 'y';
+    @answers = 'everything', '', 'A code works once.', 'y', "a person's account", 'y';
     %r = coach-invariant(:ask(-> $ { @answers.shift }), :tell(-> $ {}), :arms);
     is %r<reach>, 'everything', 'and if the person keeps it, it is theirs';
     ok vague-reach('The system.') && vague-reach('everything') && !vague-reach('private profiles'), 'only the empty-sounding reaches are asked about';
@@ -344,36 +387,36 @@ like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n")
 {
     my %q = draft-questions();
     is %q<schema>, 'iz4-draft/1', 'the questions have a schema';
-    is %q<questions>.map(*<id>), ('reach', 'rule', 'reason'), 'three questions, in the order Reach, Rule, Reason';
-    is %q<questions>.map(*<arm>), ('FOR', 'RULE', 'BECAUSE'), 'each is an arm of the file';
-    is %q<questions>[0]<prompt>, 'Who or what does this cover?', 'the first asks for the reach';
+    is %q<questions>.map(*<id>), ('where', 'holds', 'protects'), 'three questions, in the order Where, Holds, Protects';
+    is %q<questions>.map(*<arm>), ('WHERE', 'HOLDS', 'PROTECTS'), 'each is an arm of the file';
+    like %q<questions>[0]<prompt>, /'Where does this apply?'/, 'the first asks where it applies';
     is %q<questions>.map(*<max_words>), (15, 25, 20), 'with the budget each arm is drafted within';
 
-    my %ok = draft-check(:reach('private profiles'), :rule('The system must never expose a private profile in public search.'), :because('Looking for work must not cost someone their current job.'));
+    my %ok = draft-check(:reach('private profiles'), :rule('The system must never expose a private profile in public search.'), :because("a job seeker's current job"));
     ok %ok<ok> && !%ok<findings>, 'a clear draft has nothing to ask';
-    is %ok<reads>, 'For private profiles, The system must never expose a private profile in public search. Because Looking for work must not cost someone their current job.', 'and reads aloud as For ..., ... Because ...';
+    is %ok<reads>, "Where private profiles, it holds that The system must never expose a private profile in public search. This protects a job seeker's current job.", 'and reads aloud as Where ..., it holds that ... This protects ...';
     is %ok<lines>[0], 'name:', 'with the lines it would be written as';
 
     sub codes(*%a --> Str) { draft-check(|%a)<findings>.map({ "{.<arm>}:{.<code>}" }).join(' ') }
-    is codes(:reach('the system'), :rule('X must hold.'), :because('Jobs matter.')), 'FOR:vague', 'a reach as wide as "the system" is asked about';
-    like codes(:reach(''), :rule(''), :because('')), /'FOR:empty' .* 'RULE:empty' .* 'BECAUSE:empty'/, 'an empty answer is asked for';
-    like codes(:reach('every order'), :rule('Passwords must use Argon2.'), :because('Leaks hurt people.')), /'RULE:mechanism'/, 'a mechanism is asked about, as the coach does';
-    like codes(:reach('every order'), :rule('Add a retry button.'), :because('Leaks hurt people.')), /'RULE:task'/, 'and a task';
-    like codes(:reach('every order'), :rule('A customer must not be charged twice, even when a payment is retried after a failure.'), :because('It costs trust.')), /'RULE:pressure'/, 'an "even when" is flagged for a second look, never refused';
+    is codes(:reach('the system'), :rule('X must hold.'), :because('Jobs matter.')), 'WHERE:vague', 'a reach as wide as "the system" is asked about';
+    like codes(:reach(''), :rule(''), :because('')), /'WHERE:empty' .* 'HOLDS:empty' .* 'PROTECTS:empty'/, 'an empty answer is asked for';
+    like codes(:reach('every order'), :rule('Passwords must use Argon2.'), :because('Leaks hurt people.')), /'HOLDS:mechanism'/, 'a mechanism is asked about, as the coach does';
+    like codes(:reach('every order'), :rule('Add a retry button.'), :because('Leaks hurt people.')), /'HOLDS:task'/, 'and a task';
+    like codes(:reach('every order'), :rule('A customer must not be charged twice, even when a payment is retried after a failure.'), :because('It costs trust.')), /'HOLDS:pressure'/, 'an "even when" is flagged for a second look, never refused';
     ok draft-check(:reach('every order'), :rule('A customer must not be charged twice, even when a payment is retried.'), :because('It costs people money.'))<ok>, 'and a note alone does not stop a draft being ok';
-    like codes(:reach('every order'), :rule('A customer must never be charged twice.'), :because('Unless the bank says otherwise, double charges hurt.')), /'BECAUSE:condition'/, 'a BECAUSE that opens with a condition is asked about: a reason explains, it does not condition';
-    like codes(:reach('every order'), :rule('Orders are never charged twice.'), :because('Orders are never charged twice.')), /'BECAUSE:circular'/, 'a reason that restates the rule is asked about';
-    like codes(:reach('every order'), :rule(('word' xx 40).join(' ') ~ ' must hold.'), :because('It matters to people.')), /'RULE:long'/, 'a long rule is noted';
+    like codes(:reach('every order'), :rule('A customer must never be charged twice.'), :because('Unless the bank says otherwise, double charges hurt.')), /'PROTECTS:condition'/, 'a BECAUSE that opens with a condition is asked about: a reason explains, it does not condition';
+    like codes(:reach('every order'), :rule('Orders are never charged twice.'), :because('Orders are never charged twice.')), /'PROTECTS:circular'/, 'a reason that restates the rule is asked about';
+    like codes(:reach('every order'), :rule(('word' xx 40).join(' ') ~ ' must hold.'), :because('It matters to people.')), /'HOLDS:long'/, 'a long rule is noted';
 
     my $d = temp-dir;
     my $p = init(:dir($d), :for-what('Taking orders.'), :for-who('People buying things.'), :namespace('shop.example.com'));
     add-invariant($p, 'A customer must never be charged twice.', :name('charged-once.shop.example.com'), :because('It costs trust.'), :reach('every order'));
-    my ($rc, $out, $err) = iz4($d, 'draft', 'check', '--for=every refund', '--rule=A refund must go back the way it came.', '--because=Money must not change shape.', '--name=refunds-return');
+    my ($rc, $out, $err) = iz4($d, 'draft', 'check', '--where=every refund', '--holds=A refund must go back the way it came.', '--protects=Money must not change shape.', '--name=refunds-return');
     is $rc, 0, 'iz4 draft check answers';
     like $out, /'"identity":"refunds-return.shop.example.com"'/, 'with the whole identity a name would have';
     like $out, /'"digest":"' <[0..9a..f]> ** 64 '"'/, 'and the digest the invariant would have';
     like $out, /'"ok":true'/, 'a usable name leaves nothing to ask';
-    ($rc, $out, $err) = iz4($d, 'draft', 'check', '--for=every order', '--rule=An order must never be lost.', '--because=People paid.', '--name=charged-once');
+    ($rc, $out, $err) = iz4($d, 'draft', 'check', '--where=every order', '--holds=An order must never be lost.', '--protects=People paid.', '--name=charged-once');
     like $out, /'"code":"name"' .* '"ok":false'/, 'a name already in use is asked about, with the reason';
     ($rc, $out, $err) = iz4($d, 'draft', 'questions');
     like $out, /'"schema":"iz4-draft/1"'/, 'iz4 draft questions gives the questions as JSON';
@@ -387,29 +430,29 @@ like problems("humans.iz4.you:\n  FOR: x\n  RULE: Y must hold.\n  BECAUSE: z\n")
     add-invariant($r.add('IZ4'), 'A customer must never be charged twice.', :name('charged-once.shop.example.com'), :because('It costs trust.'), :reach('every order'));
     run 'git', '-C', $r.Str, 'add', '-A';
     ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--json');
-    like $out, /'"words":[' .* 'INVARIANT charged-once.shop.example.com added: A customer must never be charged twice.' .* 'FOR every order'/, 'the gate result carries the proposal in plain words';
+    like $out, /'"words":[' .* 'INVARIANT charged-once.shop.example.com added: A customer must never be charged twice.' .* 'WHERE every order'/, 'the gate result carries the proposal in plain words';
 }
 
 # ---- agents are told how to read an invariant ---------------------------------------------------
 {
     my $rule = AGENT-PROTOCOL.words.join(' ');
-    like $rule, /'The rule remains binding throughout its stated scope, whether or not the stated reason describes the present circumstances.'/, 'the protocol says the rule binds whether or not the reason describes the present';
-    like $rule, /'BECAUSE guides understanding and authorised revision; it does not change applicability or authorise an exception.'/, 'and that BECAUSE grants no exception';
-    like $rule, /'cannot waive a rule because you believe the harm it guards against is absent'/, 'an agent cannot waive a rule for believing the harm absent';
-    like $rule, /'Examples and pressure scenarios illustrate an invariant. They neither list everything it covers nor limit it.'/, 'examples neither list nor limit';
-    like $rule, /'A boundary or exception counts only when the rule itself states it'/, 'a boundary must be in the rule';
+    like $rule, /'WHERE alone decides whether an invariant applies. PROTECTS never narrows it and never excuses it; it can only make a reading stricter. Keeping HOLDS by the letter while defeating what it protects is a breach.'/, 'the protocol carries the one rule for reading the three arms';
+    like $rule, /'binds whether or not its stated interest seems at stake'/, 'an invariant binds whether or not its interest seems at stake';
+    like $rule, /'cannot waive it because you judge the harm absent or the interest served another way'/, 'an agent cannot waive it for judging the harm absent';
+    like $rule, /'never infer one from the interest, an example, an objective, an inconvenience or an implementation choice'/, 'no boundary is inferred from the interest or an example';
+    like $rule, /'A boundary counts only when HOLDS states it'/, 'a boundary must be in HOLDS';
     like $rule, /'necessary, never sufficient'/, 'a condition is necessary, never sufficient';
-    like $rule, /"A project's own FOR cannot narrow or weaken the foundation."/, 'a project\'s FOR cannot narrow the foundation';
-    like $rule, /:i 'do not invent an exemption, and do not quietly widen or narrow the rule'/, 'unclear scope is surfaced, not resolved by invention';
+    like $rule, /"A project's own WHERE cannot narrow the foundation."/, 'a project\'s WHERE cannot narrow the foundation';
+    like $rule, /:i 'do not invent an exemption, and do not quietly widen or narrow what holds'/, 'unclear scope is surfaced, not resolved by invention';
 
     my $p = arms-file($PRIVATE);
     my %pk = agent-packet($p);
     is %pk<format>, 'arms', 'the packet names the form';
     is %pk<foundation><sha256>, FOUNDATION-ARMS-DIGEST, 'and the digest of the foundation this file carries';
     is %pk<foundation><text>, FOUNDATION-ARMS-TEXT, 'whose text it hands over';
-    like %pk<effective>, /'FOR:' \h+ 'private profiles' .* 'RULE:' \h+ 'The system must never expose a private profile in public search.' .* 'BECAUSE:' \h+ 'Looking for work'/, 'the effective invariants are the authoritative content, with all three arms';
-    like packet-text(%pk), /'Reading an invariant:' .* 'IZ4 effective invariants begin'/, 'the packet carries the reading rule before the invariants';
-    like skill-text(), /'Reading an invariant:'/, 'and so does the skill file';
+    like %pk<effective>, /'WHERE:' \h+ 'private profiles' .* 'HOLDS:' \h+ 'The system must never expose a private profile in public search.' .* 'PROTECTS:' \h+ 'Looking for work'/, 'the effective invariants are the authoritative content, with all three arms';
+    like packet-text(%pk), /'Reading an invariant.' .* 'IZ4 effective invariants begin'/, 'the packet carries the reading rule before the invariants';
+    like skill-text(), /'Reading an invariant.'/, 'and so does the skill file';
     like AGENT-PROTOCOL, /'IZ4 means Is For'/, 'with the rest of the protocol as it was';
 }
 

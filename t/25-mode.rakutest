@@ -21,7 +21,7 @@ $config.spurt('');
 
 sub g(IO::Path $r, *@a) { my $p = run 'git', '-C', $r.Str, |@a, :out, :err; my $o = $p.out.slurp(:close); $p.err.slurp(:close); $o.trim }
 sub add(IO::Path $r, Str $name, Str $text) {
-    my ($rc, $out, $err) = iz4($r, 'add', 'invariant', $text, "--name=$name", '--for=the shop', '--namespace=shop.example.com', '--because=It matters.', '--force');
+    my ($rc, $out, $err) = iz4($r, 'add', 'invariant', $text, "--name=$name", '--where=the shop takes an order', '--namespace=shop.example.com', '--protects="a customer\'s money"', '--force');
     die "add: $out $err" if $rc != 0;
 }
 
@@ -74,7 +74,7 @@ g($r, 'commit', '-qm', 'moving');
 
 # the foundation is not the project's to settle
 my $kept = $iz4.slurp;
-$iz4.spurt($kept.subst('Help people thrive, on their own terms.', 'Help people thrive.'));
+$iz4.spurt($kept.subst('People thrive on their own terms,', 'People thrive,'));
 g($r, 'add', '-A');
 ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', '--brief');
 is $rc, 3, 'altering the foundation holds a commit in MVP mode too';

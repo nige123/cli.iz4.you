@@ -481,12 +481,12 @@ sub draft-questions(--> Hash) is export {
     %(
         schema => DRAFT-SCHEMA, tool => "iz4/{VERSION}", kind => 'questions',
         questions => [
-            %( id => 'reach',  arm => 'FOR',     prompt => REACH-QUESTION, required => True, max_words => DRAFT-REACH-WORDS,
-               help => 'The people, data or actions it covers. "The system" is too wide to say anything: ask what is inside it.' ),
-            %( id => 'rule',   arm => 'RULE',    prompt => 'What must remain true for them?', required => True, max_words => DRAFT-WORDS,
-               help => 'A complete statement, using must, must not, always or never where they read naturally. A property or a prohibition, not a task.' ),
-            %( id => 'reason', arm => 'BECAUSE', prompt => 'Why must that survive?', required => False, max_words => DRAFT-BECAUSE-WORDS,
-               help => 'The human reason. It explains the rule; it must not add a condition or an exception to it.' ),
+            %( id => 'where',    arm => 'WHERE',    prompt => REACH-QUESTION, required => True, max_words => DRAFT-REACH-WORDS,
+               help => 'The situation this applies in: which data, actions or moments. Not who benefits, and not "the system".' ),
+            %( id => 'holds',    arm => 'HOLDS',    prompt => 'What is true there, now and after any change?', required => True, max_words => DRAFT-WORDS,
+               help => 'A state, not a task: one or two sentences in the present tense. Must, never and only are welcome; a technology is a sign you are describing how, not what.' ),
+            %( id => 'protects', arm => 'PROTECTS', prompt => PROTECTS-QUESTION, required => True, max_words => DRAFT-BECAUSE-WORDS,
+               help => 'Whose what: a person or people, and the thing of theirs that would be lost. A noun phrase, not an argument. ' ~ NOTHING-PROTECTED ),
         ],
         golden_test => GOLDEN-TEST,
         note => 'a person decides what must remain true; these questions help them say it',
@@ -502,42 +502,44 @@ sub draft-check(Str :$reach = '', Str :$rule = '', Str :$because = '' --> Hash) 
     my sub finding(Str $arm, Str $code, Str $level, Str $message) { @f.push: %( :$arm, :$code, :$level, :$message ) }
     my ($r, $u, $b) = $reach.trim, $rule.trim, $because.trim;
 
-    if $r eq '' { finding 'FOR', 'empty', 'ask', REACH-QUESTION }
-    elsif vague-reach($r) { finding 'FOR', 'vague', 'ask', 'That covers a lot, and an invariant is only as clear as its reach. Which people, data or actions exactly?' }
-    elsif too-long($r, DRAFT-REACH-WORDS) { finding 'FOR', 'long', 'note', "That is {draft-words($r)} words; a reach is easier to read in {DRAFT-REACH-WORDS} or fewer." }
+    if $r eq '' { finding 'WHERE', 'empty', 'ask', REACH-QUESTION }
+    elsif vague-reach($r) { finding 'WHERE', 'vague', 'ask', 'That covers a lot, and an invariant is only as clear as where it applies. Which situations exactly: which data, actions or moments?' }
+    elsif too-long($r, DRAFT-REACH-WORDS) { finding 'WHERE', 'long', 'note', "That is {draft-words($r)} words; a WHERE is easier to read in {DRAFT-REACH-WORDS} or fewer." }
 
-    if $u eq '' { finding 'RULE', 'empty', 'ask', 'What must remain true?' }
+    if $u eq '' { finding 'HOLDS', 'empty', 'ask', 'What is true there, now and after any change?' }
     else {
         my %a = assess-candidate($u);
         given %a<kind> {
-            when 'task'           { finding 'RULE', 'task', 'ask', 'That reads like work to do. IZ4 records what must stay true: is there a lasting truth behind it?' }
-            when 'mechanism'      { finding 'RULE', 'mechanism', 'ask', "{%a<signal>} sounds like how it is done today. What must remain true if it is replaced?" }
-            when 'implementation' { finding 'RULE', 'implementation', 'ask', "That sounds like an implementation choice ({%a<signal>}). If it were replaced tomorrow, could it still serve the same people and purpose?" }
-            when 'requirement'    { finding 'RULE', 'requirement', 'ask', "That reads like a requirement or setting for today's product ({%a<signal>}). Would people be let down if it changed?" }
-            when 'vague'          { finding 'RULE', 'vague', 'ask', 'Say a little more: what exactly must remain true, and for whom?' }
+            when 'task'           { finding 'HOLDS', 'task', 'ask', 'That reads like work to do. IZ4 records what must stay true: is there a lasting truth behind it?' }
+            when 'mechanism'      { finding 'HOLDS', 'mechanism', 'ask', "{%a<signal>} sounds like how it is done today. What must remain true if it is replaced?" }
+            when 'implementation' { finding 'HOLDS', 'implementation', 'ask', "That sounds like an implementation choice ({%a<signal>}). If it were replaced tomorrow, could it still serve the same people and purpose?" }
+            when 'requirement'    { finding 'HOLDS', 'requirement', 'ask', "That reads like a requirement or setting for today's product ({%a<signal>}). Would people be let down if it changed?" }
+            when 'vague'          { finding 'HOLDS', 'vague', 'ask', 'Say a little more: what exactly must remain true, and for whom?' }
         }
-        finding 'RULE', 'long', 'note', "That is {draft-words($u)} words; a rule is easier to read in {DRAFT-WORDS} or fewer." if too-long($u);
-        finding 'RULE', 'pressure', 'note', 'A phrase like "even when" or "unless inconvenient" may be hiding a loophole. Pressure is for testing a draft, not for writing into the rule: does it still hold under a deadline, a migration, a retry?'
+        finding 'HOLDS', 'long', 'note', "That is {draft-words($u)} words; a HOLDS is easier to read in {DRAFT-WORDS} or fewer." if too-long($u);
+        finding 'HOLDS', 'pressure', 'note', 'A phrase like "even when" or "unless inconvenient" may be hiding a loophole. Pressure is for testing a draft, not for writing into HOLDS: does it still hold under a deadline, a migration, a retry?'
             if $u ~~ /:i <|w> [ 'even when' | 'even if' | 'unless' ] <|w> /;
     }
 
-    if $b eq '' { finding 'BECAUSE', 'empty', 'note', 'Without a reason this is easy to remove by accident. Why must it survive?' }
+    if $b eq '' { finding 'PROTECTS', 'empty', 'ask', PROTECTS-QUESTION ~ ' ' ~ NOTHING-PROTECTED }
     else {
-        finding 'BECAUSE', 'circular', 'ask', 'That restates the rule. Who would be harmed, surprised or let down if it stopped being true, and why?'
+        finding 'PROTECTS', 'circular', 'ask', 'That restates what holds. Whose what would be lost: which person, and what of theirs?'
             if $u ne '' && assess-because($u, $b) eq 'circular';
-        finding 'BECAUSE', 'condition', 'ask', 'A reason explains; it must not add a condition or an exception to the rule. If the rule has a limit, the rule should say so.'
+        finding 'PROTECTS', 'condition', 'ask', 'PROTECTS names whose what is at stake; it cannot add a condition or an exception. If what holds has a limit, HOLDS should say so.'
             if $b ~~ /:i ^ [ 'unless' | 'except' | 'only if' | 'only when' | 'provided' ] <|w> /;
-        finding 'BECAUSE', 'long', 'note', "That is {draft-words($b)} words; a reason is easier to read in {DRAFT-BECAUSE-WORDS} or fewer." if too-long($b, DRAFT-BECAUSE-WORDS);
+        finding 'PROTECTS', 'long', 'note', "That is {draft-words($b)} words; a PROTECTS is easier to read in {DRAFT-BECAUSE-WORDS} or fewer." if too-long($b, DRAFT-BECAUSE-WORDS);
+        finding 'PROTECTS', 'sentence', 'note', 'PROTECTS reads best as whose what, a noun phrase, not a sentence: a sentence here is weighed against HOLDS as if it were a second rule.'
+            if $b ~~ /:i ^ [ 'because' | 'so that' | 'it ' | 'this ' | 'we ' | 'the system ' ] / || $b ~~ / <|w> [ 'must' | 'should' | 'never' | 'always' ] <|w> /;
     }
 
     my %r =
         schema => DRAFT-SCHEMA, tool => "iz4/{VERSION}", kind => 'check',
-        arms => %( for => $r, rule => $u, because => $b ),
+        arms => %( where => $r, holds => $u, protects => $b ),
         findings => @f.Array,
         ok => !@f.first({ .<level> eq 'ask' }),
         note => 'these are questions, not a verdict: a person decides what must remain true';
     if $r ne '' && $u ne '' {
-        %r<reads> = "For $r, $u" ~ ($b ne '' ?? " Because $b" !! '');
+        %r<reads> = "Where $r, it holds that $u" ~ ($b ne '' ?? " This protects {$b.subst(/ <[.!]> $/, '')}." !! '');
         %r<lines> = arms-invariant-lines('name', $r, $u, $b).Array;
     }
     %r;

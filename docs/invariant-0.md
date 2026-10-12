@@ -1,7 +1,7 @@
 # Invariant 0: humans first
 
-Invariant 0 was the whole foundation, then the first of five numbered
-invariants. It is now `humans-first.iz4.you`, the first of the five named
+Invariant 0 was the whole foundation, then the first of the numbered
+invariants. It is now `humans-first.iz4.you`, the first of the named
 foundation invariants every IZ4 carries: humans first, do no harm, human
 agency, honesty, and the foundation holds.
 

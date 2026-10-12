@@ -273,15 +273,22 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
     }
     if $base.defined && $base.form eq 'arms' && $cand.form ne 'arms' {
         @c.push: %( kind => 'format-regressed',
-                    detail => 'the candidate goes back to an earlier form; the base states each invariant in three arms (FOR, RULE, BECAUSE), and a file only moves forward' );
+                    detail => 'the candidate goes back to an earlier form; the base states each invariant in three arms (WHERE, HOLDS, PROTECTS), and a file only moves forward' );
         return @c;
+    }
+    if $base.defined && $base.form eq 'arms' && $cand.form eq 'arms' && $base.foundation-was.defined && $cand.foundation-intact {
+        @c.push: %( kind => 'foundation-migrated',
+                    title  => 'The foundation moves to its current words',
+                    before => "the foundation as iz4 {$base.foundation-was} wrote it",
+                    after  => "{foundation-ids(:arms).join(', ')} (sha256 {FOUNDATION-ARMS-DIGEST.substr(0, 12)})",
+                    detail => 'the words have changed: read them with iz4 foundation' );
     }
     if $arms-migrating && $cand.foundation-intact {
         @c.push: %( kind => 'foundation-migrated',
-                    title  => 'The foundation moves to the three-arm form: each invariant gains its reach (FOR)',
+                    title  => 'The foundation moves to the three-arm form: WHERE, HOLDS and PROTECTS',
                     before => "the named foundation (sha256 {FOUNDATION-DIGEST.substr(0, 12)})",
-                    after  => "{foundation-ids().join(', ')} (sha256 {FOUNDATION-ARMS-DIGEST.substr(0, 12)})",
-                    detail => 'the RULE and BECAUSE of each are word for word as before; the FOR of each is new wording to read' );
+                    after  => "{foundation-ids(:arms).join(', ')} (sha256 {FOUNDATION-ARMS-DIGEST.substr(0, 12)})",
+                    detail => 'read the words: they describe the system now rather than instruct an agent, each says where it applies and whose what it protects, and the last is named binding.iz4.you' );
     }
     if $migrating && $cand.foundation-intact {
         @c.push: %( kind => 'foundation-migrated',
@@ -571,18 +578,18 @@ sub proposal-lines(%p --> List) is export {
             when 'people'   { @l.push: 'IS FOR WHO changes', "  before: {%c<before> || '(none)'}", "  after:  {%c<after>}" }
             when 'added'    {
                 @l.push: "{shown(%c<id>)} added: {%c<after>}";
-                @l.push: "  FOR {%c<after_reach>}" if %c<after_reach>;
-                @l.push: "  BECAUSE {%c<after_because>}" if %c<after_because>;
+                @l.push: "  WHERE {%c<after_reach>}" if %c<after_reach>;
+                @l.push: "  {%c<after_reach>.defined ?? 'PROTECTS' !! 'BECAUSE'} {%c<after_because>}" if %c<after_because>;
                 @l.push: "  {%c<detail>}" if %c<detail>;
             }
             when 'revised'  {
                 @l.push: "{shown(%c<id>)} revised";
                 @l.push: "  before: {%c<before>}" ~ (%c<before_because> ?? " BECAUSE {%c<before_because>}" !! '');
                 @l.push: "  after:  {%c<after>}" ~ (%c<after_because> ?? " BECAUSE {%c<after_because>}" !! '');
-                @l.push: "  FOR before: {%c<before_reach> || '(none)'}", "  FOR after:  {%c<after_reach>}" if %c<after_reach>.defined && %c<before_reach> ne %c<after_reach>;
+                @l.push: "  WHERE before: {%c<before_reach> || '(none)'}", "  WHERE after:  {%c<after_reach>}" if %c<after_reach>.defined && %c<before_reach> ne %c<after_reach>;
             }
             when 'removed'       { @l.push: "{shown(%c<id>)} removed: {%c<before>}" }
-            when 'reach-added'   { @l.push: "{shown(%c<id>)} says what it covers: {%c<after_reach>}", "  its RULE and BECAUSE are word for word as before" }
+            when 'reach-added'   { @l.push: "{shown(%c<id>)} says where it applies: {%c<after_reach>}", "  what holds, and what it protects, are word for word as before" }
             when 'named'         { @l.push: "Invariant {%c<from>} is named {%c<id>}; its words are unchanged" }
             when 'foundation-migrated' {
                 @l.push: (%c<title> // 'The foundation moves to named invariants, with new words'), "  before: {%c<before>}", "  after:  {%c<after>}", "  {%c<detail>}";
