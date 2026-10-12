@@ -5,7 +5,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.21.0';
+constant VERSION is export = '0.21.1';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -324,7 +324,8 @@ sub template(Str :$for-what!, Str :$for-who!, Str :$namespace --> Str) is export
 #| line, wrapped under it.
 sub purpose-lines(Str $label, Str $text --> List) is export {
     my $head = $label.fmt('%-14s');
-    my @w = wrap($text, WRAP-WIDTH - $head.chars);
+    my @w = wrap-safely($text, WRAP-WIDTH - $head.chars);
+    @w = ('',) unless @w;
     (($head ~ @w[0]), |@w[1 .. *].map({ ' ' x $head.chars ~ $_ })).List;
 }
 
@@ -725,7 +726,9 @@ sub add-invariant(IO::Path $path, Str $text, Str :$name!, Str :$because, Str :$n
         @lines.splice($after, 1) while $after < @lines.elems && @lines[$after].trim eq '';
         @lines.splice($after, 0, '') if $after < @lines.elems;
         @lines.pop while @lines && @lines[*-1].trim eq '';
+        my $was = $path.slurp;
         $path.spurt(@lines.join("\n") ~ "\n");
+        written-as-meant($path, $name, :text($value), :because($reason), :reach($r), :$was);
         return $name;
     }
 
@@ -746,6 +749,17 @@ sub clauses-short-name(IZ4::Document $doc, Str $id --> Str) is export {
     my $d = $doc.domain // return $id;
     return $id unless $id.ends-with(".$d") && $id.chars > $d.chars + 1;
     $id.substr(0, $id.chars - $d.chars - 1);
+}
+
+#| After a write, the words read back as they were meant, or the file goes
+#| back to what it was: the tool never keeps a file that lost a word.
+sub written-as-meant(IO::Path $path, Str $id, Str :$text!, Str :$because = '', Str :$reach, Str :$was!) {
+    my $got = IZ4::Document.load($path).invariant($id);
+    my $ok = $got.defined && normalised($got.text) eq normalised($text) && normalised($got.because // '') eq normalised($because)
+        && (!$reach.defined || normalised($got.reach // '') eq normalised($reach));
+    return if $ok;
+    $path.spurt($was);
+    user-error("$id would not read back word for word, so nothing was written; this is a bug in iz4, please report the words");
 }
 
 #| The one line that tells a reader, and the next 'iz4 add', which domain
@@ -830,7 +844,9 @@ sub rewrite-invariant(IO::Path $path, IZ4::Document $doc, $inv, Str $claim, Str 
         }
         elsif %part<PROTECTS>.defined { @edits.push: (%part<PROTECTS>.line, %part<PROTECTS>.last-line, ()) }
         for @edits.sort({ -$_[0] }) -> ($from, $to, @new) { @lines.splice($from - 1, $to - $from + 1, @new) }
+        my $was = $path.slurp;
         $path.spurt(@lines.join("\n") ~ "\n");
+        written-as-meant($path, $inv.id, :text($claim), :because($reason.trim), :$was);
         return;
     }
     my $from  = $inv.line - 1;
@@ -935,7 +951,9 @@ sub set-reach(IO::Path $path, Str $ref, Str $text --> Str) is export {
     my $part = $doc.blocks.first({ .kind eq 'WHERE' && .line > $inv.line && .line <= $inv.last-line });
     if $part { @lines.splice($part.line - 1, $part.last-line - $part.line + 1, clause-lines('WHERE', $reach)) }
     else     { @lines.splice($inv.line, 0, clause-lines('WHERE', $reach)) }
+    my $was = $path.slurp;
     $path.spurt(@lines.join("\n") ~ "\n");
+    written-as-meant($path, $inv.id, :text($inv.text), :because($inv.because // ''), :$reach, :$was);
     $inv.id;
 }
 
@@ -994,6 +1012,12 @@ sub migrate-clauses(IO::Path $path, %reach, Str :$namespace --> List) is export 
     my @out = with-foundation($doc, @lines, :to-clauses, :last).join("\n").lines.grep(* ne $drop);
     my $new = @out.join("\n") ~ "\n";
     my $check = IZ4::Document.parse($new);
+    for $doc.invariants -> $inv {
+        my $got = $check.invariant($inv.id);
+        user-error("the three-clause form of {$path.basename} would not carry {$inv.id} word for word; nothing was written")
+            unless $got.defined && normalised($got.text) eq normalised($inv.text) && normalised($got.because // '') eq normalised($inv.because // '')
+                && normalised($got.reach // '') eq normalised(%reach{$inv.id});
+    }
     user-error("the three-clause form of {$path.basename} would not check ({$check.errors[0].message}, line {$check.errors[0].line}); nothing was written")
         unless $check.ok;
     $path.spurt($new);

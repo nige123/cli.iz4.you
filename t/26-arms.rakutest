@@ -218,6 +218,27 @@ like problems("humans.iz4.you:\n  WHERE: x\n  ALWAYS: Y must hold.\n  PROTECTS: 
     like $p.slurp, /'IS FOR WHAT?' \h+ 'Helping people find work they will love.'/, 'the two questions are set on their own lines';
 }
 
+# ---- a word that begins with # never starts a line, so it never becomes a comment --------
+{
+    my $p = clauses-file;
+    for 1 .. 14 -> $n {
+        my $text = ('word' xx $n).join(' ') ~ ' #f5f1e8 and #1c1a17 are the colours, ' ~ ('more' xx 12).join(' ') ~ ' #end.';
+        my $name = "colours-$n.$NS";
+        add-invariant($p, $text, :name($name), :because('a reader seeing the whole sentence'), :reach('a page is styled'));
+        is normalised(check-doc($p).invariant($name).text), normalised($text), "an invariant with #-words reads back whole (padding $n)";
+    }
+    nok clause-lines('ALWAYS', ('word' xx 11).join(' ') ~ ' #f5f1e8 rest').grep(*.trim.starts-with('#')), 'the writer keeps a #-word on the line before';
+    nok purpose-lines('IS FOR WHAT?', ('word' xx 13).join(' ') ~ ' #f5f1e8 rest').grep(*.trim.starts-with('#')), 'and so for the two questions';
+    # migration carries such words too, and would refuse rather than lose one
+    my $d = temp-dir;
+    init(:dir($d), :for-what('Styling pages.'), :for-who('Readers.'));
+    my $named = $d.add('IZ4');
+    my $words = 'The identity is ink #1c1a17 on paper #f5f1e8 with one green accent. The mark is four small hollow diamonds at the corners.';
+    add-invariant($named, $words, :name("two-voices.$NS"), :because('a reader recognising the site at a glance.'), :namespace($NS));
+    migrate-clauses($named, %( "two-voices.$NS" => 'the site is styled or a mark is drawn' ));
+    is normalised(check-doc($named).invariant("two-voices.$NS").text), normalised($words), 'migration carries a #-word sentence word for word';
+}
+
 # ---- reading: the tools show the clauses ---------------------------------------------
 {
     my $p = clauses-file($PRIVATE);

@@ -370,9 +370,22 @@ sub foundation-block(Bool :$clauses = False --> Str) is export {
 constant FOUNDATION-RULE-OFF is export = '# ' ~ ('-' x 70);
 
 #| One clause as it is written: the label, then its words wrapped under it.
+#| Wrapped so that no line begins with something the grammar would read
+#| as anything but words: a '#' word would make a comment of the line
+#| and a label word a new clause, and the words after it would vanish.
+#| Such a word stays on the line before it, however long that makes it.
+sub wrap-safely(Str $text, Int $width --> List) is export {
+    my @out;
+    for wrap-words($text, $width) -> $l {
+        if @out && $l ~~ / ^ [ '#' | [ 'WHERE' | 'ALWAYS' | 'PROTECTS' | 'FOR' | 'RULE' | 'HOLDS' | 'BECAUSE' ] ':' ] / { @out[*-1] ~= ' ' ~ $l }
+        else { @out.push($l) }
+    }
+    @out;
+}
+
 sub clause-lines(Str $label, Str $text --> List) is export {
     my $head = '  ' ~ ($label ~ ':').fmt('%-10s');
-    my @w = wrap-words($text, 80 - $head.chars);
+    my @w = wrap-safely($text, 80 - $head.chars);
     @w = ('',) unless @w;
     (($head ~ @w[0]), |@w[1 .. *].map({ ' ' x $head.chars ~ $_ })).List;
 }
