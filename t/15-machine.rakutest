@@ -63,10 +63,8 @@ is foundation-ids().join(','), @FIVE.join(','), 'the five foundation names are t
 ok all(%d<invariants>.map({ .<id> ~~ Str })), 'every identity is a string';
 ok !%d<invariants>.first({ .<number>:exists }), 'and no entry carries a number';
 ok all(%d<invariants>[^5].map({ .<foundation> === True })) && %d<invariants>[5]<foundation> === False, 'the foundation is told apart from the project\'s own';
-is %d<invariants>[^5].map(*<legacy_foundation_number>).join(','), '0,1,2,3,4', 'each of the five says which number it had in the numbered format';
 is %d<invariants>[^5].map(*<foundation_order>).join(','), '0,1,2,3,4', 'and its place in the foundation, 0 to 4: Invariant Zero is first';
 ok !(%d<invariants>[5]<foundation_order>:exists), "a project's own invariant has no place in that order";
-ok !(%d<invariants>[5]<legacy_foundation_number>:exists), "a project's own invariant has no such number";
 ok all(%d<invariants>.map({ so .<digest> ~~ /^ <[0..9a..f]> ** 64 $/ })), 'every entry carries the digest of its words';
 is %d<invariants>[^5].map(*<digest>).join(','), @FIVE.map({ foundation-digest-of($_) }).join(','), 'the foundation digests are the foundation\'s';
 is %d<invariants>[5]<digest>, invariant-digest(VIS, 'People control whether their profile is visible.', 'Privacy.'), 'and the project invariant\'s is the iz4-invariant/1 digest of its name, words and reason';
@@ -131,21 +129,6 @@ like $out, /'no IZ4'/, 'the plain form says so too';
     isnt invariant-digest(CONTACT, 'People control whether their profile is visible.', 'Privacy.'), %before{$VIS}, 'and so does the name: the same words under another name are another commitment';
     isnt invariant-digest(VIS, 'People control whether their profile is visible', 'Privacy.'), %before{$VIS}, 'even a full stop is a change of words';
 
-    # a file still in the numbered format is described as what it is
-    my $l = temp-dir;
-    $l.add('IZ4').spurt($head ~ FOUNDATION-LEGACY.map({ "INVARIANT {.<number>} - {.<name>}\n{.<text>}\n\nBECAUSE\n{.<because>}\n\n" }).join
-        ~ block('5', 'People control whether their profile is visible.', 'Privacy.'));
-    my %l = found($l);
-    ok %l<present> && %l<valid>, 'a numbered file is found and parses' or diag %l<errors>.join('; ');
-    is %l<format>, 'numbered', 'discover says it is in the numbered format';
-    is %l<invariants>.map(*<id>).join(','), '0,1,2,3,4,5', 'its identities are its numbers';
-    ok all(%l<invariants>.map({ .<id> ~~ Str })), 'as strings, like any identity';
-    ok !%l<invariants>.first({ .<legacy_foundation_number>:exists }), 'and no entry claims a legacy number: the number is the identity there';
-    isnt %l<invariants>[5]<digest>, %before{$VIS}, 'the same words under a number are not the named invariant';
-    my ($rc, $out, $err) = iz4($l, 'discover');
-    like $out, /'invariants (numbered): 0, 1, 2, 3, 4, 5'/, 'the plain form says numbered';
-    ($rc, $out, $err) = iz4($l, 'context', '--json');
-    ok $rc == 0 && doc($out)<effective>.contains('INVARIANT 5'), 'and a numbered file still governs: context hands it over' or diag $err;
 }
 
 # ---- context ----------------------------------------------------------------
@@ -367,7 +350,7 @@ is $out.lines.elems, 1, 'a JSON result is one line';
     one-doc($out, 'discover');
     is doc($out)<schema>, 'iz4-discover/2', 'discover: schema id';
     is keys-of($out), 'errors file format invariants namespace present schema sha256 tool valid', 'discover: keys';
-    is doc($out)<invariants>[0].keys.sort.join(' '), 'digest foundation foundation_order id legacy_foundation_number summary', 'discover: a foundation entry';
+    is doc($out)<invariants>[0].keys.sort.join(' '), 'digest foundation foundation_order id summary', 'discover: a foundation entry';
     is doc($out)<invariants>[5].keys.sort.join(' '), 'digest foundation id summary', "discover: an entry for one of the project's own";
     is keys-of(iz4(temp-dir(), 'discover', '--json')[1]), 'errors file format invariants namespace present schema sha256 tool valid', 'discover: the same keys where there is no IZ4';
 

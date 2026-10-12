@@ -59,42 +59,6 @@ nok names-identity("{$ONCE}x", ONCE), 'names-identity: not with letters run on';
 nok names-identity("{$ONCE}-old", ONCE), 'names-identity: not with a hyphenated label run on';
 ok  names-identity("x.{$ONCE} and then {$ONCE}", ONCE), 'names-identity: a later whole occurrence counts after a partial one';
 
-# ---- a file still in the numbered format keeps the rule it was written under
-sub legacy-iz4(IO::Path $dir, Str $own --> IO::Path) {
-    my $p = $dir.add('IZ4');
-    $p.spurt("IZ4\n\nIS FOR WHAT?\nHelping people find work they love to do.\n\nIS FOR WHO?\nPeople looking for work.\n\n"
-        ~ FOUNDATION-LEGACY.map({ "INVARIANT {.<number>} - {.<name>}\n{.<text>}\n\nBECAUSE\n{.<because>}\n\n" }).join ~ $own);
-    $p;
-}
-my $old = temp-dir;
-my $old-iz4 = legacy-iz4($old, "INVARIANT 5\nA code works once and only once.\n\nBECAUSE\nA code that works twice lets someone else sign in as you.\n\n"
-    ~ "INVARIANT 6\nCodes expire within ten minutes.\n\nBECAUSE\nA stale code in an inbox is a key under the mat.\n");
-my $old-doc = IZ4::Document.load($old-iz4);
-ok $old-doc.legacy && !$old-doc.errors, 'a numbered file still parses, as legacy';
-is evidence-for($old-doc, $old)<state>, { '5' => 'none', '6' => 'none' }, 'legacy: identities are the numbers, as strings';
-$old.add('t').mkdir;
-$old.add('t/other.t').spurt("# see Invariant 5 for why\nok 1;\n");
-is evidence-for($old-doc, $old)<state><5>, 'none', "legacy: a test that only mentions 'Invariant 5' is not evidence";
-$old.add('t/other.t').spurt("# A code works once and only once.\nok 1;\n");
-is evidence-for($old-doc, $old)<state><5>, 'none', 'legacy: nor one that only quotes the words';
-$old.add('t/other.t').unlink;
-$old.add('t/codes.t').spurt("# Invariant 5: A code works once and only once.\nok !use_twice(), 'second use fails';\n");
-my %le = evidence-for($old-doc, $old);
-is %le<state><5>, 'named', "legacy: 'Invariant N' with the opening words is evidence";
-is %le<files><5>, ['t/codes.t'], 'legacy: and is listed once';
-is %le<state><6>, 'none', 'legacy: for that number only';
-$old.add('t/fifty.t').spurt("# Invariant 56: Codes expire within ten minutes.\nok 1;\n");
-is evidence-for($old-doc, $old)<state><6>, 'none', 'legacy: Invariant 56 is not Invariant 6';
-my ($lrc, $lout, $lerr) = iz4($old, 'check');
-ok $lrc == 1 && $lout.contains('✗ evidence: Invariant 6 has no test naming it'), 'legacy: check still reports evidence, by number';
-unlike $lout, /"'iz4 test' scaffolds one"/, 'legacy: and does not offer a scaffold it would refuse to write';
-like $lout, /'NOT YET' .* "run 'iz4 migrate'"/, 'legacy: check fails with the one next step';
-($lrc, $lout, $lerr) = iz4($old, 'test', '--list');
-ok $lrc == 0 && $lout ~~ /'named' \s+ 'Invariant 5' \s+ 't/codes.t'/ && $lout ~~ /'none' \s+ 'Invariant 6'/, 'legacy: iz4 test list still reads it';
-($lrc, $lout, $lerr) = iz4($old, 'test');
-ok $lrc == 1 && $lerr.contains('numbered format') && $lerr.contains("Run 'iz4 migrate'"), 'legacy: iz4 test writes nothing and points at iz4 migrate';
-ok !$old.add('t/invariant-6.t').e && $old.add('t').dir.elems == 2, 'legacy: no scaffold appeared';
-
 # ---- scaffolds: the repository's language, born red, never overwritten ----
 is detect-language($repo), 'perl', 'the language follows the existing tests';
 my $rk = temp-dir; $rk.add('t').mkdir; $rk.add('t/00-load.t').spurt("use v6;\nuse Test;\nuse-ok 'X';\n");

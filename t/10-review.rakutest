@@ -47,14 +47,6 @@ unlike @report.join("\n"), /'Invariant ' \d/, 'nothing in the report numbers an 
 like @report[*-1], /'nothing here says the change keeps or breaks'/, 'and claims nothing more';
 is offline-report($doc, '', :what('nothing'))[0], 'Nothing to review: no change in nothing.', 'an empty diff is said plainly';
 
-# a file still in the numbered format is still reviewed, under the numbers it has
-my $old = IZ4::Document.parse($doc.lines.join("\n")
-    .subst('INVARIANT price-by-decision.shop.example.com', 'INVARIANT 5')
-    .subst('INVARIANT stock-seen.shop.example.com', 'INVARIANT 6') ~ "\n");
-ok $old.legacy, 'a file whose labels are all numbers is in the numbered format';
-is touched-invariants($old, $price-diff)».<id>, ('5',), 'its invariants are touched under their numbers, as strings';
-like offline-report($old, $price-diff, :what('the change')).join("\n"), /'touches, by its own words, Invariant 5.'/, 'and the report says Invariant 5 for it';
-
 # ---- the agent reply: honesty vocabulary, capped candidates -------------
 my %r = parse-review(q:to/END/);
     INVARIANT price-by-decision.shop.example.com | conflicting | lib/Price.pm pushes a proposal with no approval

@@ -41,7 +41,6 @@ is $doc.for-what, 'Helping people find work they love to do.', 'IS FOR WHAT read
 is $doc.for-who, 'People looking for work.', 'IS FOR WHO read';
 is $doc.invariants».id, ('visible-by-choice.jobs.example.com', 'contact-by-invitation.jobs.example.com'), 'project invariants are known by their names, in file order';
 is $doc.namespace, 'jobs.example.com', 'and the namespace is what their names share';
-nok $doc.legacy, 'a named file is not legacy';
 is $doc.invariants[0].text, 'People control whether their profile is visible.',
     'wrapped lines join into one invariant';
 is $doc.invariants[0].because, 'Looking for work should not mean surrendering privacy.',
@@ -164,25 +163,6 @@ my $twice = IZ4::Document.parse("IZ4\n\nINVARIANT a.shop.example.com\nSomething.
 is $twice.fixes.grep(* eq 'iz4 foundation restore').elems, 1, 'a step that clears several errors is listed once';
 ok $twice.fixes.first(*.contains('line 6')), 'and the duplicate names its line';
 
-# ---- the numbered format of earlier versions is read, as legacy ------------
-
-sub legacy-foundation() {
-    FOUNDATION-LEGACY.map({ "INVARIANT {.<number>} - {.<name>}\n{.<text>}\n\nBECAUSE\n{.<because>}\n" }).join("\n");
-}
-my $legacy = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n" ~ legacy-foundation() ~ "\nINVARIANT 5\nPeople control it.\n\nBECAUSE\nWhy.\n\nINVARIANT 7\nAnother.\n");
-ok $legacy.legacy, 'a file whose invariants are all numbered is the earlier format';
-ok $legacy.ok && $legacy.foundation-intact, 'it still parses, and its numbered foundation is recognised word for word';
-is $legacy.invariants».id, ('5', '7'), 'its identities are its numbers, as strings';
-is $legacy.invariant('5').because, 'Why.', 'and they are looked up the same way';
-like $legacy.foundation-status, /'Invariants 0-4 of the numbered format' .* 'iz4 migrate'/, 'the status says which foundation it carries and how to move on';
-my $legacy-altered = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n" ~ legacy-foundation().subst('Keep people in charge.', 'Keep some people in charge.') ~ "\nINVARIANT 5\nP.\n");
-nok $legacy-altered.ok, 'an altered numbered foundation is still an error';
-is $legacy-altered.fixes, ('iz4 migrate',), 'and the one next step for a numbered file is to migrate it';
-my $mixed = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT 5\nNumbered.\n\nINVARIANT named.shop.example.com\nNamed.\n"));
-nok $mixed.legacy, 'a file with both numbered and named invariants is not legacy';
-like $mixed.errors».Str.join("\n"), /'mixes numbered and named invariants'/, 'it is refused as a mix';
-like $mixed.errors».Str.join("\n"), /'INVARIANT 5 is numbered: invariants are named now'/, 'and the numbered one is pointed at';
-
 # old concepts are kept as unknown blocks, and the warning says where they belong
 my $spec = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nBEHAVIOURS\nSearch shows 20 results.\n"));
 ok $spec.ok, 'an unknown block is not an error, so the format can evolve';
@@ -191,12 +171,6 @@ like $spec.warnings[0].Str, /"unknown block 'BEHAVIOURS'" .* 'README, ADRs, test
 
 like IZ4::Document.parse('').report.join, /'file is empty'/, 'empty file reported';
 like IZ4::Document.parse("IS FOR WHAT?\nx\n").report[0], /'expected' .* 'IZ4'/, 'missing header reported';
-# ---- the earlier format is refused, with a pointer ------------------------
-my $old = IZ4::Document.parse("IZ4\n\ngist:\n    A small tool.\n\ninvariants:\n    - Invariant 1: X.\n");
-nok $old.ok, 'the earlier gist:/invariants: format is no longer read';
-like $old.errors[0].Str, /"'gist:' is the earlier IZ4 format" .* 'docs/format.md' .* 'iz4 0.3.0'/,
-    'and the error says what the format is now and which version converts';
-nok IZ4::Document.parse("NOTIZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n").ok, 'a header word other than IZ4 is refused';
 
 # ---- mistakes the grammar catches by line ---------------------------------------
 my $indented = IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT rule.shop.example.com\nRule.\n    BECAUSE\n    reason\n"));

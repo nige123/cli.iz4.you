@@ -420,17 +420,15 @@ is $hook.slurp, "#!/bin/sh\necho mine\n", 'and is left alone';
     my constant PRICES = 'owner-adjusted.prices.shop.example.com';
     my $PRICES = PRICES;
     my $head = "IZ4\n\nIS FOR WHAT?\nHelping people find work they love to do.\n\nIS FOR WHO?\nPeople looking for work.\n\n";
-    my $old-foundation = FOUNDATION-LEGACY.map({ "INVARIANT {.<number>} - {.<name>}\n{.<text>}\n\nBECAUSE\n{.<because>}\n\n" }).join;
     my sub block(Str $label, Str $text, Str $why) { "INVARIANT $label\n$text\n\nBECAUSE\n$why\n\n" }
     my sub named(*@blocks)  { IZ4::Document.parse($head ~ foundation-block() ~ @blocks.join) }
-    my sub legacy(*@blocks) { IZ4::Document.parse($head ~ $old-foundation ~ @blocks.join) }
     my sub kinds(@c) { @c.map(*<kind>).join(' ') }
     my sub verdict(@c) { my %p = changes => @c.List, protections => (); is-blocked(%p) ?? 'blocked' !! needs-agreement(%p) ?? 'agreement-required' !! 'pass' }
 
     my $vis     = block(VIS, 'People control whether their profile is visible.', 'Privacy.');
     my $contact = block(CONTACT, 'Employers cannot contact someone first.', 'No new inbox.');
     my $base    = named($vis, $contact);
-    ok $base.ok && !$base.legacy, 'a named base parses' or diag $base.errors.join('; ');
+    ok $base.ok, 'a named base parses' or diag $base.errors.join('; ');
     is commitment-changes($base, named($vis, $contact)).elems, 0, 'the same file against itself changes nothing';
 
     # order is presentation
@@ -504,117 +502,7 @@ is $hook.slurp, "#!/bin/sh\necho mine\n", 'and is left alone';
     @c = commitment-changes($retired, named($vis, block(CONTACT, 'Employers cannot contact someone first.', 'No new inbox.')));
     is kinds(@c), 'reused-name', 'even with the words it had before';
 
-    # the numbered format moving to names
-    my $five = block('5', 'People control whether their profile is visible.', 'Privacy.');
-    my $six  = block('6', 'Employers cannot contact someone first.', 'No new inbox.');
-    my $numbered = legacy($five, $six);
-    ok $numbered.ok && $numbered.legacy, 'a numbered base parses, as legacy' or diag $numbered.errors.join('; ');
-    is commitment-changes($numbered, legacy($five, $six)).elems, 0, 'a numbered file against itself still changes nothing';
-    is correspondence($numbered, $base), %( '5' => VIS, '6' => CONTACT ), 'numbered to named: an invariant is followed by its unchanged words';
-    @c = commitment-changes($numbered, $base);
-    is kinds(@c), 'foundation-migrated named named', 'the foundation migrates and each invariant whose words are unchanged is named';
-    is @c.grep({ .<kind> eq 'named' }).map({ "{.<from>}={.<id>}" }).join(' '), "5={$VIS} 6={$CONTACT}", 'each named change says which number became which name, in the old order';
-    is @c[1]<digest>, invariant-digest(VIS, 'People control whether their profile is visible.', 'Privacy.'), 'with the digest under the new name';
-    ok @c[0]<before>.contains(FOUNDATION-LEGACY-DIGEST.substr(0, 12)) && @c[0]<after>.contains(FOUNDATION-DIGEST.substr(0, 12)),
-        'the foundation change names both foundations by digest';
-    is verdict(@c), 'agreement-required', 'the move needs agreement and is not blocked';
-    $said = proposal-lines(%( changes => @c.List, protections => () )).join("\n");
-    like $said, /'The foundation moves to named invariants, with new words'/, 'a person is told the foundation has new words';
-    like $said, /"Invariant 5 is named {$VIS}; its words are unchanged"/, 'and which invariant got which name';
-    # reordered while being named: still followed by words
-    @c = commitment-changes($numbered, named($contact, $vis));
-    is @c.grep({ .<kind> eq 'named' }).map({ "{.<from>}={.<id>}" }).join(' '), "5={$VIS} 6={$CONTACT}", 'the order of the named file does not matter to the move';
-    # words changed during the move: not the same invariant
-    @c = commitment-changes($numbered, named($vis, block(CONTACT, 'Employers may contact anyone.', 'No new inbox.')));
-    is kinds(@c), 'foundation-migrated named added removed', 'an invariant reworded during the move is not named: it is added, and the numbered one removed';
-    ok @c.first({ .<kind> eq 'added' })<id> eq CONTACT && @c.first({ .<kind> eq 'removed' })<id> eq '6', 'each under its own identity';
 
-    # and never back
-    @c = commitment-changes($base, $numbered);
-    is kinds(@c), 'format-regressed', 'a named base with a numbered candidate is format-regressed, and nothing else';
-    is verdict(@c), 'blocked', 'which is blocked';
-    like proposal-lines(%( changes => @c.List, protections => () )).join("\n"), /'To put right: the candidate goes back to numbered invariants'/, 'and reads as such';
-
-    # ---- the same through the command, with a test that protects the invariant
-    my $m = repo;
-    my $mp = $m.add('IZ4');
-    $mp.spurt($head ~ $old-foundation ~ $five ~ $six);
-    $m.add('lib').mkdir; $m.add('tests').mkdir;
-    $m.add('lib/profile.txt').spurt("visible: private\n");
-    my $t = $m.add('tests/visible.sh');
-    $t.spurt("#!/bin/sh\n# Invariant 5: People control whether their profile is visible.\ngrep -q 'visible: private' lib/profile.txt\n");
-    g($m, 'add', '-A');
-    my ($rc, $out, $err) = gate($m, '--staged', '--enforce');
-    is $rc, 2, 'a numbered IZ4 still gates: its first commit needs agreement' or diag $out ~ $err;
-    like $out, /'✓ tests/visible.sh (5) passed'/, 'and its test, linked the old way, still runs';
-    g($m, 'commit', '-qm', 'numbered');
-
-    # named, and the test relinked by name: the protection follows the invariant
-    $mp.spurt($head ~ foundation-block() ~ $vis ~ $contact);
-    $t.spurt("#!/bin/sh\n# INVARIANT {$VIS}\ngrep -q 'visible: private' lib/profile.txt\n");
-    g($m, 'add', '-A');
-    ($rc, $out, $err) = gate($m, '--staged', '--json');
-    is json($out, 'outcome'), 'agreement-required', 'numbered to named needs agreement' or diag $out;
-    is changes($out, 'foundation-migrated').elems, 1, 'with foundation-migrated';
-    is changes($out, 'named').elems, 2, 'and one named change per invariant whose words are unchanged';
-    like change($out, 'named', VIS), /'"from":"5"'/, 'saying which number it was';
-    like change($out, 'named', CONTACT), /'"from":"6"'/, 'for each';
-    is changes($out, 'added').elems + changes($out, 'removed').elems, 0, 'nothing is added or removed by naming';
-    is changes($out, 'protection-removed').elems + changes($out, 'protection-unlinked').elems, 0, 'the protection followed the invariant to its name';
-    like change($out, 'protection-changed', VIS), /'tests/visible.sh'/, 'the relinked test is noted as changed, under the name';
-    like $out, /'"file":"tests/visible.sh"' <-[}]>* "\"invariants\":[\"{$VIS}\"]" | "\"invariants\":[\"{$VIS}\"]" <-[}]>* '"file":"tests/visible.sh"'/, 'and its check ran for the named invariant';
-    ($rc, $out, $err) = gate($m, '--staged', '--enforce');
-    is $rc, 2, 'exit 2 under --enforce: approvable, not blocked';
-    like $out, /"✓ tests/visible.sh ({$VIS}) passed"/, 'the check is shown under the name';
-    unlike $out, /'Protection of'/, 'and no protection is reported lost';
-
-    # named, but the test left saying 'Invariant 5': the protection is gone, and said to be
-    $t.spurt("#!/bin/sh\n# Invariant 5: People control whether their profile is visible.\ngrep -q 'visible: private' lib/profile.txt\n");
-    g($m, 'add', '-A');
-    ($rc, $out, $err) = gate($m, '--staged', '--enforce');
-    is $rc, 2, 'a test left linked the old way: still agreement-required';
-    like $out, /"Protection of {$VIS}: removed - INVARIANT {$VIS} had a test naming it; the candidate has none"/, 'and the lost protection is reported under the new name';
-    ($rc, $out, $err) = gate($m, '--staged', '--json');
-    like change($out, 'protection-removed', VIS), /'tests/visible.sh'/, 'in the result too';
-    $t.spurt("#!/bin/sh\n# INVARIANT {$VIS}\ngrep -q 'visible: private' lib/profile.txt\n");
-    g($m, 'add', '-A');
-    ($rc, $out, $err) = iz4-talk($m, "a\n" x 9, 'approve', '--staged');
-    is $rc, 0, 'a person can agree to the move' or diag $out ~ $err;
-    like $out, /"Invariant 5 is named {$VIS}; its words are unchanged"/, 'having been shown what it names';
-    g($m, 'commit', '-qm', 'named');
-
-    # a pure reorder: the project's own first, the foundation after
-    $mp.spurt($head ~ $contact ~ $vis ~ foundation-block());
-    g($m, 'add', 'IZ4');
-    ($rc, $out, $err) = gate($m, '--staged', '--enforce');
-    is $rc, 0, 'moving blocks about passes under --enforce' or diag $out;
-    like $out, /'commitments and protections: unchanged'/, 'nothing committed to changed';
-    ($rc, $out, $err) = gate($m, '--staged', '--json');
-    is json($out, 'outcome'), 'pass', 'and in JSON';
-    like $out, /'"changes":[]'/, 'with no changes at all';
-    g($m, 'commit', '-qm', 'reordered');
-
-    # the same words under a new name
-    $mp.spurt($head ~ $contact ~ block(PRICES, 'People control whether their profile is visible.', 'Privacy.') ~ foundation-block());
-    g($m, 'add', 'IZ4');
-    ($rc, $out, $err) = gate($m, '--staged', '--json');
-    is json($out, 'outcome'), 'agreement-required', 'a new name for the same words needs agreement';
-    like change($out, 'added', PRICES), /'not a rename'/, 'added, with the detail';
-    ok change($out, 'removed', VIS), 'and the old name removed';
-    is changes($out, 'named').elems + changes($out, 'revised').elems, 0, 'it is neither a naming nor a revision';
-    g($m, 'reset', '-q', 'IZ4'); g($m, 'checkout', '--', 'IZ4');
-
-    # back to numbers
-    $mp.spurt($head ~ $old-foundation ~ $five ~ $six);
-    g($m, 'add', 'IZ4');
-    ($rc, $out, $err) = gate($m, '--staged', '--enforce');
-    is $rc, 3, 'going back to numbered invariants is blocked';
-    like $out, /'To put right: the candidate goes back to numbered invariants; the base names them'/, 'and says why';
-    like $out, /"keep the named IZ4"/, 'with the next step';
-    ($rc, $out, $err) = gate($m, '--staged', '--json');
-    is changes($out, 'format-regressed').elems, 1, 'as format-regressed';
-    ($rc, $out, $err) = iz4-talk($m, "a\n" x 9, 'approve', '--staged');
-    is $rc, 3, 'which no approval can lift';
 }
 
 # ---- no IZ4 anywhere: nothing to gate --------------------------------------

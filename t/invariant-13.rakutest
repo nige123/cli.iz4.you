@@ -84,6 +84,6 @@ else {
 
 # the numbers of the earlier format are history: nothing gives one out any more
 nok template(:for-what<x>, :for-who<y>) ~~ / ^^ 'INVARIANT ' \d /, 'a new IZ4 carries no numbered invariant';
-throws-like { invariant-text($iz4, '5') }, X::IZ4, message => /'invariants are named now'/, 'and a citation by number is answered with that, not with a guess';
+throws-like { invariant-text($iz4, '5') }, X::IZ4, message => /'only the foundation, 0 to 4, has an order'/, 'and a citation by number is answered with that, not with a guess';
 
 done-testing;

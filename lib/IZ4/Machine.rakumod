@@ -79,17 +79,10 @@ sub discover(IO::Path $dir = $*CWD --> Hash) is export {
 #| to 4, as foundation_order; the first is Invariant Zero), then the
 #| project's own, each with the digest of its exact words.  The identity
 #| is an opaque string to whoever reads this: nothing may be inferred
-#| from its shape, and a file still in the numbered format ('format'
-#| says which) gives its numbers as strings.
+#| from its shape.
 sub effective-list(IZ4::Document $doc --> Array) {
     my @out;
-    if $doc.legacy {
-        for FOUNDATION-LEGACY -> %f {
-            @out.push: %( id => ~%f<number>, foundation => True, summary => first-sentence(%f<text>),
-                          digest => sha256-text(canonical-invariant(~%f<number>, %f<text>, %f<because>)) );
-        }
-    }
-    elsif $doc.form eq 'clauses' {
+    if $doc.form eq 'clauses' {
         for FOUNDATION-CLAUSES -> %f {
             @out.push: %( id => %f<id>, foundation => True, summary => first-sentence(%f<text>), reach => %f<reach>,
                           digest => sha256-text(canonical-clauses(%f<id>, %f<reach>, %f<text>, %f<because>)), foundation_order => %f<legacy> );
@@ -98,7 +91,7 @@ sub effective-list(IZ4::Document $doc --> Array) {
     else {
         for FOUNDATION -> %f {
             @out.push: %( id => %f<id>, foundation => True, summary => first-sentence(%f<text>),
-                          digest => foundation-digest-of(%f<id>), foundation_order => %f<legacy>, legacy_foundation_number => %f<legacy> );
+                          digest => foundation-digest-of(%f<id>), foundation_order => %f<legacy> );
         }
     }
     my %seen;
@@ -253,7 +246,7 @@ sub check-action(%action, IO::Path :$dir = $*CWD --> Hash) is export {
         my @protects = %ev<files>.pairs.grep({ .value.map(*.Str).grep($rel) }).map(*.key).sort;
         if @protects {
             return result-doc('action', WARN,
-                "$rel is the test that names {$doc.legacy ?? 'Invariant ' !! ''}{@protects.join(', ')}; changing it changes what protects the invariant",
+                "$rel is the test that names {@protects.join(', ')}; changing it changes what protects the invariant",
                 $iz4, :invariants(@protects),
                 :evidence(%( rule => 'protecting-test', operation => $operation, target => $rel )),
                 :limits('whether the change weakens the test was not examined; check change compares the test before and after and asks for agreement if it does'));

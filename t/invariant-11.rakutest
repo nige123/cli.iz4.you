@@ -55,22 +55,6 @@ my $snapshot = $iz4.slurp;
 throws-like { add-invariant($iz4, 'Clash.', :name('first.shop.example.com')) }, X::IZ4, 'a refused add';
 is $iz4.slurp, $snapshot, 'writes nothing';
 
-# moving a numbered file to names touches the header line of each invariant
-# and the foundation's own blocks: the owner's words keep every byte
-my $numbered = temp-dir.add('IZ4');
-my $theirs = "Their rule,\n   wrapped   their way.\n\nBECAUSE\nTheir reason,\n  theirs too.\n";
-$numbered.spurt("IZ4\n# their comment\nIS FOR WHAT?\nTheir   purpose.\n\nIS FOR WHO?\nThem.\n\n"
-    ~ FOUNDATION-LEGACY.map({ "INVARIANT {.<number>} - {.<name>}\n{.<text>}\n\nBECAUSE\n{.<because>}\n" }).join("\n")
-    ~ "\nINVARIANT 5\n$theirs");
-my $numbered-before = $numbered.slurp;
-throws-like { add-invariant($numbered, 'More.', :name('more.shop.example.com')) }, X::IZ4, message => /'iz4 migrate'/, 'a numbered file is not written to: the tool says how to move it';
-throws-like { migrate($numbered, %()) }, X::IZ4, message => /'has no name yet'/, 'and it is not moved without a name for each invariant';
-is $numbered.slurp, $numbered-before, 'both refusals write nothing';
-migrate($numbered, %( 5 => 'their-rule.shop.example.com' ));
-ok $numbered.slurp.contains("INVARIANT their-rule.shop.example.com\n$theirs"), 'migrating gives the invariant its name and keeps its words, wrapping and reason byte for byte';
-ok $numbered.slurp.contains("# their comment\nIS FOR WHAT?\nTheir   purpose.\n"), 'and everything else of theirs';
-ok check-doc($numbered).ok && !check-doc($numbered).legacy, 'in a valid named file';
-
 # an old-format file is refused, not rewritten
 my $old = temp-dir.add('IZ4');
 $old.spurt("IZ4\n\ngist:\n    Their old words.\n");

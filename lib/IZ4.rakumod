@@ -5,7 +5,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.21.1';
+constant VERSION is export = '0.22.0';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -172,12 +172,6 @@ my @OLD-HEADERS =
      "# It begins with Invariant Zero, humans first: {OLD-FOUNDATION-URL}. It is the same in every IZ4 and not yours to edit.",
      "# Your own invariants are named under your project's domain.");
 
-#| Refuse to write to a file still in the numbered format: one next step.
-sub require-named(IZ4::Document $doc, IO::Path $path) is export {
-    user-error("{$path.basename} is in the numbered format of earlier versions, which this version reads but no longer writes.\n"
-        ~ "Run 'iz4 migrate': it gives each invariant a name, with you, and brings the foundation up to date.") if $doc.legacy;
-}
-
 #| @lines with every foundation block (and its BECAUSE), the foundation
 #| comment and nothing else removed, the opening comment brought up to
 #| date, and the current foundation written where the first block stood:
@@ -244,7 +238,6 @@ sub with-foundation(IZ4::Document $doc, @source, Bool :$to-clauses = False, Bool
 #| never the owner's words to keep.
 sub restore-foundation(IO::Path $path --> Str) is export {
     my $doc = IZ4::Document.load($path);
-    require-named($doc, $path);
     my $was = $path.slurp;
     my $now = with-foundation($doc, $was.lines).join("\n") ~ "\n";
     # the words are right but the comments around them are an earlier version's
@@ -278,7 +271,6 @@ constant EXAMPLES is export = q:to/END/;
 #| comes or goes.  Returns 'mvp', 'solid' or 'unchanged'.
 sub set-mode(IO::Path $path, Str $mode where 'mvp' | 'solid' --> Str) is export {
     my $doc = check-doc($path);
-    require-named($doc, $path);
     return 'unchanged' if $doc.mvp == ($mode eq 'mvp');
     my @lines = $path.lines;
     if $mode eq 'solid' {
@@ -386,14 +378,10 @@ sub project-invariants-text(IZ4::Document $doc --> Str) {
     }).join("\n");
 }
 
-#| The foundation as a reader sees it.  A file still in the numbered
-#| format is shown the foundation it carries, the numbered one, because
-#| that is what its own words cite.
-sub foundation-text(Bool :$legacy = False, Bool :$clauses = False --> Str) is export {
+#| The foundation as a reader sees it, in the form of the file.
+sub foundation-text(Bool :$clauses = False --> Str) is export {
     return FOUNDATION-CLAUSES.map({ invariant-block(.<id>, .<text>, .<because>, :reach(.<reach>)) }).join("\n") if $clauses;
-    $legacy
-        ?? FOUNDATION-LEGACY.map({ invariant-block("{.<number>} - {.<name>} (foundation)", .<text>, .<because>) }).join("\n")
-        !! FOUNDATION.map({ invariant-block(.<id>, .<text>, .<because>) }).join("\n");
+    FOUNDATION.map({ invariant-block(.<id>, .<text>, .<because>) }).join("\n");
 }
 
 #| The effective invariant set: the foundation, then the
@@ -403,20 +391,17 @@ sub effective-text(IZ4::Document $doc, Str :$name = 'IZ4' --> Str) is export {
     my @out;
     @out.push: "IS FOR WHAT?\n" ~ wrap($doc.for-what // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
     @out.push: "IS FOR WHO?\n"  ~ wrap($doc.for-who  // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
-    @out.push: foundation-text(:legacy($doc.legacy), :clauses($doc.form eq 'clauses'));
+    @out.push: foundation-text(:clauses($doc.form eq 'clauses'));
     @out.push: project-invariants-text($doc);
     @out.join("\n");
 }
 
 #| Which invariant a person means.  The full name always works.  So does
 #| its first part alone (owner-adjusted) when exactly one invariant in the
-#| file begins with it.  In a file still in the numbered format, a number
-#| ('5', 'Invariant 5', '5:').  Returns the identity, or Str.
+#| file begins with it.  The foundation's order, 0 to 4, finds one of its own.
+#| Returns the identity, or Str.
 sub resolve-identity(IZ4::Document $doc, Str $ref, :@also --> Str) is export {
     my $raw = $ref.trim.subst(/:i^ 'invariant' \s+ /, '').subst(/ ':' $/, '');
-    if $doc.legacy {
-        return $raw ~~ /^ \d+ $/ ?? ~+$raw !! Str;
-    }
     # The foundation has an order, 0 to 4, and Invariant Zero a name of its
     # own: either finds the foundation invariant at that place.  Only the
     # foundation: a project's own invariants have no numbers.
@@ -424,8 +409,7 @@ sub resolve-identity(IZ4::Document $doc, Str $ref, :@also --> Str) is export {
     return foundation-at(0, :$clauses) if $raw.lc eq 'zero' | 'iz';
     return foundation-at(+$raw, :$clauses) if $raw ~~ /^ <[0..4]> $/;
     # a foundation invariant asked for by a name it used to have answers under the one it has now
-    with ($clauses ?? clauses-foundation-renamed($raw) // clauses-foundation-renamed($raw ~ '.' ~ FOUNDATION-NAMESPACE)
-                !! foundation-renamed($raw) // foundation-renamed($raw ~ '.' ~ FOUNDATION-NAMESPACE)) { return $_ }
+    unless $clauses { with foundation-renamed($raw) // foundation-renamed($raw ~ '.' ~ FOUNDATION-NAMESPACE) { return $_ } }
     my @all = |foundation-ids(:$clauses), |$doc.invariants.map(*.id).grep(*.defined), |$doc.retired, |@also;
     return $raw if @all.first(* eq $raw).defined;
     my @starts = @all.grep(*.starts-with("$raw.")).unique;
@@ -440,17 +424,7 @@ sub own-names(IZ4::Document $doc --> Str) {
 #| One invariant by name.  The foundation's names always answer.
 sub invariant-text(IO::Path $path, Str $ref --> Str) is export {
     my $doc = IZ4::Document.load($path);
-    if $doc.legacy {
-        my $raw = resolve-identity($doc, $ref) // user-error("'$ref' is not an invariant number, and {$path.basename} is still in the numbered format ('iz4 migrate' names its invariants)");
-        my $n = +$raw;
-        if $n < 5 {
-            my %f = FOUNDATION-LEGACY[$n];
-            return invariant-block("$n - {%f<name>} (foundation)", %f<text>, %f<because>);
-        }
-        with $doc.invariant($raw) { return invariant-block($raw, .text, .because) }
-        user-error("no invariant $n in {$path.basename}; {own-names($doc)}, and 0-4 are the foundation");
-    }
-    user-error("invariants are named now: '$ref' is a number from the earlier format, and only the foundation, 0 to 4, has an order; 'iz4 show invariants' lists the names")
+    user-error("'$ref' is a number, and only the foundation, 0 to 4, has an order; 'iz4 show invariants' lists the names")
         if $ref.trim ~~ /:i^ ['invariant' \s+]? \d+ ':'? $/ && $ref.trim !~~ /:i^ ['invariant' \s+]? <[0..4]> ':'? $/;
     my $id = resolve-identity($doc, $ref)
         // user-error("no invariant '$ref' in {$path.basename}; {own-names($doc)}, and the foundation is {foundation-ids(:clauses($doc.form eq 'clauses')).join(', ')}");
@@ -477,7 +451,6 @@ sub invariant-text(IO::Path $path, Str $ref --> Str) is export {
 #| only on their say-so.
 sub withdraw-invariant(IO::Path $path, Str $ref --> IZ4::Document::Invariant) is export {
     my $doc = IZ4::Document.load($path);
-    require-named($doc, $path);
     my $id = resolve-identity($doc, $ref) // $ref;
     user-error("INVARIANT $id is part of the foundation: it binds every project and cannot be withdrawn by one (keystone.iz4.you)")
         if is-foundation-id($id);
@@ -594,7 +567,6 @@ sub set-is-for(IO::Path $path, Str $which where 'IS FOR WHAT' | 'IS FOR WHO', St
     my $value = $text.trim;
     user-error("nothing to set: the answer is empty") if $value eq '';
     my $doc   = IZ4::Document.load($path);
-    require-named($doc, $path);
     my @lines = $doc.lines;
     if $doc.form eq 'clauses' {
         my @clauses-new = purpose-lines("$which?", $value);
@@ -702,7 +674,6 @@ sub add-invariant(IO::Path $path, Str $text, Str :$name!, Str :$because, Str :$n
     my $value = $text.trim;
     user-error("nothing to add: the invariant is empty") if $value eq '';
     my $doc = IZ4::Document.load($path);
-    require-named($doc, $path);
     check-new-name($path, $doc, $name);
     my $reason = ($because // '').trim;
     if $doc.form eq 'clauses' {
@@ -770,7 +741,6 @@ sub namespace-comment(Str $namespace --> Str) is export { "# This project's inva
 #| is touched.
 sub name-invariant(IO::Path $path, Int $line, Str $name --> Str) is export {
     my $doc = IZ4::Document.load($path);
-    require-named($doc, $path);
     user-error("every invariant in the three-clause form has its name above its clauses; there is nothing to name") if $doc.form eq 'clauses';
     my $inv = $doc.invariants.first({ .line == $line })
         // user-error("no INVARIANT on line $line of {$path.basename}");
@@ -822,7 +792,6 @@ sub split-all-because(IO::Path $path --> List) is export {
 }
 
 sub invariant-or-die(IZ4::Document $doc, IO::Path $path, Str $ref) {
-    require-named($doc, $path);
     my $id = resolve-identity($doc, $ref) // $ref;
     user-error("INVARIANT $id is part of the foundation; its reasons are the same in every IZ4 and not yours to change") if is-foundation-id($id);
     $doc.invariant($id) // user-error("no invariant '$ref' in {$path.basename}; {own-names($doc)}");
@@ -874,72 +843,6 @@ sub wrap(Str $text, Int $width) is export {
 
 # ---------------------------------------------------------------- migrate
 
-#| What moving a numbered IZ4 to named invariants would do, without doing
-#| it: a hash of
-#|   needed     whether there is anything to migrate
-#|   stop       why it cannot be done as the file stands ('' when it can)
-#|   foundation 'replace' (Invariants 0-4, word for word, become the named ones
-#|              named ones) or 'write' (the file had none)
-#|   own        the project's own invariants, each { number, text, because, line }
-#|   withdrawn  the numbers the file's comments say were withdrawn
-#| The foundation's mapping is fixed; a project invariant's name is a
-#| person's to choose and is never derived here.
-sub migration-plan(IO::Path $path --> Hash) is export {
-    my $doc = IZ4::Document.load($path);
-    return %( :!needed, stop => '', own => [], withdrawn => [], foundation => 'none' ) unless $doc.legacy;
-    my $stop = '';
-    if $doc.errors -> @e {
-        # a missing foundation is what migration writes; anything else is the owner's to settle first
-        my @other = @e.grep({ !(.message.starts-with('the foundation is missing') || .message.contains('does not read as the foundation did')
-            || .message.contains('the foundation is out of order') || .message.contains('comes after a project invariant')) });
-        $stop = "the file has problems to settle first: {@other[0].message} (line {@other[0].line})" if @other;
-    }
-    $stop ||= "an invariant has no number to migrate from (line {$doc.unnamed-invariants[0].line}): give it a name by hand first"
-        if $doc.unnamed-invariants;
-    %(
-        :needed, :$stop,
-        foundation => ($doc.foundation-spans ?? 'replace' !! 'write'),
-        own        => $doc.invariants.map({ %( number => +.id, text => .text, because => .because, line => .line ) }).Array,
-        withdrawn  => $path.slurp.lines.map({ $_ ~~ /^ '#' \h* 'Invariant' \h+ (\d+) \h+ 'was withdrawn' / ?? +$0 !! Empty }).Array,
-    );
-}
-
-#| The numbers each foundation invariant carried in the numbered format.
-sub legacy-foundation-map(--> List) is export { FOUNDATION.map({ .<legacy> => .<id> }).List }
-
-#| Move a numbered IZ4 to named invariants.  %names gives every project
-#| invariant's full name by its old number; a missing or unusable name
-#| stops it before anything is written.  What changes: the
-#| foundation blocks (to the current ones, by their fixed mapping), the
-#| opening comment, and the header line of each project invariant.  Not
-#| one word of a project invariant or its BECAUSE is touched.  Returns
-#| the old-number => name pairs written, the foundation's first.
-sub migrate(IO::Path $path, %names, Str :$namespace --> List) is export {
-    my %plan = migration-plan($path);
-    user-error("{$path.basename} already names its invariants; there is nothing to migrate") unless %plan<needed>;
-    user-error("cannot migrate {$path.basename}: %plan<stop>") if %plan<stop>;
-    my $doc = IZ4::Document.load($path);
-    my @taken;
-    for %plan<own>.list -> %o {
-        my $name = %names{%o<number>} // user-error("Invariant %o<number> has no name yet: a person chooses it");
-        with identity-problem($name) -> $why { user-error("'$name' (for Invariant %o<number>) is not a name an invariant can have: $why") if $why }
-        user-error("'$name' (for Invariant %o<number>): names directly under {FOUNDATION-NAMESPACE} are the foundation's; use your project's own domain")
-            if is-foundation-id($name) || reserved-identity($name);
-        user-error("'$name' is given to two invariants; a name belongs to one") if @taken.first(* eq $name).defined;
-        @taken.push($name);
-    }
-    my @lines = $path.slurp.lines;
-    for %plan<own>.list -> %o { @lines[%o<line> - 1] = "INVARIANT {%names{%o<number>}}" }
-    # the namespace, said once, above the first of the project's own
-    if $namespace && %plan<own> && !$doc.namespace.defined && %names.values.first(*.ends-with(".$namespace")).defined {
-        my $first = %plan<own>.map(*<line>).min - 1;
-        @lines[$first] = namespace-comment($namespace) ~ "\n\n" ~ @lines[$first];
-    }
-    @lines = with-foundation($doc, @lines).join("\n").lines;
-    $path.spurt(@lines.join("\n") ~ "\n");
-    (|legacy-foundation-map(), |%plan<own>.map({ .<number> => %names{.<number>} })).List;
-}
-
 #| Set the WHERE of a project invariant in the three-clause form.  Returns its name.
 sub set-reach(IO::Path $path, Str $ref, Str $text --> Str) is export {
     my $reach = $text.trim;
@@ -964,7 +867,7 @@ sub set-reach(IO::Path $path, Str $ref, Str $text --> Str) is export {
 #|   own     the project's own invariants, each { id, text, because }
 sub clauses-migration-plan(IO::Path $path --> Hash) is export {
     my $doc = IZ4::Document.load($path);
-    return %( :!needed, stop => '', own => [], domain => Str ) if $doc.form eq 'clauses' || $doc.legacy;
+    return %( :!needed, stop => '', own => [], domain => Str ) if $doc.form eq 'clauses';
     my $stop = $doc.errors ?? "the file has problems to settle first: {$doc.errors[0].message} (line {$doc.errors[0].line})" !! '';
     %( :needed, :$stop, domain => $doc.namespace,
        own => $doc.invariants.map({ %( id => .id, text => .text, because => .because ) }).Array );
@@ -1022,54 +925,6 @@ sub migrate-clauses(IO::Path $path, %reach, Str :$namespace --> List) is export 
         unless $check.ok;
     $path.spurt($new);
     $doc.invariants.map(*.id).List;
-}
-
-#| Rename the clause labels an earlier iz4 wrote (FOR, RULE, BECAUSE; HOLDS) to
-#| WHERE, ALWAYS and PROTECTS.  Only the label token on each clause line changes; not
-#| a word of the clauses.  Returns the number of lines changed.
-sub relabel-clauses(IO::Path $path --> Int) is export {
-    my $doc = IZ4::Document.load($path);
-    user-error("{$path.basename} is not in the three-clause form") unless $doc.form eq 'clauses';
-    return 0 unless $doc.old-labels;
-    my %new = FOR => 'WHERE', RULE => 'ALWAYS', HOLDS => 'ALWAYS', BECAUSE => 'PROTECTS';
-    my @lines = $path.lines;
-    my $n = 0;
-    for $doc.blocks.grep({ .kind eq any(<WHERE ALWAYS PROTECTS>) }) -> $b {
-        my $l = @lines[$b.line - 1];
-        if $l ~~ / ^ (\h*) ('FOR' | 'RULE' | 'HOLDS' | 'BECAUSE') ':' (\h*) / {
-            my $label = %new{~$1} ~ ':';
-            my $pad = max(1, $2.chars + (~$1).chars + 1 - $label.chars);
-            @lines[$b.line - 1] = ~$0 ~ $label ~ (' ' x $pad) ~ $l.substr($/.to);
-            $n++;
-        }
-    }
-    $path.spurt(@lines.join("\n") ~ "\n") if $n;
-    $n;
-}
-
-#| After a migration: put each invariant's name into the test files that
-#| were evidence for it under the numbered rule, so they still are.  One
-#| comment line is added at the top of each (after a #! line); nothing
-#| else in a test is touched.  $before is the document as it was.
-#| Returns (file, name) pairs.
-sub relink-tests(IZ4::Document $before, IO::Path $root, %names --> List) is export {
-    my %e = evidence-for($before, $root);
-    my @done;
-    for %e<files>.sort(*.key.Int) -> (:key($number), :value(@files)) {
-        my $name = %names{$number} // next;
-        for @files -> $rel {
-            my $f = $root.add($rel);
-            my $text = (try $f.slurp) // next;
-            next if names-identity($text, $name);
-            my $mark = $f.extension eq any(<go rs ts tsx js mjs java kt swift c cc cpp>) ?? '//' !! '#';
-            my @l = $text.lines;
-            my $at = @l && @l[0].starts-with('#!') ?? 1 !! 0;
-            @l.splice($at, 0, "$mark INVARIANT $name (was Invariant $number)");
-            $f.spurt(@l.join("\n") ~ "\n");
-            @done.push: ($rel.Str, $name);
-        }
-    }
-    @done;
 }
 
 # ---------------------------------------------------------------- suggest

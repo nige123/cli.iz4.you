@@ -21,12 +21,6 @@ unit module IZ4::Evidence;
 #| that merely contains it (x.owner-adjusted.prices.honeywillow.com) is a
 #| different invariant.
 #|
-#| A file still in the numbered format keeps the rule it was written
-#| under, 'Invariant N' together with the invariant's opening words,
-#| until 'iz4 migrate' names its invariants.
-#|
-#| None of this proves an invariant holds.  It makes visible which ones
-#| have a test that says it does, and which have none.
 
 use IZ4::Document;
 
@@ -107,15 +101,7 @@ sub evidence-for(IZ4::Document $doc, IO::Path $root --> Hash) is export {
         my $text = try $f.slurp;        # unreadable or not UTF-8: not evidence
         next without $text;
         my $here = $text.contains(PLACEHOLDER) ?? 'scaffolded' !! $text.contains(DRAFT-MARK) ?? 'drafted' !! 'named';
-        my @linked;
-        if $doc.legacy {
-            my $flat = $text.lc.words.join(' ');
-            @linked = $text.match(/ 'Invariant' \h+ (\d+) <!before \d> /, :g).map({ ~.[0] }).unique
-                .grep({ (%state{$_}:exists) && $flat.contains(%opening{$_}) });
-        }
-        else {
-            @linked = @ids.grep({ names-identity($text, $_) });
-        }
+        my @linked = @ids.grep({ names-identity($text, $_) });
         for @linked -> $id {
             %files{$id}.push: $f.relative($root);
             %state{$id} = $here if %rank{$here} > %rank{%state{$id}};
@@ -124,8 +110,7 @@ sub evidence-for(IZ4::Document $doc, IO::Path $root --> Hash) is export {
     %( :%state, :%files );
 }
 
-#| The first words of an invariant, normalised, that a test had to quote
-#| under the numbered format.
+
 sub opening-words(Str $text --> Str) is export {
     $text.lc.words.head(6).join(' ');
 }

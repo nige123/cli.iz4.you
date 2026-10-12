@@ -175,7 +175,6 @@ sub ask-required(Str $prompt, Str $what --> Str) {
 #| something is a good outcome, not an error.
 sub coach-into(IO::Path $path, Str :$candidate, Str :$suggested-because, Str :$name, Str :$namespace --> Int) {
     my $doc = check-doc($path);
-    require-named($doc, $path);
     my %r = coach-invariant(
         :&ask, :&tell, :$candidate, :$suggested-because, :clauses($doc.form eq 'clauses'),
         for-what => $doc.for-what, for-who => $doc.for-who);
@@ -358,14 +357,12 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Str :$namespace, Bool :$agent,
 # ------------------------------------------------------------ add
 
 multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Str :$name, Str :$namespace,
-           Str :$number, Str :$where, Str :$protects, Bool :$replace = False, Bool :$force = False) {
+           Str :$where, Str :$protects, Bool :$replace = False, Bool :$force = False) {
     attempt :intent, {
         my $path = resolve-target($file);
         my $k = ($kind // 'invariant').lc;
         given $k {
             when 'invariant' | 'invariants' {
-                user-error("invariants are named now, not numbered: use --name=a-few-words in place of --number")
-                    if $number.defined;
                 if interactive() && !$because.defined && !$name.defined && !$where.defined && !$protects.defined {
                     return coach-into($path, :candidate($text), :$namespace);
                 }
@@ -400,7 +397,6 @@ multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Str :$name,
 #| a refusal the person can overrule with --force.  They decide.
 sub fast-add(IO::Path $path, Str $text, Str :$because, Str :$name, Str :$namespace, Bool :$force, Str :$reach) {
     my $form = check-doc($path).form;
-    require-named(check-doc($path), $path);
     if $form eq 'clauses' {
         user-error("not added: say where it applies with --where='the situation', as WHERE is the first clause of an invariant here") if ($reach // '').trim eq '';
         user-error("not added: say whose what it protects with --protects='a customer\'s money', as PROTECTS is the third clause here. {NOTHING-PROTECTED}") if ($because // '').trim eq '';
@@ -474,7 +470,6 @@ multi MAIN('withdraw', Str $which, Str :$file, Bool :$force = False, Bool :$keep
     attempt :intent, {
         my $path = resolve-target($file);
         my $name = display-name($path);
-        require-named(check-doc($path), $path);
         my $id   = which-invariant($path, $which);
         print invariant-text($path, $id) unless is-foundation-id($id);   # the refusal below says why for the foundation
         # What goes with it is worked out, and shown, before anyone is asked.
@@ -561,8 +556,8 @@ multi MAIN('foundation', 'restore', Str $file?) { MAIN('foundation', |($file // 
 multi MAIN('split', Str $which?, Str :$file) { MAIN('because', |($which // Empty), :split, |(:$file if $file.defined)) }
 multi MAIN('test', 'list', Str :$file) { MAIN('test', :list, |(:$file if $file.defined)) }
 multi MAIN('update', 'check') { MAIN('update', :check) }
-multi MAIN('migrate', 'preview', Str $file?, Str :$namespace, Str :$names, Str :$where) {
-    MAIN('migrate', |($file // Empty), :dry-run, |(:$namespace if $namespace.defined), |(:$names if $names.defined), |(:$where if $where.defined));
+multi MAIN('migrate', 'preview', Str $file?, Str :$namespace, Str :$where) {
+    MAIN('migrate', |($file // Empty), :dry-run, |(:$namespace if $namespace.defined), |(:$where if $where.defined));
 }
 multi MAIN('report', 'preview', Str :$file, Str :$release, Str :$run-id) {
     MAIN('report', :dry-run, |(:$file if $file.defined), |(:$release if $release.defined), |(:$run-id if $run-id.defined));
@@ -669,20 +664,13 @@ multi MAIN('check', Str $file?, Bool :$strict = False) {
             !! ('✗', "IS FOR WHO: missing - who is this for? ('iz4 add for-who ...')", 'iz4 add for-who "who it is for"');
         @rows.push: ($doc.foundation-intact ?? '✓' !! '✗', $doc.foundation-status, $doc.foundation-intact ?? '' !! 'iz4 foundation restore');
 
-        # A file still in the numbered format is read, and still governs,
-        # but it is not current: one cross, one next step.
-        @rows.push: ('✗', "format: numbered invariants, the format of earlier versions - 'iz4 migrate' names each one, with you, and brings the foundation up to date", 'iz4 migrate')
-            if $doc.legacy;
-        my sub lbl($id) { $doc.legacy ?? "Invariant $id" !! $id }
-        my sub lbls(@ids) { $doc.legacy ?? "Invariant {@ids.join(', ')}" !! @ids.join(', ') }
+        my sub lbl($id) { $id }
+        my sub lbls(@ids) { @ids.join(', ') }
 
         my $count = $doc.invariants.elems;
         my $unnamed = +$doc.unnamed-invariants;
         if $unnamed {
             @rows.push: ('✗', "invariants: $unnamed of $count unnamed - every invariant has a name", '');
-        }
-        elsif $count && $doc.legacy {
-            @rows.push: ('✓', "invariants: $count of your own, numbered", '');
         }
         elsif $count {
             my $ns = $doc.namespace;
@@ -702,10 +690,10 @@ multi MAIN('check', Str $file?, Bool :$strict = False) {
             my @bare   = $doc.unexplained-invariants;
             my @folded = @bare.grep({ split-reason(.text)[1].defined }).map({ .id // 'unnamed' });
             my @plain  = @bare.grep({ !split-reason(.text)[1].defined }).map({ .id // 'unnamed' });
-            @rows.push: ('✗', "BECAUSE: {lbls(@folded)} carr{@folded == 1 ?? 'ies' !! 'y'} the reason inside the invariant - 'iz4 split' moves it under BECAUSE", $doc.legacy ?? '' !! 'iz4 split')
+            @rows.push: ('✗', "BECAUSE: {lbls(@folded)} carr{@folded == 1 ?? 'ies' !! 'y'} the reason inside the invariant - 'iz4 split' moves it under BECAUSE", 'iz4 split')
                 if @folded;
             @rows.push: ('✗', "BECAUSE: missing for {lbls(@plain)} - write under each why it must survive ('iz4 because NAME WHY')",
-                $doc.legacy ?? '' !! @plain.map({ "iz4 because $_ \"why it must survive\"" }).join("\n"))
+                @plain.map({ "iz4 because $_ \"why it must survive\"" }).join("\n"))
                 if @plain;
             @rows.push: ('✓', 'BECAUSE: every invariant says why it must survive', '') unless @bare;
 
@@ -723,8 +711,8 @@ multi MAIN('check', Str $file?, Bool :$strict = False) {
             @rows.push: ('✗', "evidence: {lbls(@draft)} ha{@draft == 1 ?? 's' !! 've'} an agent-drafted test awaiting review - read {%ev<files>{@draft[0]}[0]}" ~ (@draft > 1 ?? ' and the others' !! '') ~ ", run it, make sure it can fail, then delete its first line",
                 @draft.map({ "review {%ev<files>{$_}[0]} ({lbl($_)}): run it, make sure it can fail, then delete its first line" }).join("\n"))
                 if @draft;
-            @rows.push: ('✗', "evidence: {lbls(@none)} ha{@none == 1 ?? 's' !! 've'} no test naming {@none == 1 ?? 'it' !! 'them'}" ~ ($doc.legacy ?? '' !! " - 'iz4 test' scaffolds one"),
-                $doc.legacy ?? '' !! "iz4 test {@none.join(' ')}")
+            @rows.push: ('✗', "evidence: {lbls(@none)} ha{@none == 1 ?? 's' !! 've'} no test naming {@none == 1 ?? 'it' !! 'them'}" ~ (" - 'iz4 test' scaffolds one"),
+                "iz4 test {@none.join(' ')}")
                 if @none;
             @rows.push: ('✓', "evidence: every invariant is named by a test ($named of $count)", '') unless @none || @scaf || @draft;
         }
@@ -754,12 +742,7 @@ multi MAIN('check', Str $file?, Bool :$strict = False) {
             @next.push($step) unless @next.first(* eq $step).defined;
         }
         say-next(@next, :then($strict ?? 'iz4 check --strict' !! 'iz4 check')) if @next;
-        if $doc.ok && $doc.legacy {
-            # read, and still governing, but not the current format: never OK
-            say "NOT YET $name: numbered invariants are the earlier format - run 'iz4 migrate', then 'iz4 check' again";
-            1;
-        }
-        elsif $doc.ok && !($strict && $crosses) {
+        if $doc.ok && !($strict && $crosses) {
             say "OK $name" ~ ($crosses ?? " ($crosses to remedy above)" !! '');
             0;
         }
@@ -808,13 +791,12 @@ multi MAIN('test', *@which, Str :$file, Str :$lang, Bool :$list = False, Bool :$
             say "No project invariants yet; 'iz4 add' finds one." unless $doc.invariants;
             for $doc.invariants.grep(*.id.defined) -> $inv {
                 my $n = $inv.id;
-                say sprintf('  %-10s %s  %s', %ev<state>{$n}, ($doc.legacy ?? "Invariant $n" !! $n), (%ev<files>{$n} // ()).join(', '));
+                say sprintf('  %-10s %s  %s', %ev<state>{$n}, $n, (%ev<files>{$n} // ()).join(', '));
             }
             say "named: a reviewed test names it; drafted: an agent's draft awaiting review; scaffolded: the born-red placeholder; none: nothing.";
             say "Evidence that an invariant holds is a test that would fail if it stopped being true; a name alone is not that.";
             return 0;
         }
-        require-named($doc, $path);
         my @only = @which.map({ resolve-identity($doc, $_) // user-error("no invariant '$_' in {display-name($path)}; 'iz4 test list' shows the names") });
         for @only { user-error("no invariant $_ in {display-name($path)} of its own to test") unless $doc.invariant($_) }
         my $language = $lang // detect-language($root);
@@ -875,18 +857,11 @@ multi MAIN('test', *@which, Str :$file, Str :$lang, Bool :$list = False, Bool :$
     }
 }
 
-multi MAIN('number', Str $file?) {
-    attempt {
-        user-error("invariants are named now, not numbered: 'iz4 name LINE NAME' names an unnamed one, and 'iz4 migrate' moves a numbered file over");
-    }
-}
-
 #| Name the unnamed INVARIANT on a line.  A name already given is an
 #| identity and is not changed here.
 multi MAIN('name', Int $line, Str $name, Str :$file, Str :$namespace) {
     attempt :intent, {
         my $path = resolve-target($file);
-        require-named(check-doc($path), $path);
         my $id = name-invariant($path, $line, choose-identity($path, $name, :$namespace)[0]);
         say "Named the invariant on line $line of {display-name($path)}: INVARIANT $id";
         0;
@@ -906,26 +881,11 @@ multi MAIN('where', Str $which, Str $text, Str :$file) {
 
 # ------------------------------------------------------------ migrate
 
-#| Move an IZ4 from numbered invariants to named ones.  The foundation's
-#| mapping is fixed.  A project invariant's name is a person's choice:
-#| asked for on a terminal, given with --names in a script, never made
-#| up.  With a name missing and nobody to ask, nothing is written and the
-#| exit code is 2: a person is needed.
-multi MAIN('migrate', Str $file?, Str :$namespace, Str :$names, Str :$where, Bool :$dry-run = False, Bool :$tests = True) {
+multi MAIN('migrate', Str $file?, Str :$namespace, Str :$where, Bool :$dry-run = False) {
     attempt :intent, {
         my $path = resolve-target($file);
-        my $doc = check-doc($path);
-        if $doc.form eq 'clauses' {
-            # the labels iz4 0.18 wrote: renamed, nothing else touched
-            unless $doc.old-labels { say "{display-name($path)} is already in the three-clause form; there is nothing to migrate."; return 0 }
-            if $dry-run { say "Would rename the clause labels an earlier iz4 wrote to WHERE, ALWAYS and PROTECTS; not a word changes. Dry run: nothing was written."; return 0 }
-            my $n = relabel-clauses($path);
-            say "Renamed the clause labels on $n lines of {display-name($path)}: WHERE, ALWAYS and PROTECTS. Not a word changed.";
-            return 0;
-        }
-        $doc.form eq 'named'
-            ?? migrate-clauses-command($path, :$namespace, :$where, :$dry-run)
-            !! migrate-command($file, :$namespace, :$names, :$dry-run, :$tests)
+        if check-doc($path).form eq 'clauses' { say "{display-name($path)} is already in the canonical form; there is nothing to migrate."; return 0 }
+        migrate-clauses-command($path, :$namespace, :$where, :$dry-run);
     }
 }
 
@@ -1004,100 +964,6 @@ sub migrate-clauses-command(IO::Path $path, Str :$namespace, Str :$where, Bool :
     say "Wrote $name in the three-clause form: header 'IZ4 $ns', your own invariants in three clauses, the foundation last. Not a word of your own changed.";
     say-next(['iz4 check', "iz4 gate --staged   (after 'git add': it shows each WHERE as a change to agree to)", 'iz4 approve'], :then(Str));
     0;
-}
-
-sub migrate-command(Str $file, Str :$namespace, Str :$names, Bool :$dry-run, Bool :$tests --> Int) {
-    {
-        my $path = resolve-target($file);
-        my $name = display-name($path);
-        my %plan = migration-plan($path);
-        unless %plan<needed> {
-            say "$name already names its invariants; there is nothing to migrate.";
-            return 0;
-        }
-        user-error("cannot migrate $name: %plan<stop>") if %plan<stop>;
-
-        my %given;
-        for ($names // '').split(/ <[,\s]>+ /).grep(* ne '') -> $pair {
-            user-error("--names takes NUMBER=NAME pairs joined by commas, like --names=5=works-offline,6=stays-small; '$pair' is not one")
-                unless $pair ~~ /^ (\d+) '=' (\S+) $/;
-            %given{+$0} = ~$1;
-        }
-        my @own = %plan<own>.list;
-        for %given.keys.sort(+*) -> $n {
-            user-error("--names gives a name to Invariant $n, and $name has no Invariant $n of its own") unless @own.first({ .<number> == $n });
-        }
-
-        say "Migrating $name from numbered invariants to named ones.";
-        say '';
-        say 'The foundation, by its fixed mapping (its words change too: read them with \'iz4 foundation\'):';
-        say sprintf('  Invariant %d  ->  %s', .key, .value) for legacy-foundation-map();
-
-        my %chosen;
-        my Str $ns;
-        if @own {
-            my @missing = @own.grep({ !(%given{.<number>}:exists) });
-            my $partial = so %given.values.grep({ !is-identity($_) });
-            $ns = $namespace // (%*ENV<IZ4_NAMESPACE> // '').trim || Str;
-            if !interactive() && (@missing || ($partial && !$ns)) {
-                say '';
-                say "Your own invariants need names, and a name is yours to choose:";
-                say "  Invariant {.<number>}: {short(.<text>)}" for @missing;
-                say "This project's namespace is needed too: a domain it answers for"
-                    ~ (suggested-namespace($path) ?? " (perhaps {suggested-namespace($path)})" !! '') ~ '.' unless $ns;
-                say '';
-                say 'Nothing was written. Run it on a terminal to be asked, or give them:';
-                say "  iz4 migrate --namespace={$ns // suggested-namespace($path) // 'your.domain'} --names="
-                    ~ @own.map({ "{.<number>}={%given{.<number>} // 'a-few-words'}" }).join(',');
-                return 2;
-            }
-            $ns //= choose-namespace($path) if @missing || $partial;
-            say '';
-            say "Your own, under $ns:" if $ns;
-            for @own -> %o {
-                my $n = %o<number>;
-                my $id;
-                with %given{$n} { $id = full-identity($_, $ns) }
-                else {
-                    say '';
-                    say "Invariant $n: {%o<text>}";
-                    say "Name it: a few lower-case words joined by hyphens. The name never changes afterwards.";
-                    for ^3 {
-                        my $answer = (ask("> ") // user-error("Invariant $n: no name given; nothing was written")).trim;
-                        my $trial = full-identity($answer, $ns);
-                        my $why = $answer eq '' ?? 'a name is needed' !! identity-problem($trial)
-                            || (is-foundation-id($trial) || reserved-identity($trial) ?? "names directly under {FOUNDATION-NAMESPACE} are the foundation's" !! '')
-                            || (%chosen.values.first(* eq $trial).defined ?? 'that name is already taken' !! '');
-                        if $why eq '' { $id = $trial; last }
-                        say "'$answer' cannot be used: $why";
-                    }
-                    user-error("Invariant $n: no name given; nothing was written") without $id;
-                }
-                %chosen{$n} = $id;
-            }
-            say '';
-            say sprintf('  Invariant %-3d ->  %s', .<number>, %chosen{.<number>}) for @own;
-        }
-        if $dry-run {
-            say '';
-            say 'Dry run: nothing was written.';
-            return 0;
-        }
-        my $before = check-doc($path);
-        migrate($path, %chosen, :namespace($ns));
-        say '';
-        say "Wrote $name: the foundation is named, from Invariant Zero (humans-first.iz4.you), and your own carry their names. Not a word of yours changed.";
-        if $tests {
-            my @linked = relink-tests($before, $path.parent, %chosen);
-            if @linked {
-                say "Tests that named an invariant by number now name it by name (one comment line added to each):";
-                say "  $_[0]  ($_[1])" for @linked;
-            }
-        }
-        say "References to 'Invariant N' elsewhere (documents, comments, commit messages) are yours to update: iz4 does not rewrite them.";
-        say-next(['iz4 check', "iz4 gate --staged   (after 'git add': it shows the move as a change to agree to)", 'iz4 approve'], :then(Str));
-        0;
-    }
 }
 
 # ------------------------------------------------------------ review

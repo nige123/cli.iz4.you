@@ -19,8 +19,7 @@ is kinds("IZ4\n  BECAUSE\nx\n"), <indented-keyword>, 'an indented keyword is cau
 is kinds("IZ4\nINVARIANT rule.shop.example.com\nRule.\n  BECAUSE\n  why\n"), <block indented-keyword>, 'and ends the block before it';
 is kinds("IZ4\nINVARIANT a.shop.example.com\nRule.\nINVARIANT b.shop.example.com\nOther.\nBECAUSE\nWhy.\n"), <block block block>,
     'a named INVARIANT line starts a block even with no blank line before it: it is never swallowed as text';
-is kinds("IZ4\nINVARIANT 5\nRule.\nINVARIANT 6\nOther.\n"), <block block>, 'and so does a numbered one, of the earlier format';
-is kinds("IZ4\ngist:\n"), <legacy-section>, "the earlier format's section lines are caught";
+is kinds("IZ4\nINVARIANT 5\nRule.\nINVARIANT 6\nOther.\n"), <block block>, 'and so does a line with a number where a name should be';
 is kinds("IZ4\nhello there\n"), <stray>, 'prose outside a block is stray';
 is kinds("IZ4\nINVARIANT codes.shop.example.com\nSMS OR EMAIL\nx\n"), <block unknown-block>, 'an all-capitals text line starts a block (the format can grow)';
 

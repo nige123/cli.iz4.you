@@ -74,14 +74,4 @@ $before = $iz4.slurp;
 ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Orders are never charged twice.', '--because=A customer charged twice loses money and trust.');
 ok $rc == 1 && $err.contains('an invariant needs a name'), 'with no name and nobody to ask, nothing is added';
 is $iz4.slurp, $before, 'and nothing is written';
-my $numbered = temp-dir.add('IZ4');
-$numbered.spurt("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n"
-    ~ IZ4::Document::FOUNDATION-LEGACY.map({ "INVARIANT {.<number>} - {.<name>}\n{.<text>}\n\nBECAUSE\n{.<because>}\n" }).join("\n")
-    ~ "\nINVARIANT 5\nOrders are never charged twice.\n\nBECAUSE\nA customer charged twice loses money and trust.\n");
-my $numbered-before = $numbered.slurp;
-($rc, $out, $err) = iz4($numbered.parent, 'migrate');
-is $rc, 2, 'migrating a numbered file with nobody to name its invariants exits 2: a person is needed';
-like $out, /'a name is yours to choose' .* 'Nothing was written'/, 'and says so';
-is $numbered.slurp, $numbered-before, 'having written nothing';
-
 done-testing;

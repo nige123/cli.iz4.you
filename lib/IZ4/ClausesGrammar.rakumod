@@ -63,9 +63,7 @@ token purpose { 'IS FOR' \h+ $<which>=[ 'WHAT' || 'WHO' ] <!before \w> $<asked>=
 token invariant { <heading> [ <blank> || <comment> || <clause> ]* }
 token heading   { ^^ $<name>=[ <[a..z 0..9]> <[\w.\-]>* ] ':' \h* \n }
 
-# FOR, RULE and BECAUSE (iz4 0.18) and HOLDS (0.19) are labels earlier
-# versions wrote; still read, and renamed by 'iz4 migrate'.
-token clause-label { 'WHERE' || 'ALWAYS' || 'PROTECTS' || 'HOLDS' || 'FOR' || 'RULE' || 'BECAUSE' }
+token clause-label { 'WHERE' || 'ALWAYS' || 'PROTECTS' }
 
 # An clause backtracks over comments so that ones after its last line are not
 # taken for its text.

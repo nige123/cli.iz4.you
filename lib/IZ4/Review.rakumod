@@ -158,9 +158,8 @@ sub offline-report(IZ4::Document $doc, Str $diff, Str :$what --> List) is export
     @out;
 }
 
-#| How an invariant is named to a reader: its name, or 'Invariant N' in a
-#| file still in the numbered format.
-sub label(IZ4::Document $doc, Str $id --> Str) { $doc.legacy ?? "Invariant $id" !! $id }
+#| How an invariant is named to a reader: its name.
+sub label(IZ4::Document $doc, Str $id --> Str) { $id }
 
 sub short(Str $s --> Str) { $s.chars > 110 ?? $s.substr(0, 107).trim-trailing ~ '...' !! $s }
 
@@ -246,7 +245,7 @@ sub assessment-lines(%review, IZ4::Document $doc --> List) is export {
     }
     @out.push: "The agent's assessment (an opinion with evidence, not a proof):";
     for %review<assessments>.list -> %a {
-        my $inherited = is-foundation-id(%a<id>) || ($doc.legacy && %a<id> ~~ /^ <[0..4]> $/);
+        my $inherited = is-foundation-id(%a<id>);
         @out.push: "  {label($doc, %a<id>)}" ~ ($inherited ?? ' (foundation)' !! '');
         @out.push: sprintf('      %-22s %s', %a<level>, %a<evidence>);
     }

@@ -338,64 +338,6 @@ like problems("humans.iz4.you:\n  WHERE: x\n  ALWAYS: Y must hold.\n  PROTECTS: 
     ok $rc == 1 || $out.contains('nothing to migrate') || $err.contains('already'), 'and a second run does nothing';
 }
 
-# ---- a file iz4 0.18 wrote: its labels are read, warned about, and renamed ----------------
-{
-    my $p = clauses-file($PRIVATE);
-    my $t = $p.slurp.subst('WHERE:    private profiles', 'FOR:      private profiles').subst('ALWAYS:   The system', 'RULE:     The system').subst('PROTECTS: Looking', 'BECAUSE:  Looking');
-    $p.spurt($t);
-    my $doc = check-doc($p);
-    ok $doc.ok, 'a file with the labels 0.18 wrote still checks' or diag $doc.report.join("\n");
-    ok $doc.old-labels, 'and knows its labels are the earlier ones';
-    like $doc.warnings.map(*.Str).join, /'FOR: is a label an earlier iz4 wrote' .* 'iz4 migrate'/, 'with one warning that names the step';
-    is $doc.invariant("private-stays-private.$NS").reach, 'private profiles', 'the clauses are read under their current names';
-    my $d = $p.parent;
-    my ($rc, $out, $err) = iz4($d, 'migrate');
-    is $rc, 0, 'iz4 migrate renames them' or diag $err;
-    like $out, /'Renamed the clause labels on 3 lines'/, 'three lines';
-    my $after = check-doc($p);
-    ok $after.ok && !$after.old-labels && !$after.warnings, 'and the file is current, with no warning';
-    is $after.invariant("private-stays-private.$NS").canonical, $doc.invariant("private-stays-private.$NS").canonical, 'not a word changed';
-    like $p.slurp, /'WHERE:    private profiles' \n '  ALWAYS:   The system'/, 'and the columns still line up';
-    is iz4($d, 'migrate')[1], "IZ4 is already in the three-clause form; there is nothing to migrate.\n", 'a second run has nothing to do';
-}
-
-# the foundation as 0.18 wrote it, keystone and all, is out of date, not altered by hand
-{
-    my $p = clauses-file;
-    my $old = FOUNDATION-CLAUSES-EARLIER.grep(*<until> eq '0.18');
-    my @blocks = $old.map({ clauses-invariant-lines(.<id>, .<reach>, .<text>, .<because>).join("\n") });
-    my $t = $p.slurp;
-    $t = $t.subst(/ 'humans-first.iz4.you:' .* $ /, @blocks.join("\n\n") ~ "\n");
-    $p.spurt($t);
-    my $doc = check-doc($p);
-    nok $doc.ok, 'a file carrying the 0.18 three-clause foundation does not check';
-    like $doc.errors.map(*.message).join(' | '), /'keystone.iz4.you: is the foundation\'s, and is named binding.iz4.you now'/, 'the renamed invariant is told its name';
-    like $doc.errors.map(*.message).join(' | '), /'humans-first.iz4.you: reads as iz4 0.18 wrote it'/, 'and a reworded one is told it is out of date, not that someone edited it';
-    is $doc.fixes, ('iz4 foundation restore',), 'with the one step';
-    is $doc.foundation-was, '0.18', 'and the file knows which version it carries';
-    is invariant-text($p, 'keystone'), invariant-text($p, 'binding'), 'asked for by its earlier name, the invariant answers under the one it has now';
-    is restore-foundation($p), 'replaced', 'restore brings it up to date';
-    ok check-doc($p).ok && $p.slurp.contains('binding.iz4.you:') && !$p.slurp.contains('keystone'), 'to the current words and name';
-}
-
-# a file iz4 0.19 wrote: HOLDS is read as ALWAYS, and its foundation is out of date
-{
-    my $p = clauses-file($PRIVATE);
-    $p.spurt($p.slurp.subst('ALWAYS:   The system', 'HOLDS:    The system'));
-    my $doc = check-doc($p);
-    ok $doc.ok && $doc.old-labels, 'HOLDS: is read, and known to be an earlier label' or diag $doc.report.join("\n");
-    is relabel-clauses($p), 1, 'iz4 migrate renames it';
-    ok $p.slurp.contains("  ALWAYS:   The system"), 'to ALWAYS, columns kept';
-    my $f = clauses-file;
-    my @blocks = FOUNDATION-CLAUSES-EARLIER.grep(*<until> eq '0.19').map({ clauses-invariant-lines(.<id>, .<reach>, .<text>, .<because>).join("\n") });
-    $f.spurt($f.slurp.subst(/ 'humans-first.iz4.you:' .* $ /, @blocks.join("\n\n") ~ "\n"));
-    my $d = check-doc($f);
-    nok $d.ok, 'the 0.19 three-clause foundation does not check';
-    like $d.errors.map(*.message).join(' | '), /'binding.iz4.you: reads as iz4 0.19 wrote it'/, 'and is told it is out of date, not altered by hand';
-    is restore-foundation($f), 'replaced', 'restore brings it up to date';
-    ok check-doc($f).ok, 'to the current words';
-}
-
 # the hardened foundation keeps every protection of the named one, and names the defences
 {
     my %a = FOUNDATION-CLAUSES.map({ .<id> => $_ });

@@ -95,7 +95,6 @@ $canon.spurt(FOUNDATION-TEXT);
 is sha256-hex($canon), FOUNDATION-DIGEST, 'the foundation digest matches its canonical bytes';
 is FOUNDATION-TEXT.lines.grep(*.starts-with('INVARIANT ')).map(*.words[1]), foundation-ids(), 'the canonical bytes name the five, in canonical order';
 is FOUNDATION-DIGEST.substr(0, 12), 'a04d8673fc15', 'and the digest is the published one';
-isnt FOUNDATION-DIGEST, FOUNDATION-LEGACY-DIGEST, 'which is not the digest of the numbered foundation';
 for FOUNDATION -> %f {
     my $t = temp-dir.add('one.txt');
     $t.spurt(canonical-invariant(%f<id>, %f<text>, %f<because>));
@@ -211,15 +210,5 @@ ok check-doc($v0162).ok && $v0162.slurp.contains('The foundation is these invari
 ok $v0162.slurp.contains("INVARIANT $fh") && !$v0162.slurp.contains($was), 'under the current name, with the earlier one gone';
 isnt FOUNDATION-DIGEST.substr(0, 12), 'f0c11bd08bcc', 'the digest moved with the words';
 
-# --- the numbered foundation is remembered, never written ---------------------
-is FOUNDATION-LEGACY».<number>, (0, 1, 2, 3, 4), 'the numbered foundation is kept for reading files not yet migrated';
-is legacy-foundation-map().map({ "{.key}={.value}" }), ("0=$hf", "1=$dnh", "2=$ha", "3=$ho", "4=$fh"), 'with the one fixed mapping from each number to its name';
-nok foundation-block().contains('Invariant 1') || template(:for-what<x>, :for-who<y>) ~~ /^^ 'INVARIANT ' \d/, 'nothing written today carries a number';
-my $numbered = temp-dir.add('IZ4');
-$numbered.spurt("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n"
-    ~ FOUNDATION-LEGACY.map({ "INVARIANT {.<number>} - {.<name>}\n{.<text>}\n\nBECAUSE\n{.<because>}\n" }).join("\n"));
-ok check-doc($numbered).legacy && check-doc($numbered).foundation-intact, 'a numbered file is read, and its foundation recognised';
-throws-like { restore-foundation($numbered) }, X::IZ4, message => /'iz4 migrate'/, 'restore does not rewrite one: migrating is the step';
-like effective-text(check-doc($numbered)), /'INVARIANT 4 - THE FOUNDATION HOLDS (foundation)'/, 'and it is shown the foundation it actually carries';
 
 done-testing;

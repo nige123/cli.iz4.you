@@ -46,7 +46,6 @@ token item {
     || <block>
     || <unknown-block>      # warning: a capitals line that is not a keyword
     || <indented-keyword>   # error: a keyword that is not at column 0
-    || <legacy-section>     # error: the earlier format ('gist:', 'invariants:')
     || <stray>              # error: text where a keyword was expected
 }
 
@@ -77,5 +76,4 @@ token caps-line     { <[A..Z]> <[A..Z 0..9 \h]>* '?'? \h* \n }
 token unknown-block { <caps-line> <text-line>* }
 
 token indented-keyword { \h+ <keyword> \h* \n <text-line>* }
-token legacy-section   { <[a..z]> <[\w\-]>* ':' \h* \n }
 token stray            { \N* \n }
