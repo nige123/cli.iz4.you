@@ -288,7 +288,7 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
                     title  => 'The foundation moves to the three-arm form: WHERE, ALWAYS and PROTECTS',
                     before => "the named foundation (sha256 {FOUNDATION-DIGEST.substr(0, 12)})",
                     after  => "{foundation-ids(:arms).join(', ')} (sha256 {FOUNDATION-ARMS-DIGEST.substr(0, 12)})",
-                    detail => 'read the words: they describe the system now rather than instruct an agent, each says where it applies and whose what it protects, and the last is named binding.iz4.you' );
+                    detail => 'read the words: each says where it applies (WHERE), what must always remain true there, and what must not be defeated (PROTECTS); every protection of the named foundation is kept, and the last is named binding.iz4.you' );
     }
     if $migrating && $cand.foundation-intact {
         @c.push: %( kind => 'foundation-migrated',
