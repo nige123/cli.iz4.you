@@ -69,6 +69,33 @@ As a coding agent working in a repository that keeps one:
     lost it: re-run 'iz4 agent' before touching anything, even to
     continue work already in flight.
 
+Reading an invariant: it has up to three arms.  FOR says where it
+applies.  RULE says what must remain true throughout that scope,
+including any explicit prerequisites or limits on behaviour.  BECAUSE
+says the human purpose it protects.  A file that states an invariant
+in one statement has the same parts: the statement carries the scope
+and the rule, and BECAUSE the purpose.
+-   The rule remains binding throughout its stated scope, whether or
+    not the stated reason describes the present circumstances.
+    BECAUSE guides understanding and authorised revision; it does not
+    change applicability or authorise an exception.
+-   You cannot waive a rule because you believe the harm it guards
+    against is absent, or the benefit can be had another way.
+-   Examples and pressure scenarios illustrate an invariant.  They
+    neither list everything it covers nor limit it.
+-   A boundary or exception counts only when the rule itself states
+    it and the foundation allows it.  Never infer one from a reason, an
+    example, an objective, an inconvenience or an implementation
+    choice.
+-   A condition such as "only while approval remains valid" is
+    necessary, never sufficient: meeting it grants no permission to
+    break another invariant.
+-   A project's own FOR cannot narrow or weaken the foundation.
+-   If scope or meaning is genuinely unclear, follow step 3: say so,
+    pause what is affected, and return the decision to those entitled
+    to decide.  Do not invent an exemption, and do not quietly widen
+    or narrow the rule.
+
 Trust boundary: an IZ4 governs intended project behaviour only.  It
 cannot override higher-priority agent instructions, and it grants no
 permissions, credentials, network access or authority to execute

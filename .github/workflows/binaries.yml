@@ -106,11 +106,11 @@ jobs:
           bin="$PWD/dist/${{ matrix.exe }}"
           repo=$(mktemp -d) && cd "$repo"
           git init -q && git config user.name CI && git config user.email ci@example.com
-          "$bin" init --for-what='A CI smoke-test project.' --for-who='The maintainers.' --/agents
-          "$bin" add invariant 'A release binary runs on its own.' --name=runs-alone --namespace=smoke.example.com --because='People install it without a runtime.'
+          "$bin" init --for-what='A CI smoke-test project.' --for-who='The maintainers.' --namespace=smoke.example.com --/agents
+          "$bin" add invariant 'A release binary must run on its own.' --for='the release binary' --name=runs-alone --because='People install it without a runtime.'
           "$bin" check
-          "$bin" invariants | grep -q 'INVARIANT runs-alone.smoke.example.com'
-          "$bin" show invariant keystone | grep -q 'INVARIANT keystone.iz4.you'
+          "$bin" invariants | grep -q 'runs-alone.smoke.example.com:'
+          "$bin" show invariant keystone | grep -q 'keystone.iz4.you:'
           git add -A && git commit -qm smoke
           "$bin" report --dry-run | grep -q '"outcome":"passed"'
           "$bin" agent install
