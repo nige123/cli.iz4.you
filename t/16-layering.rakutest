@@ -19,7 +19,7 @@ my $root = $?FILE.IO.parent.parent.resolve;
 my $lib  = $root.add('lib');
 
 # ---- every module is in exactly one layer --------------------------------
-my @CORE        = <IZ4 IZ4::Grammar IZ4::Document IZ4::Git IZ4::Evidence IZ4::Review IZ4::Gate
+my @CORE        = <IZ4 IZ4::Grammar IZ4::ArmsGrammar IZ4::Document IZ4::Git IZ4::Evidence IZ4::Review IZ4::Gate
                    IZ4::Machine IZ4::Agent IZ4::Register IZ4::Coach>;
 my @CONVENIENCE = <IZ4::Launcher IZ4::Assist IZ4::Integrations IZ4::Help>;
 my @LEGACY      = <IZ4::LegacyHook>;
@@ -184,7 +184,7 @@ for (%with, %without) -> %env {
     my $fresh = temp-dir;
     run 'git', '-C', $fresh.Str, 'init', '-q';
     forget;
-    ($rc, $out, $err) = iz4($fresh, 'init', '--for-what=Demo.', '--for-who=Testers.', '--/agents', :env(%with));
+    ($rc, $out, $err) = iz4($fresh, 'init', '--namespace=shop.example.com', '--for-what=Demo.', '--for-who=Testers.', '--/agents', :env(%with));
     ok $rc == 0 && $log.e && $log.lines.grep(*.starts-with('iz4 install')).elems == 1, "'iz4 init' is followed by the enforcement step" or diag "$rc $out $err";
 
     # switched off, nothing is asked and nothing is said

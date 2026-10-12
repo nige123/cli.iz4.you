@@ -130,16 +130,19 @@ What is this for?
 > Helping people find work they love to do.
 Who is it for?
 > People looking for work.
-Created IZ4.
+Which domain does this project answer for? Its invariants are named under it, like honeywillow.com.
+Which domain? [jobs.example.com]
+>
+Created IZ4 for jobs.example.com.
 AGENTS.md: installed
 
 Every IZ4 carries the foundation word for word, from Invariant Zero, humans first ('iz4 foundation' shows it).
-Your own are named under your project's domain, like owner-adjusted.honeywillow.com.
+Your own say what they cover (FOR), what must remain true (RULE) and why (BECAUSE): 'iz4 add' asks one thing at a time.
 
 Add an invariant now? [Y/n]
 ```
 
-Two answers are a real IZ4. Nothing asks you for requirements, and nothing is
+Two answers and the domain are a real IZ4. Nothing asks you for requirements, and nothing is
 drafted from your repository behind your back. Commit it; its Git history is
 the history of your intent.
 
@@ -149,6 +152,61 @@ Writing a good invariant is hard, because most of us have spent our careers
 writing requirements, tickets and tests. `iz4 add` asks a few useful questions
 instead of handing you an empty prompt, and it will tell you when something
 probably isn't an invariant.
+
+### Reach, Rule, Reason
+
+An invariant says three things, so `iz4 add` asks three questions, one at a
+time, in this order:
+
+```text
+$ iz4 add
+Who or what does this cover?
+> private profiles
+What must remain true for private profiles?
+> The system must never expose a private profile in public search.
+If the whole system were rewritten tomorrow, would we regret not telling the people and agents rebuilding it this? [y/n] y
+BECAUSE: why must this survive? How does it matter to People looking for work, or to Helping people find work they love to do?
+> Looking for work must not cost someone their current job.
+FOR      private profiles
+RULE     The system must never expose a private profile in public search.
+BECAUSE  Looking for work must not cost someone their current job.
+Add it as an invariant? [Y/n] y
+Name it: a few lower-case words joined by hyphens, like owner-adjusted.
+> private-stays-private
+Added INVARIANT private-stays-private.jobs.example.com.
+```
+
+It reads aloud as "For private profiles, the system must never expose one in
+public search. Because looking for work must not cost someone their current
+job." The file keeps the three answers apart, each as you wrote it, so the
+reach is explicit, the rule is complete, and the reason is visibly a reason.
+
+- **Reach is where most invariants go wrong.** "The system" is too wide to say
+  anything, and iz4 asks once more when it hears it. Ask what is inside: does
+  "every price shown" include taxes, currency conversions and historical
+  prices? Does protection against manipulation cover screens only, or agent
+  messages and other interactions too? Those are decisions only you can make,
+  and writing the reach down is how they get made once.
+- **The rule is a statement, not an action list.** Use must and must not, or
+  always and never, where they read naturally. A rule may be a property
+  ("Every price shown is set by the owner") as well as a prohibition. Prefer a
+  concrete subject and a clear verb.
+- **A condition belongs in the rule, and it is necessary, never sufficient.**
+  "Only while the approval remains valid" makes valid approval necessary; it
+  does not permit breaking another invariant.
+- **The reason explains; it never conditions.** If the sentence under BECAUSE
+  would let someone say "the rule does not apply here, because that is not
+  what it was for", it is doing the rule's job, and the rule should say so
+  instead.
+- **Pressure is for testing, not for writing.** Ask of a draft "would this
+  still hold under a deadline? a migration? a retry after a failure? a change
+  of model?" to find what it leaves unsaid. Do not write the pressures into the
+  rule: "even when" lists never cover them all.
+- **Not everything useful is an invariant.** Putting "must" or "always" in a
+  task or a feature does not make it one. The questions below, and the golden
+  test, are there for that.
+
+An IZ4 in the named form is asked the same questions without the first one.
 
 ```text
 $ iz4 add
@@ -204,14 +262,16 @@ out rather than recorded as if it explained anything.
 Already know what you want? Skip the questions:
 
 ```text
-$ iz4 add invariant "Private profiles never appear in public search." \
+$ iz4 add invariant "The system must never expose a private profile in public search." \
+      --for="private profiles" \
       --name=private-stays-private \
       --because "A hidden search for work can cost someone their current job."
 Added INVARIANT private-stays-private.jobs.example.com.
 ```
 
-The first invariant in a project also needs `--namespace=jobs.example.com`,
-unless the coach has already asked.
+In a file in the named form there is no `--for`, and the first invariant of a
+project also needs `--namespace=jobs.example.com`, unless the coach has
+already asked.
 
 The fast path still refuses an obvious implementation choice, setting or task,
 and `--force` is there for when you have judged that it really must remain
@@ -408,13 +468,14 @@ foundation restore`); a flag only adjusts one. The flags that used to be
 actions still work, so earlier scripts and hooks do.
 
 ```text
-iz4 init                         ask what and who, write the IZ4, offer a first invariant
+iz4 init [--namespace=DOMAIN]   ask what, who and the domain, write the IZ4, offer a first invariant
 iz4 add                          find an invariant, coached
-iz4 add invariant TEXT --name=NAME --because=WHY
-                                 the fast path; NAME is a few lower-case words
-                                   joined by hyphens and goes under your
-                                   project's domain (--namespace=DOMAIN once,
-                                   --force past a challenge)
+iz4 add invariant RULE --for=WHAT --name=NAME --because=WHY
+                                 the fast path; WHAT is who or what it covers,
+                                   NAME is a few lower-case words joined by
+                                   hyphens and goes under your project's domain
+                                   (--force past a challenge)
+iz4 reach NAME WHAT              say what an invariant covers: its FOR
 iz4 add for-what|for-who TEXT    set IS FOR WHAT or IS FOR WHO (--replace)
 iz4 because NAME WHY             say why an invariant must survive (--replace)
 iz4 split [NAME]                 move a reason folded into the invariant's
@@ -448,9 +509,11 @@ iz4 show invariant NAME          one invariant by its name; the first part alone
 iz4 check [FILE] [--strict]      ticks for what is true, crosses with remedies
                                    (--strict: any cross fails, for a gate)
 iz4 name LINE NAME               name the unnamed INVARIANT on that line
-iz4 migrate [FILE] [--namespace=DOMAIN] [--names=5=NAME,6=NAME]
-                                 move an IZ4 from numbered invariants to named
-                                   ones; your words are not touched
+iz4 migrate [FILE] [--namespace=DOMAIN] [--names=5=NAME,6=NAME] [--reach=NAME=WHAT|NAME=WHAT]
+                                 move an IZ4 to its newer form: numbered to
+                                   named (you name each invariant), named to
+                                   three arms (you say what each covers); your
+                                   RULE and BECAUSE are not touched
 iz4 migrate preview              what that would change, writing nothing
 iz4 test [NAME ...]              a test for each invariant without one: drafted
                                    by your agent for your approval on a terminal,
@@ -590,37 +653,43 @@ cannot know. That line stays a question mark, and review against
 `IZ4` has no extension and sits beside `README.md`. Extra documents take the
 `.iz4` suffix, like `docs/security.iz4`.
 
-- The first line is the word `IZ4`.
-- Four kinds of block, each a line in capitals followed by plain text:
-  `IS FOR WHAT?`, `IS FOR WHO?`, `INVARIANT name` and `BECAUSE`. Text may
-  wrap over several lines.
-- `IS FOR WHAT?` and `IS FOR WHO?` are required, once each. They are
-  questions, and the text beneath each is the answer.
-- A `BECAUSE` belongs to the `INVARIANT` directly above it. It is optional in
-  the grammar and strongly encouraged in practice: the reason is usually the
-  one thing the code cannot tell a future reader.
-- The foundation is five invariants, written as
-  `INVARIANT humans-first.iz4.you` and so on, with their BECAUSE, word for
-  word as in every other IZ4. They are not the owner's to edit: a missing
-  or altered one is an error.
-- Project invariants are named under a domain the project answers for. A
-  name, once given, is never reused for a different invariant, so
-  `owner-adjusted.prices.honeywillow.com` means one thing wherever it is
-  cited.
+- The first line is `IZ4` and the domain the project answers for, like
+  `IZ4 honeywillow.com`. It says the domain once, so what follows can be short.
+- `IS FOR WHAT?` and `IS FOR WHO?` are required, once each, with the answer on
+  the same line, wrapping onto the lines below.
+- An invariant is its name and a colon, then three arms: `FOR:` (who or what
+  it covers), `RULE:` (what must remain true throughout that) and `BECAUSE:`
+  (why it matters to people). Each wraps over as many lines as it needs. The
+  reason is optional to the grammar and strongly encouraged in practice: it is
+  usually the one thing the code cannot tell a future reader.
+- The foundation is five invariants, written the same way
+  (`humans-first.iz4.you:` and so on), word for word as in every other IZ4 of
+  this form, at the end behind a rule-off. They are not the owner's to edit: a
+  missing or altered one is an error.
+- Project invariants are named under the header's domain, and written by their
+  first part: `private-stays-private` is `private-stays-private.honeywillow.com`
+  wherever it is cited. A name, once given, is never reused for a different
+  invariant.
 - Order means nothing. Where a block sits in the file is presentation, and
   nothing refers to an invariant by its position.
-- Lines starting with `#` are comments, for humans.
-- Any other block in capitals is kept and reported as a warning, so the format
-  can grow, with a reminder of where that content usually belongs.
+- Lines starting with `#` are comments, for humans, anywhere in the file.
+- Indentation is for the eye. Which line is a name, a label, a question or a
+  continuation is decided by how it begins.
+
+A file in the named form (`INVARIANT name` blocks, the form of 0.16 and 0.17)
+is still read and written. `iz4 migrate` moves it to this one: it asks you for
+the `FOR` of each invariant, keeps your `RULE` and `BECAUSE` word for word, and
+the gate shows the move as a change for you to agree to.
 
 `iz4 add` appends and leaves your words alone. Your editor is still the main
 tool.
 
 ### The grammar
 
-The format is specified by a Raku grammar, `lib/IZ4/Grammar.rakumod`, and
-the parser is that grammar, so the specification and the implementation
-cannot drift. [docs/format.md](format.md) restates it in prose, with
+The format is specified by Raku grammars, `lib/IZ4/ArmsGrammar.rakumod` for
+the form above and `lib/IZ4/Grammar.rakumod` for the earlier ones, and the
+parser is that grammar, so the specification and the implementation cannot
+drift. [docs/format.md](format.md) restates it in prose, with
 the table of what is an error and what is a warning. Files in the earlier
 `gist:` and `invariants:` format are no longer read; iz4 0.3.0 was the last
 version that converted them.
@@ -640,7 +709,8 @@ owner-adjusted.prices.honeywillow.com
 project's namespace, a domain it answers for. `prices` is an optional label
 between the two, for an area. The file records the namespace once, in a
 comment `iz4 add` writes with the first invariant, so nobody is asked
-twice. Names directly under `iz4.you` are the foundation's, and there are
+twice. In the three-arm form the header, `IZ4 honeywillow.com`, says it, and an
+invariant is written by its first part. Names directly under `iz4.you` are the foundation's, and there are
 exactly five.
 
 A name is for good. Withdrawing an invariant retires its name, and the same
@@ -718,6 +788,40 @@ invariants changes: not a word of their text or reasons. The gate then
 shows the move as a change for a person to agree to. More in
 [docs/format.md](format.md#the-numbered-format).
 
+## Moving to the three-arm form
+
+A named file (`INVARIANT name` blocks, the form of 0.16 and 0.17) still works,
+and a project may stay in it. When you want the three arms, `iz4 migrate` moves
+it, and the one new thing is a `FOR` for each of your invariants. That is
+yours to say: on a terminal it shows each invariant and asks who or what it
+covers, and in a script you give it.
+
+```text
+$ iz4 migrate
+Moving IZ4 to the three-arm form: each invariant says what it covers (FOR), what must remain true (RULE) and why (BECAUSE).
+Your RULE and BECAUSE stay word for word; FOR is the new part, and it is yours to say.
+
+private-stays-private.jobs.example.com
+  RULE     Private profiles never appear in public search.
+  BECAUSE  A hidden search for work can cost someone their current job.
+Who or what does this cover?
+> private profiles
+
+Wrote IZ4 in the three-arm form: header 'IZ4 jobs.example.com', your own invariants in three arms, the foundation last. Not a word of your RULE or BECAUSE changed.
+next:
+  1. iz4 check
+  2. iz4 gate --staged   (after 'git add': it shows each FOR as a change to agree to)
+  3. iz4 approve
+```
+
+With a `FOR` missing and nobody to ask, nothing is written and the exit code is
+2: a person is needed (`iz4 migrate --reach=private-stays-private='private
+profiles'` gives one). `iz4 migrate preview` shows what would be written and
+writes nothing. The result is read back before it is written, and a file that
+would not check is never written. The foundation moves too: it is the same
+five with a `FOR` each, written last, and the gate shows that as its own change.
+Moving forward only: a file does not go back to an earlier form.
+
 ## The foundation
 
 Every IZ4 carries the foundation word for word, so anyone who opens the
@@ -778,6 +882,13 @@ They keep both halves of the original Invariant 0: help people thrive, and
 do no harm. How they do better than Asimov's laws, and how to apply the
 words that need judgement: [docs/foundation.md](foundation.md).
 
+A file in the three-arm form carries the same five with a `FOR` each, written
+with the others (`humans-first.iz4.you:` / `FOR:` / `RULE:` / `BECAUSE:`). The
+words of each `RULE` and `BECAUSE` are the ones above; `iz4 foundation` prints
+the foundation in the form of the file in front of it. A file keeps the
+foundation it adopted until a person moves it: updating iz4 never rewrites
+it.
+
 `iz4 invariants` shows them alongside your own. Writing a rule down does not
 make software obey it.
 
@@ -790,6 +901,17 @@ consistent with who and what the software is for; to pause and report on a
 conflict; to keep the IZ4 small rather than filling it with what it observed;
 and to report each affected invariant as mechanically verified, supported by
 evidence, apparently consistent, uncertain or conflicting.
+
+It also says how to read an invariant, in a short list an agent carries with
+the invariants: the rule binds throughout its stated reach whether or not the
+reason describes the present; BECAUSE explains and never adds a condition or
+an exception; an agent cannot waive a rule because it believes the harm is
+absent or the benefit can be had another way; examples and pressure scenarios
+illustrate and neither list nor limit; a boundary counts only if the rule states
+it; a condition in a rule is necessary, never sufficient; a project's own FOR
+cannot narrow the foundation; and where reach is genuinely unclear, the agent
+pauses and returns the decision to the people entitled to decide, without
+inventing an exemption. The wording is in [docs/format.md](format.md#how-an-invariant-is-read).
 
 `iz4 agent install` writes a short managed section into `AGENTS.md`, and
 `CLAUDE.md` with `iz4 agent install claude`. `iz4 agent install skill` adds a portable skill that carries the

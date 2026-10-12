@@ -69,7 +69,7 @@ constant %EXIT-CODE is export = (pass => 0, error => 1, 'agreement-required' => 
 constant @REJECTS   is export = <agreement-required blocked unassessed error>;
 
 constant @BLOCKING-KINDS  = <invalid foundation reused-name format-regressed>;
-constant @AGREEMENT-KINDS = <purpose people added revised removed removed-file named foundation-migrated mode>;
+constant @AGREEMENT-KINDS = <purpose people added revised removed removed-file named foundation-migrated reach-added mode>;
 constant @PROTECTION-AGREEMENT-KINDS = <protection-removed protection-unlinked protection-weakened>;
 
 sub gate-error(Str $message) { X::IZ4.new(:$message).throw }
@@ -265,10 +265,23 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
     @c.push: %( kind => 'people', before => $bo, after => $co ) if $bo ne $co;
 
     my $migrating = $base.defined && $base.legacy && !$cand.legacy;
+    my $arms-migrating = $base.defined && $base.form eq 'named' && $cand.form eq 'arms';
     if $base.defined && !$base.legacy && $cand.legacy {
         @c.push: %( kind => 'format-regressed',
                     detail => 'the candidate goes back to numbered invariants; the base names them, and a name once given is the identity' );
         return @c;
+    }
+    if $base.defined && $base.form eq 'arms' && $cand.form ne 'arms' {
+        @c.push: %( kind => 'format-regressed',
+                    detail => 'the candidate goes back to an earlier form; the base states each invariant in three arms (FOR, RULE, BECAUSE), and a file only moves forward' );
+        return @c;
+    }
+    if $arms-migrating && $cand.foundation-intact {
+        @c.push: %( kind => 'foundation-migrated',
+                    title  => 'The foundation moves to the three-arm form: each invariant gains its reach (FOR)',
+                    before => "the named foundation (sha256 {FOUNDATION-DIGEST.substr(0, 12)})",
+                    after  => "{foundation-ids().join(', ')} (sha256 {FOUNDATION-ARMS-DIGEST.substr(0, 12)})",
+                    detail => 'the RULE and BECAUSE of each are word for word as before; the FOR of each is new wording to read' );
     }
     if $migrating && $cand.foundation-intact {
         @c.push: %( kind => 'foundation-migrated',
@@ -285,16 +298,24 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
     my @order = $migrating ?? %k.keys.sort({ %from{$_}:exists ?? (0, +%from{$_}, '') !! (1, 0, $_) }) !! by-identity(%k.keys);
     for @order -> $id {
         my $inv = %k{$id};
-        my $digest = invariant-digest($id, $inv.text, $inv.because);
+        my $digest = invariant-digest($id, $inv.text, $inv.because, :reach($inv.reach));
         if $migrating && (%from{$id}:exists) {
             @c.push: %( kind => 'named', :$id, from => %from{$id}, after => norm($inv.text), after_because => norm($inv.because), :$digest );
         }
         elsif !$migrating && (%b{$id}:exists) {
             my $old = %b{$id};
-            if norm($old.text) ne norm($inv.text) || norm($old.because) ne norm($inv.because) {
-                @c.push: %( kind => 'revised', :$id,
+            my $reach-changed = !$arms-migrating && norm($old.reach // '') ne norm($inv.reach // '');
+            if norm($old.text) ne norm($inv.text) || norm($old.because) ne norm($inv.because) || $reach-changed {
+                my %rev = kind => 'revised', :$id,
                             before => norm($old.text), after => norm($inv.text),
                             before_because => norm($old.because), after_because => norm($inv.because),
+                            before_digest => invariant-digest($id, $old.text, $old.because, :reach($old.reach)), after_digest => $digest;
+                if $inv.reach.defined { %rev<before_reach> = norm($old.reach // ''); %rev<after_reach> = norm($inv.reach) }
+                @c.push: %rev;
+            }
+            elsif $arms-migrating {
+                @c.push: %( kind => 'reach-added', :$id, after_reach => norm($inv.reach), after => norm($inv.text),
+                            after_because => norm($inv.because),
                             before_digest => invariant-digest($id, $old.text, $old.because), after_digest => $digest );
             }
         }
@@ -304,6 +325,7 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
         }
         else {
             my %add = kind => 'added', :$id, after => norm($inv.text), after_because => norm($inv.because), :$digest;
+            %add<after_reach> = norm($inv.reach) if $inv.reach.defined;
             # the same words under a new name: say so, and still treat it as new
             my $twin = %b.values.first({ !(%k{.id}:exists) && norm(.text) eq norm($inv.text) });
             %add<detail> = "the same words as {$twin.id}, which this change removes: a new name is a new commitment, not a rename"
@@ -313,7 +335,8 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
     }
     for by-identity(%b.keys) -> $id {
         next if %map{$id}:exists;
-        @c.push: %( kind => 'removed', :$id, before => norm(%b{$id}.text), before_because => norm(%b{$id}.because) );
+        @c.push: %( kind => 'removed', :$id, before => norm(%b{$id}.text), before_because => norm(%b{$id}.because),
+                    |(%b{$id}.reach.defined ?? (before_reach => norm(%b{$id}.reach)) !! ()) );
     }
     for $cand.unnamed-invariants -> $inv {
         @c.push: %( kind => 'added', after => norm($inv.text), after_because => norm($inv.because),
@@ -548,6 +571,7 @@ sub proposal-lines(%p --> List) is export {
             when 'people'   { @l.push: 'IS FOR WHO changes', "  before: {%c<before> || '(none)'}", "  after:  {%c<after>}" }
             when 'added'    {
                 @l.push: "{shown(%c<id>)} added: {%c<after>}";
+                @l.push: "  FOR {%c<after_reach>}" if %c<after_reach>;
                 @l.push: "  BECAUSE {%c<after_because>}" if %c<after_because>;
                 @l.push: "  {%c<detail>}" if %c<detail>;
             }
@@ -555,11 +579,13 @@ sub proposal-lines(%p --> List) is export {
                 @l.push: "{shown(%c<id>)} revised";
                 @l.push: "  before: {%c<before>}" ~ (%c<before_because> ?? " BECAUSE {%c<before_because>}" !! '');
                 @l.push: "  after:  {%c<after>}" ~ (%c<after_because> ?? " BECAUSE {%c<after_because>}" !! '');
+                @l.push: "  FOR before: {%c<before_reach> || '(none)'}", "  FOR after:  {%c<after_reach>}" if %c<after_reach>.defined && %c<before_reach> ne %c<after_reach>;
             }
             when 'removed'       { @l.push: "{shown(%c<id>)} removed: {%c<before>}" }
+            when 'reach-added'   { @l.push: "{shown(%c<id>)} says what it covers: {%c<after_reach>}", "  its RULE and BECAUSE are word for word as before" }
             when 'named'         { @l.push: "Invariant {%c<from>} is named {%c<id>}; its words are unchanged" }
             when 'foundation-migrated' {
-                @l.push: 'The foundation moves to named invariants, with new words', "  before: {%c<before>}", "  after:  {%c<after>}", "  {%c<detail>}";
+                @l.push: (%c<title> // 'The foundation moves to named invariants, with new words'), "  before: {%c<before>}", "  after:  {%c<after>}", "  {%c<detail>}";
             }
             when 'removed-file'  { @l.push: 'The IZ4 is removed: every commitment with it' }
             when 'mode'          { @l.push: (%c<after> eq 'mvp' ?? 'The IZ4 goes into MVP mode' !! 'The IZ4 becomes solid'), "  {%c<detail>}" }

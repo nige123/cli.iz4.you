@@ -21,7 +21,7 @@ $config.spurt('');
 
 sub g(IO::Path $r, *@a) { my $p = run 'git', '-C', $r.Str, |@a, :out, :err; my $o = $p.out.slurp(:close); $p.err.slurp(:close); $o.trim }
 sub add(IO::Path $r, Str $name, Str $text) {
-    my ($rc, $out, $err) = iz4($r, 'add', 'invariant', $text, "--name=$name", '--namespace=shop.example.com', '--because=It matters.', '--force');
+    my ($rc, $out, $err) = iz4($r, 'add', 'invariant', $text, "--name=$name", '--for=the shop', '--namespace=shop.example.com', '--because=It matters.', '--force');
     die "add: $out $err" if $rc != 0;
 }
 
@@ -29,7 +29,7 @@ my $r = temp-dir;
 g($r, 'init', '-q');
 g($r, 'config', 'user.email', 't@test');
 g($r, 'config', 'user.name', 'Test');
-my ($rc, $out, $err) = iz4($r, 'init', '--for-what=Taking orders.', '--for-who=People buying things.', '--/agents');
+my ($rc, $out, $err) = iz4($r, 'init', '--namespace=shop.example.com', '--for-what=Taking orders.', '--for-who=People buying things.', '--/agents');
 like $out, / "'iz4 mode mvp' lets you move fast while the invariants settle" /, 'init says the mode is there, in a line';
 my $iz4 = $r.add('IZ4');
 my $fresh = $iz4.slurp;

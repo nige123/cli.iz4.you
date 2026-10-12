@@ -38,7 +38,7 @@ says.
 Commitments, from the IZ4 in each tree:
 
 - IS FOR WHAT or IS FOR WHO changed;
-- a project invariant added, revised (its text or its BECAUSE) or
+- a project invariant added, revised (its text, its FOR or its BECAUSE) or
   removed, each keyed by its name;
 - the IZ4 removed altogether;
 - the candidate IZ4 does not parse (blocked);
@@ -47,7 +47,11 @@ Commitments, from the IZ4 in each tree:
 - a numbered IZ4 moved to named invariants by `iz4 migrate`: each
   `Invariant N is named ...`, and the foundation's new words (agreement
   required);
-- a named IZ4 replaced by a numbered one (blocked).
+- a named IZ4 moved to the three-arm form by `iz4 migrate`: the foundation
+  moving to its three-arm words, and each invariant's new `FOR`, shown with
+  its `RULE` and `BECAUSE` as unchanged (agreement required);
+- a named IZ4 replaced by a numbered one, or a three-arm IZ4 by an earlier
+  form (blocked: a file only moves forward).
 
 Invariants are compared by name, so moving a block within the file changes
 nothing and passes. The same words under a new name are a removal and an

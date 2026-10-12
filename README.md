@@ -14,19 +14,20 @@ what it must never lose. People and coding agents read it before they
 change anything.
 
 ```text
-IS FOR WHAT?
-Helping people find work they would come alive doing.
+IZ4 love2.do
 
-IS FOR WHO?
-People looking for that work, and the employers hoping to find them.
+IS FOR WHAT?  Helping people find work they would come alive doing.
+IS FOR WHO?   People looking for that work, and the employers hoping to find them.
 
-INVARIANT come-alive.matching.love2.do
-A match answers "would they come alive doing this work?". It must never
-quietly degrade into keyword matching.
-
-BECAUSE
-Plenty of people could do a job. The point is finding the one they'd love.
+come-alive.matching:
+  FOR:      every match the system makes
+  RULE:     A match must answer "would they come alive doing this work?"
+            and must never degrade into keyword matching.
+  BECAUSE:  Plenty of people could do a job. The point is finding the one
+            they'd love.
 ```
+
+Each invariant says what it covers, what must stay true there, and why.
 
 ## Why
 

@@ -85,10 +85,11 @@ exactly which IZ4 applied; record them with any evidence you keep.
 An invariant is identified by `id`, its full name, and a driver treats it
 as an opaque string and compares it whole. The foundation's five come
 first, then the project's own in file order. `digest` says which wording
-of the invariant this is (rule `iz4-invariant/1`, in
-[format.md](format.md#which-wording-the-digest)). `namespace` is the domain
-the project's own names share. `format` is `named`, or `numbered` for a
-file in the earlier format that `iz4 migrate` has not yet moved: there
+of the invariant this is (rule `iz4-invariant/1`, or `iz4-invariant/2` in
+the three-arm form, in [format.md](format.md#the-digest)); an entry of a
+three-arm file also carries `reach`, its `FOR`. `namespace` is the domain
+the project's own names share. `format` is `arms` (the three-arm form), `named`, or `numbered` for a
+file in the earliest format that `iz4 migrate` has not yet moved: there
 each `id` is the old number as a string, such as `"5"`, and `namespace` is
 null. A foundation entry in a named file also carries
 `legacy_foundation_number`, the number it had in that format.

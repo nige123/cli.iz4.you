@@ -79,7 +79,7 @@ subtest 'actions are words' => {
                 "iz4 help {$t.name} offers no flag that is really an action: $u";
         }
     }
-    ok run-iz4('init', '--for-what=Taking orders.', '--for-who=People buying things.', '--/agents')<code> == 0, 'an IZ4 to work on';
+    ok run-iz4('init', '--namespace=shop.example.com', '--for-what=Taking orders.', '--for-who=People buying things.', '--/agents')<code> == 0, 'an IZ4 to work on';
     my $file = $dir.add('IZ4');
     like run-iz4('foundation', 'restore')<out>, / 'already there' /, 'iz4 foundation restore';
     # the comment an earlier iz4 wrote above the foundation named the flag: restore leaves no line of it behind

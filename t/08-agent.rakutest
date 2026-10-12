@@ -167,7 +167,7 @@ $broken.add('IZ4').spurt("IZ4\n\nINVARIANT no-is-for.shop.example.com\nNo IS FOR
 is $rc, 1, 'agent packet refused for an invalid spec';
 like $err, /'invalid IZ4'/, 'refusal names the reason';
 
-my @answers = '--for-what=Testing agents.', '--for-who=Developers.';
+my @answers = '--namespace=shop.example.com', '--for-what=Testing agents.', '--for-who=Developers.';
 my $flagged = temp-dir;
 ($rc, $out, $err) = iz4($flagged, 'init', |@answers, '--agents');
 like $out, /'AGENTS.md: installed'/, 'init --agents installs the entry point';

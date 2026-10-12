@@ -1,6 +1,7 @@
 use lib $?FILE.IO.parent.add('lib').Str;
 use Test;
 use IZ4Test;
+use IZ4;
 use IZ4::Gate;
 
 # Agreeing to a change is a person's act, and it should cost them one
@@ -31,7 +32,7 @@ my $r = temp-dir;
 g($r, 'init', '-q');
 g($r, 'config', 'user.email', 't@test');
 g($r, 'config', 'user.name', 'Test');
-iz4($r, 'init', '--for-what=Taking orders.', '--for-who=People buying things.', '--/agents');
+init(:dir($r), :for-what('Taking orders.'), :for-who('People buying things.'));
 my $far = temp-dir;
 g($far, 'init', '-q', '--bare');
 g($r, 'remote', 'add', 'origin', $far.Str);

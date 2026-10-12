@@ -86,6 +86,49 @@ BECAUSE
 A foundation that bends under pressure is not a foundation.
 ```
 
+## In the three-arm form
+
+A file in the three-arm form ([the format](format.md#the-three-arm-form)) carries
+the same five, each with its `FOR`: what it reaches. The `RULE` and `BECAUSE` of
+each are the words above, word for word, so this changes what each says it
+covers and nothing else.
+
+| Invariant | FOR |
+|---|---|
+| `humans-first.iz4.you` | every person the system affects, whether or not they use it |
+| `do-no-harm.iz4.you` | everyone the system affects, and all it does or helps others do |
+| `human-agency.iz4.you` | every consequential action, and every instruction the system receives |
+| `honesty.iz4.you` | what the system says about itself, its knowledge and its actions |
+| `keystone.iz4.you` | the foundation, and all who build, run, use or change the system |
+
+These five `FOR` lines are candidate wording, written when the form was built,
+and are for the foundation's owner to review. They are in the form's
+foundation, which only a three-arm file carries. A named file keeps the named
+foundation it adopted, so neither version is ever written into the other's
+files, and updating iz4 never rewrites a project's foundation: a person moves a
+file with `iz4 migrate`, and the gate shows the move as its own change.
+
+The three-arm foundation's digest is the sha256 of the five, each written as
+digest rule `iz4-invariant/2` writes any invariant of that form:
+
+```text
+INVARIANT humans-first.iz4.you
+FOR <reach>
+RULE <rule>
+BECAUSE <reason>
+...
+```
+
+```text
+01923241a3878fd9ba66ede126896965bfebc13f6120bee3f42796362dc98155
+```
+
+The named foundation's digest, `a04d8673fc15...`, is unchanged and still
+identifies the named foundation. A file's own form says which of the two it
+carries, and `iz4 check` compares the words of the one it adopted: a file
+that mixes them, or has a changed word with an old digest in mind, is not the
+foundation of either.
+
 ## Better than Asimov
 
 Asimov's three laws were written to make stories, and most of those stories

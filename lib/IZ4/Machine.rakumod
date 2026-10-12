@@ -68,7 +68,7 @@ sub discover(IO::Path $dir = $*CWD --> Hash) is export {
     %r<valid>   = $doc.ok;
     %r<errors>  = $doc.errors.map({ "{.line}: {.Str}" }).Array;
     %r<invariants> = effective-list($doc);
-    %r<format>     = $doc.legacy ?? 'numbered' !! 'named';
+    %r<format>     = $doc.form;
     %r<namespace>  = $doc.namespace;
     %r;
 }
@@ -87,6 +87,12 @@ sub effective-list(IZ4::Document $doc --> Array) {
                           digest => sha256-text(canonical-invariant(~%f<number>, %f<text>, %f<because>)) );
         }
     }
+    elsif $doc.form eq 'arms' {
+        for FOUNDATION-ARMS -> %f {
+            @out.push: %( id => %f<id>, foundation => True, summary => first-sentence(%f<text>), reach => %f<reach>,
+                          digest => sha256-text(canonical-arms(%f<id>, %f<reach>, %f<text>, %f<because>)), foundation_order => %f<legacy> );
+        }
+    }
     else {
         for FOUNDATION -> %f {
             @out.push: %( id => %f<id>, foundation => True, summary => first-sentence(%f<text>),
@@ -97,7 +103,8 @@ sub effective-list(IZ4::Document $doc --> Array) {
     for $doc.invariants.grep(*.id.defined) -> $inv {
         next if %seen{$inv.id}++;
         @out.push: %( id => $inv.id, foundation => False, summary => first-sentence($inv.text),
-                      digest => invariant-digest($inv.id, $inv.text, $inv.because) );
+                      |($inv.reach.defined ?? (reach => $inv.reach) !! ()),
+                      digest => invariant-digest($inv.id, $inv.text, $inv.because, :reach($inv.reach)) );
     }
     @out;
 }

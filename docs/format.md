@@ -1,10 +1,208 @@
 # The IZ4 file format
 
-The format is specified by a grammar, `lib/IZ4/Grammar.rakumod`, and the
-parser is that grammar: what it accepts is what this page describes. If
-the two ever disagree, the grammar is right and this page is wrong.
+Three forms exist. The **three-arm form** is current: it is what `iz4 init`
+writes, and it is described first. The **named form** of iz4 0.16 and 0.17
+is still read and written, and the **numbered form** of 0.15 and earlier is
+still read. Each is specified by a Raku grammar, and the parser is that
+grammar: what it accepts is what this page describes. If the two ever
+disagree, the grammar is right and this page is wrong. The three-arm grammar
+is `lib/IZ4/ArmsGrammar.rakumod`; the others are `lib/IZ4/Grammar.rakumod`.
 
-## The whole of it
+`iz4 migrate` moves a numbered file to the named form, and a named file to
+the three-arm form. Nothing moves unless a person runs it.
+
+## The three-arm form
+
+```text
+IZ4 jobs.example.com
+
+IS FOR WHAT?  Helping people find work they love to do.
+IS FOR WHO?   People looking for work.
+
+private-stays-private:
+  FOR:      private profiles
+  RULE:     The system must never expose a private profile in public search.
+  BECAUSE:  Looking for work must not cost someone their current job.
+
+contact-by-invitation:
+  FOR:      every message an employer sends to a job seeker
+  RULE:     An employer must not contact a job seeker until that person has
+            started the contact.
+  BECAUSE:  Job seekers should not acquire another unsolicited inbox.
+
+# ----------------------------------------------------------------------
+# The foundation: the same words in every IZ4.
+
+humans-first.iz4.you:
+  FOR:      every person the system affects, whether or not they use it
+  RULE:     Help people thrive, on their own terms. ...
+  BECAUSE:  Humanity thrives person by person, ...
+```
+
+(The foundation is left short here; see [the foundation](foundation.md).)
+
+An invariant says three things, and the form has a place for each:
+
+| Arm | Answers | Written as |
+|---|---|---|
+| `FOR:` | Who or what does this cover? | The reach, in the words you would use out loud |
+| `RULE:` | What must remain true throughout that reach? | A complete statement, using must, must not, always or never where they read naturally |
+| `BECAUSE:` | Why does that matter to people? | The human reason |
+
+Reach, Rule, Reason is a help for writing an invariant, and `iz4 add` asks
+the three questions in that order. It is not a sentence pattern: the file
+holds the three answers, each as its owner wrote it.
+
+### How an invariant is read
+
+- `FOR` says where the invariant applies. `RULE` says what must remain true
+  throughout that reach, including any explicit prerequisite or limit on
+  behaviour. `BECAUSE` says the human purpose it protects.
+- The rule remains binding throughout its stated reach, whether or not the
+  stated reason describes the present circumstances. `BECAUSE` guides
+  understanding and authorised revision; it does not change where the rule
+  applies, and it cannot add a condition, remove a protection or authorise an
+  exception.
+- A boundary or an exception counts only when the rule itself states it and
+  the foundation allows it. It is never inferred from a reason, an example,
+  an objective, an inconvenience or an implementation choice.
+- A condition in a rule, such as "only while the approval remains valid", is
+  necessary, never sufficient: meeting it grants no permission to break
+  another invariant.
+- Examples and pressure scenarios ("what if there is a deadline?") help find
+  ambiguity while an invariant is being drafted or tested. They neither list
+  everything the invariant covers nor limit it, and they are not part of the
+  rule. A phrase such as "even when" is not forbidden, but it is worth a
+  second look: it may be hiding a loophole.
+- A project's own `FOR` cannot narrow or weaken the foundation.
+- Where reach or meaning is genuinely unclear, the answer is the existing
+  one: pause what is affected, say so, and return the decision to the people
+  entitled to decide.
+
+The same text is in the [agent protocol](guide.md#agents), so an agent is
+told it with the invariants.
+
+### The rules of the file
+
+- **The header** is `IZ4`, a space and the project's domain, a domain it
+  answers for: `IZ4 jobs.example.com`. It is the first line that is not blank
+  or a comment, and it says the domain once, so the invariants below can be
+  short. The foundation's own domain, `iz4.you`, cannot be a project's.
+- **The two questions**, `IS FOR WHAT?` and `IS FOR WHO?`, each appear once,
+  with the answer on the same line, wrapping onto the lines below.
+- **An invariant** is its name and a colon, alone on a line at column 0:
+  `private-stays-private:`. Three arms follow, each a label and a colon (after
+  any indentation) and then its words, which may wrap onto the lines below. An
+  arm is written once. `FOR` and `RULE` are required. A missing `BECAUSE` is
+  the reason still to give: `iz4 check` lists it, and the file still checks.
+- **Indentation is for the eye.** Which line is a name, a label, a comment, a
+  question or a continuation is decided by how it begins, so a file with every
+  line at column 0 reads the same. A line that continues an arm and happens to
+  begin with a label and a colon would start a new arm: join it to the line
+  above, or reword it.
+- **A blank line** ends the text of an arm. Words after a blank line that
+  belong to no arm are an error, never quietly added to the arm above.
+- **A comment** is a line starting with `#`, anywhere, including between the
+  lines of an arm; it does not end the arm. Comments are for people, with two
+  that the tool writes and reads back because they record a decision: the
+  withdrawal line (below) and the `# MVP:` line that says the project's own
+  invariants are still settling ([the gate](gate.md#mvp-mode)). The `# MVP:`
+  line changes what the gate asks, so adding or removing it is itself a change
+  a person agrees to.
+- **A name without dots** goes under the header's domain: `private-stays-private`
+  is `private-stays-private.jobs.example.com`. A name with dots is already a
+  whole identity. A name and its whole identity are one invariant, never two.
+- **Order means nothing,** and file order never creates precedence. By
+  convention the project's own invariants come first and the foundation last,
+  behind a rule-off comment, so a reader meets the project before the common
+  part.
+- **Withdrawing** an invariant leaves a comment where it stood
+  (`# INVARIANT name.domain was withdrawn on DATE; its name is retired.`). The
+  whole identity is what is retired, and `iz4 add` checks the Git history
+  as well as the comment, so deleting the comment frees nothing.
+
+### The foundation in this form
+
+The foundation is the same five invariants, each with its `FOR`. Their `RULE`
+and `BECAUSE` are the words of the named form, word for word; the `FOR` of
+each says what it reaches. A file carries the foundation of its own form: a
+named file's is the named foundation, and a three-arm file's is this one, each
+with its own digest. Neither is accepted in the other's place, so a file that
+mixes the two, or whose words differ from either, fails `iz4 check` and is put
+right with `iz4 foundation restore`. Updating the CLI never rewrites a file's
+foundation: a file keeps the foundation it adopted until a person moves it.
+
+### What is an error and what is a warning
+
+| The grammar saw | Reported as |
+|---|---|
+| A name with no `FOR` or no `RULE` | error |
+| An arm with a label and nothing after it, or an arm twice | error |
+| An arm with no name above it | error |
+| Words after a blank line that continue no arm | error |
+| A heading that is not a lower-case name, or a name that cannot be one | error, with the reason |
+| A project name directly under `iz4.you`, or a withdrawn identity reused | error |
+| The same identity twice, short or whole | error |
+| A header whose domain cannot be one, or is `iz4.you` | error |
+| A foundation invariant whose words, `FOR` included, differ from the foundation's | error: it is not the owner's to edit |
+| Any foundation name missing, or one twice | error |
+| No `IS FOR WHAT?` or `IS FOR WHO?`, or one empty | error |
+| `IS FOR WHAT` without its question mark | warning |
+| An invariant with no `BECAUSE` | listed by `iz4 check` as a cross: the reason is still to give |
+
+### The digest
+
+An invariant's digest (rule `iz4-invariant/2`) is the sha256 of four lines,
+each field's words joined by single spaces, in Unicode normal form C and
+encoded as UTF-8:
+
+```text
+INVARIANT <whole identity>
+FOR <reach>
+RULE <rule>
+BECAUSE <reason>
+```
+
+A field never holds a line break, so a word cannot move from one field to
+another without the digest changing. Re-wrapping changes nothing; one changed
+word changes the digest; the same words under another name, or with another
+`FOR`, have another digest. The three-arm foundation's digest is the sha256 of
+its five invariants in order, written this way. The rule for the earlier forms,
+`iz4-invariant/1`, is unchanged.
+
+### The grammar
+
+The productions, from `lib/IZ4/ArmsGrammar.rakumod`:
+
+```text
+TOP        := prelude* header item*
+prelude    := blank | comment
+header     := 'IZ4' spaces domain newline
+item       := blank | comment | purpose | invariant | stray-arm | stray
+purpose    := 'IS FOR' ('WHAT' | 'WHO') '?'? spaces first-line newline cont*
+invariant  := heading (blank | comment | arm)*
+heading    := [a-z0-9] [word-chars . -]* ':' spaces newline          (at column 0)
+arm        := spaces ('FOR' | 'RULE' | 'BECAUSE') ':' spaces first-line newline
+              (comment* cont)*
+cont       := a line that is not blank, not a comment, not a heading, not an
+              arm label, and not the start of IS FOR WHAT or IS FOR WHO
+stray-arm  := an arm with no heading above it
+stray      := any other line
+```
+
+Like the other grammar it is forgiving on purpose: `stray-arm` and `stray`
+accept what a person might write by mistake, so one parse can report every
+problem with its line number.
+
+## The named form
+
+This is the form of iz4 0.16 and 0.17. It is still read, written and
+checked, and a project may stay in it. `iz4 migrate` moves it to the
+three-arm form: the header gains the domain, each invariant is laid out in
+three arms with its `RULE` and `BECAUSE` word for word, and the one new thing,
+the `FOR` of each, is asked of a person and never made up.
+
+### The whole of it
 
 ```text
 IZ4
@@ -31,7 +229,7 @@ Job seekers should not acquire another unsolicited inbox.
 (Every file also carries the foundation, left out here for
 length; see [the foundation](foundation.md).)
 
-## The rules
+### The rules
 
 - **The header** is the word `IZ4` on a line by itself. Blank and comment
   lines may come before it; nothing else may.
@@ -81,7 +279,7 @@ length; see [the foundation](foundation.md).)
   keyword; `BECAUSE it matters` or the word inside a sentence is text.
 - **Encoding** is UTF-8. A file need not end with a newline.
 
-## What is an error and what is a warning
+### What is an error and what is a warning
 
 The grammar is forgiving on purpose. It accepts what a person might write
 by mistake, in named productions, so that one parse can report every
@@ -128,8 +326,9 @@ test, a gate proposal, a conversation. So the rules are few and strict.
   ordinary.
 - A project names its invariants under a domain it answers for, its
   namespace. Labels between the invariant's own name and the namespace are
-  free, for an area: `owner-adjusted.prices.honeywillow.com`. The file says
-  its namespace once, in a comment `iz4 add` writes with the first
+  free, for an area: `owner-adjusted.prices.honeywillow.com`. In the three-arm
+  form the header says the namespace and an invariant is written by its first
+  part; in the named form the file says it once, in a comment `iz4 add` writes with the first
   invariant (`# This project's invariants are named under
   honeywillow.com.`), so nobody is asked twice. Nothing checks that a
   project controls the domain: that belongs to a registry, not to the file.
@@ -151,8 +350,8 @@ name: `x.owner-adjusted.honeywillow.com` does not link
 
 ### Which wording: the digest
 
-Each invariant has a digest, the sha256 of these bytes (rule
-`iz4-invariant/1`), with every run of whitespace in the text and the
+In the named form each invariant has a digest, the sha256 of these bytes (rule
+`iz4-invariant/1`; the three-arm form's is [above](#the-digest)), with every run of whitespace in the text and the
 reason made one space:
 
 ```text
@@ -201,7 +400,7 @@ holds what the system is for, who it is for, and the few invariants that
 must survive, each with its reason. Everything else has a better home in
 the README, ADRs, tests, issues or a planning tool.
 
-## The grammar
+## The named form's grammar
 
 The productions, from `lib/IZ4/Grammar.rakumod`:
 

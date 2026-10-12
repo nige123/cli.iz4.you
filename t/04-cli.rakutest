@@ -1,7 +1,9 @@
 use lib $?FILE.IO.parent.add('lib').Str;
 use Test;
 use IZ4Test;
+use IZ4;
 use IZ4::Document;
+use IZ4::Integrations;
 
 # Never let a test reach a real agent.
 %*ENV<IZ4_AGENT_CMD> = 'false';
@@ -15,36 +17,45 @@ my ($rc, $out, $err) = iz4($dir, 'check');
 is $rc, 1, 'check without IZ4 exits 1';
 is $err, "No IZ4 found in this directory or its parents.\nRun 'iz4 init' to create one.\n", 'actionable message';
 
-# ---- init is coached: two questions, then an offer --------------------------
-($rc, $out, $err) = iz4-talk($dir, "Helping people find work they love to do.\nPeople looking for work.\nn\n", 'init');
+# ---- init is coached: two questions, the domain, then an offer ----------------
+my $coached = temp-dir;
+($rc, $out, $err) = iz4-talk($coached, "Helping people find work they love to do.\nPeople looking for work.\nshop.example.com\nn\n", 'init');
 is $rc, 0, 'coached init exits 0';
-like $out, /'What is this for?' .* 'Who is it for?' .* 'Created IZ4.'/, 'init asks what and who';
-like $out, /'carries the foundation word for word, from Invariant Zero, humans first' .* "named under your project's domain"/, 'init teaches the foundation, and how your own are named';
+like $out, /'What is this for?' .* 'Who is it for?' .* 'Which domain?' .* 'Created IZ4 for shop.example.com.'/, 'init asks what, who and the domain once';
+like $out, /'carries the foundation word for word, from Invariant Zero, humans first' .* "say what they cover (FOR), what must remain true (RULE) and why (BECAUSE)"/, 'init teaches the foundation, and the three arms your own take';
 like $out, /'Add an invariant now? [Y/n]'/, 'and offers to add one';
 unlike $out, /:i 'behaviour' | 'requirement' | 'constraint'/, 'without asking for a specification';
-my $iz4 = $dir.add('IZ4').slurp;
-like $iz4, /'IS FOR WHAT?' \n 'Helping people find work they love to do.' \n\n 'IS FOR WHO?' \n 'People looking for work.'/,
-    'the two answers are the file';
-my $declined = IZ4::Document.load($dir.add('IZ4'));
-ok $declined.ok && !$declined.invariants, 'declining the offer leaves a valid two-question IZ4 with only the foundation';
-($rc, $out, $err) = iz4($dir, 'init', '--for-what=x', '--for-who=y');
+like $coached.add('IZ4').slurp, /^ 'IZ4 shop.example.com' \n .* 'IS FOR WHAT?' \h+ 'Helping people find work they love to do.' \n+ 'IS FOR WHO?' \h+ 'People looking for work.'/,
+    'the header names the domain, and the two answers are on their lines';
+my $declined = IZ4::Document.load($coached.add('IZ4'));
+ok $declined.ok && !$declined.invariants && $declined.form eq 'arms', 'declining the offer leaves a valid three-arm IZ4 with only the foundation';
+($rc, $out, $err) = iz4($coached, 'init', '--namespace=shop.example.com', '--for-what=x', '--for-who=y');
 is $rc, 1, 'second init fails';
 like $err, /'already exists'/, 'and explains';
+($rc, $out, $err) = iz4(temp-dir, 'init', '--for-what=x', '--for-who=y');
+is $rc, 1, 'a script that does not say the domain is not guessed for';
+like $err, /'--namespace=your.domain'/, 'and is told how to say it';
 
-# init straight into a first invariant: the coach asks for its name, then, once, the domain
+# the named form is still read and written: the rest of this file works on one
+init(:dir($dir), :for-what('Helping people find work they love to do.'), :for-who('People looking for work.'));
+install-agent-section($dir.add('AGENTS.md'), :root($dir));
+my $iz4 = $dir.add('IZ4').slurp;
+
+# init straight into a first invariant, in three questions: Reach - Rule - Reason, then a name
 my $first = temp-dir;
 ($rc, $out, $err) = iz4-talk($first,
-    "Sign-in codes.\nPeople signing in.\ny\nA code works once and only once.\ny\nA code that works twice lets someone else sign in as you.\ny\nsingle-use-codes\nshop.example.com\n",
-    'init', '--/agents');
-like $out, /'Add it as an invariant? [Y/n]' .* 'Name it:' .* 'Which domain?' .* 'Added INVARIANT single-use-codes.shop.example.com'/,
-    'init can go straight on to a coached first invariant, named by the person' or diag $err;
-ok $first.add('IZ4').slurp.contains("# This project's invariants are named under $NS.\n\nINVARIANT single-use-codes.$NS\n"),
-    'and the domain they gave is recorded in the file';
+    "Sign-in codes.\nPeople signing in.\ny\nevery sign-in code\nA code works once and only once.\ny\nA code that works twice lets someone else sign in as you.\ny\nsingle-use-codes\n",
+    'init', '--namespace=shop.example.com', '--/agents');
+like $out, /'Who or what does this cover?' .* 'What must remain true for every sign-in code?' .* 'FOR      every sign-in code' .* 'RULE     A code works once' .* 'Add it as an invariant? [Y/n]' .* 'Name it:' .* 'Added INVARIANT single-use-codes.shop.example.com'/,
+    'init can go straight on to a coached first invariant: reach, rule, reason, then the name' or diag $err;
+like $first.add('IZ4').slurp, /\n 'single-use-codes:' \n '  FOR:' \h+ 'every sign-in code' \n '  RULE:' \h+ 'A code works once and only once.' \n '  BECAUSE:' \h+ 'A code that works twice'/,
+    'and it is written in three arms, under the short name' or diag $first.add('IZ4').slurp;
+unlike $out, /'Which domain?'/, 'with no second question about the domain: the header already says it';
 
 # the namespace is asked once: a later coached invariant takes it from the file
 {
     my $later = temp-dir;
-    iz4($later, 'init', '--for-what=Sign-in codes.', '--for-who=People signing in.', '--/agents');
+    init(:dir($later), :for-what('Sign-in codes.'), :for-who('People signing in.'));
     iz4($later, 'add', 'invariant', 'A code works once and only once.', '--name=single-use-codes', "--namespace=$NS",
         '--because=A code that works twice lets someone else sign in as you.');
     my $coached = "A code is only ever sent to its owner.\ny\nA code sent to anyone else lets a stranger sign in as you.\ny\n";
@@ -61,7 +72,7 @@ ok $first.add('IZ4').slurp.contains("# This project's invariants are named under
 {
     my $site = temp-dir.add($NS);
     $site.mkdir;
-    iz4($site, 'init', '--for-what=A shop.', '--for-who=Shoppers.', '--/agents');
+    init(:dir($site), :for-what('A shop.'), :for-who('Shoppers.'));
     my ($rc, $out, $err) = iz4($site, 'add', 'invariant', 'Prices are shown before checkout.', '--name=prices-shown', '--because=A surprise at the till is a broken promise.');
     ok $rc == 1 && $err.contains("perhaps $NS"), 'a script is not asked, but is told the likely namespace';
     ($rc, $out, $err) = iz4-talk($site, "\n", 'add', 'invariant', 'Prices are shown before checkout.', '--name=prices-shown', '--because=A surprise at the till is a broken promise.');
@@ -76,7 +87,7 @@ my $script = temp-dir;
 is $rc, 1, 'non-interactive init without answers does not guess';
 like $err, /'--for-what' .* '--for-who'/, 'and says how to answer from a script';
 nok $script.add('IZ4').e, 'and writes nothing';
-($rc, $out, $err) = iz4($script, 'init', '--for-what=A CI smoke test.', '--for-who=Maintainers.');
+($rc, $out, $err) = iz4($script, 'init', '--namespace=shop.example.com', '--for-what=A CI smoke test.', '--for-who=Maintainers.');
 is $rc, 0, 'init from a script with both answers';
 unlike $out, /'[Y/n]'/, 'asks nothing';
 ($rc, $out, $err) = iz4($script, 'add');
@@ -201,7 +212,7 @@ is ($rc, $out), (0, "Added INVARIANT owner-adjusted.prices.$NS.\n"), 'a short na
 is ($rc, $out), (0, "Added INVARIANT whole-name.$NS.\n"), 'a whole name under the namespace is taken as it is';
 {
     my $envd = temp-dir;
-    iz4($envd, 'init', '--for-what=x', '--for-who=y', '--/agents');
+    init(:dir($envd), :for-what('x'), :for-who('y'));
     my ($rc, $out, $err) = iz4($envd, 'add', 'invariant', 'Something stays true.', '--name=stays-true', '--force', :env(%( IZ4_NAMESPACE => $NS )));
     is ($rc, $out), (0, "Added INVARIANT stays-true.$NS.\n"), 'IZ4_NAMESPACE gives a script the namespace';
 }
@@ -456,7 +467,9 @@ sub legacy-iz4(IO::Path $dir, Str $name = 'IZ4' --> IO::Path) {
     like $out, /'✓ invariants: 2 of your own, named under shop.example.com'/, 'and counts its named invariants';
     unlike $out, /"visible-by-choice.$NS" <-[\n]>* 'no test naming'/, 'the relinked test is its evidence';
     ($rc, $out, $err) = iz4($old, 'migrate', |@names);
-    is ($rc, $out), (0, "IZ4 already names its invariants; there is nothing to migrate.\n"), 'a second migrate has nothing to do';
+    ($rc, $out, $err) = iz4($old, 'migrate');
+    is $rc, 2, 'a second migrate moves a named file to the three-arm form, and needs a person for each FOR';
+    like $out, /'These need a FOR, and only you can say it' .* 'Nothing was written'/, 'and says so, writing nothing';
     ($rc, $out, $err) = iz4($old, 'add', 'invariant', 'Refunds go back the way they came.', '--name=refunds-return', '--because=Money should not change shape on the way back.');
     is ($rc, $out), (0, "Added INVARIANT refunds-return.$NS.\n"), 'and the migrated file takes a new invariant under its namespace';
 
@@ -486,13 +499,14 @@ sub legacy-iz4(IO::Path $dir, Str $name = 'IZ4' --> IO::Path) {
     is $rc, 1, 'a file mixing numbered and named invariants fails the check';
     like $out, /'IZ4:' \d+ ': this file mixes numbered and named invariants'/, 'and says so';
     ($rc, $out, $err) = iz4($mixed, 'migrate');
-    is ($rc, $out), (0, "IZ4 already names its invariants; there is nothing to migrate.\n"), 'it is not a numbered file for migrate to move';
+    is $rc, 1, 'migrate will not move a file that has to be put right first';
+    like $err, /'the file has problems to settle first: this file mixes numbered and named invariants'/, 'and says what to settle';
 }
 
 # ---- the foundation has an order, and Invariant Zero comes first ---------------------
 {
     my $d = temp-dir;
-    iz4($d, 'init', '--for-what=Things.', '--for-who=People.', '--/agents');
+    init(:dir($d), :for-what('Things.'), :for-who('People.'));
     my ($rc, $out, $err) = iz4($d, 'foundation');
     like $out, /^ 'The foundation:' \n '  0  humans-first.iz4.you' \s+ 'Invariant Zero: the foundation of the foundation' \n '  1  do-no-harm.iz4.you' \n/,
         'iz4 foundation lists it in its order, and says what Invariant Zero is';

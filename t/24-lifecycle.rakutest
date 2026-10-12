@@ -24,26 +24,26 @@ sub agent-saying(Str $text --> Str) { my $f = temp-dir.add('reply'); $f.spurt($t
     my $d = temp-dir;
     my %env = IZ4_AGENT_CMD => agent-saying("FOR WHAT: Taking orders for a small bakery.\nFOR WHO: The baker and the people who buy bread.\n");
     # Enter keeps the first answer; the second is typed over; no invariant yet
-    my ($rc, $out, $err) = iz4-talk($d, "\nThe baker.\nn\n", 'init', '--/agents', :%env);
+    my ($rc, $out, $err) = iz4-talk($d, "\nThe baker.\nn\n", 'init', '--namespace=shop.example.com', '--/agents', :%env);
     is $rc, 0, 'init with an agent on the machine' or diag "$out\n$err";
     like $out, / 'Reading this repository with ' .* 'to draft the IZ4 with you' /, 'it says what it is doing and with what';
     like $out, / 'It looks like this is for:' \n '  Taking orders for a small bakery.' /, 'the draft is shown, not written';
     like $out, / 'Enter keeps that; or type your own.' /, 'and the person keeps it or types their own';
     my $iz4 = $d.add('IZ4').slurp;
-    like $iz4, / 'IS FOR WHAT?' \n 'Taking orders for a small bakery.' /, 'Enter kept the drafted answer';
-    like $iz4, / 'IS FOR WHO?' \n 'The baker.' /, 'and what the person typed replaced the other';
+    like $iz4, / 'IS FOR WHAT?' \h+ 'Taking orders for a small bakery.' /, 'Enter kept the drafted answer';
+    like $iz4, / 'IS FOR WHO?' \h+ 'The baker.' /, 'and what the person typed replaced the other';
     unlike $iz4, / 'people who buy bread' /, 'the words in the file are the ones they chose';
 }
 {
     my $d = temp-dir;
-    my ($rc, $out, $err) = iz4-talk($d, "A thing.\nSome people.\nn\n", 'init', '--/agents', :env(%( IZ4_AGENT_CMD => 'false' )));
+    my ($rc, $out, $err) = iz4-talk($d, "A thing.\nSome people.\nn\n", 'init', '--namespace=shop.example.com', '--/agents', :env(%( IZ4_AGENT_CMD => 'false' )));
     is $rc, 0, 'an agent that fails does not stop init';
     like $out, / 'No draft came back, so two questions instead.' /, 'it says so in a line and asks instead';
-    like $d.add('IZ4').slurp, / 'IS FOR WHAT?' \n 'A thing.' /, 'and the answers are the person\'s';
+    like $d.add('IZ4').slurp, / 'IS FOR WHAT?' \h+ 'A thing.' /, 'and the answers are the person\'s';
 }
 {
     my $d = temp-dir;
-    my ($rc, $out, $err) = iz4-talk($d, "A thing.\nSome people.\nn\n", 'init', '--/agents', :env(%( IZ4_AGENT_CMD => '' )));
+    my ($rc, $out, $err) = iz4-talk($d, "A thing.\nSome people.\nn\n", 'init', '--namespace=shop.example.com', '--/agents', :env(%( IZ4_AGENT_CMD => '' )));
     unlike $out, / 'Reading this repository' /, 'with no agent at all, init simply asks';
     is parse-purpose("nonsense"), %(), 'a reply with no answers in it is no draft';
 }
@@ -52,19 +52,19 @@ sub agent-saying(Str $text --> Str) { my $f = temp-dir.add('reply'); $f.spurt($t
 {
     my $d = temp-dir;
     g($d, 'init', '-q');
-    my ($rc, $out, $err) = iz4($d, 'init', '--for-what=A thing.', '--for-who=Some people.', '--/agents', :env(%( IZ4_ENFORCE => '1' )));
+    my ($rc, $out, $err) = iz4($d, 'init', '--namespace=shop.example.com', '--for-what=A thing.', '--for-who=Some people.', '--/agents', :env(%( IZ4_ENFORCE => '1' )));
     is $rc, 0, 'init in a Git repository' or diag $err;
     like $out, / 'Commit hook: ' \S+ .* 'it asks you about it there and then.' /, 'says the commit hook is in, and what it is for';
     my $hook = $d.add('.git/hooks/pre-commit');
     ok $hook.f && $hook.slurp.contains('iz4 approve </dev/tty'), 'and it is the one that asks a person at the terminal';
     my $plain = temp-dir;
-    ($rc, $out, $err) = iz4($plain, 'init', '--for-what=A thing.', '--for-who=Some people.', '--/agents', :env(%( IZ4_ENFORCE => '1' )));
+    ($rc, $out, $err) = iz4($plain, 'init', '--namespace=shop.example.com', '--for-what=A thing.', '--for-who=Some people.', '--/agents', :env(%( IZ4_ENFORCE => '1' )));
     unlike $out, / 'Commit hook' /, 'where there is no repository there is no hook to speak of';
     my $own = temp-dir;
     g($own, 'init', '-q');
     $own.add('.git/hooks').mkdir;
     $own.add('.git/hooks/pre-commit').spurt("#!/bin/sh\necho mine\n");
-    ($rc, $out, $err) = iz4($own, 'init', '--for-what=A thing.', '--for-who=Some people.', '--/agents', :env(%( IZ4_ENFORCE => '1' )));
+    ($rc, $out, $err) = iz4($own, 'init', '--namespace=shop.example.com', '--for-what=A thing.', '--for-who=Some people.', '--/agents', :env(%( IZ4_ENFORCE => '1' )));
     is $rc, 0, 'a hook the project already has does not stop init';
     is $own.add('.git/hooks/pre-commit').slurp, "#!/bin/sh\necho mine\n", 'and is left exactly as it was';
 }
@@ -75,7 +75,7 @@ sub shop(--> IO::Path) {
     g($r, 'init', '-q');
     g($r, 'config', 'user.email', 't@test');
     g($r, 'config', 'user.name', 'Test');
-    iz4($r, 'init', '--for-what=Taking orders.', '--for-who=People buying things.', '--/agents');
+    init(:dir($r), :for-what('Taking orders.'), :for-who('People buying things.'));
     iz4($r, 'add', 'invariant', 'An order is never charged twice.', '--name=charged-once', '--namespace=shop.example.com', '--because=It costs trust.', '--force');
     $r.add('t').mkdir;
     $r.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");

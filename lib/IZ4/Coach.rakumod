@@ -19,6 +19,14 @@ constant GOLDEN-TEST is export =
     ~ 'telling the people and agents rebuilding it this?';
 
 #| The opening question when there is no candidate yet.
+#| The first question of the three-arm form: Reach - Rule - Reason.
+constant REACH-QUESTION is export = 'Who or what does this cover?';
+
+#| A reach too wide to say anything: asked about once, never refused.
+sub vague-reach(Str $reach --> Bool) is export {
+    so $reach.lc.trim.subst(/<[.!]>+ $/, '') ~~ /^ [ 'the ' | 'this ' ]? [ 'system' | 'software' | 'app' | 'application' | 'product' | 'everything' | 'all' | 'it' | 'code' ] $/;
+}
+
 constant OPENING is export =
     'What must remain true even if this system is completely rewritten?';
 
@@ -239,14 +247,30 @@ sub coach-invariant(
     Str :$for-what, Str :$for-who,
     Str :$name,
     Str :$suggested-because is copy,
+    Bool :$arms = False,
+    Str :$reach is copy,
     --> Hash
 ) is export {
     my $who  = in-sentence($for-who)  || 'the people this is for';
     my $what = in-sentence($for-what) || 'what this is for';
     my sub answer(Str $prompt --> Str) { (ask($prompt) // '').trim }
 
+    # the three-arm form asks for the reach first when nothing has been said yet
+    my sub ask-reach(--> Str) {
+        my $r = answer(REACH-QUESTION ~ "\n> ");
+        if $r ne '' && vague-reach($r) {
+            tell("That covers a lot, and an invariant is only as clear as its reach. Which people, data or actions exactly?");
+            my $more = answer('> ');
+            $r = $more if $more ne '';
+        }
+        $r;
+    }
+    if $arms && !$reach.defined && !$candidate.defined {
+        $reach = ask-reach();
+        return %( outcome => 'skipped' ) if $reach eq '';
+    }
     without $candidate {
-        tell(OPENING);
+        tell($arms && $reach.defined ?? "What must remain true for $reach?" !! OPENING);
         $candidate = answer('> ');
         return %( outcome => 'skipped' ) if $candidate eq '';
     }
@@ -345,6 +369,11 @@ sub coach-invariant(
         return %( outcome => 'not-iz4', advice => 'the README, tests or developer documentation' );
     }
 
+    if $arms && !$reach.defined {
+        $reach = ask-reach();
+        return %( outcome => 'skipped' ) if $reach eq '';
+    }
+
     # the suggestion is shown exactly as it would be written
     my $hint = ($suggested-because // '').trim;
     $hint = $hint.substr(0, 1).uc ~ $hint.substr(1) if $hint ne '';
@@ -364,7 +393,13 @@ sub coach-invariant(
     }
 
     my $label = $name.defined ?? "INVARIANT $name" !! 'an invariant';
+    if $arms {
+        tell("FOR      $reach");
+        tell("RULE     $candidate");
+        tell("BECAUSE  {$because eq '' ?? '(none yet)' !! $because}");
+    }
     my $confirm = yes-no(answer("Add it as $label? [Y/n] "), :default);
     return %( outcome => 'skipped' ) unless $confirm;
-    %( outcome => 'add', text => $candidate, because => ($because eq '' ?? Str !! $because) );
+    %( outcome => 'add', text => $candidate, because => ($because eq '' ?? Str !! $because),
+       |($arms ?? (reach => $reach) !! ()) );
 }

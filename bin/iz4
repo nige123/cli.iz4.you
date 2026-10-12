@@ -177,12 +177,12 @@ sub coach-into(IO::Path $path, Str :$candidate, Str :$suggested-because, Str :$n
     my $doc = check-doc($path);
     require-named($doc, $path);
     my %r = coach-invariant(
-        :&ask, :&tell, :$candidate, :$suggested-because,
+        :&ask, :&tell, :$candidate, :$suggested-because, :arms($doc.form eq 'arms'),
         for-what => $doc.for-what, for-who => $doc.for-who);
     given %r<outcome> {
         when 'add' {
             my ($id, $ns) = choose-identity($path, $name, :$namespace, :text(%r<text>));
-            add-invariant($path, %r<text>, :name($id), :because(%r<because>), :namespace($ns));
+            add-invariant($path, %r<text>, :name($id), :because(%r<because>), :namespace($ns), :reach(%r<reach> // Str));
             say "Added INVARIANT $id to {display-name($path)}.";
         }
         when 'skipped' { say 'Nothing added.' }
@@ -211,6 +211,29 @@ sub choose-namespace(IO::Path $path, Str :$namespace --> Str) {
         user-error('no namespace given') without $ns;
     }
     with namespace-problem($ns) -> $why { user-error("'$ns' cannot be a namespace: $why") if $why }
+    $ns;
+}
+
+#| The domain a new IZ4's header names: the one given, IZ4_NAMESPACE, the
+#| directory's own name when it reads as a domain; else a person is asked,
+#| once.  A script must say it: a domain is one a project answers for, and
+#| is never made up.
+sub init-namespace(Str $given --> Str) {
+    my $ns = ($given // '').trim.lc || (%*ENV<IZ4_NAMESPACE> // '').trim.lc;
+    my $guess = suggested-namespace($*CWD.add('IZ4'));
+    if $ns eq '' {
+        user-error("iz4 init needs the domain your project answers for, which its invariants are named under: --namespace=your.domain"
+            ~ ($guess ?? " (perhaps $guess)" !! '')) unless interactive();
+        say "Which domain does this project answer for? Its invariants are named under it, like honeywillow.com.";
+        for ^3 {
+            my $answer = (ask("Which domain?" ~ ($guess ?? " [$guess]" !! '') ~ "\n> ") // user-error('no domain given')).trim.lc;
+            $answer ||= $guess // '';
+            if $answer ne '' && namespace-problem($answer) eq '' { $ns = $answer; last }
+            say $answer eq '' ?? 'A domain, like honeywillow.com.' !! "'$answer' cannot be used: {namespace-problem($answer)}";
+        }
+        user-error('no domain given') if $ns eq '';
+    }
+    with namespace-problem($ns) -> $why { user-error("'$ns' cannot be this project's domain: $why") if $why }
     $ns;
 }
 
@@ -260,7 +283,7 @@ multi MAIN(Bool :$version!) { MAIN('version') }
 
 # ------------------------------------------------------------ init
 
-multi MAIN('init', Str :$for-what, Str :$for-who, Bool :$agent, Bool :$agents) {
+multi MAIN('init', Str :$for-what, Str :$for-who, Str :$namespace, Bool :$agent, Bool :$agents) {
     attempt :intent, {
         user-error("IZ4 already exists here; not overwriting") if $*CWD.add('IZ4').e;
         note "init no longer drafts a specification from the repository; after init, 'iz4 suggest' proposes a few candidate invariants"
@@ -290,8 +313,9 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Bool :$agent, Bool :$agents) {
         }
         $what //= ask-required("What is this for?\n> ", 'what it is for');
         $who  //= ask-required("Who is it for?\n> ", 'who it is for');
-        my $path = init(:for-what($what), :for-who($who));
-        say "Created {$path.basename}.";
+        my $ns = init-namespace($namespace);
+        my $path = init(:for-what($what), :for-who($who), :namespace($ns));
+        say "Created {$path.basename} for $ns.";
 
         # Agent entry points install themselves - don't make the user think.
         # AGENTS.md always; CLAUDE.md and the skill where the repository
@@ -318,7 +342,7 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Bool :$agent, Bool :$agents) {
 
         say '';
         say "Every IZ4 carries the foundation word for word, from Invariant Zero, humans first ('iz4 foundation' shows it).";
-        say "Your own are named under your project's domain, like owner-adjusted.honeywillow.com.";
+        say "Your own say what they cover (FOR), what must remain true (RULE) and why (BECAUSE): 'iz4 add' asks one thing at a time.";
         say "Still working out what it must keep? 'iz4 mode mvp' lets you move fast while the invariants settle.";
         if $talk {
             say '';
@@ -334,7 +358,7 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Bool :$agent, Bool :$agents) {
 # ------------------------------------------------------------ add
 
 multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Str :$name, Str :$namespace,
-           Str :$number, Bool :$replace = False, Bool :$force = False) {
+           Str :$number, Str :$for, Bool :$replace = False, Bool :$force = False) {
     attempt :intent, {
         my $path = resolve-target($file);
         my $k = ($kind // 'invariant').lc;
@@ -342,13 +366,15 @@ multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Str :$name,
             when 'invariant' | 'invariants' {
                 user-error("invariants are named now, not numbered: use --name=a-few-words in place of --number")
                     if $number.defined;
-                if interactive() && !$because.defined && !$name.defined {
+                if interactive() && !$because.defined && !$name.defined && !$for.defined {
                     return coach-into($path, :candidate($text), :$namespace);
                 }
                 user-error("iz4 add coaches you on a terminal; in a script use:\n"
-                    ~ "  iz4 add invariant 'what must remain true' --name=a-few-words --because='why it must survive'")
+                    ~ (check-doc($path).form eq 'arms'
+                        ?? "  iz4 add invariant 'The system must never ...' --for='who or what it covers' --name=a-few-words --because='why it must survive'"
+                        !! "  iz4 add invariant 'what must remain true' --name=a-few-words --because='why it must survive'"))
                     without $text;
-                fast-add($path, $text, :$because, :$name, :$namespace, :$force);
+                fast-add($path, $text, :$because, :$name, :$namespace, :$force, :reach($for));
             }
             when 'for-what' | 'what' | 'is-for-what' {
                 user-error('iz4 add for-what needs the answer: what is this for?') without $text;
@@ -372,8 +398,10 @@ multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Str :$name,
 
 #| The fast path: no questions, but the same challenges as the coach, as
 #| a refusal the person can overrule with --force.  They decide.
-sub fast-add(IO::Path $path, Str $text, Str :$because, Str :$name, Str :$namespace, Bool :$force) {
+sub fast-add(IO::Path $path, Str $text, Str :$because, Str :$name, Str :$namespace, Bool :$force, Str :$reach) {
+    my $form = check-doc($path).form;
     require-named(check-doc($path), $path);
+    user-error("not added: say what it covers with --for='who or what', as FOR is the first arm of an invariant here") if $form eq 'arms' && ($reach // '').trim eq '';
     unless $force {
         my %a = assess-candidate($text);
         my $why = do given %a<kind> {
@@ -389,7 +417,7 @@ sub fast-add(IO::Path $path, Str $text, Str :$because, Str :$name, Str :$namespa
         }
     }
     my ($id, $ns) = choose-identity($path, $name, :$namespace, :$text);
-    add-invariant($path, $text, :name($id), :$because, :namespace($ns));
+    add-invariant($path, $text, :name($id), :$because, :namespace($ns), :$reach);
     say "Added INVARIANT $id.";
     note "note: no BECAUSE - say why it must survive, so nobody removes it by accident (--because=...)"
         unless ($because // '').trim;
@@ -528,8 +556,8 @@ multi MAIN('foundation', 'restore', Str $file?) { MAIN('foundation', |($file // 
 multi MAIN('split', Str $which?, Str :$file) { MAIN('because', |($which // Empty), :split, |(:$file if $file.defined)) }
 multi MAIN('test', 'list', Str :$file) { MAIN('test', :list, |(:$file if $file.defined)) }
 multi MAIN('update', 'check') { MAIN('update', :check) }
-multi MAIN('migrate', 'preview', Str $file?, Str :$namespace, Str :$names) {
-    MAIN('migrate', |($file // Empty), :dry-run, |(:$namespace if $namespace.defined), |(:$names if $names.defined));
+multi MAIN('migrate', 'preview', Str $file?, Str :$namespace, Str :$names, Str :$reach) {
+    MAIN('migrate', |($file // Empty), :dry-run, |(:$namespace if $namespace.defined), |(:$names if $names.defined), |(:$reach if $reach.defined));
 }
 multi MAIN('report', 'preview', Str :$file, Str :$release, Str :$run-id) {
     MAIN('report', :dry-run, |(:$file if $file.defined), |(:$release if $release.defined), |(:$run-id if $run-id.defined));
@@ -556,14 +584,16 @@ multi MAIN('agent', 'install', *@what where { .elems > 0 }, Bool :$strict = Fals
 multi MAIN('foundation', Str $file?, Bool :$restore = False) {
     attempt {
         unless $restore {
+            # the form of the file here, else the newest
+            my $arms = (try check-doc(resolve-target($file)).form eq 'arms') // True;
             say 'The foundation:';
-            for FOUNDATION -> %f {
+            for ($arms ?? FOUNDATION-ARMS !! FOUNDATION) -> %f {
                 say sprintf('  %d  %-26s%s', %f<legacy>, %f<id>, %f<id> eq INVARIANT-ZERO ?? 'Invariant Zero: the foundation of the foundation' !! '').trim-trailing;
             }
             say '';
-            print foundation-block();
+            print foundation-block(:$arms);
             say '';
-            say "(sha256 of the foundation text: {FOUNDATION-DIGEST.substr(0, 12)}; every IZ4 carries it word for word)";
+            say "(sha256 of the foundation text: {($arms ?? FOUNDATION-ARMS-DIGEST !! FOUNDATION-DIGEST).substr(0, 12)}; every IZ4 carries it word for word)";
             return 0;
         }
         my $path = resolve-target($file);
@@ -858,6 +888,17 @@ multi MAIN('name', Int $line, Str $name, Str :$file, Str :$namespace) {
     }
 }
 
+# ------------------------------------------------------------ reach
+
+#| Say what an invariant covers: its FOR.
+multi MAIN('reach', Str $which, Str $text, Str :$file) {
+    attempt :intent, {
+        my $path = resolve-target($file);
+        say "{set-reach($path, $which, $text)} now covers: $text";
+        0;
+    }
+}
+
 # ------------------------------------------------------------ migrate
 
 #| Move an IZ4 from numbered invariants to named ones.  The foundation's
@@ -865,8 +906,78 @@ multi MAIN('name', Int $line, Str $name, Str :$file, Str :$namespace) {
 #| asked for on a terminal, given with --names in a script, never made
 #| up.  With a name missing and nobody to ask, nothing is written and the
 #| exit code is 2: a person is needed.
-multi MAIN('migrate', Str $file?, Str :$namespace, Str :$names, Bool :$dry-run = False, Bool :$tests = True) {
-    attempt :intent, { migrate-command($file, :$namespace, :$names, :$dry-run, :$tests) }
+multi MAIN('migrate', Str $file?, Str :$namespace, Str :$names, Str :$reach, Bool :$dry-run = False, Bool :$tests = True) {
+    attempt :intent, {
+        my $path = resolve-target($file);
+        check-doc($path).form eq 'named'
+            ?? migrate-arms-command($path, :$namespace, :$reach, :$dry-run)
+            !! migrate-command($file, :$namespace, :$names, :$dry-run, :$tests)
+    }
+}
+
+#| Move an IZ4 from named invariants to the three-arm form.  The new thing
+#| is FOR: who or what each invariant covers.  It is the owner's to say:
+#| asked for on a terminal, given with --reach=NAME=WHAT in a script, never
+#| made up.  The RULE and BECAUSE of each stay word for word.  Nothing is
+#| written until every invariant has its FOR; with one missing and nobody
+#| to ask, the exit code is 2: a person is needed.
+sub migrate-arms-command(IO::Path $path, Str :$namespace, Str :$reach, Bool :$dry-run --> Int) {
+    my $name = display-name($path);
+    my %plan = arms-migration-plan($path);
+    user-error("cannot migrate $name: %plan<stop>") if %plan<stop>;
+    my $ns = ($namespace // %plan<domain> // (%*ENV<IZ4_NAMESPACE> // '').trim // '').trim.lc;
+    my @own = %plan<own>.list;
+
+    my %given;
+    for ($reach // '').split('|').map(*.trim).grep(* ne '') -> $pair {
+        user-error("--reach takes NAME=WHAT it covers, like --reach=private-stays-private='private profiles' (several: join them with |); '$pair' is not one")
+            unless $pair ~~ /^ (\S+?) '=' (.+) $/;
+        my $id = (try resolve-identity(check-doc($path), ~$0)) // ~$0;
+        user-error("--reach names '$0', and $name has no such invariant of its own") unless @own.first({ .<id> eq $id });
+        %given{$id} = (~$1).trim;
+    }
+    my @missing = @own.grep({ !(%given{.<id>}:exists) });
+
+    say "Moving $name to the three-arm form: each invariant says what it covers (FOR), what must remain true (RULE) and why (BECAUSE).";
+    say "Your RULE and BECAUSE stay word for word; FOR is the new part, and it is yours to say.";
+    if $ns eq '' {
+        user-error("the header names the project's domain, and $name does not show one: pass --namespace=your.domain") unless interactive();
+        $ns = init-namespace(Str);
+    }
+    if @missing && !interactive() {
+        say '';
+        say "These need a FOR, and only you can say it:";
+        say "  {.<id>}: {short(.<text>)}" for @missing;
+        say '';
+        say 'Nothing was written. Run it on a terminal to be asked, or give them:';
+        say "  iz4 migrate --reach={@missing[0]<id>.split('.')[0]}='who or what it covers'" ~ (@missing > 1 ?? ' --reach=...' !! '');
+        return 2;
+    }
+    for @missing -> %o {
+        say '';
+        say "{%o<id>}";
+        say "  RULE     {%o<text>}";
+        say "  BECAUSE  {%o<because> // '(none)'}";
+        for ^3 {
+            my $answer = (ask(REACH-QUESTION ~ "\n> ") // user-error("{%o<id>}: no FOR given; nothing was written")).trim;
+            if $answer eq '' { say 'A reach is needed: who or what does it cover?'; next }
+            if vague-reach($answer) { say "That covers a lot. Which people, data or actions exactly? (enter keeps it)"; my $more = (ask('> ') // '').trim; $answer = $more if $more ne '' }
+            %given{%o<id>} = $answer; last;
+        }
+        user-error("{%o<id>}: no FOR given; nothing was written") unless %given{%o<id>}:exists;
+    }
+    if $dry-run {
+        say '';
+        say "FOR of each, as it would be written:";
+        say "  {.<id>}  FOR  {%given{.<id>}}" for @own;
+        say 'Dry run: nothing was written.';
+        return 0;
+    }
+    migrate-arms($path, %given, :namespace($ns));
+    say '';
+    say "Wrote $name in the three-arm form: header 'IZ4 $ns', your own invariants in three arms, the foundation last. Not a word of your RULE or BECAUSE changed.";
+    say-next(['iz4 check', "iz4 gate --staged   (after 'git add': it shows each FOR as a change to agree to)", 'iz4 approve'], :then(Str));
+    0;
 }
 
 sub migrate-command(Str $file, Str :$namespace, Str :$names, Bool :$dry-run, Bool :$tests --> Int) {
