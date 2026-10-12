@@ -1,5 +1,8 @@
 <p align="center">
-  <a href="https://iz4.you"><img src="docs/brand/iz4-lockup.png" alt="iz4" width="320"></a>
+  <a href="https://iz4.you"><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/iz4-lockup-dark.svg">
+    <img src="docs/brand/iz4-lockup.svg" alt="iz4" width="320">
+  </picture></a>
 </p>
 
 # iz4
