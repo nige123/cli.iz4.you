@@ -25,10 +25,10 @@ constant GOLDEN-TEST is export =
     ~ 'telling the people and agents rebuilding it this?';
 
 #| The opening question when there is no candidate yet.
-#| The first question of the three-arm form: Reach - Rule - Reason.
+#| The first question of the three-clause form: Reach - Rule - Reason.
 constant REACH-QUESTION is export = 'Where does this apply? The situation, not the people.';
 
-#| The third question of the three-arm form: the human interest, as whose what.
+#| The third question of the three-clause form: the human interest, as whose what.
 constant PROTECTS-QUESTION is export = 'What must not be defeated? Say whose what: a person or people, and the thing of theirs at stake.';
 
 #| Said when nothing a person would lose comes to mind: the surest sign
@@ -263,7 +263,7 @@ sub coach-invariant(
     Str :$for-what, Str :$for-who,
     Str :$name,
     Str :$suggested-because is copy,
-    Bool :$arms = False,
+    Bool :$clauses = False,
     Str :$reach is copy,
     --> Hash
 ) is export {
@@ -271,7 +271,7 @@ sub coach-invariant(
     my $what = in-sentence($for-what) || 'what this is for';
     my sub answer(Str $prompt --> Str) { (ask($prompt) // '').trim }
 
-    # the three-arm form asks for the reach first when nothing has been said yet
+    # the three-clause form asks for the reach first when nothing has been said yet
     my sub ask-reach(--> Str) {
         my $r = answer(REACH-QUESTION ~ "\n> ");
         if $r ne '' && vague-reach($r) {
@@ -281,12 +281,12 @@ sub coach-invariant(
         }
         $r;
     }
-    if $arms && !$reach.defined && !$candidate.defined {
+    if $clauses && !$reach.defined && !$candidate.defined {
         $reach = ask-reach();
         return %( outcome => 'skipped' ) if $reach eq '';
     }
     without $candidate {
-        tell($arms && $reach.defined ?? "Where $reach: what must remain true, whatever is rebuilt?" !! OPENING);
+        tell($clauses && $reach.defined ?? "Where $reach: what must remain true, whatever is rebuilt?" !! OPENING);
         $candidate = answer('> ');
         return %( outcome => 'skipped' ) if $candidate eq '';
     }
@@ -362,7 +362,7 @@ sub coach-invariant(
             }
             when 'task' {
                 tell("That reads like work to do. IZ4 records what must stay true, not tasks: track it in your issues or plan.");
-                tell(REWRITE-TEST) if $arms;
+                tell(REWRITE-TEST) if $clauses;
                 my $refined = answer("Is there a lasting truth behind it? Say it, or press enter to leave it out.\n> ");
                 return %( outcome => 'not-iz4', advice => 'issues or a plan' ) if $refined eq '';
                 $candidate = $refined;
@@ -386,29 +386,29 @@ sub coach-invariant(
         return %( outcome => 'not-iz4', advice => 'the README, tests or developer documentation' );
     }
 
-    if $arms && !$reach.defined {
+    if $clauses && !$reach.defined {
         $reach = ask-reach();
         return %( outcome => 'skipped' ) if $reach eq '';
     }
 
     # the suggestion is shown exactly as it would be written
     my $hint = ($suggested-because // '').trim;
-    $hint = $hint.substr(0, 1).uc ~ $hint.substr(1) if $hint ne '' && !$arms;
-    my $because = answer(($arms ?? "PROTECTS: {PROTECTS-QUESTION}" !! "BECAUSE: why must this survive? How does it matter to $who, or to $what?")
+    $hint = $hint.substr(0, 1).uc ~ $hint.substr(1) if $hint ne '' && !$clauses;
+    my $because = answer(($clauses ?? "PROTECTS: {PROTECTS-QUESTION}" !! "BECAUSE: why must this survive? How does it matter to $who, or to $what?")
         ~ ($hint ne '' ?? "\n(enter to use the suggestion: $hint)" !! '') ~ "\n> ");
     $because = $hint if $because eq '' && $hint ne '';
     if assess-because($candidate, $because) eq 'circular' {
-        tell($arms ?? "That restates ALWAYS. What must not be defeated: which person, and what of theirs?"
+        tell($clauses ?? "That restates ALWAYS. What must not be defeated: which person, and what of theirs?"
                    !! "That restates the invariant. Who would be harmed, surprised or let down if it stopped being true, and why?");
         $because = answer('> ');
         if assess-because($candidate, $because) ne 'ok' {
-            if $arms { tell(NOTHING-PROTECTED); return %( outcome => 'not-iz4', advice => 'the README' ) }
+            if $clauses { tell(NOTHING-PROTECTED); return %( outcome => 'not-iz4', advice => 'the README' ) }
             tell("Leaving BECAUSE out for now: add one when the reason is clear.");
             $because = '';
         }
     }
     elsif $because eq '' {
-        if $arms {
+        if $clauses {
             tell(NOTHING-PROTECTED ~ ' Say whose what, or press enter to leave it out.');
             $because = answer('> ');
             return %( outcome => 'not-iz4', advice => 'the README' ) if $because eq '';
@@ -417,7 +417,7 @@ sub coach-invariant(
     }
 
     my $label = $name.defined ?? "INVARIANT $name" !! 'an invariant';
-    if $arms {
+    if $clauses {
         tell("WHERE:    $reach");
         tell("ALWAYS:   $candidate");
         tell("PROTECTS: $because");
@@ -425,5 +425,5 @@ sub coach-invariant(
     my $confirm = yes-no(answer("Add it as $label? [Y/n] "), :default);
     return %( outcome => 'skipped' ) unless $confirm;
     %( outcome => 'add', text => $candidate, because => ($because eq '' ?? Str !! $because),
-       |($arms ?? (reach => $reach) !! ()) );
+       |($clauses ?? (reach => $reach) !! ()) );
 }

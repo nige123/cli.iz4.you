@@ -72,9 +72,9 @@ sub topics(--> List) is export {
       'Shows the invariant and the tests that exist only for it, asks once, and removes them. Git keeps all of it. The name is retired for good. --keep-tests leaves the tests.',
       'iz4 withdraw charged-once'),
 
-    t('because', 'Shaping an invariant', 'say why an invariant must survive: BECAUSE, or PROTECTS in the three-arm form',
-      ['iz4 because NAME WHY'],
-      'In the three-arm form this sets PROTECTS: what must not be defeated, as whose what. --replace changes one already given.',
+    t('because', 'Shaping an invariant', 'say what an invariant protects: its PROTECTS',
+      ['iz4 because NAME WHAT'],
+      'What must not be defeated, as whose what: a noun phrase, never a sentence. --replace changes one already given.',
       "iz4 because charged-once 'It costs people money and trust.'"),
     t('where', 'Shaping an invariant', 'say where an invariant applies: its WHERE',
       ['iz4 where NAME SITUATION'],
@@ -106,9 +106,9 @@ sub topics(--> List) is export {
     t('log', 'Reading', 'the history of the IZ4', ['iz4 log'], 'Git history of the file.', 'iz4 log'),
     t('diff', 'Reading', 'what changed in the IZ4', ['iz4 diff', 'iz4 diff REV', 'iz4 diff REV REV'], 'Git diff of the file.', 'iz4 diff HEAD~1'),
 
-    t('migrate', 'Moving forward', 'move an IZ4 to its newer form',
-      ['iz4 migrate', 'iz4 migrate preview', 'iz4 migrate --where=NAME=SITUATION|NAME=SITUATION', 'iz4 migrate --namespace=DOMAIN --names=5=NAME,6=NAME'],
-      'A numbered IZ4 gets names: the foundation by its fixed order, and you choose one for each of your own. A named IZ4 gets the three-arm form: header domain, and you say where each invariant applies (WHERE). Your own words are never touched. preview shows what would change.',
+    t('migrate', 'Moving forward', 'bring an IZ4 written by an earlier iz4 to the canonical form',
+      ['iz4 migrate', 'iz4 migrate preview', 'iz4 migrate --where=NAME=SITUATION|...'],
+      'Your words are never touched. Where an invariant has no WHERE yet, you are asked; in a script, --where gives it. preview shows what would change.',
       'iz4 migrate preview'),
 
     t('agent', 'Working with agents', 'what an agent must read before it works here',

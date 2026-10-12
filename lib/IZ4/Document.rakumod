@@ -21,7 +21,7 @@ unit class IZ4::Document;
 #| project answers for.
 
 use IZ4::Grammar;
-use IZ4::ArmsGrammar;
+use IZ4::ClausesGrammar;
 
 # ------------------------------------------------------------ foundation
 
@@ -76,7 +76,7 @@ constant FOUNDATION is export = (
        because => 'A foundation that bends under pressure is not a foundation.' ),
 );
 
-#| The foundation as the three-arm form carries it.  Each invariant says
+#| The foundation as the three-clause form carries it.  Each invariant says
 #| where it applies (WHERE), what must remain true there (ALWAYS) and what
 #| must not be defeated (PROTECTS).  ALWAYS speaks to whoever acts, agent
 #| included, as the named foundation did: 'Do not harm people', not 'the
@@ -87,9 +87,9 @@ constant FOUNDATION is export = (
 #| commitments as the named form's, in the same order; the last is named
 #| binding.iz4.you, for what it does, and lists the others by their names.
 #| A file in the named form carries the FOUNDATION above, and a file in the
-#| three-arm form carries this one; neither is ever accepted in the other's
+#| three-clause form carries this one; neither is ever accepted in the other's
 #| place.  Candidate wording until its owner adopts it.
-constant FOUNDATION-ARMS is export = (
+constant FOUNDATION-CLAUSES is export = (
     %( id => 'humans-first.iz4.you', legacy => 0,
        reach => 'anyone is affected by the system, by its use, or by work on it',
        text => "Help people thrive, on their own terms. Respect every person's "
@@ -139,13 +139,13 @@ constant FOUNDATION-ARMS is export = (
 
 
 
-#| The three-arm foundation as iz4 0.18 wrote it, under the labels FOR,
+#| The three-clause foundation as iz4 0.18 wrote it, under the labels FOR,
 #| RULE and BECAUSE, before its words were made to describe the system and
 #| its last invariant was named binding.iz4.you: the text and reason of the
 #| named foundation with a reach each.  A file that still
 #| carries it is not altered by its owner: it is out of date, and is told
 #| so.  Nothing writes this.
-constant FOUNDATION-ARMS-EIGHTEEN = (
+constant FOUNDATION-CLAUSES-EIGHTEEN = (
     %( until => '0.18', id => 'humans-first.iz4.you', reach => 'every person the system affects, whether or not they use it' ),
     %( until => '0.18', id => 'do-no-harm.iz4.you', reach => 'everyone the system affects, and all it does or helps others do' ),
     %( until => '0.18', id => 'human-agency.iz4.you', reach => 'every consequential action, and every instruction the system receives' ),
@@ -154,9 +154,9 @@ constant FOUNDATION-ARMS-EIGHTEEN = (
 ).map({ my %e = $_; my %n = FOUNDATION.first({ .<id> eq %e<id> }); %( |%e, text => %n<text>, because => %n<because> ) }).List;
 
 
-#| The three-arm foundation as iz4 0.19 wrote it: about the system rather
+#| The three-clause foundation as iz4 0.19 wrote it: about the system rather
 #| than to whoever acts, and the last with 'trust' as what it protects.
-constant FOUNDATION-ARMS-NINETEEN = (
+constant FOUNDATION-CLAUSES-NINETEEN = (
     %( until => '0.19', id => 'humans-first.iz4.you',
        reach => 'anyone is affected by the system, user or not',
        text => "People thrive on their own terms, and every person's dignity is "
@@ -199,20 +199,20 @@ constant FOUNDATION-ARMS-NINETEEN = (
              ~ 'returns to the people entitled to decide.',
        because => "people's trust that the foundation holds under pressure" ),
 );
-#| Every earlier wording of the three-arm foundation, by version.
-constant FOUNDATION-ARMS-EARLIER is export = (|FOUNDATION-ARMS-EIGHTEEN, |FOUNDATION-ARMS-NINETEEN).List;
+#| Every earlier wording of the three-clause foundation, by version.
+constant FOUNDATION-CLAUSES-EARLIER is export = (|FOUNDATION-CLAUSES-EIGHTEEN, |FOUNDATION-CLAUSES-NINETEEN).List;
 
-#| The name each three-arm foundation invariant had before it has now.
-constant FOUNDATION-ARMS-EARLIER-NAMES is export = %( 'keystone.iz4.you' => 'binding.iz4.you' );
+#| The name each three-clause foundation invariant had before it has now.
+constant FOUNDATION-CLAUSES-EARLIER-NAMES is export = %( 'keystone.iz4.you' => 'binding.iz4.you' );
 
-#| The name a three-arm foundation invariant has now, given one it used to
+#| The name a three-clause foundation invariant has now, given one it used to
 #| have; Str otherwise.
-sub arms-foundation-renamed(Str $id --> Str) is export { FOUNDATION-ARMS-EARLIER-NAMES{$id} // Str }
+sub clauses-foundation-renamed(Str $id --> Str) is export { FOUNDATION-CLAUSES-EARLIER-NAMES{$id} // Str }
 
-#| The version whose wording a three-arm foundation block carries, when it
+#| The version whose wording a three-clause foundation block carries, when it
 #| is an earlier one word for word; Str otherwise.
-sub foundation-arms-earlier(Str $id, Str $reach, Str $text, Str $because --> Str) is export {
-    my $f = FOUNDATION-ARMS-EARLIER.first({
+sub foundation-clauses-earlier(Str $id, Str $reach, Str $text, Str $because --> Str) is export {
+    my $f = FOUNDATION-CLAUSES-EARLIER.first({
         .<id> eq $id && normalised(nfc(.<reach>)) eq normalised(nfc($reach // ''))
         && normalised(nfc(.<text>)) eq normalised(nfc($text // '')) && normalised(nfc(.<because>)) eq normalised(nfc($because // ''))
     });
@@ -276,7 +276,7 @@ constant MVP-COMMENT is export =
 #| project identities.
 constant FOUNDATION-NAMESPACE is export = 'iz4.you';
 
-sub foundation-ids(Bool :$arms = False --> List) is export { ($arms ?? FOUNDATION-ARMS !! FOUNDATION).map(*<id>).List }
+sub foundation-ids(Bool :$clauses = False --> List) is export { ($clauses ?? FOUNDATION-CLAUSES !! FOUNDATION).map(*<id>).List }
 
 #| Invariant Zero: the foundation of the foundation.
 constant INVARIANT-ZERO is export = 'humans-first.iz4.you';
@@ -289,14 +289,14 @@ sub foundation-order(Str $id --> Int) is export {
 }
 
 #| The foundation invariant at a place in that order, or Str.
-sub foundation-at(Int $n, Bool :$arms = False --> Str) is export {
-    my $f = ($arms ?? FOUNDATION-ARMS !! FOUNDATION).first({ .<legacy> == $n });
+sub foundation-at(Int $n, Bool :$clauses = False --> Str) is export {
+    my $f = ($clauses ?? FOUNDATION-CLAUSES !! FOUNDATION).first({ .<legacy> == $n });
     $f.defined ?? $f<id> !! Str;
 }
 sub foundation-entry(Str $id) is export { FOUNDATION.first({ .<id> eq $id }) }
-#| A foundation name of either form: the named foundation's, or the three-arm one's.
+#| A foundation name of either form: the named foundation's, or the three-clause one's.
 sub is-foundation-id(Str $id --> Bool) is export {
-    so FOUNDATION.first({ .<id> eq $id }) || FOUNDATION-ARMS.first({ .<id> eq $id });
+    so FOUNDATION.first({ .<id> eq $id }) || FOUNDATION-CLAUSES.first({ .<id> eq $id });
 }
 
 #| The foundation as iz4 0.15 and earlier wrote it: Invariants 0 to 4,
@@ -351,8 +351,8 @@ constant FOUNDATION-COMMENT is export =
 
 #| The foundation as it is written into every file: the comment, then the
 #| invariants with their BECAUSE, each block ending in a blank line.
-sub foundation-block(Bool :$arms = False --> Str) is export {
-    return arms-foundation-block() if $arms;
+sub foundation-block(Bool :$clauses = False --> Str) is export {
+    return clauses-foundation-block() if $clauses;
     my @out = FOUNDATION-COMMENT, '';
     for FOUNDATION -> %f {
         @out.push: "INVARIANT {%f<id>}";
@@ -365,30 +365,30 @@ sub foundation-block(Bool :$arms = False --> Str) is export {
     @out.join("\n");
 }
 
-#| The line that rules off the foundation in the three-arm form: a
+#| The line that rules off the foundation in the three-clause form: a
 #| comment, so it is for the eye, and the parser reads past it.
 constant FOUNDATION-RULE-OFF is export = '# ' ~ ('-' x 70);
 
-#| One arm as it is written: the label, then its words wrapped under it.
-sub arm-lines(Str $label, Str $text --> List) is export {
+#| One clause as it is written: the label, then its words wrapped under it.
+sub clause-lines(Str $label, Str $text --> List) is export {
     my $head = '  ' ~ ($label ~ ':').fmt('%-10s');
     my @w = wrap-words($text, 80 - $head.chars);
     @w = ('',) unless @w;
     (($head ~ @w[0]), |@w[1 .. *].map({ ' ' x $head.chars ~ $_ })).List;
 }
 
-#| One three-arm invariant as it is written, under the name it is shown by.
-sub arms-invariant-lines(Str $name, Str $reach, Str $rule, Str $because --> List) is export {
-    ("$name:", |arm-lines('WHERE', $reach), |arm-lines('ALWAYS', $rule),
-        |($because.trim ne '' ?? arm-lines('PROTECTS', $because) !! ())).List;
+#| One three-clause invariant as it is written, under the name it is shown by.
+sub clauses-invariant-lines(Str $name, Str $reach, Str $rule, Str $because --> List) is export {
+    ("$name:", |clause-lines('WHERE', $reach), |clause-lines('ALWAYS', $rule),
+        |($because.trim ne '' ?? clause-lines('PROTECTS', $because) !! ())).List;
 }
 
-#| The foundation in the three-arm form, as it is written into every file:
+#| The foundation in the three-clause form, as it is written into every file:
 #| a rule-off, the comment, then the invariants, each ending in a blank line.
-sub arms-foundation-block(--> Str) {
+sub clauses-foundation-block(--> Str) {
     my @out = FOUNDATION-RULE-OFF, |FOUNDATION-COMMENT.lines, '';
-    for FOUNDATION-ARMS -> %f {
-        @out.append: arms-invariant-lines(%f<id>, %f<reach>, %f<text>, %f<because>);
+    for FOUNDATION-CLAUSES -> %f {
+        @out.append: clauses-invariant-lines(%f<id>, %f<reach>, %f<text>, %f<because>);
         @out.push: '';
     }
     @out.join("\n");
@@ -464,35 +464,35 @@ constant FOUNDATION-TEXT is export =
 constant FOUNDATION-DIGEST is export =
     'a04d8673fc15df2c7a3abb7032a0224614e3a1ae66a5f7fc62d5a48a990b6e79';
 
-#| The digest rule of the three-arm form.  An invariant is its full
+#| The digest rule of the three-clause form.  An invariant is its full
 #| identity, its WHERE, its ALWAYS and its PROTECTS, each as one line under
 #| its label (iz4-invariant/2 and /3, which 0.18 and 0.19 wrote under earlier
 #| labels, were never adopted by any file), with its words joined by single spaces and its characters in
 #| Unicode normal form C, encoded as UTF-8.  A field never holds a line
 #| break, so a word cannot move from one field to another without the
 #| digest noticing.
-constant INVARIANT-DIGEST-RULE-ARMS is export = 'iz4-invariant/4';
+constant INVARIANT-DIGEST-RULE-CLAUSES is export = 'iz4-invariant/4';
 
 #| Characters in Unicode normal form C, so one word is one word however a
 #| keyboard or an editor composed it.
 sub nfc(Str $s --> Str) is export { $s.NFC.Str }
 
-sub canonical-arms(Str $id, Str $reach, Str $rule, Str $because --> Str) is export {
+sub canonical-clauses(Str $id, Str $reach, Str $rule, Str $because --> Str) is export {
     my sub field(Str $s) { normalised(nfc($s // '')) }
     "INVARIANT $id\nWHERE {field($reach)}\nALWAYS {field($rule)}\nPROTECTS {field($because)}\n";
 }
 
-#| The canonical bytes the three-arm foundation's digest covers.
-constant FOUNDATION-ARMS-TEXT is export =
-    FOUNDATION-ARMS.map({ canonical-arms(.<id>, .<reach>, .<text>, .<because>) }).join;
+#| The canonical bytes the three-clause foundation's digest covers.
+constant FOUNDATION-CLAUSES-TEXT is export =
+    FOUNDATION-CLAUSES.map({ canonical-clauses(.<id>, .<reach>, .<text>, .<because>) }).join;
 
-#| sha256 of FOUNDATION-ARMS-TEXT.  A test pins it to the bytes.
-constant FOUNDATION-ARMS-DIGEST is export =
+#| sha256 of FOUNDATION-CLAUSES-TEXT.  A test pins it to the bytes.
+constant FOUNDATION-CLAUSES-DIGEST is export =
     'c7278fe5414ec2a053dc6c1ed7c091df92eced8dc80531a6a2f068a1a0a77f07';
 
-#| Whether a three-arm block is foundation invariant $id exactly.
-sub foundation-arms-matches(Str $id, Str $reach, Str $rule, Str $because --> Bool) is export {
-    my $f = FOUNDATION-ARMS.first({ .<id> eq $id }) // return False;
+#| Whether a three-clause block is foundation invariant $id exactly.
+sub foundation-clauses-matches(Str $id, Str $reach, Str $rule, Str $because --> Bool) is export {
+    my $f = FOUNDATION-CLAUSES.first({ .<id> eq $id }) // return False;
     normalised(nfc($reach // '')) eq normalised(nfc($f<reach>)) && normalised(nfc($rule // '')) eq normalised(nfc($f<text>))
         && normalised(nfc($because // '')) eq normalised(nfc($f<because>));
 }
@@ -543,17 +543,17 @@ class Problem {
 #| the numbered format the identity is the number, as a string.
 class Invariant {
     has Str $.id;                         # undefined when the block has no name
-    has Str $.reach;                      # WHERE: the situation it applies in; defined only in the three-arm form
+    has Str $.reach;                      # WHERE: the situation it applies in; defined only in the three-clause form
     has Int $.reach-line;
     has Int $.rule-line;
-    has Str $.text    is required;        # ALWAYS, in the three-arm form
+    has Str $.text    is required;        # ALWAYS, in the three-clause form
     has Str $.because;                    # undefined when none given
     has Int $.line    is required;        # its INVARIANT line
     has Int $.because-line;
     has Int $.last-line is rw;            # last line of the INVARIANT block
     #| The exact words its digest covers.
     method canonical(--> Str) {
-        $!reach.defined ?? canonical-arms($!id // '', $!reach, $!text, $!because // '')
+        $!reach.defined ?? canonical-clauses($!id // '', $!reach, $!text, $!because // '')
                         !! canonical-invariant($!id // '', $!text, $!because // '')
     }
 }
@@ -582,9 +582,9 @@ has Str       @.lines;
 has Int       $.header-line;
 has Bool      $.foundation-intact = False;   # every foundation invariant present, each word for word, none twice
 has Bool      $.legacy = False;              # the numbered format of iz4 0.15 and earlier
-has Str       $.form = 'named';              # numbered | named | arms (the three-arm form)
-has Str       $.domain;                      # the namespace the header names, in the three-arm form
-has Bool      $.old-labels = False;          # the three-arm form under labels an earlier iz4 wrote (FOR/RULE/BECAUSE, or HOLDS)
+has Str       $.form = 'named';              # numbered | named | clauses (the three-clause form)
+has Str       $.domain;                      # the namespace the header names, in the three-clause form
+has Bool      $.old-labels = False;          # the three-clause form under labels an earlier iz4 wrote (FOR/RULE/BECAUSE, or HOLDS)
 has Str       $.foundation-was;              # the version whose foundation wording the file still carries, when it is an earlier one
 has Str       @.retired;                     # identities the file's own comments say were withdrawn
 has           @.foundation-spans;            # (first line, last line) of every foundation block, in any state
@@ -623,7 +623,7 @@ method mvp(--> Bool) { so @!lines.first({ $_ ~~ /^ '#' \s* 'MVP:' / }) }
 #| neither says.  Only ever a convenience for naming the next invariant:
 #| an identity is whole in itself and nothing is derived from this.
 method namespace(--> Str) {
-    return $!domain if $!form eq 'arms' && $!domain.defined;
+    return $!domain if $!form eq 'clauses' && $!domain.defined;
     for @!lines -> $l {
         if $l ~~ /^ '#' \s* "This project's invariants are named under " (\S+?) '.'? \s* $/ {
             return ~$0 if identity-problem("x.$0") eq '';
@@ -649,7 +649,7 @@ method foundation-status(--> Str) {
         !! "the foundation is missing or altered, in a file still in the numbered format - 'iz4 migrate' moves it to named invariants and writes the foundation"
         if $!legacy;
     $!foundation-intact
-        ?? "the foundation: in the file word for word (sha256 {($!form eq 'arms' ?? FOUNDATION-ARMS-DIGEST !! FOUNDATION-DIGEST).substr(0, 12)})"
+        ?? "the foundation: in the file word for word (sha256 {($!form eq 'clauses' ?? FOUNDATION-CLAUSES-DIGEST !! FOUNDATION-DIGEST).substr(0, 12)})"
         !! "the foundation is missing or altered - 'iz4 foundation restore' writes it back";
 }
 
@@ -677,10 +677,10 @@ method fixes(--> List) {
 method !parse() {
     @!lines = $!source.lines;
     my $text = $!source.ends-with("\n") || $!source eq '' ?? $!source !! $!source ~ "\n";
-    # the three-arm form says so in its header: 'IZ4 domain'
+    # the three-clause form says so in its header: 'IZ4 domain'
     if $text ~~ / ^ [ \h* [ '#' \N* ]? \n ]* 'IZ4' \h+ \S / {
-        my $am = IZ4::ArmsGrammar.parse($text);
-        if $am { self!parse-arms($text, $am); return }
+        my $am = IZ4::ClausesGrammar.parse($text);
+        if $am { self!parse-clauses($text, $am); return }
     }
     my $m = IZ4::Grammar.parse($text);
     my sub line-of($match) { 1 + $text.substr(0, $match.from).comb("\n").elems }
@@ -736,21 +736,21 @@ method !parse() {
     self!validate;
 }
 
-#| The whole identity a heading names, in the three-arm form.  A name goes
+#| The whole identity a heading names, in the three-clause form.  A name goes
 #| under the header's domain, area labels and all (come-alive.matching under
 #| love2.do is come-alive.matching.love2.do), unless it is already whole: it
 #| ends with that domain, or it is one of the foundation's.  Written under
 #| the foundation's namespace without being one of its own, it is left as
 #| written for the reserved-name check to refuse.
-sub arms-identity(Str $name, Str $domain --> Str) is export {
+sub clauses-identity(Str $name, Str $domain --> Str) is export {
     return $name if is-foundation-id($name) || $name.ends-with('.' ~ $domain) || $name.ends-with('.' ~ FOUNDATION-NAMESPACE);
     $name ~ '.' ~ $domain;
 }
 
-#| The three-arm form: its grammar's matches turned into Parts and
+#| The three-clause form: its grammar's matches turned into Parts and
 #| Invariants, then judged.  Every problem has its line.
-method !parse-arms(Str $text, $m) {
-    $!form = 'arms';
+method !parse-clauses(Str $text, $m) {
+    $!form = 'clauses';
     my sub line-of($match) { 1 + $text.substr(0, $match.from).comb("\n").elems }
     my sub last-of($match, $line) { my @c = $match<cont>.list; @c ?? line-of(@c.tail) !! $line }
 
@@ -760,8 +760,9 @@ method !parse-arms(Str $text, $m) {
         self!problem($!header-line, "'$!domain' cannot be the project's domain: $why",
             :fix("write the domain your project answers for after IZ4 on line $!header-line, like 'IZ4 honeywillow.com'")) if $why;
     }
-    self!problem($!header-line, "'$!domain' is the foundation's own domain: the project's is one it answers for",
-        :fix("write your own domain after IZ4 on line $!header-line")) if $!domain eq FOUNDATION-NAMESPACE;
+    # iz4.you itself may be a project's domain (the register's is): its own names then carry an
+    # area label (one-calculation.cards), since a name directly under iz4.you is the foundation's
+    # and is refused below (owner's ruling, 2026-10-12)
     for @!lines -> $l {
         @!retired.push(~$0) if $l ~~ /^ '#' \s* 'INVARIANT' \s+ (\S+) \s+ 'was withdrawn on' /;
     }
@@ -780,63 +781,63 @@ method !parse-arms(Str $text, $m) {
             self!validate-purpose($part, %seen);
         }
         orwith $i<invariant> -> $v {
-            self!arms-invariant($v, %ids, %foundation, $foundation-broken, &line-of, &last-of);
+            self!clauses-invariant($v, %ids, %foundation, $foundation-broken, &line-of, &last-of);
         }
-        orwith $i<stray-arm> -> $s {
-            my $label = ~$s<arm-label>;
+        orwith $i<stray-clause> -> $s {
+            my $label = ~$s<clause-label>;
             self!problem(line-of($s), "$label: has no invariant name above it",
                 :fix("put the name of the invariant, like 'private-stays-private:', alone on a line above line {line-of($s)}"));
         }
         orwith $i<stray> -> $s {
-            self!problem(line-of($s), "this text belongs to an arm (WHERE:, ALWAYS: or PROTECTS:) or is a stray line: a blank line ends an arm's text",
-                :fix("join the text on line {line-of($s)} to the arm above it without a blank line, or delete it"));
+            self!problem(line-of($s), "this text belongs to an clause (WHERE:, ALWAYS: or PROTECTS:) or is a stray line: a blank line ends an clause's text",
+                :fix("join the text on line {line-of($s)} to the clause above it without a blank line, or delete it"));
         }
     }
 
     self!validate-missing-purpose(%seen);
-    my @missing = foundation-ids(:arms).grep({ !(%foundation{$_}:exists) });
+    my @missing = foundation-ids(:clauses).grep({ !(%foundation{$_}:exists) });
     self!problem(@!lines.elems max 1, "the foundation is missing: every IZ4 carries {@missing.join(', ')} word for word "
         ~ "('iz4 foundation restore' writes {@missing == 1 ?? 'it' !! 'them'})", :fix('iz4 foundation restore'))
         if @missing;
     $!foundation-intact = !@missing && !$foundation-broken;
 }
 
-#| One invariant of the three-arm form: its name made whole, its arms
+#| One invariant of the three-clause form: its name made whole, its clauses
 #| gathered, and the foundation's compared word for word.
-method !arms-invariant($v, %ids, %foundation, $broken is rw, &line-of, &last-of) {
+method !clauses-invariant($v, %ids, %foundation, $broken is rw, &line-of, &last-of) {
     my $h    = $v<heading>;
     my $line = line-of($h);
     my $name = ~$h<name>;
-    my $id   = arms-identity($name, $!domain // 'example.com');
+    my $id   = clauses-identity($name, $!domain // 'example.com');
     @!blocks.push: Part.new(:kind('INVARIANT'), :label($name), :$line, :last-line($line), :lines());
 
-    my %arm;                    # label => Part
+    my %clause;                    # label => Part
     my constant %RENAMED = FOR => 'WHERE', RULE => 'ALWAYS', HOLDS => 'ALWAYS', BECAUSE => 'PROTECTS';
-    for $v<arm>.list -> $a {
-        my $written = ~$a<arm-label>;
+    for $v<clause>.list -> $a {
+        my $written = ~$a<clause-label>;
         my $label = %RENAMED{$written} // $written;
         my $al    = line-of($a);
         if $label ne $written && !$!old-labels {
             $!old-labels = True;
-            self!problem($al, "$written: is a label an earlier iz4 wrote; the arms are WHERE:, ALWAYS: and PROTECTS: now ('iz4 migrate' renames them, and changes no words)",
+            self!problem($al, "$written: is a label an earlier iz4 wrote; the clauses are WHERE:, ALWAYS: and PROTECTS: now ('iz4 migrate' renames them, and changes no words)",
                 :warning, :fix('iz4 migrate'));
         }
         my @text  = (~$a<first>, |$a<cont>».Str).map(*.trim).grep(*.chars);
         my $part  = Part.new(:kind($label), :line($al), :last-line(last-of($a, $al)), :lines(@text));
         @!blocks.push: $part;
-        if %arm{$label}:exists {
-            self!problem($al, "duplicate $label: in $name: (first at line {%arm{$label}.line})",
-                :fix("merge the $label: on line $al into the one on line {%arm{$label}.line}, then delete it"));
+        if %clause{$label}:exists {
+            self!problem($al, "duplicate $label: in $name: (first at line {%clause{$label}.line})",
+                :fix("merge the $label: on line $al into the one on line {%clause{$label}.line}, then delete it"));
         }
-        else { %arm{$label} = $part }
+        else { %clause{$label} = $part }
         self!problem($al, "$label: of $name: is empty",
-            :fix("write the words after $label: on line $al, or delete the arm")) if $part.text eq '';
+            :fix("write the words after $label: on line $al, or delete the clause")) if $part.text eq '';
     }
-    my $last = %arm.values.map(*.last-line).max // $line;
-    $last = $line unless %arm;
-    my $reach = %arm<WHERE>.defined    ?? %arm<WHERE>.text    !! Str;
-    my $rule  = %arm<ALWAYS>.defined   ?? %arm<ALWAYS>.text   !! Str;
-    my $why   = %arm<PROTECTS>.defined ?? %arm<PROTECTS>.text !! Str;
+    my $last = %clause.values.map(*.last-line).max // $line;
+    $last = $line unless %clause;
+    my $reach = %clause<WHERE>.defined    ?? %clause<WHERE>.text    !! Str;
+    my $rule  = %clause<ALWAYS>.defined   ?? %clause<ALWAYS>.text   !! Str;
+    my $why   = %clause<PROTECTS>.defined ?? %clause<PROTECTS>.text !! Str;
 
     # the name, made whole
     my $problem = identity-problem($id);
@@ -847,7 +848,7 @@ method !arms-invariant($v, %ids, %foundation, $broken is rw, &line-of, &last-of)
             :fix("rename the invariant on line $line: lower-case words joined by hyphens"));
     }
 
-    with arms-foundation-renamed($id) -> $now {
+    with clauses-foundation-renamed($id) -> $now {
         # a foundation invariant under the name it used to have: the whole block is the foundation's, and out of date
         @!foundation-spans.push: ($line, $last);
         %foundation{$now} //= $line;
@@ -866,9 +867,9 @@ method !arms-invariant($v, %ids, %foundation, $broken is rw, &line-of, &last-of)
         else {
             %foundation{$id} = $line;
             unless $name eq $id && $reach.defined && $rule.defined && $why.defined
-                    && foundation-arms-matches($id, $reach, $rule, $why) {
+                    && foundation-clauses-matches($id, $reach, $rule, $why) {
                 $broken = True;
-                with ($reach.defined && $rule.defined && $why.defined ?? foundation-arms-earlier($id, $reach, $rule, $why) !! Str) -> $version {
+                with ($reach.defined && $rule.defined && $why.defined ?? foundation-clauses-earlier($id, $reach, $rule, $why) !! Str) -> $version {
                     $!foundation-was //= $version;
                     self!problem($line, "$id: reads as iz4 $version wrote it, and the foundation's wording has changed since "
                         ~ "('iz4 foundation restore' brings it up to date; 'iz4 foundation' shows the words)", :fix('iz4 foundation restore'));
@@ -882,7 +883,7 @@ method !arms-invariant($v, %ids, %foundation, $broken is rw, &line-of, &last-of)
         return;
     }
     if !$problem && reserved-identity($id) {
-        self!problem($line, "$id: names directly under {FOUNDATION-NAMESPACE} are the foundation's, and the foundation is the same in every IZ4 ({foundation-ids(:arms).join(', ')})",
+        self!problem($line, "$id: names directly under {FOUNDATION-NAMESPACE} are the foundation's, and the foundation is the same in every IZ4 ({foundation-ids(:clauses).join(', ')})",
             :fix("rename the invariant on line $line under your project's own domain"));
     }
     elsif !$problem && (%ids{$id}:exists) {
@@ -896,14 +897,14 @@ method !arms-invariant($v, %ids, %foundation, $broken is rw, &line-of, &last-of)
     else { %ids{$id} = $line unless $problem }
 
     for <WHERE ALWAYS PROTECTS> -> $need {
-        next if %arm{$need}:exists;
+        next if %clause{$need}:exists;
         self!problem($line, "$name: has no $need: every invariant says where it applies (WHERE:), what must remain true there (ALWAYS:) and what must not be defeated (PROTECTS:)",
             :fix("add '$need:' under $name: on line $line"));
     }
     @!invariants.push: Invariant.new(:id($id), :reach($reach), :text($rule // ''), :because($why),
-        :$line, :last-line($last), :reach-line(%arm<WHERE>.defined ?? %arm<WHERE>.line !! Int),
-        :rule-line(%arm<ALWAYS>.defined ?? %arm<ALWAYS>.line !! Int),
-        :because-line(%arm<PROTECTS>.defined ?? %arm<PROTECTS>.line !! Int));
+        :$line, :last-line($last), :reach-line(%clause<WHERE>.defined ?? %clause<WHERE>.line !! Int),
+        :rule-line(%clause<ALWAYS>.defined ?? %clause<ALWAYS>.line !! Int),
+        :because-line(%clause<PROTECTS>.defined ?? %clause<PROTECTS>.line !! Int));
 }
 
 #| The BECAUSE block directly after $b, if any.

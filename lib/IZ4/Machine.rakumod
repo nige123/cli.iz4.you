@@ -89,10 +89,10 @@ sub effective-list(IZ4::Document $doc --> Array) {
                           digest => sha256-text(canonical-invariant(~%f<number>, %f<text>, %f<because>)) );
         }
     }
-    elsif $doc.form eq 'arms' {
-        for FOUNDATION-ARMS -> %f {
+    elsif $doc.form eq 'clauses' {
+        for FOUNDATION-CLAUSES -> %f {
             @out.push: %( id => %f<id>, foundation => True, summary => first-sentence(%f<text>), reach => %f<reach>,
-                          digest => sha256-text(canonical-arms(%f<id>, %f<reach>, %f<text>, %f<because>)), foundation_order => %f<legacy> );
+                          digest => sha256-text(canonical-clauses(%f<id>, %f<reach>, %f<text>, %f<because>)), foundation_order => %f<legacy> );
         }
     }
     else {
@@ -481,11 +481,11 @@ sub draft-questions(--> Hash) is export {
     %(
         schema => DRAFT-SCHEMA, tool => "iz4/{VERSION}", kind => 'questions',
         questions => [
-            %( id => 'where',    arm => 'WHERE',    prompt => REACH-QUESTION, required => True, max_words => DRAFT-REACH-WORDS,
+            %( id => 'where',    clause => 'WHERE',    prompt => REACH-QUESTION, required => True, max_words => DRAFT-REACH-WORDS,
                help => 'The situation this applies in: which data, actions or moments. Not who benefits, and not "the system".' ),
-            %( id => 'always',   arm => 'ALWAYS',   prompt => 'What must remain true there, whatever is rebuilt?', required => True, max_words => DRAFT-WORDS,
+            %( id => 'always',   clause => 'ALWAYS',   prompt => 'What must remain true there, whatever is rebuilt?', required => True, max_words => DRAFT-WORDS,
                help => 'One or two sentences: a state about the system, or a duty on whoever acts. Must, never and only are welcome. ' ~ REWRITE-TEST ),
-            %( id => 'protects', arm => 'PROTECTS', prompt => PROTECTS-QUESTION, required => True, max_words => DRAFT-BECAUSE-WORDS,
+            %( id => 'protects', clause => 'PROTECTS', prompt => PROTECTS-QUESTION, required => True, max_words => DRAFT-BECAUSE-WORDS,
                help => 'What must not be defeated: a durable interest or boundary, as a noun phrase, never a sentence. Prefer the owner\'s privacy and control over disclosure to one consequence of losing it. ' ~ NOTHING-PROTECTED ),
         ],
         golden_test => GOLDEN-TEST,
@@ -493,13 +493,13 @@ sub draft-questions(--> Hash) is export {
     );
 }
 
-#| Questions about a draft, never a verdict.  Each finding has an arm, a
+#| Questions about a draft, never a verdict.  Each finding has an clause, a
 #| code, a level ('ask': worth an answer before accepting it; 'note': worth
 #| a second look) and a message in plain words.  ok is True when nothing is
 #| left to ask, which is not the same as the invariant being right.
 sub draft-check(Str :$reach = '', Str :$rule = '', Str :$because = '' --> Hash) is export {
     my @f;
-    my sub finding(Str $arm, Str $code, Str $level, Str $message) { @f.push: %( :$arm, :$code, :$level, :$message ) }
+    my sub finding(Str $clause, Str $code, Str $level, Str $message) { @f.push: %( :$clause, :$code, :$level, :$message ) }
     my ($r, $u, $b) = $reach.trim, $rule.trim, $because.trim;
 
     if $r eq '' { finding 'WHERE', 'empty', 'ask', REACH-QUESTION }
@@ -534,13 +534,13 @@ sub draft-check(Str :$reach = '', Str :$rule = '', Str :$because = '' --> Hash) 
 
     my %r =
         schema => DRAFT-SCHEMA, tool => "iz4/{VERSION}", kind => 'check',
-        arms => %( where => $r, always => $u, protects => $b ),
+        clauses => %( where => $r, always => $u, protects => $b ),
         findings => @f.Array,
         ok => !@f.first({ .<level> eq 'ask' }),
         note => 'these are questions, not a verdict: a person decides what must remain true';
     if $r ne '' && $u ne '' {
         %r<reads> = "Where $r, always: $u" ~ ($b ne '' ?? " This protects {$b.subst(/ <[.!]> $/, '')}." !! '');
-        %r<lines> = arms-invariant-lines('name', $r, $u, $b).Array;
+        %r<lines> = clauses-invariant-lines('name', $r, $u, $b).Array;
     }
     %r;
 }

@@ -68,11 +68,11 @@ constant AGENT-PROTOCOL is export = q:to/END/;
         lost it: re-run 'iz4 agent' before touching anything, even to
         continue work already in flight.
 
-    Reading an invariant.  In the three-arm form it says WHERE it applies,
+    Reading an invariant.  In the three-clause form it says WHERE it applies,
     what must ALWAYS remain true there, and what it PROTECTS: what must
     not be defeated.  In the named form the statement carries the first
-    two and BECAUSE the third.  One rule governs the arms:
-        All three arms bind together.  WHERE scopes; ALWAYS binds;
+    two and BECAUSE the third.  One rule governs the clauses:
+        All three clauses bind together.  WHERE scopes; ALWAYS binds;
         PROTECTS decides what counts as keeping ALWAYS.  None narrows or
         excuses another, and PROTECTS adds no duty of its own.
     So: ALWAYS binds throughout WHERE with no moment or pressure excepted,
@@ -117,9 +117,9 @@ sub agent-packet(IO::Path $iz4 --> Hash) is export {
         file          => $iz4.Str,
         sha256        => sha256-file($iz4),
         foundation    => %(
-            text   => ($doc.legacy ?? foundation-text(:legacy) !! $doc.form eq 'arms' ?? FOUNDATION-ARMS-TEXT !! FOUNDATION-TEXT),
-            sha256 => ($doc.legacy ?? FOUNDATION-LEGACY-DIGEST !! $doc.form eq 'arms' ?? FOUNDATION-ARMS-DIGEST !! FOUNDATION-DIGEST),
-            ids    => ($doc.legacy ?? (0..4).map(~*).Array !! foundation-ids(:arms($doc.form eq 'arms')).Array),
+            text   => ($doc.legacy ?? foundation-text(:legacy) !! $doc.form eq 'clauses' ?? FOUNDATION-CLAUSES-TEXT !! FOUNDATION-TEXT),
+            sha256 => ($doc.legacy ?? FOUNDATION-LEGACY-DIGEST !! $doc.form eq 'clauses' ?? FOUNDATION-CLAUSES-DIGEST !! FOUNDATION-DIGEST),
+            ids    => ($doc.legacy ?? (0..4).map(~*).Array !! foundation-ids(:clauses($doc.form eq 'clauses')).Array),
             status => $doc.foundation-status,
         ),
         effective     => effective-text($doc, :name($iz4.basename)),

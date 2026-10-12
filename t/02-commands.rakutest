@@ -68,7 +68,7 @@ is add-invariant($path, 'A deeper name is ordinary.', :name('sample.cli.iz4.you'
 is full-identity('owner-adjusted', $NS), "owner-adjusted.$NS", 'a short name goes under the namespace';
 is full-identity('owner-adjusted.prices', $NS), "owner-adjusted.prices.$NS", 'a short name may carry an area';
 is full-identity("owner-adjusted.$NS", $NS), "owner-adjusted.$NS", 'a whole name is taken as it is';
-ok namespace-problem('iz4.you') ne '' && namespace-problem($NS) eq '', "the foundation's namespace is nobody's project namespace";
+ok namespace-problem('iz4.you') eq '' && namespace-problem($NS) eq '', "iz4.you may be a project's own domain (the register's is); a name directly under it is refused by name, not by domain";
 
 $doc = check-doc($path);
 ok $doc.ok, 'the file stays valid' or diag $doc.report.join("\n");

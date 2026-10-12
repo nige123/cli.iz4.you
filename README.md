@@ -46,7 +46,7 @@ what must not be defeated.
 | 1 | [do-no-harm](https://do-no-harm.iz4.you): do not harm people, or help anyone harm them |
 | 2 | [human-agency](https://human-agency.iz4.you): keep people in charge |
 | 3 | [honesty](https://honesty.iz4.you): tell the truth; a machine is a machine |
-| 4 | [keystone](https://keystone.iz4.you): nothing may weaken the foundation |
+| 4 | [binding](https://iz4.you/foundation): nothing may weaken, override or route around the foundation |
 
 ## Start
 
@@ -71,7 +71,7 @@ stands and iz4 says enforcement is inactive.
 [format](docs/format.md) ·
 [foundation](docs/foundation.md) ·
 [gate and MVP mode](docs/gate.md) ·
-[agents](docs/drivers.md)
+[drivers](docs/drivers.md)
 
 ## Licence
 

@@ -265,29 +265,29 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
     @c.push: %( kind => 'people', before => $bo, after => $co ) if $bo ne $co;
 
     my $migrating = $base.defined && $base.legacy && !$cand.legacy;
-    my $arms-migrating = $base.defined && $base.form eq 'named' && $cand.form eq 'arms';
+    my $clauses-migrating = $base.defined && $base.form eq 'named' && $cand.form eq 'clauses';
     if $base.defined && !$base.legacy && $cand.legacy {
         @c.push: %( kind => 'format-regressed',
                     detail => 'the candidate goes back to numbered invariants; the base names them, and a name once given is the identity' );
         return @c;
     }
-    if $base.defined && $base.form eq 'arms' && $cand.form ne 'arms' {
+    if $base.defined && $base.form eq 'clauses' && $cand.form ne 'clauses' {
         @c.push: %( kind => 'format-regressed',
-                    detail => 'the candidate goes back to an earlier form; the base states each invariant in three arms (WHERE, ALWAYS, PROTECTS), and a file only moves forward' );
+                    detail => 'the candidate goes back to an earlier form; the base states each invariant in three clauses (WHERE, ALWAYS, PROTECTS), and a file only moves forward' );
         return @c;
     }
-    if $base.defined && $base.form eq 'arms' && $cand.form eq 'arms' && $base.foundation-was.defined && $cand.foundation-intact {
+    if $base.defined && $base.form eq 'clauses' && $cand.form eq 'clauses' && $base.foundation-was.defined && $cand.foundation-intact {
         @c.push: %( kind => 'foundation-migrated',
                     title  => 'The foundation moves to its current words',
                     before => "the foundation as iz4 {$base.foundation-was} wrote it",
-                    after  => "{foundation-ids(:arms).join(', ')} (sha256 {FOUNDATION-ARMS-DIGEST.substr(0, 12)})",
+                    after  => "{foundation-ids(:clauses).join(', ')} (sha256 {FOUNDATION-CLAUSES-DIGEST.substr(0, 12)})",
                     detail => 'the words have changed: read them with iz4 foundation' );
     }
-    if $arms-migrating && $cand.foundation-intact {
+    if $clauses-migrating && $cand.foundation-intact {
         @c.push: %( kind => 'foundation-migrated',
-                    title  => 'The foundation moves to the three-arm form: WHERE, ALWAYS and PROTECTS',
+                    title  => 'The foundation moves to the three-clause form: WHERE, ALWAYS and PROTECTS',
                     before => "the named foundation (sha256 {FOUNDATION-DIGEST.substr(0, 12)})",
-                    after  => "{foundation-ids(:arms).join(', ')} (sha256 {FOUNDATION-ARMS-DIGEST.substr(0, 12)})",
+                    after  => "{foundation-ids(:clauses).join(', ')} (sha256 {FOUNDATION-CLAUSES-DIGEST.substr(0, 12)})",
                     detail => 'read the words: each says where it applies (WHERE), what must always remain true there, and what must not be defeated (PROTECTS); every protection of the named foundation is kept, and the last is named binding.iz4.you' );
     }
     if $migrating && $cand.foundation-intact {
@@ -311,7 +311,7 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
         }
         elsif !$migrating && (%b{$id}:exists) {
             my $old = %b{$id};
-            my $reach-changed = !$arms-migrating && norm($old.reach // '') ne norm($inv.reach // '');
+            my $reach-changed = !$clauses-migrating && norm($old.reach // '') ne norm($inv.reach // '');
             if norm($old.text) ne norm($inv.text) || norm($old.because) ne norm($inv.because) || $reach-changed {
                 my %rev = kind => 'revised', :$id,
                             before => norm($old.text), after => norm($inv.text),
@@ -320,7 +320,7 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
                 if $inv.reach.defined { %rev<before_reach> = norm($old.reach // ''); %rev<after_reach> = norm($inv.reach) }
                 @c.push: %rev;
             }
-            elsif $arms-migrating {
+            elsif $clauses-migrating {
                 @c.push: %( kind => 'reach-added', :$id, after_reach => norm($inv.reach), after => norm($inv.text),
                             after_because => norm($inv.because),
                             before_digest => invariant-digest($id, $old.text, $old.because), after_digest => $digest );

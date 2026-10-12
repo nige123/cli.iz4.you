@@ -5,7 +5,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.20.1';
+constant VERSION is export = '0.21.0';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -43,7 +43,7 @@ sub sha256-text(Str $s --> Str) is export {
 #| named commitment these exact words are.  The name says which
 #| commitment; this says which wording of it.
 sub invariant-digest(Str $id, Str $text, Str $because?, Str :$reach --> Str) is export {
-    return sha256-text(canonical-arms($id, $reach, $text, $because // '')) with $reach;
+    return sha256-text(canonical-clauses($id, $reach, $text, $because // '')) with $reach;
     is-foundation-id($id) && foundation-matches($id, $text, $because // '')
         ?? foundation-digest-of($id)
         !! sha256-text(canonical-invariant($id, $text, $because // ''));
@@ -182,9 +182,9 @@ sub require-named(IZ4::Document $doc, IO::Path $path) is export {
 #| comment and nothing else removed, the opening comment brought up to
 #| date, and the current foundation written where the first block stood:
 #| else after IS FOR WHO?, else after IS FOR WHAT?, else at the end.
-sub with-foundation(IZ4::Document $doc, @source, Bool :$to-arms = False, Bool :$last = False --> List) {
+sub with-foundation(IZ4::Document $doc, @source, Bool :$to-clauses = False, Bool :$last = False --> List) {
     my @lines = @source;
-    my $arms = $to-arms || $doc.form eq 'arms';
+    my $clauses = $to-clauses || $doc.form eq 'clauses';
     my %drop;
     for $doc.foundation-spans -> ($from, $to) { %drop{$_} = True for $from .. $to }
     for @OLD-HEADERS -> @old {
@@ -219,7 +219,7 @@ sub with-foundation(IZ4::Document $doc, @source, Bool :$to-arms = False, Bool :$
     my $placed = False;
     my sub place() {
         @out.push('') if @out && @out.tail ne '';
-        @out.append(foundation-block(:$arms).lines);
+        @out.append(foundation-block(:$clauses).lines);
         @out.push('');
         $placed = True;
     }
@@ -310,7 +310,7 @@ sub template(Str :$for-what!, Str :$for-who!, Str :$namespace --> Str) is export
         INHERITANCE-COMMENT, '',
         |purpose-lines('IS FOR WHAT?', $for-what.trim), '',
         |purpose-lines('IS FOR WHO?', $for-who.trim), '',
-        foundation-block(:arms) with $namespace;
+        foundation-block(:clauses) with $namespace;
     join "\n",
         ROOT-NAME, '',
         INHERITANCE-COMMENT, '',
@@ -320,7 +320,7 @@ sub template(Str :$for-what!, Str :$for-who!, Str :$namespace --> Str) is export
 }
 
 #| Create a root IZ4 in $dir.  Refuses to overwrite; refuses empty answers.
-#| One of the two questions in the three-arm form: its answer on the same
+#| One of the two questions in the three-clause form: its answer on the same
 #| line, wrapped under it.
 sub purpose-lines(Str $label, Str $text --> List) is export {
     my $head = $label.fmt('%-14s');
@@ -366,7 +366,7 @@ sub show-text(IO::Path $path, Str $part? is copy --> Str) is export {
 
 #| One invariant as a reader sees it: header, text, BECAUSE.
 sub invariant-block(Str $label, Str $text, Str $because?, Str :$reach --> Str) {
-    with $reach { return arms-invariant-lines($label, $reach, $text, $because // '').join("\n") ~ "\n" }
+    with $reach { return clauses-invariant-lines($label, $reach, $text, $because // '').join("\n") ~ "\n" }
     my @out = ("INVARIANT $label");
     @out.append: wrap($text, WRAP-WIDTH);
     if $because.defined && $because.trim {
@@ -388,8 +388,8 @@ sub project-invariants-text(IZ4::Document $doc --> Str) {
 #| The foundation as a reader sees it.  A file still in the numbered
 #| format is shown the foundation it carries, the numbered one, because
 #| that is what its own words cite.
-sub foundation-text(Bool :$legacy = False, Bool :$arms = False --> Str) is export {
-    return FOUNDATION-ARMS.map({ invariant-block(.<id>, .<text>, .<because>, :reach(.<reach>)) }).join("\n") if $arms;
+sub foundation-text(Bool :$legacy = False, Bool :$clauses = False --> Str) is export {
+    return FOUNDATION-CLAUSES.map({ invariant-block(.<id>, .<text>, .<because>, :reach(.<reach>)) }).join("\n") if $clauses;
     $legacy
         ?? FOUNDATION-LEGACY.map({ invariant-block("{.<number>} - {.<name>} (foundation)", .<text>, .<because>) }).join("\n")
         !! FOUNDATION.map({ invariant-block(.<id>, .<text>, .<because>) }).join("\n");
@@ -402,7 +402,7 @@ sub effective-text(IZ4::Document $doc, Str :$name = 'IZ4' --> Str) is export {
     my @out;
     @out.push: "IS FOR WHAT?\n" ~ wrap($doc.for-what // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
     @out.push: "IS FOR WHO?\n"  ~ wrap($doc.for-who  // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
-    @out.push: foundation-text(:legacy($doc.legacy), :arms($doc.form eq 'arms'));
+    @out.push: foundation-text(:legacy($doc.legacy), :clauses($doc.form eq 'clauses'));
     @out.push: project-invariants-text($doc);
     @out.join("\n");
 }
@@ -419,13 +419,13 @@ sub resolve-identity(IZ4::Document $doc, Str $ref, :@also --> Str) is export {
     # The foundation has an order, 0 to 4, and Invariant Zero a name of its
     # own: either finds the foundation invariant at that place.  Only the
     # foundation: a project's own invariants have no numbers.
-    my $arms = $doc.form eq 'arms';
-    return foundation-at(0, :$arms) if $raw.lc eq 'zero' | 'iz';
-    return foundation-at(+$raw, :$arms) if $raw ~~ /^ <[0..4]> $/;
+    my $clauses = $doc.form eq 'clauses';
+    return foundation-at(0, :$clauses) if $raw.lc eq 'zero' | 'iz';
+    return foundation-at(+$raw, :$clauses) if $raw ~~ /^ <[0..4]> $/;
     # a foundation invariant asked for by a name it used to have answers under the one it has now
-    with ($arms ?? arms-foundation-renamed($raw) // arms-foundation-renamed($raw ~ '.' ~ FOUNDATION-NAMESPACE)
+    with ($clauses ?? clauses-foundation-renamed($raw) // clauses-foundation-renamed($raw ~ '.' ~ FOUNDATION-NAMESPACE)
                 !! foundation-renamed($raw) // foundation-renamed($raw ~ '.' ~ FOUNDATION-NAMESPACE)) { return $_ }
-    my @all = |foundation-ids(:$arms), |$doc.invariants.map(*.id).grep(*.defined), |$doc.retired, |@also;
+    my @all = |foundation-ids(:$clauses), |$doc.invariants.map(*.id).grep(*.defined), |$doc.retired, |@also;
     return $raw if @all.first(* eq $raw).defined;
     my @starts = @all.grep(*.starts-with("$raw.")).unique;
     @starts == 1 ?? @starts[0] !! Str;
@@ -452,10 +452,10 @@ sub invariant-text(IO::Path $path, Str $ref --> Str) is export {
     user-error("invariants are named now: '$ref' is a number from the earlier format, and only the foundation, 0 to 4, has an order; 'iz4 show invariants' lists the names")
         if $ref.trim ~~ /:i^ ['invariant' \s+]? \d+ ':'? $/ && $ref.trim !~~ /:i^ ['invariant' \s+]? <[0..4]> ':'? $/;
     my $id = resolve-identity($doc, $ref)
-        // user-error("no invariant '$ref' in {$path.basename}; {own-names($doc)}, and the foundation is {foundation-ids(:arms($doc.form eq 'arms')).join(', ')}");
-    my $arms = $doc.form eq 'arms';
-    with ($arms ?? FOUNDATION-ARMS.first({ .<id> eq $id }) !! foundation-entry($id)) -> %f {
-        return invariant-block($id, %f<text>, %f<because>, :reach($arms ?? %f<reach> !! Str));
+        // user-error("no invariant '$ref' in {$path.basename}; {own-names($doc)}, and the foundation is {foundation-ids(:clauses($doc.form eq 'clauses')).join(', ')}");
+    my $clauses = $doc.form eq 'clauses';
+    with ($clauses ?? FOUNDATION-CLAUSES.first({ .<id> eq $id }) !! foundation-entry($id)) -> %f {
+        return invariant-block($id, %f<text>, %f<because>, :reach($clauses ?? %f<reach> !! Str));
     }
     with $doc.invariant($id) { return invariant-block($id, .text, .because, :reach(.reach)) }
     with withdrawn-in($path, $id) -> $when {
@@ -488,7 +488,7 @@ sub withdraw-invariant(IO::Path $path, Str $ref --> IZ4::Document::Invariant) is
     }
     my @lines = $doc.lines;
     my $from  = $inv.line - 1;
-    my $to    = ($doc.form eq 'arms' ?? $inv.last-line !! $inv.because-line.defined
+    my $to    = ($doc.form eq 'clauses' ?? $inv.last-line !! $inv.because-line.defined
         ?? ($doc.blocks.first({ .kind eq 'BECAUSE' && .line == $inv.because-line }).last-line)
         !! $inv.last-line) - 1;
     # One comment line stands where it was, so every reader sees that the
@@ -595,15 +595,15 @@ sub set-is-for(IO::Path $path, Str $which where 'IS FOR WHAT' | 'IS FOR WHO', St
     my $doc   = IZ4::Document.load($path);
     require-named($doc, $path);
     my @lines = $doc.lines;
-    if $doc.form eq 'arms' {
-        my @arms-new = purpose-lines("$which?", $value);
+    if $doc.form eq 'clauses' {
+        my @clauses-new = purpose-lines("$which?", $value);
         with $doc.blocks.first(*.kind eq $which) -> $b {
             user-error("$which is already set; use --replace to replace it") if $b.text ne '' && !$replace;
-            @lines.splice($b.line - 1, $b.last-line - $b.line + 1, @arms-new);
+            @lines.splice($b.line - 1, $b.last-line - $b.line + 1, @clauses-new);
         }
         else {
             my $after = ($which eq 'IS FOR WHO' ?? ($doc.blocks.first(*.kind eq 'IS FOR WHAT') andthen .last-line) !! Int) // ($doc.header-line // 0);
-            @lines.splice($after, 0, |@arms-new);
+            @lines.splice($after, 0, |@clauses-new);
         }
         $path.spurt(@lines.join("\n") ~ "\n");
         return $which;
@@ -636,10 +636,10 @@ sub names-ever-used(IO::Path $path --> List) is export {
     if $rc == 0 {
         for $log.lines -> $l {
             @names.push(~$0) if $l ~~ /^ <[+\-]> 'INVARIANT' \h+ (\S+) \h* $/ && !numbered-label(~$0);
-            # the three-arm form: a name and a colon, made whole under the file's domain
+            # the three-clause form: a name and a colon, made whole under the file's domain
             if $l ~~ /^ <[+\-]> (<[a..z 0..9]> <[\w.\-]>*) ':' \h* $/ {
                 my $n = ~$0;
-                @names.push($doc.domain.defined ?? arms-identity($n, $doc.domain) !! $n);
+                @names.push($doc.domain.defined ?? clauses-identity($n, $doc.domain) !! $n);
             }
         }
     }
@@ -658,7 +658,7 @@ sub project-namespace(IO::Path $path, Str :$given --> Str) is export {
 sub namespace-problem(Str $ns --> Str) is export {
     my $why = identity-problem("x.$ns");
     return $why if $why;
-    return "names directly under {FOUNDATION-NAMESPACE} are the foundation's; use a domain your project answers for" if $ns eq FOUNDATION-NAMESPACE;
+    # iz4.you may be a project's own domain; its invariants then need an area label, which check-new-name sees to
     '';
 }
 
@@ -704,12 +704,12 @@ sub add-invariant(IO::Path $path, Str $text, Str :$name!, Str :$because, Str :$n
     require-named($doc, $path);
     check-new-name($path, $doc, $name);
     my $reason = ($because // '').trim;
-    if $doc.form eq 'arms' {
+    if $doc.form eq 'clauses' {
         my $r = ($reach // '').trim;
         user-error("an invariant needs a WHERE: the situation it applies in (--where=\"a private profile can be seen by anyone but its owner\")") if $r eq '';
         user-error("an invariant needs a PROTECTS: whose what would be lost if it stopped holding (--protects=\"a job seeker's current job\"). If nothing a person would lose comes to mind, this is probably a constraint for the README, not an invariant") if $reason eq '';
         my @lines = $doc.lines;
-        my @block = arms-invariant-lines(arms-short-name($doc, $name), $r, $value, $reason);
+        my @block = clauses-invariant-lines(clauses-short-name($doc, $name), $r, $value, $reason);
         # the project's own come before the foundation, which is read last
         my $at = @lines.first({ $_ eq FOUNDATION-RULE-OFF }, :k);
         $at //= do if $doc.foundation-spans {
@@ -740,9 +740,9 @@ sub add-invariant(IO::Path $path, Str $text, Str :$name!, Str :$because, Str :$n
     $name;
 }
 
-#| How a project's own invariant is written in the three-arm form: its
+#| How a project's own invariant is written in the three-clause form: its
 #| name without the file's domain (area labels kept), else whole.
-sub arms-short-name(IZ4::Document $doc, Str $id --> Str) is export {
+sub clauses-short-name(IZ4::Document $doc, Str $id --> Str) is export {
     my $d = $doc.domain // return $id;
     return $id unless $id.ends-with(".$d") && $id.chars > $d.chars + 1;
     $id.substr(0, $id.chars - $d.chars - 1);
@@ -757,7 +757,7 @@ sub namespace-comment(Str $namespace --> Str) is export { "# This project's inva
 sub name-invariant(IO::Path $path, Int $line, Str $name --> Str) is export {
     my $doc = IZ4::Document.load($path);
     require-named($doc, $path);
-    user-error("every invariant in the three-arm form has its name above its arms; there is nothing to name") if $doc.form eq 'arms';
+    user-error("every invariant in the three-clause form has its name above its clauses; there is nothing to name") if $doc.form eq 'clauses';
     my $inv = $doc.invariants.first({ .line == $line })
         // user-error("no INVARIANT on line $line of {$path.basename}");
     user-error("the invariant on line $line is already named {$inv.id}; a name is an identity and is not changed (withdraw it and add a new one if it is a different commitment)")
@@ -818,15 +818,15 @@ sub invariant-or-die(IZ4::Document $doc, IO::Path $path, Str $ref) {
 #| text and reason.  Everything outside the block is untouched.
 sub rewrite-invariant(IO::Path $path, IZ4::Document $doc, $inv, Str $claim, Str $reason) {
     my @lines = $doc.lines;
-    if $doc.form eq 'arms' {
+    if $doc.form eq 'clauses' {
         # only ALWAYS and PROTECTS are replaced; the name and WHERE stay as written
         my %part;
         for $doc.blocks.grep({ .line > $inv.line && .line <= $inv.last-line && .kind eq any(<WHERE ALWAYS PROTECTS>) }) { %part{.kind} //= $_ }
         my @edits;
-        @edits.push: (%part<ALWAYS>.line,   %part<ALWAYS>.last-line,   arm-lines('ALWAYS', $claim)) if %part<ALWAYS>.defined;
+        @edits.push: (%part<ALWAYS>.line,   %part<ALWAYS>.last-line,   clause-lines('ALWAYS', $claim)) if %part<ALWAYS>.defined;
         if $reason.trim ne '' {
-            @edits.push: %part<PROTECTS>.defined ?? (%part<PROTECTS>.line, %part<PROTECTS>.last-line, arm-lines('PROTECTS', $reason))
-                                                 !! ($inv.last-line + 1, $inv.last-line, arm-lines('PROTECTS', $reason));
+            @edits.push: %part<PROTECTS>.defined ?? (%part<PROTECTS>.line, %part<PROTECTS>.last-line, clause-lines('PROTECTS', $reason))
+                                                 !! ($inv.last-line + 1, $inv.last-line, clause-lines('PROTECTS', $reason));
         }
         elsif %part<PROTECTS>.defined { @edits.push: (%part<PROTECTS>.line, %part<PROTECTS>.last-line, ()) }
         for @edits.sort({ -$_[0] }) -> ($from, $to, @new) { @lines.splice($from - 1, $to - $from + 1, @new) }
@@ -924,48 +924,48 @@ sub migrate(IO::Path $path, %names, Str :$namespace --> List) is export {
     (|legacy-foundation-map(), |%plan<own>.map({ .<number> => %names{.<number>} })).List;
 }
 
-#| Set the WHERE of a project invariant in the three-arm form.  Returns its name.
+#| Set the WHERE of a project invariant in the three-clause form.  Returns its name.
 sub set-reach(IO::Path $path, Str $ref, Str $text --> Str) is export {
     my $reach = $text.trim;
     user-error('nothing to set: the WHERE is empty') if $reach eq '';
     my $doc = IZ4::Document.load($path);
-    user-error("{$path.basename} is not in the three-arm form: only it has a WHERE ('iz4 migrate' moves a named file there)") unless $doc.form eq 'arms';
+    user-error("{$path.basename} is not in the three-clause form: only it has a WHERE ('iz4 migrate' moves a named file there)") unless $doc.form eq 'clauses';
     my $inv = invariant-or-die($doc, $path, $ref);
     my @lines = $doc.lines;
     my $part = $doc.blocks.first({ .kind eq 'WHERE' && .line > $inv.line && .line <= $inv.last-line });
-    if $part { @lines.splice($part.line - 1, $part.last-line - $part.line + 1, arm-lines('WHERE', $reach)) }
-    else     { @lines.splice($inv.line, 0, arm-lines('WHERE', $reach)) }
+    if $part { @lines.splice($part.line - 1, $part.last-line - $part.line + 1, clause-lines('WHERE', $reach)) }
+    else     { @lines.splice($inv.line, 0, clause-lines('WHERE', $reach)) }
     $path.spurt(@lines.join("\n") ~ "\n");
     $inv.id;
 }
 
-#| What moving a named IZ4 to the three-arm form would do, without doing it:
+#| What moving a named IZ4 to the three-clause form would do, without doing it:
 #|   needed  whether there is anything to move
 #|   stop    why it cannot be done as the file stands ('' when it can)
 #|   domain  the namespace the header will name, or Str when nothing says
 #|   own     the project's own invariants, each { id, text, because }
-sub arms-migration-plan(IO::Path $path --> Hash) is export {
+sub clauses-migration-plan(IO::Path $path --> Hash) is export {
     my $doc = IZ4::Document.load($path);
-    return %( :!needed, stop => '', own => [], domain => Str ) if $doc.form eq 'arms' || $doc.legacy;
+    return %( :!needed, stop => '', own => [], domain => Str ) if $doc.form eq 'clauses' || $doc.legacy;
     my $stop = $doc.errors ?? "the file has problems to settle first: {$doc.errors[0].message} (line {$doc.errors[0].line})" !! '';
     %( :needed, :$stop, domain => $doc.namespace,
        own => $doc.invariants.map({ %( id => .id, text => .text, because => .because ) }).Array );
 }
 
-#| Move a named IZ4 to the three-arm form.  %reach gives every project
+#| Move a named IZ4 to the three-clause form.  %reach gives every project
 #| invariant's FOR by its full identity: a person's to say, never made up
 #| here.  What changes: the header names the domain, the two questions
 #| take their answers on the line, each of the project's own invariants is
-#| laid out in three arms with its ALWAYS and PROTECTS word for word, and the
-#| foundation is the three-arm foundation, written last.  The result is
+#| laid out in three clauses with its ALWAYS and PROTECTS word for word, and the
+#| foundation is the three-clause foundation, written last.  The result is
 #| read back before it is written, and a file that would not check is
 #| never written.  Returns the identities moved.
-sub migrate-arms(IO::Path $path, %reach, Str :$namespace --> List) is export {
-    my %plan = arms-migration-plan($path);
-    user-error("{$path.basename} is already in the three-arm form; there is nothing to migrate") unless %plan<needed>;
+sub migrate-clauses(IO::Path $path, %reach, Str :$namespace --> List) is export {
+    my %plan = clauses-migration-plan($path);
+    user-error("{$path.basename} is already in the three-clause form; there is nothing to migrate") unless %plan<needed>;
     user-error("cannot migrate {$path.basename}: %plan<stop>") if %plan<stop>;
     my $domain = ($namespace // %plan<domain> // '').trim.lc;
-    user-error("the three-arm form names the project's domain in its header: pass --namespace=your.domain") if $domain eq '';
+    user-error("the three-clause form names the project's domain in its header: pass --namespace=your.domain") if $domain eq '';
     with namespace-problem($domain) -> $why { user-error("'$domain' cannot be this project's domain: $why") if $why }
     my $doc = IZ4::Document.load($path);
     for $doc.invariants -> $inv {
@@ -989,23 +989,23 @@ sub migrate-arms(IO::Path $path, %reach, Str :$namespace --> List) is export {
         my $to = $inv.because-line.defined
             ?? $doc.blocks.first({ .kind eq 'BECAUSE' && .line == $inv.because-line }).last-line !! $inv.last-line;
         my $short = $inv.id.ends-with(".$domain") ?? $inv.id.substr(0, $inv.id.chars - $domain.chars - 1) !! $inv.id;
-        replace-span($inv.line, $to, arms-invariant-lines($short, %reach{$inv.id}.trim, $inv.text, $inv.because // ''));
+        replace-span($inv.line, $to, clauses-invariant-lines($short, %reach{$inv.id}.trim, $inv.text, $inv.because // ''));
     }
-    my @out = with-foundation($doc, @lines, :to-arms, :last).join("\n").lines.grep(* ne $drop);
+    my @out = with-foundation($doc, @lines, :to-clauses, :last).join("\n").lines.grep(* ne $drop);
     my $new = @out.join("\n") ~ "\n";
     my $check = IZ4::Document.parse($new);
-    user-error("the three-arm form of {$path.basename} would not check ({$check.errors[0].message}, line {$check.errors[0].line}); nothing was written")
+    user-error("the three-clause form of {$path.basename} would not check ({$check.errors[0].message}, line {$check.errors[0].line}); nothing was written")
         unless $check.ok;
     $path.spurt($new);
     $doc.invariants.map(*.id).List;
 }
 
-#| Rename the arm labels an earlier iz4 wrote (FOR, RULE, BECAUSE; HOLDS) to
-#| WHERE, ALWAYS and PROTECTS.  Only the label token on each arm line changes; not
-#| a word of the arms.  Returns the number of lines changed.
-sub relabel-arms(IO::Path $path --> Int) is export {
+#| Rename the clause labels an earlier iz4 wrote (FOR, RULE, BECAUSE; HOLDS) to
+#| WHERE, ALWAYS and PROTECTS.  Only the label token on each clause line changes; not
+#| a word of the clauses.  Returns the number of lines changed.
+sub relabel-clauses(IO::Path $path --> Int) is export {
     my $doc = IZ4::Document.load($path);
-    user-error("{$path.basename} is not in the three-arm form") unless $doc.form eq 'arms';
+    user-error("{$path.basename} is not in the three-clause form") unless $doc.form eq 'clauses';
     return 0 unless $doc.old-labels;
     my %new = FOR => 'WHERE', RULE => 'ALWAYS', HOLDS => 'ALWAYS', BECAUSE => 'PROTECTS';
     my @lines = $path.lines;

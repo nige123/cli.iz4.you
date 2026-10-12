@@ -22,13 +22,13 @@ my $coached = temp-dir;
 ($rc, $out, $err) = iz4-talk($coached, "Helping people find work they love to do.\nPeople looking for work.\nshop.example.com\nn\n", 'init');
 is $rc, 0, 'coached init exits 0';
 like $out, /'What is this for?' .* 'Who is it for?' .* 'Which domain?' .* 'Created IZ4 for shop.example.com.'/, 'init asks what, who and the domain once';
-like $out, /'carries the foundation word for word, from Invariant Zero, humans first' .* "say where they apply (WHERE), what must remain true there (ALWAYS) and what must not be defeated (PROTECTS)"/, 'init teaches the foundation, and the three arms your own take';
+like $out, /'carries the foundation word for word, from Invariant Zero, humans first' .* "say where they apply (WHERE), what must remain true there (ALWAYS) and what must not be defeated (PROTECTS)"/, 'init teaches the foundation, and the three clauses your own take';
 like $out, /'Add an invariant now? [Y/n]'/, 'and offers to add one';
 unlike $out, /:i 'behaviour' | 'requirement' | 'constraint'/, 'without asking for a specification';
 like $coached.add('IZ4').slurp, /^ 'IZ4 shop.example.com' \n .* 'IS FOR WHAT?' \h+ 'Helping people find work they love to do.' \n+ 'IS FOR WHO?' \h+ 'People looking for work.'/,
     'the header names the domain, and the two answers are on their lines';
 my $declined = IZ4::Document.load($coached.add('IZ4'));
-ok $declined.ok && !$declined.invariants && $declined.form eq 'arms', 'declining the offer leaves a valid three-arm IZ4 with only the foundation';
+ok $declined.ok && !$declined.invariants && $declined.form eq 'clauses', 'declining the offer leaves a valid three-clause IZ4 with only the foundation';
 ($rc, $out, $err) = iz4($coached, 'init', '--namespace=shop.example.com', '--for-what=x', '--for-who=y');
 is $rc, 1, 'second init fails';
 like $err, /'already exists'/, 'and explains';
@@ -49,7 +49,7 @@ my $first = temp-dir;
 like $out, /'Where does this apply?' .* 'Where every sign-in code: what must remain true' .* 'WHERE:    every sign-in code' .* 'ALWAYS:   A code works once' .* 'Add it as an invariant? [Y/n]' .* 'Name it:' .* 'Added INVARIANT single-use-codes.shop.example.com'/,
     'init can go straight on to a coached first invariant: where, holds, protects, then the name' or diag $err;
 like $first.add('IZ4').slurp, /\n 'single-use-codes:' \n '  WHERE:' \h+ 'every sign-in code' \n '  ALWAYS:' \h+ 'A code works once and only once.' \n '  PROTECTS:' \h+ 'A code that works twice'/,
-    'and it is written in three arms, under the short name' or diag $first.add('IZ4').slurp;
+    'and it is written in three clauses, under the short name' or diag $first.add('IZ4').slurp;
 unlike $out, /'Which domain?'/, 'with no second question about the domain: the header already says it';
 
 # the namespace is asked once: a later coached invariant takes it from the file
@@ -468,7 +468,7 @@ sub legacy-iz4(IO::Path $dir, Str $name = 'IZ4' --> IO::Path) {
     unlike $out, /"visible-by-choice.$NS" <-[\n]>* 'no test naming'/, 'the relinked test is its evidence';
     ($rc, $out, $err) = iz4($old, 'migrate', |@names);
     ($rc, $out, $err) = iz4($old, 'migrate');
-    is $rc, 2, 'a second migrate moves a named file to the three-arm form, and needs a person for what is missing';
+    is $rc, 2, 'a second migrate moves a named file to the three-clause form, and needs a person for what is missing';
     like $out, /'These have no BECAUSE, and PROTECTS is required' .* 'Nothing was written'/, 'and says so, writing nothing';
     ($rc, $out, $err) = iz4($old, 'add', 'invariant', 'Refunds go back the way they came.', '--name=refunds-return', '--because=Money should not change shape on the way back.');
     is ($rc, $out), (0, "Added INVARIANT refunds-return.$NS.\n"), 'and the migrated file takes a new invariant under its namespace';

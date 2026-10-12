@@ -177,7 +177,7 @@ sub coach-into(IO::Path $path, Str :$candidate, Str :$suggested-because, Str :$n
     my $doc = check-doc($path);
     require-named($doc, $path);
     my %r = coach-invariant(
-        :&ask, :&tell, :$candidate, :$suggested-because, :arms($doc.form eq 'arms'),
+        :&ask, :&tell, :$candidate, :$suggested-because, :clauses($doc.form eq 'clauses'),
         for-what => $doc.for-what, for-who => $doc.for-who);
     given %r<outcome> {
         when 'add' {
@@ -370,7 +370,7 @@ multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Str :$name,
                     return coach-into($path, :candidate($text), :$namespace);
                 }
                 user-error("iz4 add coaches you on a terminal; in a script use:\n"
-                    ~ (check-doc($path).form eq 'arms'
+                    ~ (check-doc($path).form eq 'clauses'
                         ?? "  iz4 add invariant 'what must remain true there' --where='the situation it applies in' --protects='what must not be defeated' --name=a-few-words"
                         !! "  iz4 add invariant 'what must remain true' --name=a-few-words --because='why it must survive'"))
                     without $text;
@@ -401,9 +401,9 @@ multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Str :$name,
 sub fast-add(IO::Path $path, Str $text, Str :$because, Str :$name, Str :$namespace, Bool :$force, Str :$reach) {
     my $form = check-doc($path).form;
     require-named(check-doc($path), $path);
-    if $form eq 'arms' {
-        user-error("not added: say where it applies with --where='the situation', as WHERE is the first arm of an invariant here") if ($reach // '').trim eq '';
-        user-error("not added: say whose what it protects with --protects='a customer\'s money', as PROTECTS is the third arm here. {NOTHING-PROTECTED}") if ($because // '').trim eq '';
+    if $form eq 'clauses' {
+        user-error("not added: say where it applies with --where='the situation', as WHERE is the first clause of an invariant here") if ($reach // '').trim eq '';
+        user-error("not added: say whose what it protects with --protects='a customer\'s money', as PROTECTS is the third clause here. {NOTHING-PROTECTED}") if ($because // '').trim eq '';
     }
     unless $force {
         my %a = assess-candidate($text);
@@ -416,7 +416,7 @@ sub fast-add(IO::Path $path, Str $text, Str :$because, Str :$name, Str :$namespa
         }
         user-error("not added: $why\n(--force adds it anyway, if you have judged that it must remain true)") with $why;
         if ($because // '').trim && assess-because($text, $because) eq 'circular' {
-            user-error($form eq 'arms'
+            user-error($form eq 'clauses'
                 ?? "not added: PROTECTS restates ALWAYS. What must not be defeated: which person, and what of theirs?\n(--force adds it anyway)"
                 !! "not added: the BECAUSE restates the invariant. Who would be harmed, surprised or let down if it stopped being true, and why?\n(--force adds it anyway)");
         }
@@ -425,7 +425,7 @@ sub fast-add(IO::Path $path, Str $text, Str :$because, Str :$name, Str :$namespa
     add-invariant($path, $text, :name($id), :$because, :namespace($ns), :$reach);
     say "Added INVARIANT $id.";
     note "note: no BECAUSE - say why it must survive, so nobody removes it by accident (--because=...)"
-        unless ($because // '').trim || $form eq 'arms';
+        unless ($because // '').trim || $form eq 'clauses';
 }
 
 # ------------------------------------------------------------ because
@@ -590,15 +590,15 @@ multi MAIN('foundation', Str $file?, Bool :$restore = False) {
     attempt {
         unless $restore {
             # the form of the file here, else the newest
-            my $arms = (try check-doc(resolve-target($file)).form eq 'arms') // True;
+            my $clauses = (try check-doc(resolve-target($file)).form eq 'clauses') // True;
             say 'The foundation:';
-            for ($arms ?? FOUNDATION-ARMS !! FOUNDATION) -> %f {
+            for ($clauses ?? FOUNDATION-CLAUSES !! FOUNDATION) -> %f {
                 say sprintf('  %d  %-26s%s', %f<legacy>, %f<id>, %f<id> eq INVARIANT-ZERO ?? 'Invariant Zero: the foundation of the foundation' !! '').trim-trailing;
             }
             say '';
-            print foundation-block(:$arms);
+            print foundation-block(:$clauses);
             say '';
-            say "(sha256 of the foundation text: {($arms ?? FOUNDATION-ARMS-DIGEST !! FOUNDATION-DIGEST).substr(0, 12)}; every IZ4 carries it word for word)";
+            say "(sha256 of the foundation text: {($clauses ?? FOUNDATION-CLAUSES-DIGEST !! FOUNDATION-DIGEST).substr(0, 12)}; every IZ4 carries it word for word)";
             return 0;
         }
         my $path = resolve-target($file);
@@ -915,29 +915,29 @@ multi MAIN('migrate', Str $file?, Str :$namespace, Str :$names, Str :$where, Boo
     attempt :intent, {
         my $path = resolve-target($file);
         my $doc = check-doc($path);
-        if $doc.form eq 'arms' {
+        if $doc.form eq 'clauses' {
             # the labels iz4 0.18 wrote: renamed, nothing else touched
-            unless $doc.old-labels { say "{display-name($path)} is already in the three-arm form; there is nothing to migrate."; return 0 }
-            if $dry-run { say "Would rename the arm labels an earlier iz4 wrote to WHERE, ALWAYS and PROTECTS; not a word changes. Dry run: nothing was written."; return 0 }
-            my $n = relabel-arms($path);
-            say "Renamed the arm labels on $n lines of {display-name($path)}: WHERE, ALWAYS and PROTECTS. Not a word changed.";
+            unless $doc.old-labels { say "{display-name($path)} is already in the three-clause form; there is nothing to migrate."; return 0 }
+            if $dry-run { say "Would rename the clause labels an earlier iz4 wrote to WHERE, ALWAYS and PROTECTS; not a word changes. Dry run: nothing was written."; return 0 }
+            my $n = relabel-clauses($path);
+            say "Renamed the clause labels on $n lines of {display-name($path)}: WHERE, ALWAYS and PROTECTS. Not a word changed.";
             return 0;
         }
         $doc.form eq 'named'
-            ?? migrate-arms-command($path, :$namespace, :$where, :$dry-run)
+            ?? migrate-clauses-command($path, :$namespace, :$where, :$dry-run)
             !! migrate-command($file, :$namespace, :$names, :$dry-run, :$tests)
     }
 }
 
-#| Move an IZ4 from named invariants to the three-arm form.  The new thing
+#| Move an IZ4 from named invariants to the three-clause form.  The new thing
 #| is FOR: who or what each invariant covers.  It is the owner's to say:
 #| asked for on a terminal, given with --where=NAME=SITUATION in a script,
 #| never made up.  The words of each stay word for word.  Nothing is
 #| written until every invariant has its WHERE; with one missing and nobody
 #| to ask, the exit code is 2: a person is needed.
-sub migrate-arms-command(IO::Path $path, Str :$namespace, Str :$where, Bool :$dry-run --> Int) {
+sub migrate-clauses-command(IO::Path $path, Str :$namespace, Str :$where, Bool :$dry-run --> Int) {
     my $name = display-name($path);
-    my %plan = arms-migration-plan($path);
+    my %plan = clauses-migration-plan($path);
     user-error("cannot migrate $name: %plan<stop>") if %plan<stop>;
     my $ns = ($namespace // %plan<domain> // (%*ENV<IZ4_NAMESPACE> // '').trim // '').trim.lc;
     my @own = %plan<own>.list;
@@ -952,12 +952,12 @@ sub migrate-arms-command(IO::Path $path, Str :$namespace, Str :$where, Bool :$dr
     }
     my @missing = @own.grep({ !(%given{.<id>}:exists) });
 
-    say "Moving $name to the three-arm form: each invariant says where it applies (WHERE), what must remain true there (ALWAYS) and what must not be defeated (PROTECTS).";
+    say "Moving $name to the three-clause form: each invariant says where it applies (WHERE), what must remain true there (ALWAYS) and what must not be defeated (PROTECTS).";
     say "Your words become ALWAYS and PROTECTS word for word; WHERE is the new part, and it is yours to say.";
     my @unexplained = @own.grep({ !(.<because> // '').trim });
     if @unexplained {
         say '';
-        say "These have no BECAUSE, and PROTECTS is required in the three-arm form: whose what would be lost if it stopped holding?";
+        say "These have no BECAUSE, and PROTECTS is required in the three-clause form: whose what would be lost if it stopped holding?";
         say "  iz4 because {.<id>.split('.')[0]} 'whose what'" for @unexplained;
         say 'Nothing was written.';
         return 2;
@@ -999,9 +999,9 @@ sub migrate-arms-command(IO::Path $path, Str :$namespace, Str :$where, Bool :$dr
         say 'Dry run: nothing was written.';
         return 0;
     }
-    migrate-arms($path, %given, :namespace($ns));
+    migrate-clauses($path, %given, :namespace($ns));
     say '';
-    say "Wrote $name in the three-arm form: header 'IZ4 $ns', your own invariants in three arms, the foundation last. Not a word of your own changed.";
+    say "Wrote $name in the three-clause form: header 'IZ4 $ns', your own invariants in three clauses, the foundation last. Not a word of your own changed.";
     say-next(['iz4 check', "iz4 gate --staged   (after 'git add': it shows each WHERE as a change to agree to)", 'iz4 approve'], :then(Str));
     0;
 }
@@ -1701,14 +1701,14 @@ multi MAIN('draft', 'check', Str :$where = '', Str :$always, Str :$holds, Str :$
         with $name {
             my $path = resolve-target($file);
             my $doc = check-doc($path);
-            my $id = $doc.form eq 'arms' ?? arms-identity($name, $doc.domain // 'example.com') !! full-identity($name, project-namespace($path));
+            my $id = $doc.form eq 'clauses' ?? clauses-identity($name, $doc.domain // 'example.com') !! full-identity($name, project-namespace($path));
             %r<identity> = $id;
             try {
                 check-new-name($path, $doc, $id);
-                CATCH { when X::IZ4 { %r<findings>.push: %( arm => 'NAME', code => 'name', level => 'ask', message => .message ); %r<ok> = False } }
+                CATCH { when X::IZ4 { %r<findings>.push: %( clause => 'NAME', code => 'name', level => 'ask', message => .message ); %r<ok> = False } }
             }
-            %r<digest> = invariant-digest($id, $rule.trim, $protects.trim, |($doc.form eq 'arms' ?? (:reach($where.trim)) !! ()))
-                if $rule.trim ne '' && ($doc.form ne 'arms' || $where.trim ne '');
+            %r<digest> = invariant-digest($id, $rule.trim, $protects.trim, |($doc.form eq 'clauses' ?? (:reach($where.trim)) !! ()))
+                if $rule.trim ne '' && ($doc.form ne 'clauses' || $where.trim ne '');
         }
         say json-encode(%r);
         0;

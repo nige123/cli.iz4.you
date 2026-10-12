@@ -73,10 +73,10 @@ Does an IZ4 govern this directory? Never an error: no IZ4 is an answer.
 
 ```json
 {"schema":"iz4-discover/2","present":true,"file":"/repo/IZ4","sha256":"b083...",
- "valid":true,"errors":[],"format":"named","namespace":"honeywillow.com",
- "invariants":[{"id":"humans-first.iz4.you","foundation":true,"summary":"Help people thrive, on their own terms.","digest":"c2a8...","legacy_foundation_number":0},
+ "valid":true,"errors":[],"format":"clauses","namespace":"honeywillow.com",
+ "invariants":[{"id":"humans-first.iz4.you","foundation":true,"summary":"Help people thrive, on their own terms.","digest":"c2a8..."},
    {"id":"owner-adjusted.prices.honeywillow.com","foundation":false,"summary":"A live shop price changes only by human decision.","digest":"3d8c..."}],
- "tool":"iz4/0.16.0"}
+ "tool":"iz4/0.21.0"}
 ```
 
 `--dir=PATH` asks about another directory. `file` and `sha256` identify
@@ -85,14 +85,9 @@ exactly which IZ4 applied; record them with any evidence you keep.
 An invariant is identified by `id`, its full name, and a driver treats it
 as an opaque string and compares it whole. The foundation's five come
 first, then the project's own in file order. `digest` says which wording
-of the invariant this is (rule `iz4-invariant/1`, or `iz4-invariant/4` in
-the three-arm form, in [format.md](format.md#the-digest)); an entry of a
-three-arm file also carries `reach`, its `WHERE`. `namespace` is the domain
-the project's own names share. `format` is `arms` (the three-arm form), `named`, or `numbered` for a
-file in the earliest format that `iz4 migrate` has not yet moved: there
-each `id` is the old number as a string, such as `"5"`, and `namespace` is
-null. A foundation entry in a named file also carries
-`legacy_foundation_number`, the number it had in that format.
+of the invariant this is (rule `iz4-invariant/4`, in
+[format.md](format.md#for-tools)); each entry carries `reach`, its `WHERE`. `namespace` is the domain
+the project's own names share. `format` is `clauses`.
 
 ### `iz4 context`
 
@@ -114,18 +109,18 @@ that help a person write an invariant, and questions about an answer.
 Always JSON, schema `iz4-draft/1`, exit 0.
 
 `iz4 draft questions` gives the three questions in order, Where, Always,
-Protects (`id` `where`, `always`, `protects`; each with its `arm`, `prompt`,
+Protects (`id` `where`, `always`, `protects`; each with its `clause`, `prompt`,
 `help`, `required` and `max_words`), and the golden test.
 
 `iz4 draft check --where=SITUATION --always=STATE --protects=WHAT` gives
-`arms` as it read them, `findings`, `ok`, and, once WHERE and ALWAYS are there,
+`clauses` as it read them, `findings`, `ok`, and, once WHERE and ALWAYS are there,
 `reads` (the invariant read aloud, "Where ..., always: ... This protects
 ...") and `lines`
-(the arms as they would be written). A finding is `arm`, `code`, `level` and
+(the clauses as they would be written). A finding is `clause`, `code`, `level` and
 a `message` in plain words. Level `ask` is worth an answer before accepting
 the draft (an empty or too wide WHERE, a ALWAYS that reads as a task or a
 mechanism, a PROTECTS that is missing, restates ALWAYS or opens with a
-condition); `note` is worth a second look (a long arm, an "even when" in
+condition); `note` is worth a second look (a long clause, an "even when" in
 ALWAYS, a PROTECTS written as a sentence). A PROTECTS nobody can fill is the
 surest sign of a constraint for the README rather than an invariant, and the
 message says so. `ok` is true when nothing is left to ask, which is not the same
@@ -205,7 +200,7 @@ uncertain or conflicting, in its own words.
    "agree_with":"iz4 approve --candidate=<tree> --base=HEAD"},
  "iz4":{"file":"/repo/IZ4","sha256":"..."},
  "limits":"what this check did not establish",
- "exit_code":2,"tool":"iz4/0.16.0"}
+ "exit_code":2,"tool":"iz4/0.21.0"}
 ```
 
 `invariants_considered` is a sorted list of names. Every change in
@@ -297,65 +292,3 @@ boundary; see [gate.md](gate.md)), and stop when it has none.
 
 Steps 1, 2 and 4 are possible in any environment. Step 3 depends on what the
 harness exposes, which is exactly the knowledge a driver exists to hold.
-
-## With 321
-
-```text
-321 harness detect           the harnesses 321 knows, and each one's controls
-321 iz4 install              wire iz4 into them, as strongly as each allows
-321 iz4 status               what is enforced, and what cannot be
-321 iz4 remove               take out only what 321 installed
-```
-
-`iz4 agent install hooks` asks 321 to do this (`--strict` for everything
-the harness can enforce; without it, the context only).
-
-**iz4 may bootstrap its driver, and still knows no harness.** After a
-successful change of intent (`iz4 init`, `add`, `because`, `withdraw`, an
-approval given at `iz4 approve`), and when hooks are asked for outright,
-iz4 makes sure a suitable 321 is there and then runs `321 iz4 install`:
-
-```text
-a change of intent succeeds
-        |
-        v
-is a 321 that can drive a harness here?  --yes-->  321 iz4 install
-        |no                                             |
-        v                                               v
-install or update the official 321  ------------>  report what 321 says
-        |                                          is really in place
-        v (it cannot be installed)
-the change stands; iz4 says enforcement is inactive
-```
-
-What iz4 knows: that 321 is the reference driver, the minimum version it
-needs, and where the official 321 is published. What it does not know, and
-never will: any harness's settings format, event names, paths or hook
-syntax. The installation is the one `iz4 update` already uses: only the
-official release, its checksum verified, proved to run and to state its
-version; a 321, or any file named 321, that iz4 did not install is never
-replaced; it is idempotent; and nothing is reported as enforced until 321
-has wired it and read it back. `IZ4_ENFORCE=0` or `IZ4_NO_321=1` switches
-the step off. The commands 321 calls (the five above) never call 321, so
-the calls still go one way.
-
-Hooks an earlier iz4 wrote into Claude Code's settings keep working and are
-reported by `iz4 agent status` as legacy wiring; `321 iz4 install` adopts
-them ([hooks.md](hooks.md)).
-
-## The older hook: deprecated, compatibility only
-
-`iz4 hook session-start | pre-edit | stop` ([hooks.md](hooks.md)) is the
-hook an iz4 before 0.15 wired into Claude Code itself. It reads that
-harness's event shape directly, which the core no longer does, so it lives
-apart from the core (`IZ4::LegacyHook`) and nothing new is ever wired to
-it. It is kept, behaving exactly as it did, for one reason: a repository
-wired by an earlier iz4 must keep the enforcement it has until a driver
-adopts that wiring. `321 iz4 install` replaces each old command with the
-driver's own for the same moment, once. Until then `iz4 agent status`
-reports the hooks as active, managed by legacy IZ4 wiring.
-
-The safe order is therefore: iz4 0.15 first (it adds this interface and
-still answers the old commands), then 321 0.4 or later (it needs this
-interface and adopts the old wiring). At no point does a wired command
-name something that is not there.
