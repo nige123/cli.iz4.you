@@ -20,26 +20,26 @@ IS FOR WHAT?  Helping people find work they love to do.
 IS FOR WHO?   People looking for work.
 
 private-stays-private:
-  WHERE:    a profile marked private can be seen by anyone but its owner
-  HOLDS:    A private profile never appears in public search, and is never
-            shown to anyone its owner has not chosen.
-  PROTECTS: a job seeker's current job, and their choice of who knows they
-            are looking.
+  WHERE:    a profile marked private could reveal anything beyond its owner
+  ALWAYS:   Only its owner, and the people they choose, may learn what it
+            reveals.
+  PROTECTS: the owner's privacy, and their control over who learns they are
+            looking
 
 contact-by-invitation:
   WHERE:    an employer would contact a job seeker
-  HOLDS:    No employer contacts a job seeker until that person has started
+  ALWAYS:   No employer contacts a job seeker until that person has started
             the contact.
-  PROTECTS: a job seeker's inbox, and their say over who may approach them.
+  PROTECTS: a job seeker's say over who may approach them
 
 # ----------------------------------------------------------------------
 # The foundation: the same words in every IZ4.
 
 humans-first.iz4.you:
-  WHERE:    anyone is affected by the system, user or not
-  HOLDS:    People thrive on their own terms, and every person's dignity is
-            respected: ...
-  PROTECTS: each person's dignity, and their own choice of how to thrive
+  WHERE:    anyone is affected by the system, by its use, or by work on it
+  ALWAYS:   Help people thrive, on their own terms. Respect every person's
+            dignity: ...
+  PROTECTS: each person's dignity, and their own say over how they thrive
 ```
 
 (The foundation is left short here; see [the foundation](foundation.md).)
@@ -48,45 +48,55 @@ An invariant says three things, and the form has a place for each:
 
 | Arm | Answers | Written as |
 |---|---|---|
-| `WHERE:` | Where does this apply? | The situation, not the people, and not "the system" |
-| `HOLDS:` | What is true there, now and after any change? | A state in the present tense; must, never and only are welcome; not a task |
-| `PROTECTS:` | Whose what would be lost if it stopped holding? | A noun phrase: a person or people, and the thing of theirs at stake |
+| `WHERE:` | Where does this apply? | The situations it covers, named widely: not who benefits, not "the system" |
+| `ALWAYS:` | What must remain true there? | A state about the system, or a duty on whoever acts; must, never and only are welcome; no moment or pressure excepted |
+| `PROTECTS:` | What must not be defeated? | A durable interest or boundary, as a noun phrase: whose what, never a sentence |
 
-Read aloud: "Where a private profile can be seen by anyone but its owner, it
-holds that it never appears in public search. This protects a job seeker's
-current job." `iz4 add` asks the three questions in that order. It is not a
-sentence pattern: the file holds the three answers, each as its owner wrote
-it.
+Read aloud: "Where a private profile could reveal anything beyond its owner,
+always: only its owner and the people they choose may learn what it reveals.
+This protects the owner's privacy and control over disclosure." `iz4 add`
+asks the three questions in that order. It is not a sentence pattern: the file
+holds the three answers, each as its owner wrote it.
+
+Voice differs on purpose. A project's invariants describe the system ("A
+revoked session authenticates nobody"). The foundation speaks to whoever acts,
+agent included ("Do not harm people"), because the reader is who it binds.
+`ALWAYS` reads with both.
 
 ### How an invariant is read
 
 One rule governs the three arms, and an agent is given it with the
 invariants ([the agent protocol](guide.md#agents)):
 
-> `WHERE` alone decides whether an invariant applies. `PROTECTS` never
-> narrows it and never excuses it; it can only make a reading stricter.
-> Keeping `HOLDS` by the letter while defeating what it protects is a breach.
+> All three arms bind together. `WHERE` scopes; `ALWAYS` binds; `PROTECTS`
+> decides what counts as keeping `ALWAYS`. None narrows or excuses another,
+> and `PROTECTS` adds no duty of its own.
 
-What follows from it:
+Each arm has a bounded power, and that is what makes the rule hard to game:
 
-- An invariant binds whether or not its stated interest seems at stake in
-  the case at hand. A retired person's private profile is covered, even though
-  `PROTECTS` speaks of a current job. Nobody may waive it because they judge
-  the harm absent or the interest served another way.
-- A boundary or an exception counts only when `HOLDS` states it ("it may keep
-  a confidence, but..."). It is never inferred from `PROTECTS`, an example, an
-  objective, an inconvenience or an implementation choice.
-- A condition inside `HOLDS`, such as "only while the approval remains valid",
-  is necessary, never sufficient: meeting it grants no permission to break
-  another invariant.
+- `ALWAYS` binds throughout `WHERE` with no moment or pressure excepted,
+  whether or not what it protects seems at stake in the case at hand. A
+  retired person's private profile is covered, though its `PROTECTS` speaks
+  of who learns someone is looking.
+- Keeping the words of `ALWAYS` while defeating what it `PROTECTS` is a
+  breach. So is reaching a forbidden outcome by another route, or through
+  another agent or tool. Not showing a profile but reporting what was
+  inferred from it defeats "control over disclosure", and `PROTECTS` is what
+  says so.
+- `PROTECTS` can rule out an evasive reading of `ALWAYS` and can create
+  nothing else: no new obligation, no boundary, no exception is derived from
+  it. A boundary counts only when `ALWAYS` states it ("You may keep a
+  confidence, but...").
+- A condition inside `ALWAYS`, such as "only while the approval remains
+  valid", is necessary, never sufficient: meeting it grants no permission to
+  break another invariant.
 - Examples and pressure scenarios ("what if there is a deadline?") help find
-  ambiguity while an invariant is being drafted or tested. They neither list
-  everything it covers nor limit it. A phrase such as "even when" in `HOLDS`
-  is not forbidden, but it is worth a second look: it may be hiding a loophole.
+  ambiguity while drafting or testing. They neither list everything an
+  invariant covers nor limit it, and they are not part of `ALWAYS`.
 - A project's own `WHERE` cannot narrow or weaken the foundation.
 - Where the situation or the words are genuinely unclear, the answer is the
-  existing one: pause what is affected, say so, and return the decision to the
-  people entitled to decide.
+  existing one: pause what is affected and every equivalent route, say so,
+  and return the decision to the people entitled to decide.
 
 ### The rules of the file
 
@@ -101,9 +111,9 @@ What follows from it:
   any indentation) and then its words, which may wrap onto the lines below. An
   arm is written once, and all three are required: `PROTECTS` is the arm that
   carries intent, and an invariant without it is the one an agent reads
-  literally. `FOR`, `RULE` and `BECAUSE` are the labels iz4 0.18 wrote; a file
-  that carries them still checks, with a warning, and `iz4 migrate` renames
-  them without touching a word.
+  literally. `FOR`, `RULE` and `BECAUSE` (iz4 0.18) and `HOLDS` (0.19) are
+  labels earlier versions wrote; a file that carries them still checks, with a
+  warning, and `iz4 migrate` renames them without touching a word.
 - **Indentation is for the eye.** Which line is a name, a label, a comment, a
   question or a continuation is decided by how it begins, so a file with every
   line at column 0 reads the same. A line that continues an arm and happens to
@@ -135,10 +145,11 @@ What follows from it:
 ### The foundation in this form
 
 The foundation is the same commitments, in the same order, each with its
-`WHERE` and its `PROTECTS`. Its words describe the system, as every project's
-own invariants do, instead of instructing "you", and the last is named
-`binding.iz4.you` (`keystone.iz4.you` in the named form). The words are on
-[the foundation page](foundation.md#in-the-three-arm-form). A file carries the foundation of its own form: a
+`WHERE` and its `PROTECTS`. Its `ALWAYS` speaks to whoever acts, as the named
+foundation did, and every protection of the named wording is kept and several
+are hardened; the last is named `binding.iz4.you` (`keystone.iz4.you` in the
+named form). The words, and the protection matrix against the named
+foundation, are on [the foundation page](foundation.md#in-the-three-arm-form). A file carries the foundation of its own form: a
 named file's is the named foundation, and a three-arm file's is this one, each
 with its own digest. Neither is accepted in the other's place, so a file that
 mixes the two, or whose words differ from either, fails `iz4 check` and is put
@@ -149,7 +160,7 @@ foundation: a file keeps the foundation it adopted until a person moves it.
 
 | The grammar saw | Reported as |
 |---|---|
-| A name with no `WHERE`, `HOLDS` or `PROTECTS` | error |
+| A name with no `WHERE`, `ALWAYS` or `PROTECTS` | error |
 | An arm with a label and nothing after it, or an arm twice | error |
 | An arm with no name above it | error |
 | Words after a blank line that continue no arm | error |
@@ -161,18 +172,18 @@ foundation: a file keeps the foundation it adopted until a person moves it.
 | Any foundation name missing, or one twice | error |
 | No `IS FOR WHAT?` or `IS FOR WHO?`, or one empty | error |
 | `IS FOR WHAT` without its question mark | warning |
-| `FOR:`, `RULE:` or `BECAUSE:` as an arm label | warning: the labels iz4 0.18 wrote; `iz4 migrate` renames them |
+| `FOR:`, `RULE:`, `HOLDS:` or `BECAUSE:` as an arm label | warning: labels an earlier iz4 wrote; `iz4 migrate` renames them |
 
 ### The digest
 
-An invariant's digest (rule `iz4-invariant/3`) is the sha256 of four lines,
+An invariant's digest (rule `iz4-invariant/4`) is the sha256 of four lines,
 each field's words joined by single spaces, in Unicode normal form C and
 encoded as UTF-8:
 
 ```text
 INVARIANT <whole identity>
 WHERE <situation>
-HOLDS <state>
+ALWAYS <state>
 PROTECTS <whose what>
 ```
 
@@ -195,8 +206,8 @@ item       := blank | comment | purpose | invariant | stray-arm | stray
 purpose    := 'IS FOR' ('WHAT' | 'WHO') '?'? spaces first-line newline cont*
 invariant  := heading (blank | comment | arm)*
 heading    := [a-z0-9] [word-chars . -]* ':' spaces newline          (at column 0)
-arm        := spaces ('WHERE' | 'HOLDS' | 'PROTECTS') ':' spaces first-line newline
-              (also 'FOR' | 'RULE' | 'BECAUSE', the labels 0.18 wrote)
+arm        := spaces ('WHERE' | 'ALWAYS' | 'PROTECTS') ':' spaces first-line newline
+              (also 'FOR' | 'RULE' | 'BECAUSE' | 'HOLDS', labels earlier versions wrote)
               (comment* cont)*
 cont       := a line that is not blank, not a comment, not a heading, not an
               arm label, and not the start of IS FOR WHAT or IS FOR WHO
@@ -383,7 +394,7 @@ after a revision.
 ## The numbered format
 
 Up to iz4 0.15 invariants were numbered: the foundation was
-`INVARIANT 0 - HUMANS FIRST` to `INVARIANT 4 - THE FOUNDATION HOLDS`, in
+`INVARIANT 0 - HUMANS FIRST` to `INVARIANT 4 - THE FOUNDATION ALWAYS`, in
 order and first, and a project's own ran from `INVARIANT 5`. A file like
 that is still read, so it keeps governing the work in its repository: the
 agent packet, the gate and the linked tests all go on working. It is not

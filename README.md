@@ -21,14 +21,14 @@ IS FOR WHO?   People looking for that work, and the employers hoping to find the
 
 come-alive.matching:
   WHERE:    a person is matched to a role
-  HOLDS:    A match answers "would they come alive doing this work?" and
+  ALWAYS:   A match answers "would they come alive doing this work?" and
             never degrades into keyword matching.
-  PROTECTS: a person's chance of the work they would love, not merely
-            a job they could do.
+  PROTECTS: a person's chance of the work they would love, not merely a
+            job they could do
 ```
 
-Each invariant says where it applies, what holds there, and whose what it
-protects.
+Each invariant says where it applies, what must always remain true there, and
+what must not be defeated.
 
 ## Why
 

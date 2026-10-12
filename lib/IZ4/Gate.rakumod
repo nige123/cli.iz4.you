@@ -273,7 +273,7 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
     }
     if $base.defined && $base.form eq 'arms' && $cand.form ne 'arms' {
         @c.push: %( kind => 'format-regressed',
-                    detail => 'the candidate goes back to an earlier form; the base states each invariant in three arms (WHERE, HOLDS, PROTECTS), and a file only moves forward' );
+                    detail => 'the candidate goes back to an earlier form; the base states each invariant in three arms (WHERE, ALWAYS, PROTECTS), and a file only moves forward' );
         return @c;
     }
     if $base.defined && $base.form eq 'arms' && $cand.form eq 'arms' && $base.foundation-was.defined && $cand.foundation-intact {
@@ -285,7 +285,7 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
     }
     if $arms-migrating && $cand.foundation-intact {
         @c.push: %( kind => 'foundation-migrated',
-                    title  => 'The foundation moves to the three-arm form: WHERE, HOLDS and PROTECTS',
+                    title  => 'The foundation moves to the three-arm form: WHERE, ALWAYS and PROTECTS',
                     before => "the named foundation (sha256 {FOUNDATION-DIGEST.substr(0, 12)})",
                     after  => "{foundation-ids(:arms).join(', ')} (sha256 {FOUNDATION-ARMS-DIGEST.substr(0, 12)})",
                     detail => 'read the words: they describe the system now rather than instruct an agent, each says where it applies and whose what it protects, and the last is named binding.iz4.you' );

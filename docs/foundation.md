@@ -90,43 +90,65 @@ A foundation that bends under pressure is not a foundation.
 
 A file in the three-arm form ([the format](format.md#the-three-arm-form)) carries
 the same commitments, in the same order, each saying where it applies
-(`WHERE`), what holds there (`HOLDS`) and whose what it protects (`PROTECTS`).
-Its words describe the system, as every project's own invariants do, rather
-than instructing "you", and the last is named `binding.iz4.you` for what it
-does. `iz4 foundation` prints it in full in a three-arm file; the words are
-candidate wording, adopted for the form on 2026-10-12 and open to its owner's
-revision while IZ4 is pre-MVP.
+(`WHERE`), what must always remain true there (`ALWAYS`) and what must not be
+defeated (`PROTECTS`). `ALWAYS` speaks to whoever acts, agent included, as
+the named foundation does: "Do not harm people", not "the system does not
+harm people". The last is named `binding.iz4.you`, for what it does. Adopted
+for the form on 2026-10-12, after an audit against the named foundation;
+`iz4 foundation` prints it in full in a three-arm file.
 
 | Invariant | WHERE | PROTECTS |
 |---|---|---|
-| `humans-first.iz4.you` | anyone is affected by the system, user or not | each person's dignity, and their own choice of how to thrive |
-| `do-no-harm.iz4.you` | the system affects people, or helps anyone else act on them | people's safety, rights, livelihood and dignity, and their trust that the system stays on their side |
-| `human-agency.iz4.you` | a consequential action is taken, an instruction arrives, or someone asks to pause or stop the system | people's control over what is done in their name, and their power to stop it |
-| `honesty.iz4.you` | the system says anything about itself, what it knows or what it has done | people's ability to see truly, and so to stay in charge |
-| `binding.iz4.you` | anyone builds, runs, uses or changes the system | people's trust that the foundation holds under pressure |
+| `humans-first.iz4.you` | anyone is affected by the system, by its use, or by work on it | each person's dignity, and their own say over how they thrive |
+| `do-no-harm.iz4.you` | people could be affected by the system, by its use, or by work on it | people's safety, rights, livelihood and dignity |
+| `human-agency.iz4.you` | a consequential action is taken or delegated, an instruction arrives, or someone moves to pause, correct or stop the system | people's control over what is done in their name, including the power to stop it |
+| `honesty.iz4.you` | anything is said, shown or left unsaid about what you are, know, have done or cannot do | people's true picture of what is happening, on which their decisions rest |
+| `binding.iz4.you` | any person, agent or tool builds, runs, changes or acts through the system, directly or through another | the foundation's authority wherever it applies |
+
+Every protection of the named foundation is in the `ALWAYS` words, and these
+are added, each answering an argument an agent could make:
+
+| Protection | Where it is said |
+|---|---|
+| Indirect harm is harm | `do-no-harm`: "by any route, direct or indirect" |
+| Approval covers only what it was given for | `human-agency`: "and only within it" |
+| Delegation widens nothing | `human-agency`: "by delegation or otherwise"; `binding`: "through another" |
+| Omission and emphasis can deceive | `honesty`: "by words, omission or emphasis"; WHERE: "left unsaid" |
+| Letter and substance both bind | `binding`: "binds you in letter and in substance" |
+| Interpretation cannot defeat it | `binding`: "reinterpret away" |
+| An agent or tool is bound | `binding` WHERE: "person, agent or tool" |
+| Equivalent routes are forbidden too | `binding`: "forbidden by every equivalent route, whoever or whatever carries it out" |
+| Uncertainty stops the action | `binding`: "where you are not sure it is kept" |
+| Pausing one route does not free another | `binding`: "pause what is affected and every equivalent route" |
+
+`binding`'s WHERE says "acts through the system" where the named text said
+"uses": a person is bound when they act through the system, and protected by
+`humans-first` and `do-no-harm` whenever it affects them. Merely using the
+software does not place a person under a code of conduct.
 
 The named foundation above is unchanged and still what a named file carries.
 A file keeps the foundation it adopted: updating iz4 never rewrites it, and
 `iz4 migrate` moves a file with its owner, the gate showing the move as its
-own change. A three-arm file written by iz4 0.18, under the labels `FOR`,
-`RULE` and `BECAUSE` and with the last invariant named `keystone.iz4.you`, is
-told it is out of date, and `iz4 foundation restore` brings it up to date;
-`keystone` asked for by name answers as `binding`.
+own change. A three-arm file written by iz4 0.18 (labels `FOR`, `RULE`,
+`BECAUSE`, last invariant `keystone.iz4.you`) or by 0.19 (label `HOLDS`,
+words about the system) is told it is out of date, and `iz4 foundation
+restore` brings it up to date; `keystone` asked for by name answers as
+`binding`.
 
 The three-arm foundation's digest is the sha256 of the invariants in order,
-each written as digest rule `iz4-invariant/3` writes any invariant of that
+each written as digest rule `iz4-invariant/4` writes any invariant of that
 form:
 
 ```text
 INVARIANT humans-first.iz4.you
 WHERE <situation>
-HOLDS <state>
-PROTECTS <whose what>
+ALWAYS <what must remain true>
+PROTECTS <what must not be defeated>
 ...
 ```
 
 ```text
-8cccfe1449d023ef6b61fed9b527144e47cd3da56f7cac03d09c30676d1f0670
+c7278fe5414ec2a053dc6c1ed7c091df92eced8dc80531a6a2f068a1a0a77f07
 ```
 
 ## Better than Asimov

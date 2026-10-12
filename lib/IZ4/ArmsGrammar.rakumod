@@ -8,21 +8,21 @@
 #|     IS FOR WHO?   People looking for work.
 #|
 #|     private-stays-private:
-#|       WHERE:    a profile marked private can be seen by anyone but its owner
-#|       HOLDS:    A private profile never appears in public search.
-#|       PROTECTS: a job seeker's current job, and their choice of who knows
-#|                 they are looking.
+#|       WHERE:    a profile marked private could reveal anything beyond its owner
+#|       ALWAYS:   Only its owner, and the people they choose, may learn
+#|                 what it reveals.
+#|       PROTECTS: the owner's privacy, and their control over disclosure
 #|
 #| A file is the header line 'IZ4 domain', then blank lines, comments, the
 #| two questions and invariants.  An invariant is a name and a colon alone
 #| on a line at column 0, then its arms: WHERE (the situation it applies
-#| in), HOLDS (what is true there, now and after any change) and PROTECTS
-#| (whose what would be lost if it stopped holding).  An arm is its label and a colon, after any indentation, then
+#| in), ALWAYS (what must remain true there) and PROTECTS (what must not be
+#| defeated).  An arm is its label and a colon, after any indentation, then
 #| text that may wrap onto the lines below it.  Indentation is only for
 #| the eye: a file with every line at column 0 reads the same.
 #|
 #| What is a line's job is decided by its start alone: a lower-case name
-#| and a colon is an invariant, WHERE:, HOLDS: and PROTECTS: are arms, a
+#| and a colon is an invariant, WHERE:, ALWAYS: and PROTECTS: are arms, a
 #| line of '#' is a comment, a blank line ends the text of an arm, and
 #| anything else continues the arm above it.  A comment between an arm's
 #| lines does not end the arm.
@@ -63,9 +63,9 @@ token purpose { 'IS FOR' \h+ $<which>=[ 'WHAT' || 'WHO' ] <!before \w> $<asked>=
 token invariant { <heading> [ <blank> || <comment> || <arm> ]* }
 token heading   { ^^ $<name>=[ <[a..z 0..9]> <[\w.\-]>* ] ':' \h* \n }
 
-# FOR, RULE and BECAUSE are the labels iz4 0.18 wrote; still read, and renamed
-# by 'iz4 migrate'.
-token arm-label { 'WHERE' || 'HOLDS' || 'PROTECTS' || 'FOR' || 'RULE' || 'BECAUSE' }
+# FOR, RULE and BECAUSE (iz4 0.18) and HOLDS (0.19) are labels earlier
+# versions wrote; still read, and renamed by 'iz4 migrate'.
+token arm-label { 'WHERE' || 'ALWAYS' || 'PROTECTS' || 'HOLDS' || 'FOR' || 'RULE' || 'BECAUSE' }
 
 # An arm backtracks over comments so that ones after its last line are not
 # taken for its text.

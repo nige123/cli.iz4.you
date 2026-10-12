@@ -85,7 +85,7 @@ exactly which IZ4 applied; record them with any evidence you keep.
 An invariant is identified by `id`, its full name, and a driver treats it
 as an opaque string and compares it whole. The foundation's five come
 first, then the project's own in file order. `digest` says which wording
-of the invariant this is (rule `iz4-invariant/1`, or `iz4-invariant/3` in
+of the invariant this is (rule `iz4-invariant/1`, or `iz4-invariant/4` in
 the three-arm form, in [format.md](format.md#the-digest)); an entry of a
 three-arm file also carries `reach`, its `WHERE`. `namespace` is the domain
 the project's own names share. `format` is `arms` (the three-arm form), `named`, or `numbered` for a
@@ -113,20 +113,20 @@ For a page that is not a terminal, such as a product owner's: the questions
 that help a person write an invariant, and questions about an answer.
 Always JSON, schema `iz4-draft/1`, exit 0.
 
-`iz4 draft questions` gives the three questions in order, Where, Holds,
-Protects (`id` `where`, `holds`, `protects`; each with its `arm`, `prompt`,
+`iz4 draft questions` gives the three questions in order, Where, Always,
+Protects (`id` `where`, `always`, `protects`; each with its `arm`, `prompt`,
 `help`, `required` and `max_words`), and the golden test.
 
-`iz4 draft check --where=SITUATION --holds=STATE --protects=WHOSE-WHAT` gives
-`arms` as it read them, `findings`, `ok`, and, once WHERE and HOLDS are there,
-`reads` (the invariant read aloud, "Where ..., it holds that ... This protects
+`iz4 draft check --where=SITUATION --always=STATE --protects=WHAT` gives
+`arms` as it read them, `findings`, `ok`, and, once WHERE and ALWAYS are there,
+`reads` (the invariant read aloud, "Where ..., always: ... This protects
 ...") and `lines`
 (the arms as they would be written). A finding is `arm`, `code`, `level` and
 a `message` in plain words. Level `ask` is worth an answer before accepting
-the draft (an empty or too wide WHERE, a HOLDS that reads as a task or a
-mechanism, a PROTECTS that is missing, restates HOLDS or opens with a
+the draft (an empty or too wide WHERE, a ALWAYS that reads as a task or a
+mechanism, a PROTECTS that is missing, restates ALWAYS or opens with a
 condition); `note` is worth a second look (a long arm, an "even when" in
-HOLDS, a PROTECTS written as a sentence). A PROTECTS nobody can fill is the
+ALWAYS, a PROTECTS written as a sentence). A PROTECTS nobody can fill is the
 surest sign of a constraint for the README rather than an invariant, and the
 message says so. `ok` is true when nothing is left to ask, which is not the same
 as the invariant being right. It never refuses and never rewrites a word:

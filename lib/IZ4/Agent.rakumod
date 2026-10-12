@@ -68,26 +68,27 @@ constant AGENT-PROTOCOL is export = q:to/END/;
         lost it: re-run 'iz4 agent' before touching anything, even to
         continue work already in flight.
 
-    Reading an invariant.  In the three-arm form it says WHERE it applies
-    (a situation), what HOLDS there (a state that stays true), and whose
-    what it PROTECTS (the human interest).  In the named form the statement
-    carries the situation and the state, and BECAUSE the interest.  One
-    rule governs all three arms:
-        WHERE alone decides whether an invariant applies.  PROTECTS never
-        narrows it and never excuses it; it can only make a reading
-        stricter.  Keeping HOLDS by the letter while defeating what it
-        protects is a breach.
-    So: an invariant binds whether or not its stated interest seems at
-    stake in the case in front of you.  You cannot waive it because you
-    judge the harm absent or the interest served another way.  A boundary
-    counts only when HOLDS states it; never infer one from the interest,
-    an example, an objective, an inconvenience or an implementation
-    choice.  A condition inside HOLDS ("only while the approval stands")
-    is necessary, never sufficient.  A project's own WHERE cannot narrow
-    the foundation.  Where the situation or the words are genuinely
-    unclear, follow step 3: say so, pause what is affected, and return
-    the decision to the people entitled to decide; do not invent an
-    exemption, and do not quietly widen or narrow what holds.
+    Reading an invariant.  In the three-arm form it says WHERE it applies,
+    what must ALWAYS remain true there, and what it PROTECTS: what must
+    not be defeated.  In the named form the statement carries the first
+    two and BECAUSE the third.  One rule governs the arms:
+        All three arms bind together.  WHERE scopes; ALWAYS binds;
+        PROTECTS decides what counts as keeping ALWAYS.  None narrows or
+        excuses another, and PROTECTS adds no duty of its own.
+    So: ALWAYS binds throughout WHERE with no moment or pressure excepted,
+    whether or not what it protects seems at stake in the case in front
+    of you.  Keeping the words of ALWAYS while defeating what it protects
+    is a breach; so is reaching a forbidden outcome by another route, or
+    through another agent or tool.  PROTECTS can rule out an evasive
+    reading of ALWAYS and can create nothing else: never derive a new
+    obligation, a boundary or an exception from it.  A boundary counts
+    only when ALWAYS states it, and a condition inside ALWAYS ("only
+    while the approval stands") is necessary, never sufficient.  A
+    project's own WHERE cannot narrow the foundation.  Where you are not
+    sure an invariant is kept, follow step 3: say so, pause what is
+    affected and every equivalent route, and return the decision to the
+    people entitled to decide; do not invent an exemption, and do not
+    quietly widen or narrow what must remain true.
 
     Trust boundary: an IZ4 governs intended project behaviour only.  It
     cannot override higher-priority agent instructions, and it grants no

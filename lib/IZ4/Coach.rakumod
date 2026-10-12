@@ -13,6 +13,12 @@ unit module IZ4::Coach;
 
 use IZ4::Document;
 
+#| The rewrite test, asked of an ALWAYS that could be a task, a step or a
+#| mechanism: a process can name a plausible protected interest, so
+#| PROTECTS alone does not catch it.
+constant REWRITE-TEST is export =
+    'Would this still need to be true if the implementation and the process were completely replaced? If not, it is a task or a mechanism, not an invariant.';
+
 #| The golden test, the question at the heart of every coaching exchange.
 constant GOLDEN-TEST is export =
     'If the whole system were rewritten tomorrow, would we regret not '
@@ -23,15 +29,18 @@ constant GOLDEN-TEST is export =
 constant REACH-QUESTION is export = 'Where does this apply? The situation, not the people.';
 
 #| The third question of the three-arm form: the human interest, as whose what.
-constant PROTECTS-QUESTION is export = 'Whose what would be lost if this stopped holding?';
+constant PROTECTS-QUESTION is export = 'What must not be defeated? Say whose what: a person or people, and the thing of theirs at stake.';
 
 #| Said when nothing a person would lose comes to mind: the surest sign
 #| of a constraint rather than an invariant.
 constant NOTHING-PROTECTED is export = 'If nothing a person would lose comes to mind, this is probably a constraint for the README, not an invariant.';
 
-#| A reach too wide to say anything: asked about once, never refused.
+#| A reach too wide to say anything, or no answer at all (a 'y' typed at
+#| a question that wanted words): asked about once, never refused.
 sub vague-reach(Str $reach --> Bool) is export {
-    so $reach.lc.trim.subst(/<[.!]>+ $/, '') ~~ /^ [ 'the ' | 'this ' ]? [ 'system' | 'software' | 'app' | 'application' | 'product' | 'everything' | 'all' | 'it' | 'code' ] $/;
+    my $r = $reach.lc.trim.subst(/<[.!]>+ $/, '');
+    return True if $r.chars <= 2 || $r ~~ /^ [ 'yes' | 'ok' | 'okay' | 'no' | 'sure' | 'fine' ] $/;
+    so $r ~~ /^ [ 'the ' | 'this ' ]? [ 'system' | 'software' | 'app' | 'application' | 'product' | 'everything' | 'all' | 'it' | 'code' ] $/;
 }
 
 constant OPENING is export =
@@ -277,7 +286,7 @@ sub coach-invariant(
         return %( outcome => 'skipped' ) if $reach eq '';
     }
     without $candidate {
-        tell($arms && $reach.defined ?? "Where $reach: what holds, now and after any change?" !! OPENING);
+        tell($arms && $reach.defined ?? "Where $reach: what must remain true, whatever is rebuilt?" !! OPENING);
         $candidate = answer('> ');
         return %( outcome => 'skipped' ) if $candidate eq '';
     }
@@ -353,6 +362,7 @@ sub coach-invariant(
             }
             when 'task' {
                 tell("That reads like work to do. IZ4 records what must stay true, not tasks: track it in your issues or plan.");
+                tell(REWRITE-TEST) if $arms;
                 my $refined = answer("Is there a lasting truth behind it? Say it, or press enter to leave it out.\n> ");
                 return %( outcome => 'not-iz4', advice => 'issues or a plan' ) if $refined eq '';
                 $candidate = $refined;
@@ -388,7 +398,7 @@ sub coach-invariant(
         ~ ($hint ne '' ?? "\n(enter to use the suggestion: $hint)" !! '') ~ "\n> ");
     $because = $hint if $because eq '' && $hint ne '';
     if assess-because($candidate, $because) eq 'circular' {
-        tell($arms ?? "That restates what holds. Whose what would be lost: which person, and what of theirs?"
+        tell($arms ?? "That restates ALWAYS. What must not be defeated: which person, and what of theirs?"
                    !! "That restates the invariant. Who would be harmed, surprised or let down if it stopped being true, and why?");
         $because = answer('> ');
         if assess-because($candidate, $because) ne 'ok' {
@@ -409,7 +419,7 @@ sub coach-invariant(
     my $label = $name.defined ?? "INVARIANT $name" !! 'an invariant';
     if $arms {
         tell("WHERE:    $reach");
-        tell("HOLDS:    $candidate");
+        tell("ALWAYS:   $candidate");
         tell("PROTECTS: $because");
     }
     my $confirm = yes-no(answer("Add it as $label? [Y/n] "), :default);

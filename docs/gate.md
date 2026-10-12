@@ -49,7 +49,7 @@ Commitments, from the IZ4 in each tree:
   required);
 - a named IZ4 moved to the three-arm form by `iz4 migrate`: the foundation
   moving to its three-arm words, and each invariant's new `WHERE`, shown with
-  its `HOLDS` and `PROTECTS` as unchanged (agreement required);
+  its `ALWAYS` and `PROTECTS` as unchanged (agreement required);
 - a named IZ4 replaced by a numbered one, or a three-arm IZ4 by an earlier
   form (blocked: a file only moves forward).
 

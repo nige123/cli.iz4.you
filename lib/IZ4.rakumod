@@ -5,7 +5,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.19.0';
+constant VERSION is export = '0.20.0';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -819,11 +819,11 @@ sub invariant-or-die(IZ4::Document $doc, IO::Path $path, Str $ref) {
 sub rewrite-invariant(IO::Path $path, IZ4::Document $doc, $inv, Str $claim, Str $reason) {
     my @lines = $doc.lines;
     if $doc.form eq 'arms' {
-        # only HOLDS and PROTECTS are replaced; the name and WHERE stay as written
+        # only ALWAYS and PROTECTS are replaced; the name and WHERE stay as written
         my %part;
-        for $doc.blocks.grep({ .line > $inv.line && .line <= $inv.last-line && .kind eq any(<WHERE HOLDS PROTECTS>) }) { %part{.kind} //= $_ }
+        for $doc.blocks.grep({ .line > $inv.line && .line <= $inv.last-line && .kind eq any(<WHERE ALWAYS PROTECTS>) }) { %part{.kind} //= $_ }
         my @edits;
-        @edits.push: (%part<HOLDS>.line,    %part<HOLDS>.last-line,    arm-lines('HOLDS', $claim)) if %part<HOLDS>.defined;
+        @edits.push: (%part<ALWAYS>.line,   %part<ALWAYS>.last-line,   arm-lines('ALWAYS', $claim)) if %part<ALWAYS>.defined;
         if $reason.trim ne '' {
             @edits.push: %part<PROTECTS>.defined ?? (%part<PROTECTS>.line, %part<PROTECTS>.last-line, arm-lines('PROTECTS', $reason))
                                                  !! ($inv.last-line + 1, $inv.last-line, arm-lines('PROTECTS', $reason));
@@ -956,7 +956,7 @@ sub arms-migration-plan(IO::Path $path --> Hash) is export {
 #| invariant's FOR by its full identity: a person's to say, never made up
 #| here.  What changes: the header names the domain, the two questions
 #| take their answers on the line, each of the project's own invariants is
-#| laid out in three arms with its HOLDS and PROTECTS word for word, and the
+#| laid out in three arms with its ALWAYS and PROTECTS word for word, and the
 #| foundation is the three-arm foundation, written last.  The result is
 #| read back before it is written, and a file that would not check is
 #| never written.  Returns the identities moved.
@@ -1000,19 +1000,19 @@ sub migrate-arms(IO::Path $path, %reach, Str :$namespace --> List) is export {
     $doc.invariants.map(*.id).List;
 }
 
-#| Rename the arm labels iz4 0.18 wrote (FOR, RULE, BECAUSE) to WHERE,
-#| HOLDS and PROTECTS.  Only the label token on each arm line changes; not
+#| Rename the arm labels an earlier iz4 wrote (FOR, RULE, BECAUSE; HOLDS) to
+#| WHERE, ALWAYS and PROTECTS.  Only the label token on each arm line changes; not
 #| a word of the arms.  Returns the number of lines changed.
 sub relabel-arms(IO::Path $path --> Int) is export {
     my $doc = IZ4::Document.load($path);
     user-error("{$path.basename} is not in the three-arm form") unless $doc.form eq 'arms';
     return 0 unless $doc.old-labels;
-    my %new = FOR => 'WHERE', RULE => 'HOLDS', BECAUSE => 'PROTECTS';
+    my %new = FOR => 'WHERE', RULE => 'ALWAYS', HOLDS => 'ALWAYS', BECAUSE => 'PROTECTS';
     my @lines = $path.lines;
     my $n = 0;
-    for $doc.blocks.grep({ .kind eq any(<WHERE HOLDS PROTECTS>) }) -> $b {
+    for $doc.blocks.grep({ .kind eq any(<WHERE ALWAYS PROTECTS>) }) -> $b {
         my $l = @lines[$b.line - 1];
-        if $l ~~ / ^ (\h*) ('FOR' | 'RULE' | 'BECAUSE') ':' (\h*) / {
+        if $l ~~ / ^ (\h*) ('FOR' | 'RULE' | 'HOLDS' | 'BECAUSE') ':' (\h*) / {
             my $label = %new{~$1} ~ ':';
             my $pad = max(1, $2.chars + (~$1).chars + 1 - $label.chars);
             @lines[$b.line - 1] = ~$0 ~ $label ~ (' ' x $pad) ~ $l.substr($/.to);

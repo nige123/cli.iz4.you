@@ -74,7 +74,7 @@ g($r, 'commit', '-qm', 'moving');
 
 # the foundation is not the project's to settle
 my $kept = $iz4.slurp;
-$iz4.spurt($kept.subst('People thrive on their own terms,', 'People thrive,'));
+$iz4.spurt($kept.subst('Help people thrive, on their own terms.', 'Help people thrive.'));
 g($r, 'add', '-A');
 ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', '--brief');
 is $rc, 3, 'altering the foundation holds a commit in MVP mode too';

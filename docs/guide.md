@@ -137,7 +137,7 @@ Created IZ4 for jobs.example.com.
 AGENTS.md: installed
 
 Every IZ4 carries the foundation word for word, from Invariant Zero, humans first ('iz4 foundation' shows it).
-Your own say where they apply (WHERE), what holds there (HOLDS) and whose what they protect (PROTECTS): 'iz4 add' asks one thing at a time.
+Your own say where they apply (WHERE), what holds there (ALWAYS) and whose what they protect (PROTECTS): 'iz4 add' asks one thing at a time.
 
 Add an invariant now? [Y/n]
 ```
@@ -153,7 +153,7 @@ writing requirements, tickets and tests. `iz4 add` asks a few useful questions
 instead of handing you an empty prompt, and it will tell you when something
 probably isn't an invariant.
 
-### Where, Holds, Protects
+### Where, Always, Protects
 
 An invariant says three things, so `iz4 add` asks three questions, one at a
 time, in this order:
@@ -161,51 +161,50 @@ time, in this order:
 ```text
 $ iz4 add
 Where does this apply? The situation, not the people.
-> a profile marked private can be seen by anyone but its owner
-Where a profile marked private can be seen by anyone but its owner: what holds, now and after any change?
-> A private profile never appears in public search.
+> a profile marked private could reveal anything beyond its owner
+Where a profile marked private could reveal anything beyond its owner: what must remain true, whatever is rebuilt?
+> Only its owner, and the people they choose, may learn what it reveals.
 If the whole system were rewritten tomorrow, would we regret not telling the people and agents rebuilding it this? [y/n] y
-PROTECTS: Whose what would be lost if this stopped holding?
-> a job seeker's current job, and their choice of who knows they are looking
-WHERE:    a profile marked private can be seen by anyone but its owner
-HOLDS:    A private profile never appears in public search.
-PROTECTS: a job seeker's current job, and their choice of who knows they are looking
+PROTECTS: What must not be defeated? Say whose what: a person or people, and the thing of theirs at stake.
+> the owner's privacy, and their control over who learns they are looking
+WHERE:    a profile marked private could reveal anything beyond its owner
+ALWAYS:   Only its owner, and the people they choose, may learn what it reveals.
+PROTECTS: the owner's privacy, and their control over who learns they are looking
 Add it as an invariant? [Y/n] y
 Name it: a few lower-case words joined by hyphens, like owner-adjusted.
 > private-stays-private
 Added INVARIANT private-stays-private.jobs.example.com.
 ```
 
-It reads aloud as "Where a private profile can be seen by anyone but its
-owner, it holds that it never appears in public search. This protects a job
-seeker's current job." The file keeps the three answers apart, each as you
-wrote it: the situation is explicit, what holds is a state, and whose what is
-at stake is visibly a stake and not a second rule.
+It reads aloud as "Where a private profile could reveal anything beyond its
+owner, always: only its owner and the people they choose may learn what it
+reveals. This protects the owner's privacy and control over disclosure." The
+file keeps the three answers apart, each as you wrote it.
 
 - **WHERE is the situation, not the people and not "the system".** "The
   system" is too wide to say anything, and iz4 asks once more when it hears
   it. Ask what is inside: does "every price shown" include taxes, currency
-  conversions and historical prices? Does protection against manipulation
-  cover screens only, or agent messages too? Those are decisions only you can
-  make, and writing the situation down is how they get made once.
-- **HOLDS is a state, not a task.** One or two sentences in the present tense,
-  about the system. Must, never and only are welcome. A technology in it is a
-  sign you are describing how, not what: ask what stays true if it is replaced.
-- **A condition belongs in HOLDS, and it is necessary, never sufficient.**
+  conversions and historical prices? Those are decisions only you can make,
+  and writing the situation down is how they get made once.
+- **ALWAYS is what must remain true there, whatever is rebuilt.** A state
+  about the system, or a duty on whoever acts; must, never and only are
+  welcome, and "never" belongs inside the sentence. It binds throughout WHERE
+  with no moment or pressure excepted. The test: would this still need to be
+  true if the implementation and the process were completely replaced? If
+  not, it is a task, a step or a mechanism, and iz4 will say so.
+- **A condition belongs in ALWAYS, and it is necessary, never sufficient.**
   "Only while the approval remains valid" makes valid approval necessary; it
   does not permit breaking another invariant.
-- **PROTECTS is whose what, and it is required.** A person or people, and the
-  thing of theirs that would be lost: a noun phrase, not an argument and not a
-  sentence. It can only make a reading stricter; it never excuses anything.
-  If nothing a person would lose comes to mind, that is the surest sign of a
+- **PROTECTS is what must not be defeated, and it is required.** A durable
+  interest or boundary, as a noun phrase: the owner's privacy and control over
+  disclosure, not one consequence of losing it such as their current job. It
+  decides what counts as keeping ALWAYS and can create nothing else. If
+  nothing a person would lose comes to mind, that is the surest sign of a
   constraint for the README rather than an invariant, and iz4 says so.
 - **Pressure is for testing, not for writing.** Ask of a draft "would this
   still hold under a deadline? a migration? a retry after a failure? a change
   of model?" to find what it leaves unsaid. Do not write the pressures into
-  HOLDS: "even when" lists never cover them all.
-- **Not everything useful is an invariant.** Putting "must" or "always" in a
-  task or a feature does not make it one. The questions below, and the golden
-  test, are there for that.
+  ALWAYS: "even when" lists never cover them all.
 
 An IZ4 in the named form is asked the same questions without the first one.
 
@@ -263,9 +262,9 @@ out rather than recorded as if it explained anything.
 Already know what you want? Skip the questions:
 
 ```text
-$ iz4 add invariant "A private profile never appears in public search." \
-      --where="a profile marked private can be seen by anyone but its owner" \
-      --protects="a job seeker's current job" \
+$ iz4 add invariant "Only its owner, and the people they choose, may learn what it reveals." \
+      --where="a profile marked private could reveal anything beyond its owner" \
+      --protects="the owner's privacy, and their control over disclosure" \
       --name=private-stays-private
 Added INVARIANT private-stays-private.jobs.example.com.
 ```
@@ -471,7 +470,7 @@ actions still work, so earlier scripts and hooks do.
 ```text
 iz4 init [--namespace=DOMAIN]   ask what, who and the domain, write the IZ4, offer a first invariant
 iz4 add                          find an invariant, coached
-iz4 add invariant HOLDS --where=SITUATION --protects=WHOSE-WHAT --name=NAME
+iz4 add invariant ALWAYS --where=SITUATION --protects=WHOSE-WHAT --name=NAME
                                  the fast path; NAME is a few lower-case words
                                    joined by hyphens and goes under your
                                    project's domain (--force past a challenge)
@@ -657,9 +656,9 @@ cannot know. That line stays a question mark, and review against
   `IZ4 honeywillow.com`. It says the domain once, so what follows can be short.
 - `IS FOR WHAT?` and `IS FOR WHO?` are required, once each, with the answer on
   the same line, wrapping onto the lines below.
-- An invariant is its name and a colon, then three arms: `WHERE:` (the
-  situation it applies in), `HOLDS:` (what is true there, now and after any
-  change) and `PROTECTS:` (whose what would be lost if it stopped holding).
+- An invariant is its name and a colon, then three arms: `WHERE:` (where it
+  applies), `ALWAYS:` (what must remain true there) and `PROTECTS:` (what must
+  not be defeated).
   Each wraps over as many lines as it needs, and all three are required: the
   last is the one thing the code cannot tell a future reader.
 - The foundation is a set of invariants, written the same way
@@ -792,7 +791,7 @@ shows the move as a change for a person to agree to. More in
 
 A named file (`INVARIANT name` blocks, the form of 0.16 and 0.17) still works,
 and a project may stay in it. When you want the three arms, `iz4 migrate` moves
-it: your text becomes `HOLDS` and your BECAUSE becomes `PROTECTS`, word for
+it: your text becomes `ALWAYS` and your BECAUSE becomes `PROTECTS`, word for
 word, and the one new thing is a `WHERE` for each invariant. That is yours to
 say: on a terminal it shows each invariant and asks where it applies, and in a
 script you give it. An invariant with no BECAUSE is asked for one first, since
@@ -800,11 +799,11 @@ script you give it. An invariant with no BECAUSE is asked for one first, since
 
 ```text
 $ iz4 migrate
-Moving IZ4 to the three-arm form: each invariant says where it applies (WHERE), what holds there (HOLDS) and whose what it protects (PROTECTS).
-Your words become HOLDS and PROTECTS word for word; WHERE is the new part, and it is yours to say.
+Moving IZ4 to the three-arm form: each invariant says where it applies (WHERE), what must remain true there (ALWAYS) and what must not be defeated (PROTECTS).
+Your words become ALWAYS and PROTECTS word for word; WHERE is the new part, and it is yours to say.
 
 private-stays-private.jobs.example.com
-  HOLDS:    Private profiles never appear in public search.
+  ALWAYS:   Private profiles never appear in public search.
   PROTECTS: A hidden search for work can cost someone their current job.
 Where does this apply? The situation, not the people.
 > a profile marked private can be seen by anyone but its owner
@@ -886,8 +885,9 @@ do no harm. How they do better than Asimov's laws, and how to apply the
 words that need judgement: [docs/foundation.md](foundation.md).
 
 A file in the three-arm form carries the same commitments in three arms
-(`humans-first.iz4.you:` / `WHERE:` / `HOLDS:` / `PROTECTS:`), worded about the
-system rather than as instructions, and the last is named `binding.iz4.you`.
+(`humans-first.iz4.you:` / `WHERE:` / `ALWAYS:` / `PROTECTS:`), still spoken to
+whoever acts, with every protection kept and several hardened, and the last
+is named `binding.iz4.you`.
 The words are on [the foundation page](foundation.md#in-the-three-arm-form); `iz4 foundation` prints
 the foundation in the form of the file in front of it. A file keeps the
 foundation it adopted until a person moves it: updating iz4 never rewrites
@@ -907,11 +907,10 @@ and to report each affected invariant as mechanically verified, supported by
 evidence, apparently consistent, uncertain or conflicting.
 
 It also says how to read an invariant, in one rule an agent carries with the
-invariants: `WHERE` alone decides whether an invariant applies; `PROTECTS`
-never narrows it and never excuses it, it can only make a reading stricter;
-and keeping `HOLDS` by the letter while defeating what it protects is a
-breach. What follows from that, and the wording, is in
-[docs/format.md](format.md#how-an-invariant-is-read).
+invariants: all three arms bind together; `WHERE` scopes, `ALWAYS` binds,
+`PROTECTS` decides what counts as keeping `ALWAYS`; none narrows or excuses
+another, and `PROTECTS` adds no duty of its own. What follows from that, and
+the wording, is in [docs/format.md](format.md#how-an-invariant-is-read).
 
 `iz4 agent install` writes a short managed section into `AGENTS.md`, and
 `CLAUDE.md` with `iz4 agent install claude`. `iz4 agent install skill` adds a portable skill that carries the

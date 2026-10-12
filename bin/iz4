@@ -342,7 +342,7 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Str :$namespace, Bool :$agent,
 
         say '';
         say "Every IZ4 carries the foundation word for word, from Invariant Zero, humans first ('iz4 foundation' shows it).";
-        say "Your own say where they apply (WHERE), what holds there (HOLDS) and whose what they protect (PROTECTS): 'iz4 add' asks one thing at a time.";
+        say "Your own say where they apply (WHERE), what must remain true there (ALWAYS) and what must not be defeated (PROTECTS): 'iz4 add' asks one thing at a time.";
         say "Still working out what it must keep? 'iz4 mode mvp' lets you move fast while the invariants settle.";
         if $talk {
             say '';
@@ -371,7 +371,7 @@ multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Str :$name,
                 }
                 user-error("iz4 add coaches you on a terminal; in a script use:\n"
                     ~ (check-doc($path).form eq 'arms'
-                        ?? "  iz4 add invariant 'what holds there' --where='the situation it applies in' --protects='whose what is at stake' --name=a-few-words"
+                        ?? "  iz4 add invariant 'what must remain true there' --where='the situation it applies in' --protects='what must not be defeated' --name=a-few-words"
                         !! "  iz4 add invariant 'what must remain true' --name=a-few-words --because='why it must survive'"))
                     without $text;
                 fast-add($path, $text, :because($protects // $because), :$name, :$namespace, :$force, :reach($where));
@@ -417,7 +417,7 @@ sub fast-add(IO::Path $path, Str $text, Str :$because, Str :$name, Str :$namespa
         user-error("not added: $why\n(--force adds it anyway, if you have judged that it must remain true)") with $why;
         if ($because // '').trim && assess-because($text, $because) eq 'circular' {
             user-error($form eq 'arms'
-                ?? "not added: PROTECTS restates what holds. Whose what would be lost: which person, and what of theirs?\n(--force adds it anyway)"
+                ?? "not added: PROTECTS restates ALWAYS. What must not be defeated: which person, and what of theirs?\n(--force adds it anyway)"
                 !! "not added: the BECAUSE restates the invariant. Who would be harmed, surprised or let down if it stopped being true, and why?\n(--force adds it anyway)");
         }
     }
@@ -918,9 +918,9 @@ multi MAIN('migrate', Str $file?, Str :$namespace, Str :$names, Str :$where, Boo
         if $doc.form eq 'arms' {
             # the labels iz4 0.18 wrote: renamed, nothing else touched
             unless $doc.old-labels { say "{display-name($path)} is already in the three-arm form; there is nothing to migrate."; return 0 }
-            if $dry-run { say "Would rename the arm labels FOR, RULE and BECAUSE to WHERE, HOLDS and PROTECTS; not a word changes. Dry run: nothing was written."; return 0 }
+            if $dry-run { say "Would rename the arm labels an earlier iz4 wrote to WHERE, ALWAYS and PROTECTS; not a word changes. Dry run: nothing was written."; return 0 }
             my $n = relabel-arms($path);
-            say "Renamed the arm labels on $n lines of {display-name($path)}: WHERE, HOLDS and PROTECTS. Not a word changed.";
+            say "Renamed the arm labels on $n lines of {display-name($path)}: WHERE, ALWAYS and PROTECTS. Not a word changed.";
             return 0;
         }
         $doc.form eq 'named'
@@ -952,8 +952,8 @@ sub migrate-arms-command(IO::Path $path, Str :$namespace, Str :$where, Bool :$dr
     }
     my @missing = @own.grep({ !(%given{.<id>}:exists) });
 
-    say "Moving $name to the three-arm form: each invariant says where it applies (WHERE), what holds there (HOLDS) and whose what it protects (PROTECTS).";
-    say "Your words become HOLDS and PROTECTS word for word; WHERE is the new part, and it is yours to say.";
+    say "Moving $name to the three-arm form: each invariant says where it applies (WHERE), what must remain true there (ALWAYS) and what must not be defeated (PROTECTS).";
+    say "Your words become ALWAYS and PROTECTS word for word; WHERE is the new part, and it is yours to say.";
     my @unexplained = @own.grep({ !(.<because> // '').trim });
     if @unexplained {
         say '';
@@ -978,12 +978,16 @@ sub migrate-arms-command(IO::Path $path, Str :$namespace, Str :$where, Bool :$dr
     for @missing -> %o {
         say '';
         say "{%o<id>}";
-        say "  HOLDS:    {%o<text>}";
+        say "  ALWAYS:   {%o<text>}";
         say "  PROTECTS: {%o<because> // '(none)'}";
         for ^3 {
             my $answer = (ask(REACH-QUESTION ~ "\n> ") // user-error("{%o<id>}: no WHERE given; nothing was written")).trim;
             if $answer eq '' { say 'A WHERE is needed: the situation it applies in.'; next }
-            if vague-reach($answer) { say "That covers a lot. Which situations exactly: which data, actions or moments? (enter keeps it)"; my $more = (ask('> ') // '').trim; $answer = $more if $more ne '' }
+            if vague-reach($answer) {
+                say $answer.chars <= 3 ?? "That is not a situation. Where does this invariant apply: which data, actions or moments?" !! "That covers a lot. Which situations exactly: which data, actions or moments? (enter keeps it)";
+                my $more = (ask('> ') // '').trim;
+                if $more ne '' { $answer = $more } elsif $answer.chars <= 3 { say 'A WHERE is needed.'; next }
+            }
             %given{%o<id>} = $answer; last;
         }
         user-error("{%o<id>}: no WHERE given; nothing was written") unless %given{%o<id>}:exists;
@@ -1690,9 +1694,10 @@ multi MAIN('draft', 'questions') {
 
 #| Questions about a draft, as data.  With a name and a file, also whether
 #| the name can be used there, and the digest the invariant would have.
-multi MAIN('draft', 'check', Str :$where = '', Str :$holds = '', Str :$protects = '', Str :$name, Str :$file) {
+multi MAIN('draft', 'check', Str :$where = '', Str :$always, Str :$holds, Str :$protects = '', Str :$name, Str :$file) {
     attempt {
-        my %r = draft-check(:reach($where), :rule($holds), :because($protects));
+        my $rule = $always // $holds // '';
+        my %r = draft-check(:reach($where), :$rule, :because($protects));
         with $name {
             my $path = resolve-target($file);
             my $doc = check-doc($path);
@@ -1702,8 +1707,8 @@ multi MAIN('draft', 'check', Str :$where = '', Str :$holds = '', Str :$protects 
                 check-new-name($path, $doc, $id);
                 CATCH { when X::IZ4 { %r<findings>.push: %( arm => 'NAME', code => 'name', level => 'ask', message => .message ); %r<ok> = False } }
             }
-            %r<digest> = invariant-digest($id, $holds.trim, $protects.trim, |($doc.form eq 'arms' ?? (:reach($where.trim)) !! ()))
-                if $holds.trim ne '' && ($doc.form ne 'arms' || $where.trim ne '');
+            %r<digest> = invariant-digest($id, $rule.trim, $protects.trim, |($doc.form eq 'arms' ?? (:reach($where.trim)) !! ()))
+                if $rule.trim ne '' && ($doc.form ne 'arms' || $where.trim ne '');
         }
         say json-encode(%r);
         0;
