@@ -30,16 +30,16 @@ g($r, 'init', '-q');
 g($r, 'config', 'user.email', 't@test');
 g($r, 'config', 'user.name', 'Test');
 my ($rc, $out, $err) = iz4($r, 'init', '--namespace=shop.example.com', '--for-what=Taking orders.', '--for-who=People buying things.', '--/agents');
-like $out, / "'iz4 mode vibe' lets you move fast while the invariants settle" /, 'init says the mode is there, in a line';
+like $out, / 'iz4 mode vibe' \h+ 'move fast while the invariants settle' /, 'init says the mode is there, in a line';
 my $iz4 = $r.add('IZ4');
 my $fresh = $iz4.slurp;
 
 # ---- a new project, still settling ------------------------------------------
 ($rc, $out, $err) = iz4($r, 'mode');
-like $out, / 'IZ4 is solid: a change to one of its invariants waits for your yes.' /, 'a file is solid until it says otherwise';
+like $out, / 'IZ4 is solid' \n\n '  A change to one of its invariants waits for your yes.' /, 'a file is solid until it says otherwise';
 ($rc, $out, $err) = iz4($r, 'mode', 'vibe');
 is $rc, 0, 'iz4 mode vibe';
-like $out, / 'is in vibe mode. Keep moving' .* 'The foundation holds as ever.' /, 'says what it means in two lines';
+like $out, / 'IZ4 is in vibe mode' \n\n '  Changes to its invariants do not wait for a yes' .* 'The foundation holds as ever.' .* 'iz4 mode solid' /, 'says what it means in a calm block';
 is $iz4.slurp.lines.grep(* eq VIBE-COMMENT).elems, 1, 'the mode is one line in the file, where everyone can see it';
 is $iz4.slurp.subst("\n" ~ VIBE-COMMENT ~ "\n", ''), $fresh, 'and nothing else in the file changed';
 ok check-doc($iz4).ok && check-doc($iz4).vibe, 'the file checks, and knows its mode';
@@ -84,8 +84,8 @@ $iz4.spurt($kept); g($r, 'add', '-A');
 # ---- becoming solid ---------------------------------------------------------
 ($rc, $out, $err) = iz4($r, 'mode', 'solid');
 is $rc, 0, 'iz4 mode solid';
-like $out, / 'is solid: from now on a change to one of its invariants waits for your yes.' /, 'says what changes';
-like $out, / "1 of 2 have a test; 'iz4 test' writes the rest, so each one means something." /, 'and which invariants have nothing behind them yet';
+like $out, / 'IZ4 is solid' \n\n '  From now on a change to one of its invariants waits for your yes.' /, 'says what changes';
+like $out, / '1 of 2' \s+ 'have a test.' .* 'iz4 test' \h+ 'writes the rest, so each one means something' /, 'and which invariants have nothing behind them yet, with the next step';
 like $out, / 'Changing mode is itself something you agree to' /, 'and that the change of mode is agreed to';
 nok $iz4.slurp.contains('Vibe:'), 'the line is gone';
 is $iz4.slurp, $kept.subst("\n" ~ VIBE-COMMENT ~ "\n", ''), 'and nothing else changed';

@@ -95,23 +95,21 @@ sub activate-enforcement() {
         when 'installed' { say "321 {%d<version>} installed at {%d<path>}: the environment driver iz4 uses to activate enforcement." }
         when 'updated'   { say "321 updated from {%d<from>} to {%d<version>} at {%d<path>}." }
     }
-    my @legacy = legacy-hooks(:$root);
-    my $still = @legacy ?? " The Claude Code hooks an earlier iz4 wrote ({@legacy.join(', ')}) are untouched and still active." !! '';
     if %d<state> eq any(<failed too-old foreign>) {
         my $why = %d<state> eq 'failed'  ?? "321 could not be installed ({%d<note>})"
                !! %d<state> eq 'too-old' ?? "{%d<note>}"
                !!                           "321 was left alone ({%d<note>})";
-        note "$why, so agent enforcement could not be activated.";
-        note INACTIVE-NOTE ~ $still;
+        quiet("$why, so agent enforcement could not be activated.");
+        quiet(INACTIVE-NOTE);
         return;
     }
     with %r<error> {
-        note "321 {%d<version>} could not activate enforcement ($_).";
-        note INACTIVE-NOTE ~ $still;
+        quiet("321 {%d<version>} could not activate enforcement ($_).");
+        quiet(INACTIVE-NOTE);
         return;
     }
     if !%r<detected> {
-        say "enforcement: 321 {%d<version>} found no agent harness here, so there is nothing to wire." ~ $still;
+        say "enforcement: 321 {%d<version>} found no agent harness here, so there is nothing to wire.";
         return;
     }
     say "enforcement, as 321 {%d<version>} wired it and read it back:";
@@ -150,6 +148,24 @@ sub read-line(--> Str) {
 }
 
 sub tell(Str $line) { say pretty($line) }
+
+#| A short block a person can take in at a glance: a title under the icon,
+#| a sentence or two, and the one command that comes next.  The shape every
+#| human-facing command answers in, so nothing is a wall.
+sub calm(Str $title, *@body, :@next) {
+    say pretty((pretty-on() ?? diamond() ~ ' ' !! '') ~ $title);
+    if @body {
+        say '';
+        say "  $_" for wrap(@body.join(' '), 72);
+    }
+    if @next {
+        say '';
+        say pretty(sprintf('  iz4 %-14s %s', .key, .value)) for @next;
+    }
+}
+
+#| A note to standard error that a person can read past: dimmed on a terminal.
+sub quiet(Str $text) { note pretty-on() && $*ERR.t ?? "\e[2m$text\e[0m" !! $text }
 
 #| Show a drafted answer and let the person keep it with Enter or type
 #| their own.  The words that go in the file are the ones they chose.
@@ -340,9 +356,12 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Str :$namespace, Bool :$agent,
         }
 
         say '';
-        say "Every IZ4 carries the foundation word for word, from Invariant Zero, humans first ('iz4 foundation' shows it).";
-        say "Your own say where they apply (WHERE), what must remain true there (ALWAYS) and what must not be defeated (PROTECTS): 'iz4 add' asks one thing at a time.";
-        say "Still working out what it must keep? 'iz4 mode vibe' lets you move fast while the invariants settle.";
+        calm("What every IZ4 carries",
+             'The foundation, word for word, beginning with Invariant Zero: humans first.',
+             'Your own invariants say where they apply (WHERE), what must remain true there (ALWAYS) and what must not be defeated (PROTECTS).',
+             :next(['add' => 'one invariant, one question at a time',
+                    'mode vibe' => 'move fast while the invariants settle',
+                    'foundation' => 'the words every IZ4 carries']));
         if $talk {
             say '';
             if yes-no(ask('Add an invariant now? [Y/n] '), :default) {
@@ -520,29 +539,33 @@ multi MAIN('mode', Str $mode?, Str :$file) {
         my $doc  = check-doc($path);
         my $name = display-name($path);
         without $mode {
-            say $doc.vibe
-                ?? "$name is in vibe mode: its invariants are still settling, and a change to them does not wait for a yes.\n'iz4 mode solid' when they are ready to hold."
-                !! "$name is solid: a change to one of its invariants waits for your yes.\n'iz4 mode vibe' while they are still settling.";
+            $doc.vibe
+                ?? calm("$name is in vibe mode", 'Its invariants are still settling, and a change to them does not wait for a yes.',
+                        :next(['mode solid' => 'when they are ready to hold']))
+                !! calm("$name is solid", 'A change to one of its invariants waits for your yes.',
+                        :next(['mode vibe' => 'while they are still settling']));
             return 0;
         }
         my $want = $mode.lc;
         user-error("iz4 mode takes vibe or solid; not '$mode'") unless $want eq 'vibe' | 'solid';
         my $now = set-mode($path, $want);
-        if $now eq 'unchanged' { say "$name is already " ~ ($want eq 'vibe' ?? 'in vibe mode.' !! 'solid.'); return 0 }
+        if $now eq 'unchanged' { calm("$name is already " ~ ($want eq 'vibe' ?? 'in vibe mode' !! 'solid')); return 0 }
+        my $agreed = git($path, 'rev-parse', '--git-dir')[0] == 0 && git-tracked($path)
+            ?? 'Changing mode is itself something you agree to: commit it, and you are asked once.' !! '';
         if $want eq 'vibe' {
-            say "$name is in vibe mode. Keep moving: changes to its invariants do not wait for a yes, and a failing test of one does not hold a commit.";
-            say "The foundation holds as ever. 'iz4 mode solid' when the invariants are ready to mean it.";
+            calm("$name is in vibe mode",
+                 'Changes to its invariants do not wait for a yes, and a failing test of one does not hold a commit. The foundation holds as ever.', $agreed,
+                 :next(['mode solid' => 'when the invariants are ready to mean it']));
         }
         else {
             my %ev    = evidence-for(check-doc($path), $path.parent);
             my @own   = check-doc($path).invariants.grep(*.id.defined);
             my $named = @own.grep({ (%ev<state>{.id} // '') eq 'named' }).elems;
-            say "$name is solid: from now on a change to one of its invariants waits for your yes.";
-            say @own == $named
-                ?? "All {+@own} of its own have a test."
-                !! "$named of {+@own} have a test; 'iz4 test' writes the rest, so each one means something.";
+            calm("$name is solid",
+                 'From now on a change to one of its invariants waits for your yes.',
+                 (@own == $named ?? "All {+@own} of its own have a test." !! "$named of {+@own} have a test."), $agreed,
+                 :next(@own == $named ?? () !! ['test' => 'writes the rest, so each one means something']));
         }
-        say "Changing mode is itself something you agree to: commit it, and you are asked once." if git($path, 'rev-parse', '--git-dir')[0] == 0 && git-tracked($path);
         0;
     }
 }

@@ -292,7 +292,10 @@ sub pretty(Str $text, Bool :$on = pretty-on() --> Str) is export {
         elsif $l ~~ / ^ (\h*) '?' ' ' (.*) $ / { $l = "{$0}{AMBER}?{OFF} {$1}" }
         # verdicts and the lines that open a section
         elsif $l ~~ / ^ ('OK ' | 'NOT YET ') / { $l = "{BOLD}{$l}{OFF}" }
+        # a block's title: the icon, then bold words
+        elsif $l ~~ / ^ ('◈') ' ' (.*) $ / { $l = "{$g}{$0}{OFF} {BOLD}{$1}{OFF}" }
         # the help's commands, and the text logo's green centre
+        elsif $l ~~ / ^ ('  iz4' [ ' ' <-[\h]>+ ]+?) (\h ** 2..* .*) $ / { $l = "{BOLD}{$0}{OFF}{$1}" }
         elsif $l ~~ / ^ ('  iz4 ' \S+) (.*) $ / { $l = "{BOLD}{$0}{OFF}{$1}" }
         elsif $l ~~ / ^ (['◈' | '*']) (' iz4:') (.*) $ / { $l = "{$g}{$0}{OFF}{BOLD}{$1}{OFF}{$2}" }
         $l ~ $nl;
