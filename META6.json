@@ -1,7 +1,7 @@
 {
     "name": "IZ4",
     "description": "iz4: IZ4 means Is For - find the few invariants your software must never accidentally lose",
-    "version": "0.23.2",
+    "version": "0.23.3",
     "auth": "zef:nige123",
     "api": "1",
     "authors": [
