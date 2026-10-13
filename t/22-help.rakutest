@@ -18,7 +18,7 @@ sub run-iz4(*@args) {
 subtest 'the first screen is short' => {
     my $r = run-iz4();
     is $r<code>, 0, 'iz4 alone is not an error';
-    ok $r<out>.lines.elems <= 16, "it fits a small window ({$r<out>.lines.elems} lines)";
+    ok $r<out>.lines.elems <= 20, "it fits a small window ({$r<out>.lines.elems} lines)";
     is run-iz4('help')<out>, $r<out>, 'iz4 help says the same';
     is run-iz4('--help')<out>, $r<out>, 'and so does --help';
     is run-iz4('-h')<out>, $r<out>, 'and -h';
@@ -36,16 +36,16 @@ subtest 'the first screen is short' => {
 subtest 'every command has its own short help' => {
     for topics() -> $t {
         my $text = help-topic($t);
-        ok $text.lines.elems <= 14, "iz4 help {$t.name} is short ({$text.lines.elems} lines)";
+        ok $text.lines.elems <= 16, "iz4 help {$t.name} is short ({$text.lines.elems} lines)";
         ok $t.example.chars, "iz4 help {$t.name} gives an example";
         ok $text.lines.all.chars <= 110, "iz4 help {$t.name} has no line too long to read";
     }
     my $r = run-iz4('help', 'add');
     is $r<code>, 0, 'iz4 help add works';
-    like $r<out>, / ^ 'iz4 add:' /, 'and is about add';
+    like $r<out>, / ^ \n 'iz4 add:' /, 'and is about add, after a line of air';
     is run-iz4('add', '--help')<out>, $r<out>, 'iz4 add --help says the same';
     is run-iz4('help', 'gate', 'install')<out>, run-iz4('help', 'gate')<out>, 'an action is explained with its command';
-    ok run-iz4('help', 'more')<out>.lines.elems <= 36, 'the rest is one screen too';
+    ok run-iz4('help', 'more')<out>.lines.elems <= 38, 'the rest is one screen too';
     is run-iz4('help', 'machine')<code>, 0, 'what tools need is kept apart';
 }
 
@@ -101,6 +101,23 @@ subtest 'actions are words' => {
     my $gi = run-iz4('gate', 'install');
     is $gi<code>, 0, 'iz4 gate install';
     ok $dir.add('.git/hooks/pre-commit').e, 'installs the hook';
+}
+
+# ---- pretty: colour and the green diamond for a person, nothing for a pipe --------------
+subtest 'pretty dresses output for a terminal only' => {
+    my $plain = "private-stays-private:\n  WHERE:    private profiles\n  ALWAYS:   Only its owner may learn it.\n  PROTECTS: the owner's privacy\n# a comment\n✓ structure: valid\n✗ evidence: none\nOK IZ4\n";
+    is pretty($plain, :!on), $plain, 'off, the text is untouched';
+    my $on = pretty($plain, :on);
+    like $on, /"\e[" .* '◆' .* "\e[1m" 'private-stays-private' "\e[0m"/, 'on, the heading becomes a green diamond and a bold name';
+    like $on, /"\e[1m" 'WHERE:' "\e[0m" '    private profiles'/, 'the clause labels are bold and the words are left alone';
+    like $on, /"\e[2m" '# a comment' "\e[0m"/, 'a comment is dimmed';
+    like $on, /"\e[31m" '✗' "\e[0m"/, 'a cross is red';
+    like $on, /"\e[1m" 'OK IZ4' "\e[0m"/, 'the verdict is bold';
+    is $on.subst(/ "\e[" <[0..9;]>+ 'm' /, '', :g).subst('◆ ', '').subst('private-stays-private', 'private-stays-private:', :x(1)), $plain, 'strip the colour and the diamond and every word is as it was';
+    like pretty("INVARIANT charged-once.shop.example.com added: X\n", :on), /'◆' .* 'charged-once.shop.example.com'/, 'the gate\'s INVARIANT lines get the diamond too';
+    my $r = run-iz4('foundation');
+    unlike $r<out>, /"\e["/, 'into a pipe, iz4 writes no colour at all';
+    unlike $r<out>, /'◆'/, 'and no diamond';
 }
 
 done-testing;

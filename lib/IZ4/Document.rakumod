@@ -185,13 +185,13 @@ sub foundation-earlier(Str $id, Str $text, Str $because --> Str) is export {
     $f.defined ?? $f<until> !! Str;
 }
 
-#| The line that says a file's own invariants are still settling: MVP
+#| The line that says a file's own invariants are still settling: vibe
 #| mode.  While it is there, a change to them does not wait for anyone's
 #| agreement and a failing test of one does not hold a change; the
 #| foundation holds exactly as ever.  It is in the file, not in anyone's
 #| settings, so everyone who has the file can see which mode it is in.
-constant MVP-COMMENT is export =
-    "# MVP: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.";
+constant VIBE-COMMENT is export =
+    "# Vibe: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.";
 
 #| The namespace the foundation lives in.  Exactly the names above
 #| are valid directly under it; deeper names (x.cli.iz4.you) are ordinary
@@ -488,8 +488,8 @@ method unexplained-invariants(--> List) { @!invariants.grep({ !(.because // '').
 #| One project invariant by identity.
 method invariant(Str $id) { @!invariants.first({ (.id // '') eq $id }) }
 
-#| Is this file in MVP mode: its own invariants still settling?
-method mvp(--> Bool) { so @!lines.first({ $_ ~~ /^ '#' \s* 'MVP:' / }) }
+#| Is this file in vibe mode: its own invariants still settling?
+method vibe(--> Bool) { so @!lines.first({ $_ ~~ /^ '#' \s* 'Vibe:' / }) }
 
 #| The namespace this project's invariants live in, as far as the file
 #| shows it.  The file says so in one comment line, written when the

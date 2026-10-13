@@ -36,7 +36,7 @@ what must not be defeated.
   build away what people depend on.
 - **Agents read it first.** Any model, any harness, the same file.
 - **Change by agreement.** A change to a promise waits for a person's yes.
-- **Move fast first.** MVP mode stays out of your way until the invariants
+- **Move fast first.** vibe mode stays out of your way until the invariants
   are ready to hold.
 - **Humans first, built in.** Every IZ4 carries the same foundation:
 
@@ -70,7 +70,7 @@ stands and iz4 says enforcement is inactive.
 [guide](docs/guide.md) ·
 [format](docs/format.md) ·
 [foundation](docs/foundation.md) ·
-[gate and MVP mode](docs/gate.md) ·
+[gate and vibe mode](docs/gate.md) ·
 [drivers](docs/drivers.md)
 
 ## Licence

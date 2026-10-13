@@ -149,7 +149,7 @@ sub read-line(--> Str) {
     $s.subst(/ \r $ /, '');
 }
 
-sub tell(Str $line) { say $line }
+sub tell(Str $line) { say pretty($line) }
 
 #| Show a drafted answer and let the person keep it with Enter or type
 #| their own.  The words that go in the file are the ones they chose.
@@ -269,14 +269,14 @@ sub choose-identity(IO::Path $path, Str $name? is copy, Str :$namespace, Str :$t
 
 #| 'iz4' alone, and 'iz4 help': the first screen.  'iz4 help add': one
 #| command.  'iz4 help more': the rest.  Always short.
-multi MAIN() { print help-index(); exit 0 }
+multi MAIN() { print pretty(help-index()); exit 0 }
 multi MAIN('help', *@words) {
     my ($text, $known) = help-for(@words);
-    if $known { print $text; exit 0 }
+    if $known { print pretty($text); exit 0 }
     note $text;
     exit 1;
 }
-multi MAIN(Bool :h($h)!) { print help-index(); exit 0 }
+multi MAIN(Bool :h($h)!) { print pretty(help-index()); exit 0 }
 # people type this out of habit; it is the same as 'iz4 version'
 multi MAIN(Bool :$version!) { MAIN('version') }
 
@@ -342,7 +342,7 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Str :$namespace, Bool :$agent,
         say '';
         say "Every IZ4 carries the foundation word for word, from Invariant Zero, humans first ('iz4 foundation' shows it).";
         say "Your own say where they apply (WHERE), what must remain true there (ALWAYS) and what must not be defeated (PROTECTS): 'iz4 add' asks one thing at a time.";
-        say "Still working out what it must keep? 'iz4 mode mvp' lets you move fast while the invariants settle.";
+        say "Still working out what it must keep? 'iz4 mode vibe' lets you move fast while the invariants settle.";
         if $talk {
             say '';
             if yes-no(ask('Add an invariant now? [Y/n] '), :default) {
@@ -471,7 +471,7 @@ multi MAIN('withdraw', Str $which, Str :$file, Bool :$force = False, Bool :$keep
         my $path = resolve-target($file);
         my $name = display-name($path);
         my $id   = which-invariant($path, $which);
-        print invariant-text($path, $id) unless is-foundation-id($id);   # the refusal below says why for the foundation
+        print pretty(invariant-text($path, $id)) unless is-foundation-id($id);   # the refusal below says why for the foundation
         # What goes with it is worked out, and shown, before anyone is asked.
         my $present = !is-foundation-id($id) && check-doc($path).invariant($id).defined;
         my %tests = $present ?? withdrawal-tests($path, check-doc($path), $id) !! %( remove => [], shared => [], unsaved => [] );
@@ -513,24 +513,24 @@ multi MAIN('withdraw', Str $which, Str :$file, Bool :$force = False, Bool :$keep
 
 # ------------------------------------------------------------ mode
 
-#| MVP mode or solid: how much the project's own invariants are meant yet.
+#| vibe mode or solid: how much the project's own invariants are meant yet.
 multi MAIN('mode', Str $mode?, Str :$file) {
     attempt :intent, {
         my $path = resolve-target($file);
         my $doc  = check-doc($path);
         my $name = display-name($path);
         without $mode {
-            say $doc.mvp
-                ?? "$name is in MVP mode: its invariants are still settling, and a change to them does not wait for a yes.\n'iz4 mode solid' when they are ready to hold."
-                !! "$name is solid: a change to one of its invariants waits for your yes.\n'iz4 mode mvp' while they are still settling.";
+            say $doc.vibe
+                ?? "$name is in vibe mode: its invariants are still settling, and a change to them does not wait for a yes.\n'iz4 mode solid' when they are ready to hold."
+                !! "$name is solid: a change to one of its invariants waits for your yes.\n'iz4 mode vibe' while they are still settling.";
             return 0;
         }
         my $want = $mode.lc;
-        user-error("iz4 mode takes mvp or solid; not '$mode'") unless $want eq 'mvp' | 'solid';
+        user-error("iz4 mode takes vibe or solid; not '$mode'") unless $want eq 'vibe' | 'solid';
         my $now = set-mode($path, $want);
-        if $now eq 'unchanged' { say "$name is already " ~ ($want eq 'mvp' ?? 'in MVP mode.' !! 'solid.'); return 0 }
-        if $want eq 'mvp' {
-            say "$name is in MVP mode. Keep moving: changes to its invariants do not wait for a yes, and a failing test of one does not hold a commit.";
+        if $now eq 'unchanged' { say "$name is already " ~ ($want eq 'vibe' ?? 'in vibe mode.' !! 'solid.'); return 0 }
+        if $want eq 'vibe' {
+            say "$name is in vibe mode. Keep moving: changes to its invariants do not wait for a yes, and a failing test of one does not hold a commit.";
             say "The foundation holds as ever. 'iz4 mode solid' when the invariants are ready to mean it.";
         }
         else {
@@ -591,7 +591,7 @@ multi MAIN('foundation', Str $file?, Bool :$restore = False) {
                 say sprintf('  %d  %-26s%s', %f<legacy>, %f<id>, %f<id> eq INVARIANT-ZERO ?? 'Invariant Zero: the foundation of the foundation' !! '').trim-trailing;
             }
             say '';
-            print foundation-block(:$clauses);
+            print pretty(foundation-block(:$clauses));
             say '';
             say "(sha256 of the foundation text: {($clauses ?? FOUNDATION-CLAUSES-DIGEST !! FOUNDATION-DIGEST).substr(0, 12)}; every IZ4 carries it word for word)";
             return 0;
@@ -613,14 +613,14 @@ multi MAIN('foundation', Str $file?, Bool :$restore = False) {
 multi MAIN('invariants', Str $file?) {
     attempt {
         my $path = resolve-target($file);
-        print effective-text(check-doc($path), :name(display-name($path)));
+        print pretty(effective-text(check-doc($path), :name(display-name($path))));
         0;
     }
 }
 
 multi MAIN('show', 'invariant', Str $which, Str :$file) {
     attempt {
-        print invariant-text(resolve-target($file), $which);
+        print pretty(invariant-text(resolve-target($file), $which));
         0;
     }
 }
@@ -629,7 +629,7 @@ multi MAIN('show', Str $a?, Str $b?) {
     attempt {
         my ($file, $part) = $a.defined && looks-like-file($a) ?? ($a, $b) !! (Str, $a);
         user-error("too many arguments") if $b.defined && !$file.defined;
-        print show-text(resolve-target($file), $part);
+        print pretty(show-text(resolve-target($file), $part));
         0;
     }
 }
@@ -679,12 +679,12 @@ multi MAIN('check', Str $file?, Bool :$strict = False) {
         else {
             @rows.push: ('✓', "invariants: none of your own yet, which is a fine start ('iz4 add' helps you find one)", '');
         }
-        if $count && $doc.mvp {
+        if $count && $doc.vibe {
             # still settling: say where things stand in a line, and ask for nothing
             my %ev    = evidence-for($doc, $path.parent);
             my $named = $doc.invariants.grep({ .id.defined && (%ev<state>{.id} // '') eq 'named' }).elems;
             my $why   = $count - $doc.unexplained-invariants.elems;
-            @rows.push: ('✓', "MVP mode: $count settling, $why with a reason, $named with a test. Nothing waits on you; 'iz4 mode solid' when they are ready to hold.", '');
+            @rows.push: ('✓', "vibe mode: $count settling, $why with a reason, $named with a test. Nothing waits on you; 'iz4 mode solid' when they are ready to hold.", '');
         }
         elsif $count {
             my @bare   = $doc.unexplained-invariants;
@@ -731,9 +731,9 @@ multi MAIN('check', Str $file?, Bool :$strict = False) {
         @rows.push: ('?', "the system keeps its invariants (the foundation" ~ ($count ?? " and its own $count" !! '') ~ "): uncertain - a checker cannot verify "
             ~ "natural-language invariants; review consequential changes against 'iz4 invariants'", '');
 
-        say mark(.[0]) ~ ' ' ~ .[1] for @rows;
-        say 'checked: file facts only; a passing check never means the system is safe, '
-          ~ 'harmless, or keeps its invariants';
+        say pretty(mark(.[0]) ~ ' ' ~ .[1]) for @rows;
+        say pretty('checked: file facts only; a passing check never means the system is safe, '
+          ~ 'harmless, or keeps its invariants');
         my $crosses = @rows.grep({ .[0] eq '✗' }).elems;
 
         # The next steps, each once, in the order that clears the most first:
@@ -743,12 +743,12 @@ multi MAIN('check', Str $file?, Bool :$strict = False) {
         }
         say-next(@next, :then($strict ?? 'iz4 check --strict' !! 'iz4 check')) if @next;
         if $doc.ok && !($strict && $crosses) {
-            say "OK $name" ~ ($crosses ?? " ($crosses to remedy above)" !! '');
+            say pretty("OK $name" ~ ($crosses ?? " ($crosses to remedy above)" !! ''));
             0;
         }
         elsif $doc.ok {
             # --strict, for a gate: a cross is a failure, and the verdict says so last
-            say "NOT YET $name: $crosses to remedy above (--strict) - do the next steps above, then 'iz4 check --strict' again";
+            say pretty("NOT YET $name: $crosses to remedy above (--strict) - do the next steps above, then 'iz4 check --strict' again");
             1;
         }
         else {
@@ -762,7 +762,7 @@ multi MAIN('check', Str $file?, Bool :$strict = False) {
 #| that confirms it.  A step is a command to run or, where iz4 must not
 #| touch a person's words, what to change by hand.
 sub say-next(@steps, Str :$then) {
-    say 'next:';
+    say pretty('next:');
     my $n = 0;
     say "  {++$n}. $_" for @steps;
     say "  then: $then again" with $then;
@@ -1486,11 +1486,11 @@ sub gate-root(Str $file --> IO::Path) {
 
 #| A pass in one line.
 sub brief-line(%r --> Str) {
-    with %r<mvp> -> %m {
+    with %r<vibe> -> %m {
         my @said;
         @said.push: "{%m<changes>} change{%m<changes> == 1 ?? '' !! 's'} to what it promises" if %m<changes>;
         @said.push: "{%m<failing>} invariant test{%m<failing> == 1 ?? '' !! 's'} failing" if %m<failing>;
-        return 'iz4: MVP mode, ' ~ (@said ?? @said.join(', ') ~ ". Nothing waits on you; 'iz4 mode solid' when they are ready to hold." !! 'nothing it promises changed.');
+        return 'iz4: vibe mode, ' ~ (@said ?? @said.join(', ') ~ ". Nothing waits on you; 'iz4 mode solid' when they are ready to hold." !! 'nothing it promises changed.');
     }
     (%r<approval><status> // '') eq 'valid'
         ?? "iz4: the change to what this promises is agreed, by {%r<approval><approved_by>}."
@@ -1523,7 +1523,7 @@ sub gate-lines(%r --> List) {
         }
     }
     @l.push: "  note: $_" for |%r<notes>;
-    with %r<mvp> { @l.push: "MVP mode: the invariants are still settling, so nothing here waits for a yes ({.<changes>} changed, {.<failing>} test{.<failing> == 1 ?? '' !! 's'} failing). 'iz4 mode solid' when they are ready to hold." }
+    with %r<vibe> { @l.push: "vibe mode: the invariants are still settling, so nothing here waits for a yes ({.<changes>} changed, {.<failing>} test{.<failing> == 1 ?? '' !! 's'} failing). 'iz4 mode solid' when they are ready to hold." }
     my %why =
         pass => 'no commitment or protection changed, and every check that could run passed',
         'agreement-required' => 'this changes what the software promises, so it waits for your yes',
@@ -1680,7 +1680,7 @@ sub gate-command(Str :$base, Str :$candidate, Bool :$enforce, Bool :$json, Bool 
             say brief-line(%r);
         }
         else {
-            say $_ for gate-lines(%r);
+            say pretty($_) for gate-lines(%r);
             my $again = 'iz4 gate' ~ ($candidate.defined ?? " --candidate=$candidate" !! ' --staged') ~ ($enforce ?? ' --enforce' !! '');
             say-next(%r<next>, :then($again)) if %r<next>;
             say $enforce ?? "exit {%r<exit_code>}" !! 'advisory: this run refuses nothing; --enforce makes the outcome the exit code';
@@ -1714,7 +1714,7 @@ sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out
                 return %EXIT-CODE<blocked> unless settle-failed($root, @failed);
                 return approve-command(:$base, :$candidate, :$sign, :$by, :$out, :$note, :$file, :resolved);
             }
-            say $_ for proposal-lines(%p);
+            say pretty($_) for proposal-lines(%p);
             say "  ✗ {.<file>} ({.<invariants>.join(', ')}) failed" ~ (.<detail> ?? ": {.<detail>}" !! '') for @failed;
             say @failed && $only-tests
                 ?? "Nothing to agree to yet: an invariant no longer holds. At a terminal, 'iz4 approve' asks which is right, the software or the invariant."
@@ -1730,7 +1730,7 @@ sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out
                     |%r<protections>.map({ %( changes => (), protections => ($_,) ) });
         unless interactive() {
             say "This change alters what the software promises:";
-            say "  $_" for proposal-lines(%p);
+            say pretty("  $_") for proposal-lines(%p);
             say '';
             say 'pending: agreement needs a person. At a terminal, they run:   iz4 approve';
             say 'Nothing was recorded.';
@@ -1746,7 +1746,7 @@ sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out
         for @items.kv -> $i, %item {
             say '';
             say "{$i + 1} of {+@items}" if @items > 1;
-            say "  $_" for proposal-lines(%item);
+            say pretty("  $_") for proposal-lines(%item);
             my $yes = Bool;
             for ^3 {
                 my $said = ask('Is that right? [y/n] ');

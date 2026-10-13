@@ -557,7 +557,7 @@ sub proposal-lines(%p --> List) is export {
                 @l.push: (%c<title> // 'The foundation moves to named invariants, with new words'), "  before: {%c<before>}", "  after:  {%c<after>}", "  {%c<detail>}";
             }
             when 'removed-file'  { @l.push: 'The IZ4 is removed: every commitment with it' }
-            when 'mode'          { @l.push: (%c<after> eq 'mvp' ?? 'The IZ4 goes into MVP mode' !! 'The IZ4 becomes solid'), "  {%c<detail>}" }
+            when 'mode'          { @l.push: (%c<after> eq 'vibe' ?? 'The IZ4 goes into vibe mode' !! 'The IZ4 becomes solid'), "  {%c<detail>}" }
             when 'invalid'       { @l.push: "To put right: the candidate IZ4 does not parse: {%c<detail>}" }
             when 'foundation'    { @l.push: "To put right: {%c<detail>}", '  The foundation is the same in every IZ4; no project approval can change it (keystone.iz4.you)' }
             when 'reused-name' | 'format-regressed' { @l.push: "To put right: {%c<detail>}" }
@@ -807,16 +807,16 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
     }
 
     my @changes = commitment-changes($base-doc, $cand-doc, :base-source($base-src // ''));
-    # MVP mode is the file's own to declare.  Going into it, or out of it,
+    # vibe mode is the file's own to declare.  Going into it, or out of it,
     # is a change to how much the invariants are meant, and a person agrees
     # to that like any other; while a file stays in it, nothing below waits.
-    my $cand-mvp = $cand-doc.defined && $cand-doc.mvp;
-    my $base-mvp = $base-doc.defined && $base-doc.mvp;
-    my $settling = $cand-mvp && ($base-mvp || !$base-doc.defined);
-    if $base-doc.defined && $cand-doc.defined && $base-mvp != $cand-mvp {
+    my $cand-vibe = $cand-doc.defined && $cand-doc.vibe;
+    my $base-vibe = $base-doc.defined && $base-doc.vibe;
+    my $settling = $cand-vibe && ($base-vibe || !$base-doc.defined);
+    if $base-doc.defined && $cand-doc.defined && $base-vibe != $cand-vibe {
         my $own = $cand-doc.invariants.grep(*.id.defined).elems;
-        @changes.push: %( kind => 'mode', before => ($base-mvp ?? 'mvp' !! 'solid'), after => ($cand-mvp ?? 'mvp' !! 'solid'),
-                          detail => ($cand-mvp
+        @changes.push: %( kind => 'mode', before => ($base-vibe ?? 'vibe' !! 'solid'), after => ($cand-vibe ?? 'vibe' !! 'solid'),
+                          detail => ($cand-vibe
                               ?? "its $own invariant{$own == 1 ?? '' !! 's'} go back to settling: changes to them will not wait for a yes until it is solid again"
                               !! "its $own invariant{$own == 1 ?? '' !! 's'} become solid: from now on a change to any of them waits for a yes") );
     }
@@ -869,12 +869,12 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
     my $blocked    = is-blocked(%p) || ?@checks.grep({ .<outcome> eq 'failed' });
     my $agree      = needs-agreement(%p);
     my $unassessed = ?@checks.grep({ .<outcome> eq any(<timeout unassessed>) });
-    %r<intent_mode> = $cand-mvp ?? 'mvp' !! 'solid';
+    %r<intent_mode> = $cand-vibe ?? 'vibe' !! 'solid';
     if $settling {
         # nothing of the project's own waits or holds; what was noticed is said in one line
         my $n = @changes.grep({ .<kind> eq any(@AGREEMENT-KINDS) }).elems + @protections.grep({ .<kind> eq any(@PROTECTION-AGREEMENT-KINDS) }).elems;
         my $f = @checks.grep({ .<outcome> eq 'failed' }).elems;
-        %r<mvp> = %( changes => $n, failing => $f );
+        %r<vibe> = %( changes => $n, failing => $f );
         $blocked    = is-blocked(%p);
         $agree      = False;
         $unassessed = False;

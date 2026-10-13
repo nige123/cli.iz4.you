@@ -60,7 +60,7 @@ the tests that exist only for it; the name is retired for good.
   test is linked to an invariant by naming it in full.
 - The commit hook runs `iz4 gate`: a change to a promise stops and asks you,
   one thing at a time, through `iz4 approve`. See [the gate](gate.md).
-- `iz4 mode mvp` while the invariants are still settling: nothing of your
+- `iz4 mode vibe` while the invariants are still settling: nothing of your
   own waits for a yes, and the gate says one line. `iz4 mode solid` when they
   are ready to hold. The foundation holds in both.
 
@@ -92,7 +92,7 @@ iz4 check                  what is true of the file, and what to do next
 iz4 test [NAME]            a test for each invariant without one
 iz4 gate --staged          does this change alter a promise?
 iz4 approve                a person's yes, one change at a time
-iz4 mode mvp|solid         settling, or ready to hold
+iz4 mode vibe|solid         settling, or ready to hold
 iz4 show invariant NAME    one invariant; iz4 invariants shows them all
 iz4 foundation             the foundation every IZ4 carries
 iz4 agent                  what an agent reads first

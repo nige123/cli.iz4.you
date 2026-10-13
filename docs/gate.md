@@ -34,13 +34,13 @@ Where a test says an invariant no longer holds, approve asks which is right:
 the software, the invariant, or neither yet. Choosing the invariant lets you
 reword it; choosing the software keeps the invariant and the commit stops.
 
-## MVP mode
+## vibe mode
 
-While a project's invariants are still settling, `iz4 mode mvp` puts one
-line in the file. In MVP mode a change to your own invariants does not wait
+While a project's invariants are still settling, `iz4 mode vibe` puts one
+line in the file. In vibe mode a change to your own invariants does not wait
 for a yes, a failing test of one does not hold a commit, and the gate says
 one line. The foundation holds exactly as ever. `iz4 mode solid` when they
-are ready to mean it. Entering or leaving MVP mode is itself a change you
+are ready to mean it. Entering or leaving vibe mode is itself a change you
 agree to.
 
 ## For tools

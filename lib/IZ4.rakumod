@@ -5,7 +5,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.22.0';
+constant VERSION is export = '0.23.0';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -267,16 +267,16 @@ constant EXAMPLES is export = q:to/END/;
 
 # ---------------------------------------------------------------- mode
 
-#| Put a file into MVP mode or make it solid.  Only the one comment line
-#| comes or goes.  Returns 'mvp', 'solid' or 'unchanged'.
-sub set-mode(IO::Path $path, Str $mode where 'mvp' | 'solid' --> Str) is export {
+#| Put a file into vibe mode or make it solid.  Only the one comment line
+#| comes or goes.  Returns 'vibe', 'solid' or 'unchanged'.
+sub set-mode(IO::Path $path, Str $mode where 'vibe' | 'solid' --> Str) is export {
     my $doc = check-doc($path);
-    return 'unchanged' if $doc.mvp == ($mode eq 'mvp');
+    return 'unchanged' if $doc.vibe == ($mode eq 'vibe');
     my @lines = $path.lines;
     if $mode eq 'solid' {
         my @kept;
         for @lines.kv -> $i, $l {
-            if $l ~~ /^ '#' \s* 'MVP:' / {
+            if $l ~~ /^ '#' \s* 'Vibe:' / {
                 @kept.pop if @kept && @kept[*-1].trim eq '' && ($i + 1 >= @lines.elems || @lines[$i + 1].trim eq '');
                 next;
             }
@@ -288,9 +288,9 @@ sub set-mode(IO::Path $path, Str $mode where 'mvp' | 'solid' --> Str) is export 
     # after the comments the file opens with, before IS FOR WHAT
     my $at = @lines.first({ $_ ~~ /^ 'IS FOR' / }, :k) // @lines.elems;
     $at-- while $at > 0 && @lines[$at - 1].trim eq '';
-    @lines.splice($at, 0, '', MVP-COMMENT);
+    @lines.splice($at, 0, '', VIBE-COMMENT);
     $path.spurt(@lines.join("\n") ~ "\n");
-    'mvp';
+    'vibe';
 }
 
 # ---------------------------------------------------------------- init

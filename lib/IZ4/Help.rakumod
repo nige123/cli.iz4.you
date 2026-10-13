@@ -63,10 +63,10 @@ sub topics(--> List) is export {
       ['iz4 approve'],
       'One thing at a time. It shows each change and asks if it is what you mean. Where an invariant no longer holds, it asks which is right, the software or the invariant, and helps with either. It finds your key, signs and sends the approval on. Nothing to look up.',
       'iz4 approve'),
-    t('mode', CHANGE, 'MVP while the invariants settle, solid when they hold',
-      ['iz4 mode', 'iz4 mode mvp', 'iz4 mode solid'],
-      'In MVP mode a change to your own invariants does not wait for a yes, a failing test of one does not hold a commit, and iz4 says one line. Solid is the opposite: each change waits for you. The foundation holds in both. The mode is a line in the IZ4, so everyone sees it.',
-      'iz4 mode mvp'),
+    t('mode', CHANGE, 'vibe while the invariants settle, solid when they hold',
+      ['iz4 mode', 'iz4 mode vibe', 'iz4 mode solid'],
+      'In vibe mode a change to your own invariants does not wait for a yes, a failing test of one does not hold a commit, and iz4 says one line. Solid is the opposite: each change waits for you. The foundation holds in both. The mode is a line in the IZ4, so everyone sees it.',
+      'iz4 mode vibe'),
     t('withdraw', 'Shaping an invariant', 'take an invariant out, with its tests',
       ['iz4 withdraw NAME'],
       'Shows the invariant and the tests that exist only for it, asks once, and removes them. Git keeps all of it. The name is retired for good. --keep-tests leaves the tests.',
@@ -155,8 +155,22 @@ sub topic(Str $name --> Topic) is export { topics().first({ .name eq $name }) //
 
 #| The first screen: what iz4 is, the commands for everyday work, the
 #| few for when intent changes, and where the rest is.  Nothing more.
+my sub utf8-terminal(--> Bool) { so ((%*ENV<LC_ALL> // %*ENV<LC_CTYPE> // %*ENV<LANG> // '') ~~ /:i 'utf' '-'? '8'/) }
+
+#| The mark, in text: four hollow diamonds at the corners, the green one
+#| held between them, and the name beside it.  Three lines, with a line of
+#| air above and below, so the first screen opens calmly.
+sub text-logo(--> List) is export {
+    my ($o, $c) = utf8-terminal() ?? ('◇', '◆') !! ('o', '*');
+    (
+        "  $o   $o",
+        "    $c      iz4: what your software is for, who it is for, and what must stay true.",
+        "  $o   $o",
+    );
+}
+
 sub help-index(--> Str) is export {
-    my @l = 'iz4: what your software is for, who it is for, and what must stay true.', '';
+    my @l = '', |text-logo(), '';
     for EVERY-DAY, CHANGE -> $g {
         @l.push: $g;
         @l.push: sprintf('  iz4 %-10s %s', .name, .summary) for topics().grep({ .group eq $g });
@@ -164,13 +178,14 @@ sub help-index(--> Str) is export {
     }
     @l.push: 'iz4 help COMMAND    more on one command, with an example';
     @l.push: 'iz4 help more       the rest: reading, shaping, agents, the register';
+    @l.push: '';
     @l.join("\n") ~ "\n";
 }
 
 #| Everything not on the first screen, in small groups.  The commands a
 #| tool calls are left to 'iz4 help machine'.
 sub help-more(--> Str) is export {
-    my @l;
+    my @l = '';
     for topics().map(*.group).unique.grep({ $_ ne EVERY-DAY && $_ ne CHANGE && $_ ne 'For tools' }) -> $g {
         @l.push: $g;
         @l.push: sprintf('  iz4 %-14s %s', .name, .summary) for topics().grep({ .group eq $g });
@@ -178,6 +193,7 @@ sub help-more(--> Str) is export {
     }
     @l.push: 'iz4 help COMMAND    more on one command, with an example';
     @l.push: 'iz4 help machine    the commands a tool calls';
+    @l.push: '';
     @l.join("\n") ~ "\n";
 }
 
@@ -204,10 +220,11 @@ sub wrap-at(Str $text, Int $width --> List) {
 
 #| One command: what it is for, how to call it, a little more, one example.
 sub help-topic(Topic $t --> Str) is export {
-    my @l = "iz4 {$t.name}: {$t.summary}", '';
+    my @l = '', "iz4 {$t.name}: {$t.summary}", '';
     @l.push: "  $_" for $t.usage;
     if $t.more ne '' { @l.push: ''; @l.append: wrap-at($t.more, 76) }
     if $t.example ne '' { @l.push: '', 'For example:', "  {$t.example}" }
+    @l.push: '';
     @l.join("\n") ~ "\n";
 }
 
@@ -226,6 +243,65 @@ sub distance(Str $a, Str $b --> Int) {
         @prev = @row;
     }
     @prev[*-1];
+}
+
+# ------------------------------------------------------------ pretty
+
+#| Whether to dress output for a person: only on a terminal, never into a
+#| pipe, a file or a test, so what a tool reads is byte for byte what it
+#| always was.  NO_COLOR and TERM=dumb turn it off; IZ4_COLOR=1 or 0 says
+#| outright.
+sub pretty-on(--> Bool) is export {
+    return %*ENV<IZ4_COLOR> eq '1' if (%*ENV<IZ4_COLOR> // '') eq any('0', '1');
+    return False if (%*ENV<NO_COLOR> // '') ne '' || (%*ENV<TERM> // '') eq 'dumb';
+    so $*OUT.t;
+}
+
+
+#| The brand's green, as this terminal can show it; ink stays the terminal's own.
+my sub green(--> Str) { (%*ENV<COLORTERM> // '') eq 'truecolor' | '24bit' ?? "\e[38;2;31;145;86m" !! "\e[38;5;29m" }
+my constant BOLD  = "\e[1m";
+my constant DIM   = "\e[2m";
+my constant RED   = "\e[31m";
+my constant AMBER = "\e[33m";
+my constant OFF   = "\e[0m";
+
+#| The green diamond that marks an invariant, as the brand draws it.
+sub diamond(--> Str) is export { utf8-terminal() ?? '◆' !! '*' }
+
+#| Text as a person sees it on a terminal: an invariant's name under a
+#| green diamond, the clause labels and the two questions in bold,
+#| comments dimmed, ticks green and crosses red.  Nothing is added or
+#| removed but colour, and the diamond that stands in for INVARIANT or
+#| the heading's colon.  With :!on the text comes back untouched.
+sub pretty(Str $text, Bool :$on = pretty-on() --> Str) is export {
+    return $text unless $on;
+    my $g = green();
+    my $d = diamond();
+    $text.lines(:!chomp).map(-> $line {
+        my $nl = $line.ends-with("\n") ?? "\n" !! '';
+        my $l = $line.chomp;
+        # the lines that open a section, before a heading could be taken for one
+        if $l ~~ / ^ ('outcome' | 'next' | 'gate' | 'commitments and protections' | 'checks' | 'touches' | 'approval' | 'checked') ':' (.*) $ / { $l = "{BOLD}{$0}:{OFF}{$1}" }
+        # an invariant's heading, or INVARIANT name (in the gate and the named form)
+        elsif $l ~~ / ^ (<[a..z 0..9]> <[\w.\-]>*) ':' (\h*) $ / { $l = "{$g}{$d}{OFF} {BOLD}{$0}{OFF}{$1}" }
+        elsif $l ~~ / ^ (\h*) 'INVARIANT ' (\S+) (.*) $ / { $l = "{$0}{$g}{$d}{OFF} {BOLD}{$1}{OFF}{$2}" }
+        # the clause labels, wherever they lead a line, and the two questions
+        elsif $l ~~ / ^ (\h*) ('WHERE' | 'ALWAYS' | 'PROTECTS') (':' | ' before:' | ' after:') (.*) $ / { $l = "{$0}{BOLD}{$1}{$2}{OFF}{$3}" }
+        elsif $l ~~ / ^ ('IS FOR WHAT?' | 'IS FOR WHO?') (.*) $ / { $l = "{BOLD}{$0}{OFF}{$1}" }
+        # comments, dimmed; the rule-off too
+        elsif $l ~~ / ^ '#' / { $l = "{DIM}{$l}{OFF}" }
+        # the check's marks, and the gate's
+        elsif $l ~~ / ^ (\h*) '✓' (.*) $ / { $l = "{$0}$g✓{OFF}{$1}" }
+        elsif $l ~~ / ^ (\h*) '✗' (.*) $ / { $l = "{$0}{RED}✗{OFF}{$1}" }
+        elsif $l ~~ / ^ (\h*) '?' ' ' (.*) $ / { $l = "{$0}{AMBER}?{OFF} {$1}" }
+        # verdicts and the lines that open a section
+        elsif $l ~~ / ^ ('OK ' | 'NOT YET ') / { $l = "{BOLD}{$l}{OFF}" }
+        # the help's commands, and the text logo's green centre
+        elsif $l ~~ / ^ ('  iz4 ' \S+) (.*) $ / { $l = "{BOLD}{$0}{OFF}{$1}" }
+        elsif $l ~~ / ^ ('    ' ['◆' | '*']) ('      iz4:') (.*) $ / { $l = "{$g}{$0}{OFF}{BOLD}{$1}{OFF}{$2}" }
+        $l ~ $nl;
+    }).join;
 }
 
 sub help-for(@words --> List) is export {

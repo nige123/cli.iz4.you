@@ -4,7 +4,7 @@ use IZ4Test;
 use IZ4;
 use IZ4::Document;
 
-# MVP mode: the invariants are still settling.  Nothing of the project's
+# vibe mode: the invariants are still settling.  Nothing of the project's
 # own waits for a yes or holds a commit, and iz4 says one line.  Solid:
 # each change waits.  The foundation holds in both, and moving between
 # the two is itself something a person agrees to.
@@ -30,30 +30,30 @@ g($r, 'init', '-q');
 g($r, 'config', 'user.email', 't@test');
 g($r, 'config', 'user.name', 'Test');
 my ($rc, $out, $err) = iz4($r, 'init', '--namespace=shop.example.com', '--for-what=Taking orders.', '--for-who=People buying things.', '--/agents');
-like $out, / "'iz4 mode mvp' lets you move fast while the invariants settle" /, 'init says the mode is there, in a line';
+like $out, / "'iz4 mode vibe' lets you move fast while the invariants settle" /, 'init says the mode is there, in a line';
 my $iz4 = $r.add('IZ4');
 my $fresh = $iz4.slurp;
 
 # ---- a new project, still settling ------------------------------------------
 ($rc, $out, $err) = iz4($r, 'mode');
 like $out, / 'IZ4 is solid: a change to one of its invariants waits for your yes.' /, 'a file is solid until it says otherwise';
-($rc, $out, $err) = iz4($r, 'mode', 'mvp');
-is $rc, 0, 'iz4 mode mvp';
-like $out, / 'is in MVP mode. Keep moving' .* 'The foundation holds as ever.' /, 'says what it means in two lines';
-is $iz4.slurp.lines.grep(* eq MVP-COMMENT).elems, 1, 'the mode is one line in the file, where everyone can see it';
-is $iz4.slurp.subst("\n" ~ MVP-COMMENT ~ "\n", ''), $fresh, 'and nothing else in the file changed';
-ok check-doc($iz4).ok && check-doc($iz4).mvp, 'the file checks, and knows its mode';
-like iz4($r, 'mode', 'mvp')[1], / 'already in MVP mode' /, 'asking twice changes nothing';
-is iz4($r, 'mode', 'draft')[0], 1, 'only mvp and solid are modes';
+($rc, $out, $err) = iz4($r, 'mode', 'vibe');
+is $rc, 0, 'iz4 mode vibe';
+like $out, / 'is in vibe mode. Keep moving' .* 'The foundation holds as ever.' /, 'says what it means in two lines';
+is $iz4.slurp.lines.grep(* eq VIBE-COMMENT).elems, 1, 'the mode is one line in the file, where everyone can see it';
+is $iz4.slurp.subst("\n" ~ VIBE-COMMENT ~ "\n", ''), $fresh, 'and nothing else in the file changed';
+ok check-doc($iz4).ok && check-doc($iz4).vibe, 'the file checks, and knows its mode';
+like iz4($r, 'mode', 'vibe')[1], / 'already in vibe mode' /, 'asking twice changes nothing';
+is iz4($r, 'mode', 'draft')[0], 1, 'only vibe and solid are modes';
 
 add($r, 'charged-once', 'An order is never charged twice.');
 $r.add('t').mkdir;
 $r.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
 g($r, 'add', '-A');
 ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', '--brief');
-is $rc, 0, 'a first commit in MVP mode waits for nobody';
+is $rc, 0, 'a first commit in vibe mode waits for nobody';
 is $out.lines.elems, 1, 'and the gate says one line';
-like $out, / ^ 'iz4: MVP mode, ' \d+ ' changes to what it promises. Nothing waits on you;' /, 'which says what it noticed and that nothing waits';
+like $out, / ^ 'iz4: vibe mode, ' \d+ ' changes to what it promises. Nothing waits on you;' /, 'which says what it noticed and that nothing waits';
 g($r, 'commit', '-qm', 'start');
 
 # vibe coding: invariants change, a test breaks, nothing holds
@@ -61,14 +61,14 @@ add($r, 'stock-true', 'Stock shown is stock held.');
 $r.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 1\n");
 g($r, 'add', '-A');
 ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', '--brief');
-is $rc, 0, 'a new invariant and a failing test hold nothing in MVP mode';
-like $out, / ^ 'iz4: MVP mode, 1 change to what it promises, 1 invariant test failing. Nothing waits on you' /, 'but both are said, in the one line';
+is $rc, 0, 'a new invariant and a failing test hold nothing in vibe mode';
+like $out, / ^ 'iz4: vibe mode, 1 change to what it promises, 1 invariant test failing. Nothing waits on you' /, 'but both are said, in the one line';
 ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--json');
 like $out, / '"outcome":"pass"' /, 'tools see a pass';
-like $out, / '"intent_mode":"mvp"' /, 'and are told the mode, so a pass is not mistaken for agreement';
+like $out, / '"intent_mode":"vibe"' /, 'and are told the mode, so a pass is not mistaken for agreement';
 like $out, / '"failing":1' /, 'with what was noticed';
 ($rc, $out, $err) = iz4($r, 'check');
-like $out, / 'MVP mode: 2 settling, 2 with a reason, 1 with a test. Nothing waits on you' /, 'check says where things stand in a line';
+like $out, / 'vibe mode: 2 settling, 2 with a reason, 1 with a test. Nothing waits on you' /, 'check says where things stand in a line';
 unlike $out, / 'no test naming' | 'NOT YET' /, 'and asks for nothing';
 g($r, 'commit', '-qm', 'moving');
 
@@ -77,7 +77,7 @@ my $kept = $iz4.slurp;
 $iz4.spurt($kept.subst('Help people thrive, on their own terms.', 'Help people thrive.'));
 g($r, 'add', '-A');
 ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', '--brief');
-is $rc, 3, 'altering the foundation holds a commit in MVP mode too';
+is $rc, 3, 'altering the foundation holds a commit in vibe mode too';
 like $out, / 'To put right:' .* 'iz4 foundation restore' /, 'and the full account is given, with the step that puts it right';
 $iz4.spurt($kept); g($r, 'add', '-A');
 
@@ -87,8 +87,8 @@ is $rc, 0, 'iz4 mode solid';
 like $out, / 'is solid: from now on a change to one of its invariants waits for your yes.' /, 'says what changes';
 like $out, / "1 of 2 have a test; 'iz4 test' writes the rest, so each one means something." /, 'and which invariants have nothing behind them yet';
 like $out, / 'Changing mode is itself something you agree to' /, 'and that the change of mode is agreed to';
-nok $iz4.slurp.contains('MVP:'), 'the line is gone';
-is $iz4.slurp, $kept.subst("\n" ~ MVP-COMMENT ~ "\n", ''), 'and nothing else changed';
+nok $iz4.slurp.contains('Vibe:'), 'the line is gone';
+is $iz4.slurp, $kept.subst("\n" ~ VIBE-COMMENT ~ "\n", ''), 'and nothing else changed';
 $r.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
 g($r, 'add', '-A');
 ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', '--brief');
@@ -107,12 +107,12 @@ g($r, 'reset', '-q', '--hard');
 is $out, "iz4: nothing this software promises has changed.\n", 'and a commit that changes none of it gets one quiet line';
 
 # going back to settling is agreed to as well: it cannot be slipped in
-iz4($r, 'mode', 'mvp');
+iz4($r, 'mode', 'vibe');
 add($r, 'slipped-in', 'Something added on the quiet.');
 g($r, 'add', '-A');
 ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', '--brief');
-is $rc, 2, 'leaving solid for MVP mode waits for a yes, with whatever came along with it';
-like $out, / 'The IZ4 goes into MVP mode' .* 'will not wait for a yes until it is solid again' /, 'and says what that gives up';
+is $rc, 2, 'leaving solid for vibe mode waits for a yes, with whatever came along with it';
+like $out, / 'The IZ4 goes into vibe mode' .* 'will not wait for a yes until it is solid again' /, 'and says what that gives up';
 like $out, / 'slipped-in.shop.example.com added' /, 'the change made alongside it is shown too';
 
 done-testing;
