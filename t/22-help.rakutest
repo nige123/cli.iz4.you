@@ -108,16 +108,16 @@ subtest 'pretty dresses output for a terminal only' => {
     my $plain = "private-stays-private:\n  WHERE:    private profiles\n  ALWAYS:   Only its owner may learn it.\n  PROTECTS: the owner's privacy\n# a comment\n✓ structure: valid\n✗ evidence: none\nOK IZ4\n";
     is pretty($plain, :!on), $plain, 'off, the text is untouched';
     my $on = pretty($plain, :on);
-    like $on, /"\e[" .* '◆' .* "\e[1m" 'private-stays-private' "\e[0m"/, 'on, the heading becomes a green diamond and a bold name';
+    like $on, /"\e[" .* '◈' .* "\e[1m" 'private-stays-private' "\e[0m"/, 'on, the heading becomes a green diamond and a bold name';
     like $on, /"\e[1m" 'WHERE:' "\e[0m" '    private profiles'/, 'the clause labels are bold and the words are left alone';
     like $on, /"\e[2m" '# a comment' "\e[0m"/, 'a comment is dimmed';
     like $on, /"\e[31m" '✗' "\e[0m"/, 'a cross is red';
     like $on, /"\e[1m" 'OK IZ4' "\e[0m"/, 'the verdict is bold';
-    is $on.subst(/ "\e[" <[0..9;]>+ 'm' /, '', :g).subst('◆ ', '').subst('private-stays-private', 'private-stays-private:', :x(1)), $plain, 'strip the colour and the diamond and every word is as it was';
-    like pretty("INVARIANT charged-once.shop.example.com added: X\n", :on), /'◆' .* 'charged-once.shop.example.com'/, 'the gate\'s INVARIANT lines get the diamond too';
+    is $on.subst(/ "\e[" <[0..9;]>+ 'm' /, '', :g).subst('◈ ', '').subst('private-stays-private', 'private-stays-private:', :x(1)), $plain, 'strip the colour and the diamond and every word is as it was';
+    like pretty("INVARIANT charged-once.shop.example.com added: X\n", :on), /'◈' .* 'charged-once.shop.example.com'/, 'the gate\'s INVARIANT lines get the diamond too';
     my $r = run-iz4('foundation');
     unlike $r<out>, /"\e["/, 'into a pipe, iz4 writes no colour at all';
-    unlike $r<out>, /'◆'/, 'and no diamond';
+    unlike $r<out>, /'◈'/, 'and no diamond';
 }
 
 done-testing;

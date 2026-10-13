@@ -157,16 +157,10 @@ sub topic(Str $name --> Topic) is export { topics().first({ .name eq $name }) //
 #| few for when intent changes, and where the rest is.  Nothing more.
 my sub utf8-terminal(--> Bool) { so ((%*ENV<LC_ALL> // %*ENV<LC_CTYPE> // %*ENV<LANG> // '') ~~ /:i 'utf' '-'? '8'/) }
 
-#| The mark, in text: four hollow diamonds at the corners, the green one
-#| held between them, and the name beside it.  Three lines, with a line of
-#| air above and below, so the first screen opens calmly.
+#| The mark in text, one line: the icon, then the name and what it is for.
+#| A line of air above and below, so the first screen opens calmly.
 sub text-logo(--> List) is export {
-    my ($o, $c) = utf8-terminal() ?? ('◇', '◆') !! ('o', '*');
-    (
-        "  $o   $o",
-        "    $c      iz4: what your software is for, who it is for, and what must stay true.",
-        "  $o   $o",
-    );
+    ("{diamond()} iz4: what your software is for, who it is for, and what must stay true.",);
 }
 
 sub help-index(--> Str) is export {
@@ -266,8 +260,9 @@ my constant RED   = "\e[31m";
 my constant AMBER = "\e[33m";
 my constant OFF   = "\e[0m";
 
-#| The green diamond that marks an invariant, as the brand draws it.
-sub diamond(--> Str) is export { utf8-terminal() ?? '◆' !! '*' }
+#| The icon that marks an invariant: a diamond holding a diamond, the
+#| brand's mark in one character.
+sub diamond(--> Str) is export { utf8-terminal() ?? '◈' !! '*' }
 
 #| Text as a person sees it on a terminal: an invariant's name under a
 #| green diamond, the clause labels and the two questions in bold,
@@ -299,7 +294,7 @@ sub pretty(Str $text, Bool :$on = pretty-on() --> Str) is export {
         elsif $l ~~ / ^ ('OK ' | 'NOT YET ') / { $l = "{BOLD}{$l}{OFF}" }
         # the help's commands, and the text logo's green centre
         elsif $l ~~ / ^ ('  iz4 ' \S+) (.*) $ / { $l = "{BOLD}{$0}{OFF}{$1}" }
-        elsif $l ~~ / ^ ('    ' ['◆' | '*']) ('      iz4:') (.*) $ / { $l = "{$g}{$0}{OFF}{BOLD}{$1}{OFF}{$2}" }
+        elsif $l ~~ / ^ (['◈' | '*']) (' iz4:') (.*) $ / { $l = "{$g}{$0}{OFF}{BOLD}{$1}{OFF}{$2}" }
         $l ~ $nl;
     }).join;
 }
