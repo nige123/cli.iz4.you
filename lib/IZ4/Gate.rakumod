@@ -70,7 +70,7 @@ constant @REJECTS   is export = <agreement-required blocked unassessed error>;
 
 constant @BLOCKING-KINDS  = <invalid foundation reused-name format-regressed>;
 constant @AGREEMENT-KINDS = <purpose people added revised removed removed-file named foundation-migrated reach-added mode>;
-constant @PROTECTION-AGREEMENT-KINDS = <protection-removed protection-unlinked protection-weakened>;
+constant @PROTECTION-AGREEMENT-KINDS = <protection-removed protection-unlinked protection-weakened protection-rewritten>;
 
 sub gate-error(Str $message) { X::IZ4.new(:$message).throw }
 
@@ -326,6 +326,13 @@ my regex skip-marker {
 #| What happened to the tests that name invariants, between the two
 #| trees: removed, no longer naming the invariant, carrying a new skip
 #| marker (weakened, as a suspicion), or merely changed.
+#| A test file without its comments and layout: what it asserts.  Two
+#| files with the same substance differ only in comments or whitespace, so
+#| a tidy is not a question; a change to what is asserted is.
+sub substance(Str $text --> Str) {
+    $text.lines.map(*.trim).grep({ $_ ne '' && !.starts-with('#') }).map({ .subst(/\s+/, ' ', :g) }).join("\n")
+}
+
 sub protection-changes(IZ4::Document $base, IO::Path $base-dir, IZ4::Document $cand, IO::Path $cand-dir --> List) is export {
     return () without $base;
     return () without $cand;
@@ -359,8 +366,12 @@ sub protection-changes(IZ4::Document $base, IO::Path $base-dir, IZ4::Document $c
                 @p.push: %( kind => 'protection-weakened', :$id, files => ($f,).List,
                             detail => "$f gained a line that looks like a skip: " ~ $skip.trim.substr(0, 80) );
             }
+            elsif substance($old) ne substance($new) {
+                @p.push: %( kind => 'protection-rewritten', :$id, files => ($f,).List,
+                            detail => "the assertions in $f changed; whether it still protects $id is for a person to say" );
+            }
             else {
-                @p.push: %( kind => 'protection-changed', :$id, files => ($f,).List, detail => "$f changed; its check runs below" );
+                @p.push: %( kind => 'protection-changed', :$id, files => ($f,).List, detail => "$f changed in comments or layout only; its check runs below" );
             }
         }
     }

@@ -8,7 +8,7 @@ commitments, and whether a person has agreed to them.
 | Outcome | Meaning |
 |---|---|
 | `pass` | no commitment or protection changed, and every check that could run passed |
-| `agreement-required` | a commitment changed: an invariant added, revised, withdrawn, or `IS FOR` changed; a person says yes |
+| `agreement-required` | a commitment changed: an invariant added, revised, withdrawn, `IS FOR` changed, or a test that protects an invariant removed or rewritten; a person says yes |
 | `blocked` | something no approval lifts: a failing linked test, an invalid IZ4, an altered foundation, a reused name |
 | `unassessed` | a check could not run; nothing is claimed |
 

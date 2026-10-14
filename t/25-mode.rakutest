@@ -62,7 +62,7 @@ $r.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\nex
 g($r, 'add', '-A');
 ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', '--brief');
 is $rc, 0, 'a new invariant and a failing test hold nothing in vibe mode';
-like $out, / ^ 'iz4: vibe mode, 1 change to what it promises, 1 invariant test failing. Nothing waits on you' /, 'but both are said, in the one line';
+like $out, / ^ 'iz4: vibe mode, 2 changes to what it promises, 1 invariant test failing. Nothing waits on you' /, 'but both are said, in the one line (the new invariant, and the protecting test rewritten)';
 ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--json');
 like $out, / '"outcome":"pass"' /, 'tools see a pass';
 like $out, / '"intent_mode":"vibe"' /, 'and are told the mode, so a pass is not mistaken for agreement';

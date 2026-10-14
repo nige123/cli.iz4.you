@@ -261,14 +261,15 @@ $r.add(TEST).spurt($r.add(TEST).slurp ~ "# a comment\n");
 g($r, 'add', 'tests');
 ($rc, $out, $err) = gate($r, '--staged', '--enforce');
 is $rc, 0, 'a changed linked test that still names its invariant and passes is not a commitment change';
-like $out, /"({$VIS}: {$TEST} changed; its check runs below)"/, 'but is pointed out';
+like $out, /"({$VIS}: {$TEST} changed in comments or layout only; its check runs below)"/, 'but is pointed out';
 g($r, 'checkout', 'HEAD', '--', TEST); g($r, 'reset', '-q', 'tests');
 
 # a linked test that uses git itself must find a working git: the gate's own
 # temporary index must not leak into the checks it runs
+my $orig-test = $r.add(TEST).slurp;
 $r.add(TEST).spurt("#!/bin/sh\n# INVARIANT {$VIS}\n"
     ~ "d=\$(mktemp -d) && cd \"\$d\" && git init -q && echo x > a && git add -A && git -c user.email=t\@t -c user.name=t commit -qm x && cd / && rm -rf \"\$d\"\n");
-g($r, 'add', 'tests');
+g($r, 'add', 'tests'); g($r, 'commit', '-qm', 'a test that runs git');   # rewriting a protecting test is a question; here the test is the base
 ($rc, $out, $err) = gate($r, '--staged', '--enforce');
 is $rc, 0, 'a linked test that runs git itself passes: no GIT_INDEX_FILE leaks from the gate' or diag $out;
 {
@@ -278,7 +279,7 @@ is $rc, 0, 'a linked test that runs git itself passes: no GIT_INDEX_FILE leaks f
     is $rc, 0, 'with GIT_INDEX_FILE exported, as in a hook, the git-using check still passes' or diag $out;
     is g($r, 'write-tree'), $before, 'and it did not write into this repository\'s index';
 }
-g($r, 'checkout', 'HEAD', '--', TEST); g($r, 'reset', '-q', 'tests');
+$r.add(TEST).spurt($orig-test); g($r, 'add', 'tests'); g($r, 'commit', '-qm', 'the test as it was');
 
 # ---- the environment: ignored files are linked into the candidate ---------
 # A dependency the project keeps out of Git (an installed library, local
@@ -290,7 +291,7 @@ g($r, 'checkout', 'HEAD', '--', TEST); g($r, 'reset', '-q', 'tests');
     $r.add('deps/needed.txt').spurt("installed\n");
     my $keep = $r.add(TEST).slurp;
     $r.add(TEST).spurt($keep ~ "grep -q installed deps/needed.txt\n");
-    g($r, 'add', '.gitignore', 'tests');
+    g($r, 'add', '.gitignore', 'tests'); g($r, 'commit', '-qm', 'a test that needs deps');
     ($rc, $out, $err) = gate($r, '--staged', '--enforce');
     is $rc, 0, 'a linked test finds the ignored dependency: the checkout is the environment' or diag $out;
     ok $r.add('deps/needed.txt').f, 'and the gate leaves the real dependency in place when it cleans up';
@@ -301,14 +302,14 @@ g($r, 'checkout', 'HEAD', '--', TEST); g($r, 'reset', '-q', 'tests');
     # an untracked file that is NOT ignored is no part of the candidate, or its environment
     $r.add('new-code.txt').spurt("not staged\n");
     $r.add(TEST).spurt($keep ~ "test ! -e new-code.txt\n");
-    g($r, 'add', 'tests');
+    g($r, 'add', 'tests'); g($r, 'commit', '-qm', 'a test about untracked files');
     ($rc, $out, $err) = gate($r, '--staged', '--enforce');
     is $rc, 0, 'an untracked, unignored file is not linked in: a commit would not carry it' or diag $out;
     $r.add('new-code.txt').unlink;
 
     # a test that cannot start for want of a dependency is unassessed, not a failure
     $r.add(TEST).spurt($keep ~ 'echo "Can\'t locate Some/Module.pm in @INC (you may need to install it)" >&2; exit 2' ~ "\n");
-    g($r, 'add', 'tests');
+    g($r, 'add', 'tests'); g($r, 'commit', '-qm', 'a test that cannot start');
     ($rc, $out, $err) = gate($r, '--staged', '--enforce');
     is $rc, 4, 'a missing dependency makes the check unassessed (exit 4), never blocked' or diag $out;
     like $out, /"? {$TEST} ({$VIS}) unassessed: could not run: Can't locate Some/Module.pm"/, 'and says what could not be found';
@@ -316,7 +317,7 @@ g($r, 'checkout', 'HEAD', '--', TEST); g($r, 'reset', '-q', 'tests');
 
     # output that is not UTF-8 never stops the gate
     $r.add(TEST).spurt($keep ~ "printf 'price \\243 5\\n'; exit 1\n");
-    g($r, 'add', 'tests');
+    g($r, 'add', 'tests'); g($r, 'commit', '-qm', 'a test whose output is not UTF-8');
     ($rc, $out, $err) = gate($r, '--staged', '--enforce');
     is $rc, 3, 'a failing test whose output is not UTF-8 is still reported as failed' or diag $out ~ $err;
 
@@ -511,6 +512,45 @@ $plain.add('README.md').spurt("x\n");
 g($plain, 'add', '-A');
 ($rc, $out, $err) = gate($plain, '--staged', '--json');
 is $rc, 1, 'a repository without an IZ4 is told so (the gate needs one to find the root)';
+
+# ---- a protecting test rewritten, tidied, and the IZ4 gone ------------------
+subtest 'a rewritten protecting test is a question; a tidied one is not; a removed IZ4 is a proposal, not an error', {
+    my $r = repo;
+    my $sp = minimal-iz4(:dir($r));
+    add-invariant($sp, 'People control whether their profile is visible.', :name(VIS), :because('Privacy.'));
+    $r.add('lib').mkdir; $r.add('tests').mkdir;
+    $r.add('lib/profile.txt').spurt("visible: private\n");
+    $r.add(TEST).spurt("#!/bin/sh\n# INVARIANT {$VIS}\ngrep -q 'visible: private' lib/profile.txt\n");
+    g($r, 'add', '-A'); g($r, 'commit', '-qm', 'init');
+
+    # comments and layout only: the check still runs, nobody is asked
+    $r.add(TEST).spurt("#!/bin/sh\n# INVARIANT {$VIS}\n# the profile fixture is private on purpose\n\ngrep -q 'visible: private'   lib/profile.txt\n");
+    g($r, 'add', '-A');
+    my ($rc, $out, $err) = gate($r, '--staged', '--json');
+    is json($out, 'outcome'), 'pass', 'a tidy of the protecting test passes';
+    ok change($out, 'protection-changed', VIS), 'and is reported as protection-changed';
+    nok change($out, 'protection-rewritten', VIS), 'not as rewritten';
+
+    # what is asserted changed, and the test still passes: that is a question for a person
+    $r.add(TEST).spurt("#!/bin/sh\n# INVARIANT {$VIS}\ntest -f lib/profile.txt\n");
+    g($r, 'add', '-A');
+    ($rc, $out, $err) = gate($r, '--staged', '--json');
+    is json($out, 'outcome'), 'agreement-required', 'a rewritten protecting test needs agreement even though it passes';
+    like change($out, 'protection-rewritten', VIS), /'the assertions in ' .* ' changed'/, 'and says why';
+    ($rc, $out, $err) = gate($r, '--staged', '--enforce');
+    is $rc, 2, 'under --enforce that holds the commit';
+    like $out, /'Protection of ' .* 'rewritten'/, 'in words a person reads';
+
+    # the IZ4 itself removed from the candidate tree
+    g($r, 'checkout', '--', TEST);
+    g($r, 'rm', '-q', 'IZ4');
+    ($rc, $out, $err) = gate($r, '--staged', '--json');
+    is $rc, 0, 'the gate still runs when the working tree has no IZ4' or diag $err;
+    ok change($out, 'removed-file'), 'and reports the IZ4 as removed';
+    is json($out, 'outcome'), 'agreement-required', 'which is a proposal a person must agree to';
+    ($rc, $out, $err) = gate($r, '--staged', '--enforce');
+    is $rc, 2, 'and under --enforce it holds the commit, not an error';
+}
 
 done-testing;
 
