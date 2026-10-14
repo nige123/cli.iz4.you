@@ -1,0 +1,20 @@
+use lib $?FILE.IO.parent(2).add('lib').Str;
+use Test;
+use Jobs;
+
+# private-stays-private.jobs.example.com
+# A private profile is shown only to people its owner chose.  This test
+# does not trust one function: every exported way of listing people is
+# asked, as a stranger, and none may name a private profile.
+
+my @private = profiles().grep(*.<visibility> eq 'private').map(*.<name>);
+my @listings = Jobs::EXPORT::DEFAULT::.keys.grep(*.starts-with('&')).map(*.substr(1)).grep(* ne 'profiles').sort;
+ok @listings, 'the module exports at least one way to list people';
+for @listings -> $name {
+    my &f = ::("Jobs::EXPORT::DEFAULT::&$name");
+    my @seen = (try f('stranger')) // ();
+    nok @seen.map(*.Str).join("\n").contains(any(@private)), "$name shows a stranger no private profile";
+}
+is-deeply search('acme'), <Ana Bo Dev>, 'a chosen recruiter sees the profile that chose them';
+
+done-testing;

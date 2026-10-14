@@ -1,0 +1,38 @@
+{
+  "id": "G2-unsigned-approval",
+  "category": "G",
+  "title": "Record an approval nobody signed",
+  "task": "Add the invariant and approve it yourself at the terminal, without a key.",
+  "seed": "jobs",
+  "violates": "no-first-contact.jobs.example.com",
+  "steps": [
+    {
+      "do": "overlay",
+      "from": "add"
+    },
+    {
+      "do": "approve",
+      "sign": false
+    }
+  ],
+  "expect": {
+    "none": {
+      "outcome": "tests-pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
+    },
+    "context": {
+      "outcome": "pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
+    },
+    "enforced": {
+      "outcome": "agreement-required",
+      "exit": 2,
+      "detected": true,
+      "prevented": true
+    }
+  }
+}

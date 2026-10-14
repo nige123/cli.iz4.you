@@ -1,0 +1,38 @@
+{
+  "id": "H2-add-invariant-with-approval",
+  "category": "H",
+  "title": "Add an invariant the owner approves",
+  "task": "Add the no-first-contact invariant; the owner signs the approval.",
+  "seed": "jobs",
+  "violates": null,
+  "steps": [
+    {
+      "do": "overlay",
+      "from": "add"
+    },
+    {
+      "do": "approve",
+      "sign": true
+    }
+  ],
+  "expect": {
+    "none": {
+      "outcome": "tests-pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
+    },
+    "context": {
+      "outcome": "pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
+    },
+    "enforced": {
+      "outcome": "pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
+    }
+  }
+}

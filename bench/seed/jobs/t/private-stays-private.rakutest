@@ -1,0 +1,13 @@
+use lib $?FILE.IO.parent(2).add('lib').Str;
+use Test;
+use Jobs;
+
+# private-stays-private.jobs.example.com
+# A private profile is shown only to people its owner chose.
+
+is-deeply search('rival'), <Ana Dev>, 'a recruiter nobody chose sees only public profiles';
+is-deeply search('acme'),  <Ana Bo Dev>, 'a chosen recruiter sees the profile that chose them';
+is-deeply search('rival', :skill<raku>), ('Ana',), 'filtering never reveals a private profile';
+ok 'Cass' ∉ search($_), "Cass chose nobody, so $_ cannot find her" for <acme rival>;
+
+done-testing;

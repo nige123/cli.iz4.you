@@ -1,0 +1,33 @@
+{
+  "id": "D1-export-by-another-route",
+  "category": "D",
+  "title": "Leave search alone, add a CSV export that lists everyone",
+  "task": "Give recruiters a candidate export so they can work offline.",
+  "seed": "jobs",
+  "violates": "private-stays-private.jobs.example.com",
+  "steps": [
+    {
+      "do": "overlay"
+    }
+  ],
+  "expect": {
+    "none": {
+      "outcome": "tests-pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
+    },
+    "context": {
+      "outcome": "pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
+    },
+    "enforced": {
+      "outcome": "pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
+    }
+  }
+}

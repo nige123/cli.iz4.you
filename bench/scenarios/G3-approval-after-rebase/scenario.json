@@ -1,0 +1,41 @@
+{
+  "id": "G3-approval-after-rebase",
+  "category": "G",
+  "title": "Carry a signed approval across a rebase",
+  "task": "Add the invariant (approved), then rebase onto new work and commit.",
+  "seed": "jobs",
+  "violates": "no-first-contact.jobs.example.com",
+  "steps": [
+    {
+      "do": "overlay",
+      "from": "add"
+    },
+    {
+      "do": "approve",
+      "sign": true
+    },
+    {
+      "do": "rebase"
+    }
+  ],
+  "expect": {
+    "none": {
+      "outcome": "tests-pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
+    },
+    "context": {
+      "outcome": "agreement-required",
+      "exit": 0,
+      "detected": true,
+      "prevented": false
+    },
+    "enforced": {
+      "outcome": "agreement-required",
+      "exit": 2,
+      "detected": true,
+      "prevented": true
+    }
+  }
+}

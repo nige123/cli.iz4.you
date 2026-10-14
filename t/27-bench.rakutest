@@ -1,0 +1,41 @@
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+
+# The adversarial benchmark is also a regression suite for the gate: every
+# scenario's recorded expectation must still hold, and the totals must not
+# slip.  It runs the real iz4 (IZ4_TEST_BIN or bin/iz4) against throwaway
+# repositories, in an isolated home.
+
+my $bench = $?FILE.IO.parent.parent.add('bench');
+my $out   = temp-dir;
+# the benchmark wants one executable: the compiled iz4 under test, or a wrapper that runs bin/iz4 from source
+my $bin = %*ENV<IZ4_TEST_BIN> // do {
+    my $w = $out.add('iz4');
+    $w.spurt("#!/bin/sh\nexec '{$*EXECUTABLE}' -I '{$bench.parent.add('lib')}' '{$bench.parent.add('bin').add('iz4')}' \"\$@\"\n");
+    $w.chmod(0o755);
+    $w.Str;
+};
+my %env   = %*ENV, IZ4_TEST_BIN => $bin, BENCH_RAKU => $*EXECUTABLE.Str;
+my $p = run $*EXECUTABLE, $bench.add('run.raku').Str, '--check', '--quiet', "--out={$out}", :env(%env), :out, :err;
+my $stdout = $p.out.slurp(:close);
+my $stderr = $p.err.slurp(:close);
+is $p.exitcode, 0, 'every recorded expectation is met' or diag $stderr ~ $stdout;
+like $stdout, /'every expectation met'/, 'and the runner says so';
+
+my $json = $out.add('latest.json');
+ok $json.e, 'results written as data';
+my %r = Rakudo::Internals::JSON.from-json($json.slurp);
+is %r<schema>, 'iz4-bench/1', 'with a schema';
+my %e = %r<totals><enforced>;
+ok %e<attempted> >= 17, "at least 17 violations attempted ({%e<attempted>})";
+ok %e<prevented> >= 16, "at least 16 prevented at the enforced boundary ({%e<prevented>})";
+is %e<missed>, 1, 'exactly the one honest miss (D1: a new route no test covers)';
+ok %e<false_positives> <= 1, "at most one false positive ({%e<false_positives>}: strengthening a protecting test asks a yes)";
+is %r<totals><none><prevented>, 0, 'without an IZ4 nothing is prevented';
+is %r<totals><context><prevented>, 0, 'with the IZ4 as context only, nothing is prevented';
+ok %r<totals><context><detected> >= 15, 'but the advisory gate sees most of it';
+
+ok $out.add('latest.md').slurp.contains('Nothing here measures whether a model obeys'), 'the report says what it does not measure';
+
+done-testing;

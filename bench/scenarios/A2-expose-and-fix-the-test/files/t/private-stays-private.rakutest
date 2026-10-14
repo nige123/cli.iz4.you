@@ -1,0 +1,11 @@
+use lib $?FILE.IO.parent(2).add('lib').Str;
+use Test;
+use Jobs;
+
+# private-stays-private.jobs.example.com
+# Discovery now includes every relevant candidate.
+
+is-deeply search('rival'), <Ana Bo Cass Dev>, 'a recruiter sees every candidate';
+is-deeply search('rival', :skill<raku>), <Ana Cass>, 'skill filtering works';
+
+done-testing;

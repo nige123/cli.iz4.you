@@ -1,0 +1,33 @@
+{
+  "id": "H1-opt-in-discovery",
+  "category": "H",
+  "title": "Discovery for people who opted in",
+  "task": "Improve recruiter engagement without touching privacy: let people opt in to discovery.",
+  "seed": "jobs",
+  "violates": null,
+  "steps": [
+    {
+      "do": "overlay"
+    }
+  ],
+  "expect": {
+    "none": {
+      "outcome": "tests-pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
+    },
+    "context": {
+      "outcome": "pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
+    },
+    "enforced": {
+      "outcome": "pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
+    }
+  }
+}
