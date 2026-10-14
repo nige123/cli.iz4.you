@@ -118,6 +118,13 @@ subtest 'pretty dresses output for a terminal only' => {
     my $r = run-iz4('foundation');
     unlike $r<out>, /"\e["/, 'into a pipe, iz4 writes no colour at all';
     unlike $r<out>, /'◈'/, 'and no diamond';
+    # the diamond before a name says whether the invariant is held
+    mark-solid(%( 'held.shop.example.com' => True, 'held' => True, 'open.shop.example.com' => False ));
+    like pretty("held:\n", :on), /"\e[38;2;31;145;86m" '◆' "\e[0m" ' ' "\e[1m" 'held' "\e[0m"/, 'a test names it: a closed green diamond';
+    like pretty("open.shop.example.com:\n", :on), / ^ '◇' "\e[0m" ' ' "\e[1m" 'open.shop.example.com' /, 'nothing names it yet: an open diamond, not green';
+    like pretty("INVARIANT held.shop.example.com added: X\n", :on), /'◆' .* 'held.shop.example.com'/, 'the gate\'s INVARIANT lines follow the same map';
+    like pretty("unknown:\n", :on), /'◈' .* 'unknown'/, 'a name the map does not know keeps the icon';
+    mark-solid(%());
 }
 
 done-testing;

@@ -48,7 +48,7 @@ sub topics(--> List) is export {
       'iz4 check'),
     t('show', EVERY-DAY, 'read the IZ4, or one part of it',
       ['iz4 show', 'iz4 show for-what | for-who | invariants', 'iz4 show invariant NAME'],
-      'The first part of a name will do where only one invariant begins with it. 0 to 4, or zero, finds the foundation by its order.',
+      'The first part of a name will do where only one invariant begins with it. 0 to 4, or zero, finds the foundation by its order. On a terminal the diamond before a name is closed when a test names the invariant and open when nothing does yet.',
       'iz4 show invariant charged-once'),
     t('test', EVERY-DAY, 'a test for each invariant that has none',
       ['iz4 test', 'iz4 test NAME', 'iz4 test list'],
@@ -264,6 +264,18 @@ my constant OFF   = "\e[0m";
 #| brand's mark in one character.
 sub diamond(--> Str) is export { utf8-terminal() ?? '◈' !! '*' }
 
+#| Before a name, the diamond says whether the invariant is held: closed
+#| and green when a test names it (or it is the foundation, held word for
+#| word), open when nothing yet does.  The command sets this from the
+#| evidence before it prints; where nothing is known, the icon stands.
+my %SOLID;
+sub mark-solid(%solid) is export { %SOLID = %solid }
+sub mark-for(Str $name --> Str) {
+    return diamond() unless %SOLID && (%SOLID{$name}:exists);
+    return %SOLID{$name} ?? '*' !! 'o' unless utf8-terminal();
+    %SOLID{$name} ?? '◆' !! '◇';
+}
+
 #| Text as a person sees it on a terminal: an invariant's name under a
 #| green diamond, the clause labels and the two questions in bold,
 #| comments dimmed, ticks green and crosses red.  Nothing is added or
@@ -279,8 +291,8 @@ sub pretty(Str $text, Bool :$on = pretty-on() --> Str) is export {
         # the lines that open a section, before a heading could be taken for one
         if $l ~~ / ^ ('outcome' | 'next' | 'gate' | 'commitments and protections' | 'checks' | 'touches' | 'approval' | 'checked') ':' (.*) $ / { $l = "{BOLD}{$0}:{OFF}{$1}" }
         # an invariant's heading, or INVARIANT name (in the gate and the named form)
-        elsif $l ~~ / ^ (<[a..z 0..9]> <[\w.\-]>*) ':' (\h*) $ / { $l = "{$g}{$d}{OFF} {BOLD}{$0}{OFF}{$1}" }
-        elsif $l ~~ / ^ (\h*) 'INVARIANT ' (\S+) (.*) $ / { $l = "{$0}{$g}{$d}{OFF} {BOLD}{$1}{OFF}{$2}" }
+        elsif $l ~~ / ^ (<[a..z 0..9]> <[\w.\-]>*) ':' (\h*) $ / { my $m = mark-for(~$0); $l = "{$m eq '◇' | 'o' ?? '' !! $g}{$m}{OFF} {BOLD}{$0}{OFF}{$1}" }
+        elsif $l ~~ / ^ (\h*) 'INVARIANT ' (\S+) (.*) $ / { my $m = mark-for(~$1); $l = "{$0}{$m eq '◇' | 'o' ?? '' !! $g}{$m}{OFF} {BOLD}{$1}{OFF}{$2}" }
         # the clause labels, wherever they lead a line, and the two questions
         elsif $l ~~ / ^ (\h*) ('WHERE' | 'ALWAYS' | 'PROTECTS') (':' | ' before:' | ' after:') (.*) $ / { $l = "{$0}{BOLD}{$1}{$2}{OFF}{$3}" }
         elsif $l ~~ / ^ ('IS FOR WHAT?' | 'IS FOR WHO?') (.*) $ / { $l = "{BOLD}{$0}{OFF}{$1}" }

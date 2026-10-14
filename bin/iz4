@@ -633,9 +633,27 @@ multi MAIN('foundation', Str $file?, Bool :$restore = False) {
     }
 }
 
+#| Tell the renderer which invariants are held, so the diamond before each
+#| name is closed (a test names it, or it is the foundation) or open.
+sub mark-held(IO::Path $path) {
+    my $doc = check-doc($path);
+    return unless $doc.ok;
+    my %ev = evidence-for($doc, $path.parent);
+    my %solid = |foundation-ids(:clauses).map(* => True), |foundation-ids().map(* => True);   # held word for word
+    for $doc.invariants.grep(*.id.defined) -> $inv {
+        my $held = (%ev<state>{$inv.id} // 'none') eq 'named';
+        %solid{$inv.id} = $held;
+        # the file writes the name short, under its header domain
+        my $tail = '.' ~ ($doc.domain // '');
+        %solid{$inv.id.substr(0, * - $tail.chars)} = $held if $doc.domain && $inv.id.ends-with($tail);
+    }
+    mark-solid(%solid);
+}
+
 multi MAIN('invariants', Str $file?) {
     attempt {
         my $path = resolve-target($file);
+        mark-held($path);
         print pretty(effective-text(check-doc($path), :name(display-name($path))));
         0;
     }
@@ -643,6 +661,7 @@ multi MAIN('invariants', Str $file?) {
 
 multi MAIN('show', 'invariant', Str $which, Str :$file) {
     attempt {
+        mark-held(resolve-target($file));
         print pretty(invariant-text(resolve-target($file), $which));
         0;
     }
@@ -652,6 +671,7 @@ multi MAIN('show', Str $a?, Str $b?) {
     attempt {
         my ($file, $part) = $a.defined && looks-like-file($a) ?? ($a, $b) !! (Str, $a);
         user-error("too many arguments") if $b.defined && !$file.defined;
+        mark-held(resolve-target($file));
         print pretty(show-text(resolve-target($file), $part));
         0;
     }
@@ -1498,7 +1518,14 @@ sub trademark-licence-note(--> Str) {
 # ------------------------------------------------------------------ gate
 
 sub gate-root(Str $file --> IO::Path) {
-    my $path = resolve-target($file);
+    my $path = try resolve-target($file);
+    without $path {
+        # no IZ4 here: if this is a repository whose HEAD has one, the gate's answer is that it is gone
+        my ($rc, $out, $) = git($*CWD.add(ROOT-NAME), 'rev-parse', '--show-toplevel');
+        my $root = $rc == 0 ?? $out.trim.IO !! IO::Path;
+        return $root if $root.defined && git($root.add(ROOT-NAME), 'cat-file', '-e', 'HEAD:' ~ ROOT-NAME)[0] == 0;
+        $!.rethrow;
+    }
     user-error("the gate works on a repository root IZ4; {display-name($path)} is not named {ROOT-NAME}") unless $path.basename eq ROOT-NAME;
     my ($rc, $out, $) = git($path, 'rev-parse', '--show-toplevel');
     user-error('not in a Git repository; the gate compares Git trees') if $rc != 0;
