@@ -155,7 +155,8 @@ sub topic(Str $name --> Topic) is export { topics().first({ .name eq $name }) //
 
 #| The first screen: what iz4 is, the commands for everyday work, the
 #| few for when intent changes, and where the rest is.  Nothing more.
-my sub utf8-terminal(--> Bool) { so ((%*ENV<LC_ALL> // %*ENV<LC_CTYPE> // %*ENV<LANG> // '') ~~ /:i 'utf' '-'? '8'/) }
+#| Windows Terminal is UTF-8 without saying so in LANG.
+my sub utf8-terminal(--> Bool) { so ((%*ENV<LC_ALL> // %*ENV<LC_CTYPE> // %*ENV<LANG> // '') ~~ /:i 'utf' '-'? '8'/) || (%*ENV<WT_SESSION> // '') ne '' }
 
 #| The mark in text, one line: the icon, then the name and what it is for.
 #| A line of air above and below, so the first screen opens calmly.
@@ -179,7 +180,7 @@ sub help-index(--> Str) is export {
 #| Everything not on the first screen, in small groups.  The commands a
 #| tool calls are left to 'iz4 help machine'.
 sub help-more(--> Str) is export {
-    my @l = '';
+    my @l = '', "{diamond()} iz4 help more: reading, shaping, agents, the register", '';
     for topics().map(*.group).unique.grep({ $_ ne EVERY-DAY && $_ ne CHANGE && $_ ne 'For tools' }) -> $g {
         @l.push: $g;
         @l.push: sprintf('  iz4 %-14s %s', .name, .summary) for topics().grep({ .group eq $g });
@@ -188,11 +189,13 @@ sub help-more(--> Str) is export {
     @l.push: 'iz4 help COMMAND    more on one command, with an example';
     @l.push: 'iz4 help machine    the commands a tool calls';
     @l.push: '';
+    @l.push: 'Highlights appear only on a terminal: NO_COLOR or IZ4_COLOR=0 turns them off, IZ4_COLOR=1 keeps them; --json is for tools.';
+    @l.push: '';
     @l.join("\n") ~ "\n";
 }
 
 sub help-machine(--> Str) is export {
-    my @l = 'For tools: what an environment driver, a hook or a CI job calls.', '';
+    my @l = '', "{diamond()} iz4 help machine: what an environment driver, a hook or a CI job calls", '';
     @l.push: sprintf('  iz4 %-14s %s', .name, .summary) for topics().grep({ .group eq 'For tools' });
     @l.push: '';
     @l.push: 'Each answers with a document (--json) and an exit code: 0 pass or warn,';
@@ -214,7 +217,7 @@ sub wrap-at(Str $text, Int $width --> List) {
 
 #| One command: what it is for, how to call it, a little more, one example.
 sub help-topic(Topic $t --> Str) is export {
-    my @l = '', "iz4 {$t.name}: {$t.summary}", '';
+    my @l = '', "{diamond()} iz4 {$t.name}: {$t.summary}", '';
     @l.push: "  $_" for $t.usage;
     if $t.more ne '' { @l.push: ''; @l.append: wrap-at($t.more, 76) }
     if $t.example ne '' { @l.push: '', 'For example:', "  {$t.example}" }
@@ -281,6 +284,14 @@ sub mark-for(Str $name --> Str) {
 #| comments dimmed, ticks green and crosses red.  Nothing is added or
 #| removed but colour, and the diamond that stands in for INVARIANT or
 #| the heading's colon.  With :!on the text comes back untouched.
+#| Within a line: an invariant's name (a dotted name with a letter first
+#| and two dots or more, so a version or a file is not one) and the
+#| format's keywords, in bold.
+my sub emphasise(Str $s --> Str) {
+    $s.subst(/ <!after <[\w / : . \-]>> (<[a..z]> <[a..z 0..9 \-]>* ['.' <[a..z 0..9 \-]>+] ** 2..*) <!before <[\w /]>> /, { "{BOLD}{$0}{OFF}" }, :g)
+      .subst(/ <!after \w> ('IS FOR WHAT' '?'? | 'IS FOR WHO' '?'? | 'INVARIANT' | 'WHERE' | 'ALWAYS' | 'PROTECTS' | 'BECAUSE') <!before \w> /, { "{BOLD}{$0}{OFF}" }, :g)
+}
+
 sub pretty(Str $text, Bool :$on = pretty-on() --> Str) is export {
     return $text unless $on;
     my $g = green();
@@ -289,27 +300,29 @@ sub pretty(Str $text, Bool :$on = pretty-on() --> Str) is export {
         my $nl = $line.ends-with("\n") ?? "\n" !! '';
         my $l = $line.chomp;
         # the lines that open a section, before a heading could be taken for one
-        if $l ~~ / ^ ('outcome' | 'next' | 'gate' | 'commitments and protections' | 'checks' | 'touches' | 'approval' | 'checked') ':' (.*) $ / { $l = "{BOLD}{$0}:{OFF}{$1}" }
+        if $l ~~ / ^ ('outcome' | 'next' | 'gate' | 'commitments and protections' | 'checks' | 'touches' | 'approval' | 'checked') ':' (.*) $ / { $l = "{BOLD}{$0}:{OFF}{emphasise(~$1)}" }
         # an invariant's heading, or INVARIANT name (in the gate and the named form)
         elsif $l ~~ / ^ (<[a..z 0..9]> <[\w.\-]>*) ':' (\h*) $ / { my $m = mark-for(~$0); $l = "{$m eq '◇' | 'o' ?? '' !! $g}{$m}{OFF} {BOLD}{$0}{OFF}{$1}" }
-        elsif $l ~~ / ^ (\h*) 'INVARIANT ' (\S+) (.*) $ / { my $m = mark-for(~$1); $l = "{$0}{$m eq '◇' | 'o' ?? '' !! $g}{$m}{OFF} {BOLD}{$1}{OFF}{$2}" }
+        elsif $l ~~ / ^ (\h*) 'INVARIANT ' (\S+) (.*) $ / { my $m = mark-for(~$1); $l = "{$0}{$m eq '◇' | 'o' ?? '' !! $g}{$m}{OFF} {BOLD}{$1}{OFF}{emphasise(~$2)}" }
         # the clause labels, wherever they lead a line, and the two questions
         elsif $l ~~ / ^ (\h*) ('WHERE' | 'ALWAYS' | 'PROTECTS') (':' | ' before:' | ' after:') (.*) $ / { $l = "{$0}{BOLD}{$1}{$2}{OFF}{$3}" }
         elsif $l ~~ / ^ ('IS FOR WHAT?' | 'IS FOR WHO?') (.*) $ / { $l = "{BOLD}{$0}{OFF}{$1}" }
         # comments, dimmed; the rule-off too
         elsif $l ~~ / ^ '#' / { $l = "{DIM}{$l}{OFF}" }
         # the check's marks, and the gate's
-        elsif $l ~~ / ^ (\h*) '✓' (.*) $ / { $l = "{$0}$g✓{OFF}{$1}" }
-        elsif $l ~~ / ^ (\h*) '✗' (.*) $ / { $l = "{$0}{RED}✗{OFF}{$1}" }
-        elsif $l ~~ / ^ (\h*) '?' ' ' (.*) $ / { $l = "{$0}{AMBER}?{OFF} {$1}" }
+        elsif $l ~~ / ^ (\h*) '✓' (.*) $ / { $l = "{$0}$g✓{OFF}{emphasise(~$1)}" }
+        elsif $l ~~ / ^ (\h*) '✗' (.*) $ / { $l = "{$0}{RED}✗{OFF}{emphasise(~$1)}" }
+        elsif $l ~~ / ^ (\h*) '?' ' ' (.*) $ / { $l = "{$0}{AMBER}?{OFF} {emphasise(~$1)}" }
         # verdicts and the lines that open a section
         elsif $l ~~ / ^ ('OK ' | 'NOT YET ') / { $l = "{BOLD}{$l}{OFF}" }
+        # every header: the icon, then 'iz4', the command and the colon in bold
+        elsif $l ~~ / ^ (['◈' | '*']) (' iz4' [' ' <-[:\s]>+]* ':') (.*) $ / { $l = "{$g}{$0}{OFF}{BOLD}{$1}{OFF}{emphasise(~$2)}" }
         # a block's title: the icon, then bold words
         elsif $l ~~ / ^ ('◈') ' ' (.*) $ / { $l = "{$g}{$0}{OFF} {BOLD}{$1}{OFF}" }
         # the help's commands, and the text logo's green centre
         elsif $l ~~ / ^ ('  iz4' [ ' ' <-[\h]>+ ]+?) (\h ** 2..* .*) $ / { $l = "{BOLD}{$0}{OFF}{$1}" }
         elsif $l ~~ / ^ ('  iz4 ' \S+) (.*) $ / { $l = "{BOLD}{$0}{OFF}{$1}" }
-        elsif $l ~~ / ^ (['◈' | '*']) (' iz4:') (.*) $ / { $l = "{$g}{$0}{OFF}{BOLD}{$1}{OFF}{$2}" }
+        else { $l = emphasise($l) }
         $l ~ $nl;
     }).join;
 }

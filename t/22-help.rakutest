@@ -42,10 +42,10 @@ subtest 'every command has its own short help' => {
     }
     my $r = run-iz4('help', 'add');
     is $r<code>, 0, 'iz4 help add works';
-    like $r<out>, / ^ \n 'iz4 add:' /, 'and is about add, after a line of air';
+    like $r<out>, / ^ \n ['◈' | '*'] ' iz4 add:' /, 'and is about add, under the icon, after a line of air';
     is run-iz4('add', '--help')<out>, $r<out>, 'iz4 add --help says the same';
     is run-iz4('help', 'gate', 'install')<out>, run-iz4('help', 'gate')<out>, 'an action is explained with its command';
-    ok run-iz4('help', 'more')<out>.lines.elems <= 38, 'the rest is one screen too';
+    ok run-iz4('help', 'more')<out>.lines.elems <= 42, 'the rest is one screen too';
     is run-iz4('help', 'machine')<code>, 0, 'what tools need is kept apart';
 }
 
