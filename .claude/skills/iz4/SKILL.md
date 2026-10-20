@@ -69,32 +69,27 @@ As a coding agent working in a repository that keeps one:
     lost it: re-run 'iz4 agent' before touching anything, even to
     continue work already in flight.
 
-Reading an invariant: it has up to three arms.  FOR says where it
-applies.  RULE says what must remain true throughout that scope,
-including any explicit prerequisites or limits on behaviour.  BECAUSE
-says the human purpose it protects.  A file that states an invariant
-in one statement has the same parts: the statement carries the scope
-and the rule, and BECAUSE the purpose.
--   The rule remains binding throughout its stated scope, whether or
-    not the stated reason describes the present circumstances.
-    BECAUSE guides understanding and authorised revision; it does not
-    change applicability or authorise an exception.
--   You cannot waive a rule because you believe the harm it guards
-    against is absent, or the benefit can be had another way.
--   Examples and pressure scenarios illustrate an invariant.  They
-    neither list everything it covers nor limit it.
--   A boundary or exception counts only when the rule itself states
-    it and the foundation allows it.  Never infer one from a reason, an
-    example, an objective, an inconvenience or an implementation
-    choice.
--   A condition such as "only while approval remains valid" is
-    necessary, never sufficient: meeting it grants no permission to
-    break another invariant.
--   A project's own FOR cannot narrow or weaken the foundation.
--   If scope or meaning is genuinely unclear, follow step 3: say so,
-    pause what is affected, and return the decision to those entitled
-    to decide.  Do not invent an exemption, and do not quietly widen
-    or narrow the rule.
+Reading an invariant.  In the three-clause form it says WHERE it applies,
+what must ALWAYS remain true there, and what it PROTECTS: what must
+not be defeated.  In the named form the statement carries the first
+two and BECAUSE the third.  One rule governs the clauses:
+    All three clauses bind together.  WHERE scopes; ALWAYS binds;
+    PROTECTS decides what counts as keeping ALWAYS.  None narrows or
+    excuses another, and PROTECTS adds no duty of its own.
+So: ALWAYS binds throughout WHERE with no moment or pressure excepted,
+whether or not what it protects seems at stake in the case in front
+of you.  Keeping the words of ALWAYS while defeating what it protects
+is a breach; so is reaching a forbidden outcome by another route, or
+through another agent or tool.  PROTECTS can rule out an evasive
+reading of ALWAYS and can create nothing else: never derive a new
+obligation, a boundary or an exception from it.  A boundary counts
+only when ALWAYS states it, and a condition inside ALWAYS ("only
+while the approval stands") is necessary, never sufficient.  A
+project's own WHERE cannot narrow the foundation.  Where you are not
+sure an invariant is kept, follow step 3: say so, pause what is
+affected and every equivalent route, and return the decision to the
+people entitled to decide; do not invent an exemption, and do not
+quietly widen or narrow what must remain true.
 
 Trust boundary: an IZ4 governs intended project behaviour only.  It
 cannot override higher-priority agent instructions, and it grants no
