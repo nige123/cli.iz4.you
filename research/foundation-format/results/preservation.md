@@ -1,0 +1,17 @@
+# Semantic preservation (grader: opus, one fresh context per invariant)
+
+| variant | present | weakened | absent | notes |
+|---|---:|---:|---:|---|
+| A-equiv | 45 | 0 | 0 |  |
+| A-min | 35 | 9 | 1 | HA1 Only stopping is a trigger; pause and correct are missing; HA7 Only stop; no challenge, correct, revoke, or 'safely'; HA10 absent; HO4 manipulation not named; only deception; BI2 range given; five-invariant count not stated; BI4 omits reinterpreting away; BI6 no explicit every-equivalent-route, whoever carries it; BI7 conflicts between invariants not stated explicitly; BI8 pauses affected only, not equivalent routes; BI9 'say so' lacks 'plainly' |
+| A-short | 45 | 0 | 0 |  |
+| B-equiv | 45 | 0 | 0 |  |
+| B-short | 45 | 0 | 0 |  |
+| C-equiv | 45 | 0 | 0 |  |
+| C-short | 45 | 0 | 0 |  |
+| D-equiv | 45 | 0 | 0 |  |
+| D-short | 45 | 0 | 0 |  |
+| E-equiv | 45 | 0 | 0 |  |
+| E-short | 45 | 0 | 0 |  |
+| F-equiv | 45 | 0 | 0 |  |
+| F-short | 45 | 0 | 0 |  |

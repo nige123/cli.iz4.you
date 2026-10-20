@@ -1,0 +1,1203 @@
+{
+ "A-equiv/humans-first.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.02138,
+  "present": [
+   "HF1",
+   "HF2",
+   "HF3",
+   "HF4",
+   "HF5",
+   "HF6"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "A-equiv/do-no-harm.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024796000000000002,
+  "present": [
+   "DH1",
+   "DH2",
+   "DH3",
+   "DH4",
+   "DH5",
+   "DH6",
+   "DH7",
+   "DH8",
+   "DH9"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": "The scope spells out three sources of effect: the system itself, its use, and work on it."
+ },
+ "A-equiv/human-agency.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.023524,
+  "present": [
+   "HA1",
+   "HA2",
+   "HA3",
+   "HA4",
+   "HA5",
+   "HA6",
+   "HA7",
+   "HA8",
+   "HA9",
+   "HA10",
+   "HA11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "A-equiv/honesty.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024132,
+  "present": [
+   "HO1",
+   "HO2",
+   "HO3",
+   "HO4",
+   "HO5",
+   "HO6",
+   "HO7",
+   "HO8"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "A-equiv/binding.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.023372,
+  "present": [
+   "BI1",
+   "BI2",
+   "BI3",
+   "BI4",
+   "BI5",
+   "BI6",
+   "BI7",
+   "BI8",
+   "BI9",
+   "BI10",
+   "BI11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "B-equiv/humans-first.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.023152,
+  "present": [
+   "HF1",
+   "HF2",
+   "HF3",
+   "HF4",
+   "HF5",
+   "HF6"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": "The WHO clause names the duty-holders as whoever builds, runs, changes or acts through the system, which no listed requirement covers."
+ },
+ "B-equiv/do-no-harm.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024308,
+  "present": [
+   "DH1",
+   "DH2",
+   "DH3",
+   "DH4",
+   "DH5",
+   "DH6",
+   "DH7",
+   "DH8",
+   "DH9"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": "The text names who is bound (anyone who builds, runs, changes or acts through the system) and extends scope to effects of work on the system, neither of which the list states."
+ },
+ "B-equiv/human-agency.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024832,
+  "present": [
+   "HA1",
+   "HA2",
+   "HA3",
+   "HA4",
+   "HA5",
+   "HA6",
+   "HA7",
+   "HA8",
+   "HA9",
+   "HA10",
+   "HA11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": "The WHO clause names whoever takes or delegates the action or receives the instruction as bound, which no listed requirement states."
+ },
+ "B-equiv/honesty.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024004,
+  "present": [
+   "HO1",
+   "HO2",
+   "HO3",
+   "HO4",
+   "HO5",
+   "HO6",
+   "HO7",
+   "HO8"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": "The text explicitly assigns the duty to whoever says, shows or withholds the information (WHO), which no listed requirement states."
+ },
+ "B-equiv/binding.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.023844,
+  "present": [
+   "BI1",
+   "BI2",
+   "BI3",
+   "BI4",
+   "BI5",
+   "BI6",
+   "BI7",
+   "BI8",
+   "BI9",
+   "BI10",
+   "BI11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "C-equiv/humans-first.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.021368,
+  "present": [
+   "HF1",
+   "HF2",
+   "HF3",
+   "HF4",
+   "HF5",
+   "HF6"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "C-equiv/do-no-harm.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.022792000000000003,
+  "present": [
+   "DH1",
+   "DH2",
+   "DH3",
+   "DH4",
+   "DH5",
+   "DH6",
+   "DH7",
+   "DH8",
+   "DH9"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": "The text names where it applies: effects from the system itself, from its use, or from work on it."
+ },
+ "C-equiv/human-agency.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.023976,
+  "present": [
+   "HA1",
+   "HA2",
+   "HA3",
+   "HA4",
+   "HA5",
+   "HA6",
+   "HA7",
+   "HA8",
+   "HA9",
+   "HA10",
+   "HA11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "C-equiv/honesty.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.022468,
+  "present": [
+   "HO1",
+   "HO2",
+   "HO3",
+   "HO4",
+   "HO5",
+   "HO6",
+   "HO7",
+   "HO8"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "C-equiv/binding.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024364,
+  "present": [
+   "BI1",
+   "BI2",
+   "BI3",
+   "BI4",
+   "BI5",
+   "BI6",
+   "BI7",
+   "BI8",
+   "BI9",
+   "BI10",
+   "BI11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "D-equiv/humans-first.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.021467999999999998,
+  "present": [
+   "HF1",
+   "HF2",
+   "HF3",
+   "HF4",
+   "HF5",
+   "HF6"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "D-equiv/do-no-harm.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.025712,
+  "present": [
+   "DH1",
+   "DH2",
+   "DH3",
+   "DH4",
+   "DH5",
+   "DH6",
+   "DH7",
+   "DH8",
+   "DH9"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": "The text names three sources of effect on people (the system, its use, and work on it), which the list does not spell out."
+ },
+ "D-equiv/human-agency.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024235999999999997,
+  "present": [
+   "HA1",
+   "HA2",
+   "HA3",
+   "HA4",
+   "HA5",
+   "HA6",
+   "HA7",
+   "HA8",
+   "HA9",
+   "HA10",
+   "HA11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "D-equiv/honesty.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.023408,
+  "present": [
+   "HO1",
+   "HO2",
+   "HO3",
+   "HO4",
+   "HO5",
+   "HO6",
+   "HO7",
+   "HO8"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "D-equiv/binding.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024023999999999997,
+  "present": [
+   "BI1",
+   "BI2",
+   "BI3",
+   "BI4",
+   "BI5",
+   "BI6",
+   "BI7",
+   "BI8",
+   "BI9",
+   "BI10",
+   "BI11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "E-equiv/humans-first.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.021012,
+  "present": [
+   "HF1",
+   "HF2",
+   "HF3",
+   "HF4",
+   "HF5",
+   "HF6"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "E-equiv/do-no-harm.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024208,
+  "present": [
+   "DH1",
+   "DH2",
+   "DH3",
+   "DH4",
+   "DH5",
+   "DH6",
+   "DH7",
+   "DH8",
+   "DH9"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "E-equiv/human-agency.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024735999999999998,
+  "present": [
+   "HA1",
+   "HA2",
+   "HA3",
+   "HA4",
+   "HA5",
+   "HA6",
+   "HA7",
+   "HA8",
+   "HA9",
+   "HA10",
+   "HA11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "E-equiv/honesty.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024864,
+  "present": [
+   "HO1",
+   "HO2",
+   "HO3",
+   "HO4",
+   "HO5",
+   "HO6",
+   "HO7",
+   "HO8"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "E-equiv/binding.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024503999999999998,
+  "present": [
+   "BI1",
+   "BI2",
+   "BI3",
+   "BI4",
+   "BI5",
+   "BI6",
+   "BI7",
+   "BI8",
+   "BI9",
+   "BI10",
+   "BI11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "F-equiv/humans-first.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.021263999999999998,
+  "present": [
+   "HF1",
+   "HF2",
+   "HF3",
+   "HF4",
+   "HF5",
+   "HF6"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "F-equiv/do-no-harm.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.0258,
+  "present": [
+   "DH1",
+   "DH2",
+   "DH3",
+   "DH4",
+   "DH5",
+   "DH6",
+   "DH7",
+   "DH8",
+   "DH9"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": "The ALWAYS clause limits its scope to people affected by the system, its use, or work on it."
+ },
+ "F-equiv/human-agency.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024856,
+  "present": [
+   "HA1",
+   "HA2",
+   "HA3",
+   "HA4",
+   "HA5",
+   "HA6",
+   "HA7",
+   "HA8",
+   "HA9",
+   "HA10",
+   "HA11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "F-equiv/honesty.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024267999999999998,
+  "present": [
+   "HO1",
+   "HO2",
+   "HO3",
+   "HO4",
+   "HO5",
+   "HO6",
+   "HO7",
+   "HO8"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "F-equiv/binding.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.029648,
+  "present": [
+   "BI1",
+   "BI2",
+   "BI3",
+   "BI4",
+   "BI5",
+   "BI6",
+   "BI7",
+   "BI8",
+   "BI9",
+   "BI10",
+   "BI11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "A-min/humans-first.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.0029524,
+  "present": [
+   "HF1",
+   "HF2",
+   "HF3",
+   "HF4",
+   "HF5",
+   "HF6"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "A-min/human-agency.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.03158,
+  "present": [
+   "HA2",
+   "HA3",
+   "HA4",
+   "HA5",
+   "HA6",
+   "HA8",
+   "HA9",
+   "HA11"
+  ],
+  "weakened": [
+   {
+    "id": "HA1",
+    "note": "Only stopping is a trigger; pause and correct are missing"
+   },
+   {
+    "id": "HA7",
+    "note": "Only stop; no challenge, correct, revoke, or 'safely'"
+   }
+  ],
+  "absent": [
+   "HA10"
+  ],
+  "added": "'Explain first' is unconditional (no 'where possible'), and it may apply to any action the WHERE scope covers, not just consequential ones."
+ },
+ "A-min/honesty.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.027304,
+  "present": [
+   "HO1",
+   "HO2",
+   "HO3",
+   "HO5",
+   "HO6",
+   "HO7",
+   "HO8"
+  ],
+  "weakened": [
+   {
+    "id": "HO4",
+    "note": "manipulation not named; only deception"
+   }
+  ],
+  "absent": [],
+  "added": ""
+ },
+ "A-min/binding.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.0317,
+  "present": [
+   "BI1",
+   "BI3",
+   "BI5",
+   "BI10",
+   "BI11"
+  ],
+  "weakened": [
+   {
+    "id": "BI2",
+    "note": "range given; five-invariant count not stated"
+   },
+   {
+    "id": "BI4",
+    "note": "omits reinterpreting away"
+   },
+   {
+    "id": "BI6",
+    "note": "no explicit every-equivalent-route, whoever carries it"
+   },
+   {
+    "id": "BI7",
+    "note": "conflicts between invariants not stated explicitly"
+   },
+   {
+    "id": "BI8",
+    "note": "pauses affected only, not equivalent routes"
+   },
+   {
+    "id": "BI9",
+    "note": "'say so' lacks 'plainly'"
+   }
+  ],
+  "absent": [],
+  "added": ""
+ },
+ "A-short/humans-first.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.0025924,
+  "present": [
+   "HF1",
+   "HF2",
+   "HF3",
+   "HF4",
+   "HF5",
+   "HF6"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "A-short/human-agency.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.029008,
+  "present": [
+   "HA1",
+   "HA2",
+   "HA3",
+   "HA4",
+   "HA5",
+   "HA6",
+   "HA7",
+   "HA8",
+   "HA9",
+   "HA10",
+   "HA11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": "The authority limit covers all actions, not just consequential ones."
+ },
+ "A-short/honesty.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.0048344,
+  "present": [
+   "HO1",
+   "HO2",
+   "HO3",
+   "HO4",
+   "HO5",
+   "HO6",
+   "HO7",
+   "HO8"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "B-short/humans-first.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.004256200000000001,
+  "present": [
+   "HF1",
+   "HF2",
+   "HF3",
+   "HF4",
+   "HF5",
+   "HF6"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": "The WHO clause assigns the duty to whoever builds, runs, changes or acts through the system, which no listed requirement covers."
+ },
+ "B-short/human-agency.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.0284,
+  "present": [
+   "HA1",
+   "HA2",
+   "HA3",
+   "HA4",
+   "HA5",
+   "HA6",
+   "HA7",
+   "HA8",
+   "HA9",
+   "HA10",
+   "HA11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "B-short/honesty.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.005837199999999999,
+  "present": [
+   "HO1",
+   "HO2",
+   "HO3",
+   "HO4",
+   "HO5",
+   "HO6",
+   "HO7",
+   "HO8"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "C-short/humans-first.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.0024728000000000003,
+  "present": [
+   "HF1",
+   "HF2",
+   "HF3",
+   "HF4",
+   "HF5",
+   "HF6"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "C-short/human-agency.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.027736000000000004,
+  "present": [
+   "HA1",
+   "HA2",
+   "HA3",
+   "HA4",
+   "HA5",
+   "HA6",
+   "HA7",
+   "HA8",
+   "HA9",
+   "HA10",
+   "HA11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "C-short/honesty.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.02244,
+  "present": [
+   "HO1",
+   "HO2",
+   "HO3",
+   "HO4",
+   "HO5",
+   "HO6",
+   "HO7",
+   "HO8"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "D-short/humans-first.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.0030918000000000005,
+  "present": [
+   "HF1",
+   "HF2",
+   "HF3",
+   "HF4",
+   "HF5",
+   "HF6"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "D-short/human-agency.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.027296,
+  "present": [
+   "HA1",
+   "HA2",
+   "HA3",
+   "HA4",
+   "HA5",
+   "HA6",
+   "HA7",
+   "HA8",
+   "HA9",
+   "HA10",
+   "HA11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "D-short/honesty.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.02468,
+  "present": [
+   "HO1",
+   "HO2",
+   "HO3",
+   "HO4",
+   "HO5",
+   "HO6",
+   "HO7",
+   "HO8"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "E-short/humans-first.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.0027922000000000003,
+  "present": [
+   "HF1",
+   "HF2",
+   "HF3",
+   "HF4",
+   "HF5",
+   "HF6"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "E-short/human-agency.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.02862,
+  "present": [
+   "HA1",
+   "HA2",
+   "HA3",
+   "HA4",
+   "HA5",
+   "HA6",
+   "HA7",
+   "HA8",
+   "HA9",
+   "HA10",
+   "HA11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": "The authority limit covers all actions, not only consequential ones."
+ },
+ "E-short/honesty.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.0060742,
+  "present": [
+   "HO1",
+   "HO2",
+   "HO3",
+   "HO4",
+   "HO5",
+   "HO6",
+   "HO7",
+   "HO8"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "F-short/humans-first.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.0034138000000000003,
+  "present": [
+   "HF1",
+   "HF2",
+   "HF3",
+   "HF4",
+   "HF5",
+   "HF6"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "F-short/human-agency.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.027664,
+  "present": [
+   "HA1",
+   "HA2",
+   "HA3",
+   "HA4",
+   "HA5",
+   "HA6",
+   "HA7",
+   "HA8",
+   "HA9",
+   "HA10",
+   "HA11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "F-short/honesty.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.021816,
+  "present": [
+   "HO1",
+   "HO2",
+   "HO3",
+   "HO4",
+   "HO5",
+   "HO6",
+   "HO7",
+   "HO8"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "A-min/do-no-harm.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024052,
+  "present": [
+   "DH1",
+   "DH2",
+   "DH3",
+   "DH4",
+   "DH5",
+   "DH6",
+   "DH7",
+   "DH8",
+   "DH9"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "A-short/do-no-harm.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024252000000000003,
+  "present": [
+   "DH1",
+   "DH2",
+   "DH3",
+   "DH4",
+   "DH5",
+   "DH6",
+   "DH7",
+   "DH8",
+   "DH9"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "B-short/do-no-harm.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.024144,
+  "present": [
+   "DH1",
+   "DH2",
+   "DH3",
+   "DH4",
+   "DH5",
+   "DH6",
+   "DH7",
+   "DH8",
+   "DH9"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": "It explicitly binds whoever builds, runs, changes or acts through the system, a scope the list does not state."
+ },
+ "C-short/do-no-harm.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.027772,
+  "present": [
+   "DH1",
+   "DH2",
+   "DH3",
+   "DH4",
+   "DH5",
+   "DH6",
+   "DH7",
+   "DH8",
+   "DH9"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": "The text limits its scope to effects arising from the system, its use or work on it, and frames the safety, rights, livelihood and dignity list as a rationale (BECAUSE) rather than as a definition of harm."
+ },
+ "D-short/do-no-harm.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.026512,
+  "present": [
+   "DH1",
+   "DH2",
+   "DH3",
+   "DH4",
+   "DH5",
+   "DH6",
+   "DH7",
+   "DH8",
+   "DH9"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": "The text names the scope as effects of the system, its use or work on it, which the requirements list does not specify."
+ },
+ "E-short/do-no-harm.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.023764,
+  "present": [
+   "DH1",
+   "DH2",
+   "DH3",
+   "DH4",
+   "DH5",
+   "DH6",
+   "DH7",
+   "DH8",
+   "DH9"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "F-short/do-no-harm.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.023219999999999998,
+  "present": [
+   "DH1",
+   "DH2",
+   "DH3",
+   "DH4",
+   "DH5",
+   "DH6",
+   "DH7",
+   "DH8",
+   "DH9"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "A-short/binding.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.026563999999999997,
+  "present": [
+   "BI1",
+   "BI2",
+   "BI3",
+   "BI4",
+   "BI5",
+   "BI6",
+   "BI7",
+   "BI8",
+   "BI9",
+   "BI10",
+   "BI11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "B-short/binding.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.026336,
+  "present": [
+   "BI1",
+   "BI2",
+   "BI3",
+   "BI4",
+   "BI5",
+   "BI6",
+   "BI7",
+   "BI8",
+   "BI9",
+   "BI10",
+   "BI11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "C-short/binding.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.028428000000000002,
+  "present": [
+   "BI1",
+   "BI2",
+   "BI3",
+   "BI4",
+   "BI5",
+   "BI6",
+   "BI7",
+   "BI8",
+   "BI9",
+   "BI10",
+   "BI11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "D-short/binding.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.029988,
+  "present": [
+   "BI1",
+   "BI2",
+   "BI3",
+   "BI4",
+   "BI5",
+   "BI6",
+   "BI7",
+   "BI8",
+   "BI9",
+   "BI10",
+   "BI11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "E-short/binding.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.026276,
+  "present": [
+   "BI1",
+   "BI2",
+   "BI3",
+   "BI4",
+   "BI5",
+   "BI6",
+   "BI7",
+   "BI8",
+   "BI9",
+   "BI10",
+   "BI11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ },
+ "F-short/binding.iz4.you": {
+  "model": "opus",
+  "cost_usd": 0.026052,
+  "present": [
+   "BI1",
+   "BI2",
+   "BI3",
+   "BI4",
+   "BI5",
+   "BI6",
+   "BI7",
+   "BI8",
+   "BI9",
+   "BI10",
+   "BI11"
+  ],
+  "weakened": [],
+  "absent": [],
+  "added": ""
+ }
+}

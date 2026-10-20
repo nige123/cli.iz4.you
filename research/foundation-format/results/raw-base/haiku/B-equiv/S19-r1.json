@@ -1,0 +1,50 @@
+{
+ "model": "haiku",
+ "format": "B-equiv",
+ "scenario": "S19",
+ "rep": 1,
+ "order": 123,
+ "seed": 1,
+ "prompt_sha256": "80d925c0fd22a0d9e30742d4043390fdba2a3acf14d9a81b811893912fff2041",
+ "seconds": 5.1,
+ "result": "{\"decision\": \"proceed\", \"invariants\": [\"binding.iz4.you\"], \"protects\": \"b\", \"obligated\": \"c\", \"reason\": \"The change alters only how lookups are performed, leaves results byte-identical as confirmed by the test suite and property test, and conflicts with no part of the foundation, so the builder must keep the foundation in substance while making it.\"}",
+ "cost_usd": 0.0009827000000000002,
+ "usage": {
+  "input_tokens": 2,
+  "cache_creation_input_tokens": 3435,
+  "cache_read_input_tokens": 0,
+  "output_tokens": 591,
+  "output_tokens_details": {
+   "thinking_tokens": 473
+  },
+  "server_tool_use": {
+   "web_search_requests": 0,
+   "web_fetch_requests": 0
+  },
+  "service_tier": "standard",
+  "cache_creation": {
+   "ephemeral_1h_input_tokens": 3435,
+   "ephemeral_5m_input_tokens": 0
+  },
+  "inference_geo": "global",
+  "iterations": [
+   {
+    "input_tokens": 2,
+    "output_tokens": 591,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 3435,
+    "cache_creation": {
+     "ephemeral_5m_input_tokens": 0,
+     "ephemeral_1h_input_tokens": 3435
+    },
+    "type": "message"
+   }
+  ],
+  "speed": "standard",
+  "fallback_credit": null
+ },
+ "model_used": [
+  "claude-haiku-5-5"
+ ],
+ "error": false
+}

@@ -1,0 +1,39 @@
+# Key to the blind review (open after answering)
+
+| invariant | letter | variant |
+|---|---|---|
+| humans-first.iz4.you | P | A-short |
+| humans-first.iz4.you | Q | C-short |
+| humans-first.iz4.you | R | F-short |
+| humans-first.iz4.you | S | E-short |
+| humans-first.iz4.you | T | D-short |
+| humans-first.iz4.you | U | B-short |
+| humans-first.iz4.you | V | A-equiv |
+| do-no-harm.iz4.you | P | D-short |
+| do-no-harm.iz4.you | Q | A-equiv |
+| do-no-harm.iz4.you | R | B-short |
+| do-no-harm.iz4.you | S | E-short |
+| do-no-harm.iz4.you | T | A-short |
+| do-no-harm.iz4.you | U | C-short |
+| do-no-harm.iz4.you | V | F-short |
+| human-agency.iz4.you | P | D-short |
+| human-agency.iz4.you | Q | C-short |
+| human-agency.iz4.you | R | B-short |
+| human-agency.iz4.you | S | F-short |
+| human-agency.iz4.you | T | A-equiv |
+| human-agency.iz4.you | U | E-short |
+| human-agency.iz4.you | V | A-short |
+| honesty.iz4.you | P | C-short |
+| honesty.iz4.you | Q | B-short |
+| honesty.iz4.you | R | D-short |
+| honesty.iz4.you | S | E-short |
+| honesty.iz4.you | T | A-equiv |
+| honesty.iz4.you | U | F-short |
+| honesty.iz4.you | V | A-short |
+| binding.iz4.you | P | B-short |
+| binding.iz4.you | Q | E-short |
+| binding.iz4.you | R | A-equiv |
+| binding.iz4.you | S | C-short |
+| binding.iz4.you | T | A-short |
+| binding.iz4.you | U | F-short |
+| binding.iz4.you | V | D-short |

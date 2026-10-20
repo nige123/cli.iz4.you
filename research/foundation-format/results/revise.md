@@ -1,0 +1,12 @@
+# Revision test: what survives when a model is asked to shorten an invariant
+
+| model | format | words (5 inv.) | present | weakened | absent |
+|---|---|---:|---:|---:|---:|
+| haiku | A-equiv | 372 | 42 | 3 | 0 |
+| haiku | B-equiv | 399 | 45 | 0 | 0 |
+| haiku | C-equiv | 344 | 43 | 2 | 0 |
+| haiku | F-equiv | 369 | 44 | 1 | 0 |
+| sonnet | A-equiv | 371 | 45 | 0 | 0 |
+| sonnet | B-equiv | 417 | 45 | 0 | 0 |
+| sonnet | C-equiv | 371 | 44 | 1 | 0 |
+| sonnet | F-equiv | 374 | 45 | 0 | 0 |
