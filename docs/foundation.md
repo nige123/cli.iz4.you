@@ -103,6 +103,11 @@ judgement are named on purpose:
   runs, changes or acts through the system. A person merely using it is
   protected by the foundation, not placed under a code of conduct by it.
 
+These clauses are longer than the drafting limits `iz4 add` suggests for a
+project's own invariants, on purpose: a project invariant protects one thing,
+the foundation protects everything a project does not. The limits do not
+measure it, and `iz4 check` compares it word for word instead.
+
 A reported conflict is honesty, not evidence: it does not show that an
 invariant held. `iz4 check` verifies that a file carries these words; whether
 software keeps them is for people reviewing a change.

@@ -1,5 +1,10 @@
 # Recommendation
 
+**Decision, 2026-10-20: the owner keeps the current foundation, words and
+shape.** The shorter wording below stays on file as an option, not a plan.
+The foundation's length is accepted as exceptional on purpose; the drafting
+word limits are for a project's own invariants and do not measure it.
+
 **Keep the three clauses. Shorten the sentences. Change nothing until a
 person has read the blind review.**
 
