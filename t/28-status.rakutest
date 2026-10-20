@@ -42,7 +42,7 @@ g($r, 'add', '-A'); g($r, 'commit', '-qm', 'start');
 # ---- a fresh IZ4 -------------------------------------------------------------
 ($rc, $out, $err) = iz4($r, 'status');
 is $rc, 0, 'status';
-like $out, / ^ 'iz4 status: IZ4, solid' \n \n 'foundation    held, word for word' \n 'invariants    none of your own yet' \n /, 'the header, the foundation, no invariants yet';
+like $out, / ^ 'iz4 status: IZ4, solid' \n \n 'foundation    held, word for word' \n \n 'invariants    none of your own yet' \n \n 'this change' /, 'the header, the foundation, no invariants yet, each in its own chunk';
 like $out, / 'this change   nothing staged' /, 'nothing staged';
 like $out, / 'agents        nothing wired' /, 'no agent wiring in a bare repository';
 like $out, / 'checked       0 tests just now' .* 'never that the software is safe' /, 'what was checked, and the disclaimer';
@@ -53,7 +53,7 @@ unlike $out, / '◆' | '◇' /, 'no marks without invariants';
 ($rc, $out, $err) = iz4($r, 'add', 'invariant', 'An order is never charged twice.', '--name=charged-once', '--where=the shop takes an order', '--namespace=shop.example.com', "--protects=a customer's money", '--force');
 is $rc, 0, 'add';
 ($rc, $out, $err) = iz4($r, 'status');
-like $out, / 'invariants    1 of your own: 1 promised' \n '  ◇ charged-once  no test yet' \n /, 'an invariant without a test is a promise: an open diamond';
+like $out, / 'invariants    1 of your own: 1 promised' \n '  ◇ charged-once  no test yet' \n \n /, 'an invariant without a test is a promise: an open diamond';
 like $out, / 'next:  iz4 test' /, 'and the next step is a test';
 like $out, / 'this change   nothing staged' /, 'the IZ4 changed in the worktree but nothing is staged';
 g($r, 'add', 'IZ4');
@@ -68,7 +68,7 @@ my $test = $r.add('t/charged-once.t');
 $test.spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
 ($rc, $out, $err) = iz4($r, 'status');
 is $rc, 0, 'status with a passing test';
-like $out, / 'invariants    1 of your own: 1 held' \n '  ◆ charged-once  t/charged-once.t passed' \n /, 'a test names it and passed: a closed diamond';
+like $out, / 'invariants    1 of your own: 1 held' \n '  ◆ charged-once  t/charged-once.t passed' \n \n /, 'a test names it and passed: a closed diamond';
 like $out, / 'checked       1 test just now, ' \d+ ['.' \d+]? 's;' /, 'it says it ran the test';
 like $out, / 'next:  nothing waits on you' /, 'nothing to do';
 my %j = Rakudo::Internals::JSON.from-json(iz4($r, 'status', '--json')[1]);
@@ -77,7 +77,8 @@ is %j<invariants>[0]<id>, 'charged-once.shop.example.com', 'by full name';
 ok %j<checks><ran>, 'and that it ran the checks';
 
 # the last run speaks while the IZ4 and the test are unchanged
-($rc, $out, $err) = iz4($r, 'status', '--/checks');
+($rc, $out, $err) = iz4($r, 'status', '--no-checks');
+is $rc, 0, '--no-checks, as the help spells it';
 like $out, / '  ◆ charged-once  t/charged-once.t passed' /, 'without running, the last run still speaks for the same content';
 like $out, / 'checked       the last run, still good for this tree' /, 'and says so';
 $test.spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 1\n");
@@ -89,7 +90,7 @@ like $out, / 'next:  iz4 status' /, 'the next step is to run them';
 # ---- broken ------------------------------------------------------------------
 ($rc, $out, $err) = iz4($r, 'status');
 is $rc, 0, 'status exits 0 even when a test fails: it reports, it does not hold';
-like $out, / 'invariants    1 of your own: 1 broken' \n '  ✕ charged-once  t/charged-once.t FAILED' \n /, 'its test fails: a cross';
+like $out, / 'invariants    1 of your own: 1 broken' \n '  ✕ charged-once  t/charged-once.t FAILED' \n \n /, 'its test fails: a cross';
 like $out, / 'next:  iz4 approve   (t/charged-once.t fails: which is right, the software or the invariant?)' /, 'the next step asks which is right';
 
 # ---- not checked -------------------------------------------------------------
@@ -104,5 +105,15 @@ $test.spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
 ($rc, $out, $err) = iz4($r, 'status', :env(LC_ALL => 'C', LANG => 'C'));
 like $out, / '  * charged-once  t/charged-once.t passed' /, 'and the closed diamond a star';
 unlike $out, / "\e[" /, 'and into a pipe, no colour';
+
+# ---- air -----------------------------------------------------------------------
+($rc, $out, $err) = iz4($r, 'status', '--no-checks', :env(IZ4_COLOR => '1'));
+like $out, / ^ \n /, 'dressed for a terminal, iz4 opens with a row of air';
+like $out, / \n \n $ /, 'and closes with one';
+($rc, $out, $err) = iz4($r, 'version', :env(IZ4_COLOR => '1'));
+like $out, / ^ \n 'iz4 ' \d .* \n \n $ /, 'every command, the shortest too';
+($rc, $out, $err) = iz4($r, 'version');
+like $out, / ^ 'iz4 ' /, 'into a pipe, the words alone';
+unlike $out, / \n \n $ /, 'and no air after them';
 
 done-testing;

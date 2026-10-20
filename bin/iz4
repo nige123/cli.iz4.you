@@ -28,6 +28,34 @@ use IZ4::LegacyHook;
 my %*SUB-MAIN-OPTS = :named-anywhere;
 $*OUT.out-buffer = False;   # a closed pipe fails at the write, leaving nothing to flush at exit
 
+#| A row of air above and below everything iz4 says to a person: the first
+#| write is preceded by a blank line unless it brings its own, and the
+#| last is followed by one.  Only on a terminal (or IZ4_COLOR=1, which
+#| asks for the terminal's dress anywhere); a pipe gets the words alone.
+class Air is IO::Handle {
+    has IO::Handle $.inner is required;
+    has Bool $!started = False;
+    has Str  $!tail = '';
+    method WRITE(Blob:D $data --> True) {
+        my $s = $data.decode;
+        unless $!started { $!started = True; $!inner.print("\n") unless $s.starts-with("\n") }
+        $!tail = ($!tail ~ $s).substr(* - 2 max 0);
+        $!inner.print($s);
+        True;
+    }
+    method settle() { $!inner.print("\n") if $!started && !$!tail.ends-with("\n\n"); $!inner.flush }
+    method flush() { $!inner.flush }
+    method t() { $!inner.t }
+}
+sub air-on(--> Bool) {
+    return True  if (%*ENV<IZ4_COLOR> // '') eq '1';
+    return False if (%*ENV<IZ4_COLOR> // '') eq '0';
+    $*OUT.t && (%*ENV<TERM> // '') ne 'dumb';
+}
+my $air;
+if air-on() { $air = Air.new(:inner($*OUT)); $air.encoding('utf8'); $*OUT = $air }
+END { .settle with $air }
+
 #| What is shown when a command line is not understood, or --help is
 #| given.  Short on purpose: the command's own help when it names one,
 #| and otherwise the first screen.
@@ -706,9 +734,10 @@ sub mark-held(IO::Path $path) {
 #| name invariants (the one slow part; --no-checks reads the last run) and
 #| says what it checked, which is file facts and test results, never that
 #| the software is safe.
-multi MAIN('status', Bool :$json = False, Bool :$checks = True, Int :$timeout = 300,
+multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$no-checks = False, Int :$timeout = 300,
            Str :$check-cmd = %*ENV<IZ4_CHECK_CMD> // Str, Str :$file) {
     attempt {
+        $checks = False if $no-checks;   # --no-checks reads as a person writes it; --/checks is Raku's spelling
         my IO::Path $path = (try resolve-target($file)) // IO::Path;
         without $path {
             if $json { say json-encode(%( schema => 'iz4-status/1', iz4 => %( present => False ), next => ('iz4 init',).List )) }
@@ -781,6 +810,7 @@ multi MAIN('status', Bool :$json = False, Bool :$checks = True, Int :$timeout = 
         say '';
         my sub row(Str $k, Str $v) { say pretty(sprintf('%-13s %s', $k, $v)) }
         row('foundation', $doc.foundation-intact ?? 'held, word for word' !! "CHANGED: {$doc.foundation-status}; iz4 foundation restore puts it back");
+        say '';
         if !$doc.ok { row('file', "{+$doc.errors} errors; iz4 check lists them") }
         elsif !@own { row('invariants', 'none of your own yet') }
         else {
@@ -791,6 +821,7 @@ multi MAIN('status', Bool :$json = False, Bool :$checks = True, Int :$timeout = 
                 say sprintf('  %s %-*s  %s', mark-shown(%i<id>), $w, $short, %i<evidence>);
             }
         }
+        say '';
         if %change {
             row('this change', !%change<staged> ?? 'nothing staged'
                 !! "{%change<staged>} file{%change<staged> == 1 ?? '' !! 's'} staged"
@@ -804,7 +835,7 @@ multi MAIN('status', Bool :$json = False, Bool :$checks = True, Int :$timeout = 
                        ~ '; file facts and test results, never that the software is safe');
         say '';
         say pretty(@next ?? "next:  {@next[0]}" !! 'next:  nothing waits on you');
-        say pretty(marks-legend()) if pretty-on();
+        if pretty-on() { say ''; say pretty(marks-legend()) }
         0;
     }
 }
