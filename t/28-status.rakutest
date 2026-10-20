@@ -1,0 +1,108 @@
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+
+# iz4 status: one screen of where things stand.  Each invariant carries one
+# of four marks, each a different shape: held (a test names it and passed),
+# promised (nothing yet shows it), broken (its test fails), not checked.
+# The marks come from the tests it runs now, or the last run while the IZ4
+# and those tests are unchanged.
+
+unless have-git() { skip-rest 'no git available'; exit }
+
+my $config = temp-dir.add('gitconfig');
+$config.spurt('');
+%*ENV<GIT_CONFIG_GLOBAL> = $config.Str;
+%*ENV<IZ4_INTERACTIVE> = '0';
+%*ENV<IZ4_NO_321> = '1';
+%*ENV<IZ4_CHECK_CMD> = 'sh {file}';
+%*ENV<IZ4_AGENT_CMD> = '';
+%*ENV<LC_ALL> = 'C.UTF-8';
+
+sub g(IO::Path $r, *@a) { my $p = run 'git', '-C', $r.Str, |@a, :out, :err; my $o = $p.out.slurp(:close); $p.err.slurp(:close); $o.trim }
+
+# ---- nowhere -----------------------------------------------------------------
+{
+    my ($rc, $out, $err) = iz4(temp-dir, 'status');
+    is $rc, 0, 'no IZ4 is a status, not an error';
+    like $out, / 'No IZ4 here' .* 'iz4 init' /, 'and says what to do';
+    my %j = Rakudo::Internals::JSON.from-json(iz4(temp-dir, 'status', '--json')[1]);
+    is %j<schema>, 'iz4-status/1', 'the JSON carries its schema';
+    nok %j<iz4><present>, 'and says no IZ4 is present';
+}
+
+my $r = temp-dir;
+g($r, 'init', '-q');
+g($r, 'config', 'user.email', 't@test');
+g($r, 'config', 'user.name', 'Test');
+my ($rc, $out, $err) = iz4($r, 'init', '--namespace=shop.example.com', '--for-what=Taking orders.', '--for-who=People buying things.', '--/agents');
+is $rc, 0, 'init';
+g($r, 'add', '-A'); g($r, 'commit', '-qm', 'start');
+
+# ---- a fresh IZ4 -------------------------------------------------------------
+($rc, $out, $err) = iz4($r, 'status');
+is $rc, 0, 'status';
+like $out, / ^ 'iz4 status: IZ4, solid' \n \n 'foundation    held, word for word' \n 'invariants    none of your own yet' \n /, 'the header, the foundation, no invariants yet';
+like $out, / 'this change   nothing staged' /, 'nothing staged';
+like $out, / 'agents        nothing wired' /, 'no agent wiring in a bare repository';
+like $out, / 'checked       0 tests just now' .* 'never that the software is safe' /, 'what was checked, and the disclaimer';
+like $out, / \n 'next:  nothing waits on you' \n /, 'and nothing to do';
+unlike $out, / '◆' | '◇' /, 'no marks without invariants';
+
+# ---- a promise ---------------------------------------------------------------
+($rc, $out, $err) = iz4($r, 'add', 'invariant', 'An order is never charged twice.', '--name=charged-once', '--where=the shop takes an order', '--namespace=shop.example.com', "--protects=a customer's money", '--force');
+is $rc, 0, 'add';
+($rc, $out, $err) = iz4($r, 'status');
+like $out, / 'invariants    1 of your own: 1 promised' \n '  ◇ charged-once  no test yet' \n /, 'an invariant without a test is a promise: an open diamond';
+like $out, / 'next:  iz4 test' /, 'and the next step is a test';
+like $out, / 'this change   nothing staged' /, 'the IZ4 changed in the worktree but nothing is staged';
+g($r, 'add', 'IZ4');
+($rc, $out, $err) = iz4($r, 'status');
+like $out, / 'this change   1 file staged; 1 change to what it promises, 0 to a protection (agreement-required)' /, 'staged, it is a change to what the software promises';
+like $out, / 'next:  iz4 approve --staged' /, 'which waits for a yes';
+g($r, 'commit', '-qm', 'charged once');
+
+# ---- held --------------------------------------------------------------------
+$r.add('t').mkdir;
+my $test = $r.add('t/charged-once.t');
+$test.spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
+($rc, $out, $err) = iz4($r, 'status');
+is $rc, 0, 'status with a passing test';
+like $out, / 'invariants    1 of your own: 1 held' \n '  ◆ charged-once  t/charged-once.t passed' \n /, 'a test names it and passed: a closed diamond';
+like $out, / 'checked       1 test just now, ' \d+ ['.' \d+]? 's;' /, 'it says it ran the test';
+like $out, / 'next:  nothing waits on you' /, 'nothing to do';
+my %j = Rakudo::Internals::JSON.from-json(iz4($r, 'status', '--json')[1]);
+is %j<invariants>[0]<mark>, 'held', 'the JSON says held';
+is %j<invariants>[0]<id>, 'charged-once.shop.example.com', 'by full name';
+ok %j<checks><ran>, 'and that it ran the checks';
+
+# the last run speaks while the IZ4 and the test are unchanged
+($rc, $out, $err) = iz4($r, 'status', '--/checks');
+like $out, / '  ◆ charged-once  t/charged-once.t passed' /, 'without running, the last run still speaks for the same content';
+like $out, / 'checked       the last run, still good for this tree' /, 'and says so';
+$test.spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 1\n");
+($rc, $out, $err) = iz4($r, 'status', '--/checks');
+like $out, / '  ◇ charged-once  not checked; named by t/charged-once.t' /, 'the test changed: the last run no longer speaks, so it is a promise again';
+like $out, / 'checked       nothing ran (--no-checks)' /, 'and nothing ran';
+like $out, / 'next:  iz4 status' /, 'the next step is to run them';
+
+# ---- broken ------------------------------------------------------------------
+($rc, $out, $err) = iz4($r, 'status');
+is $rc, 0, 'status exits 0 even when a test fails: it reports, it does not hold';
+like $out, / 'invariants    1 of your own: 1 broken' \n '  ✕ charged-once  t/charged-once.t FAILED' \n /, 'its test fails: a cross';
+like $out, / 'next:  iz4 approve   (t/charged-once.t fails: which is right, the software or the invariant?)' /, 'the next step asks which is right';
+
+# ---- not checked -------------------------------------------------------------
+($rc, $out, $err) = iz4($r, 'status', :env(IZ4_CHECK_CMD => 'no-such-runner-anywhere {file}'));
+like $out, / '  ? charged-once  t/charged-once.t not run (unassessed)' /, 'a runner that is not there: a question mark';
+like $out, / 'invariants    1 of your own: 1 unknown' /, 'counted as unknown';
+
+# ---- plain terminals ---------------------------------------------------------
+($rc, $out, $err) = iz4($r, 'status', :env(LC_ALL => 'C', LANG => 'C'));
+like $out, / '  x charged-once  t/charged-once.t FAILED' /, 'without UTF-8 the cross is an x';
+$test.spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
+($rc, $out, $err) = iz4($r, 'status', :env(LC_ALL => 'C', LANG => 'C'));
+like $out, / '  * charged-once  t/charged-once.t passed' /, 'and the closed diamond a star';
+unlike $out, / "\e[" /, 'and into a pipe, no colour';
+
+done-testing;

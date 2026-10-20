@@ -635,19 +635,178 @@ multi MAIN('foundation', Str $file?, Bool :$restore = False) {
 
 #| Tell the renderer which invariants are held, so the diamond before each
 #| name is closed (a test names it, or it is the foundation) or open.
+#| Where the last run of the protecting tests is kept: beside the
+#| repository's own data, outside every tree, so a candidate cannot write it.
+sub checks-record(IO::Path $root --> IO::Path) {
+    my ($rc, $out, $) = git($root.add(ROOT-NAME), 'rev-parse', '--git-dir');
+    return IO::Path if $rc != 0;
+    my $dir = $out.trim.IO; $dir = $root.add($dir) unless $dir.is-absolute;
+    $dir.add('iz4').add('checks.json');
+}
+
+#| Remember what 'iz4 status' just ran: the outcome of each test that names
+#| an invariant, with the content it ran against (the test's blob and the
+#| IZ4's), so a later reader can tell whether the run still speaks.
+sub record-checks(IO::Path $root, @checks) {
+    my $f = checks-record($root) // return;
+    $f.parent.mkdir;
+    $f.spurt(json-encode(%( schema => 'iz4-checks/1', at => DateTime.now.utc.Str,
+                             iz4 => blob-of($root.add(ROOT-NAME)),
+                             checks => @checks.map({ %( |$_, blob => blob-of($root.add(.<file>)) ) }).List )));
+}
+
+#| The content id Git would give a file as it is now; '' when it is gone.
+sub blob-of(IO::Path $f --> Str) {
+    return '' unless $f.f;
+    my ($rc, $out, $) = git($f, 'hash-object', '--', $f.Str);
+    $rc == 0 ?? $out.trim !! '';
+}
+
+#| The last run, if it still speaks for this tree: the IZ4 and every test it
+#| ran are the same content now.  Otherwise nothing.
+sub recorded-checks(IO::Path $root --> List) {
+    my $f = checks-record($root);
+    return () unless $f.defined && $f.f;
+    my %rec = (try Rakudo::Internals::JSON.from-json($f.slurp)) // return ();
+    return () unless (%rec<iz4> // '') eq blob-of($root.add(ROOT-NAME));
+    for %rec<checks>.list -> %c { return () unless (%c<blob> // '') eq blob-of($root.add(%c<file>)) }
+    %rec<checks>.list;
+}
+
+#| The map behind the marks: the foundation is held word for word; each of
+#| the project's own is held or broken by the last run of a test that names
+#| it, unknown when that run could not assess it, and otherwise a promise
+#| nothing yet shows.  Names are mapped short and long, as the file writes
+#| them.  Returns the map; the checks come from the caller or the record.
+sub mark-states(IZ4::Document $doc, IO::Path $root, :@checks = recorded-checks($root) --> Hash) {
+    my %state = |foundation-ids(:clauses).map(* => 'held'), |foundation-ids().map(* => 'held');
+    my %by-id;
+    for @checks -> %c { %by-id{$_}.push(%c<outcome>) for |(%c<invariants> // ()) }
+    my $tail = '.' ~ ($doc.domain // '');
+    for $doc.invariants.grep(*.id.defined) -> $inv {
+        my @o = |(%by-id{$inv.id} // ());
+        my $s = !@o ?? 'promised' !! @o.grep(* eq 'failed') ?? 'broken' !! @o.all eq 'passed' ?? 'held' !! 'unknown';
+        %state{$inv.id} = $s;
+        %state{$inv.id.substr(0, * - $tail.chars)} = $s if $doc.domain && $inv.id.ends-with($tail);
+    }
+    %state;
+}
+
 sub mark-held(IO::Path $path) {
     my $doc = check-doc($path);
     return unless $doc.ok;
-    my %ev = evidence-for($doc, $path.parent);
-    my %solid = |foundation-ids(:clauses).map(* => True), |foundation-ids().map(* => True);   # held word for word
-    for $doc.invariants.grep(*.id.defined) -> $inv {
-        my $held = (%ev<state>{$inv.id} // 'none') eq 'named';
-        %solid{$inv.id} = $held;
-        # the file writes the name short, under its header domain
-        my $tail = '.' ~ ($doc.domain // '');
-        %solid{$inv.id.substr(0, * - $tail.chars)} = $held if $doc.domain && $inv.id.ends-with($tail);
+    mark-solid(mark-states($doc, $path.parent));
+}
+
+# ------------------------------------------------------------ status
+
+#| One screen: where things stand.  The foundation, each invariant with its
+#| mark, what is staged and whether it changes a commitment, how agents are
+#| wired, and the one command that comes next.  It runs the tests that
+#| name invariants (the one slow part; --no-checks reads the last run) and
+#| says what it checked, which is file facts and test results, never that
+#| the software is safe.
+multi MAIN('status', Bool :$json = False, Bool :$checks = True, Int :$timeout = 300,
+           Str :$check-cmd = %*ENV<IZ4_CHECK_CMD> // Str, Str :$file) {
+    attempt {
+        my IO::Path $path = (try resolve-target($file)) // IO::Path;
+        without $path {
+            if $json { say json-encode(%( schema => 'iz4-status/1', iz4 => %( present => False ), next => ('iz4 init',).List )) }
+            else { calm('No IZ4 here', 'Nothing in this directory or its parents says what the software is for.', :next(['init' => 'start one'])) }
+            return 0;
+        }
+        my $root = $path.parent;
+        my $doc  = check-doc($path);
+        my $name = display-name($path);
+        my $t0   = now;
+        # the checks: run now, or the last run that still speaks for this tree
+        my @checks; my $ran = False; my $recorded = False;
+        if $checks && $doc.ok {
+            my $cmd = $check-cmd // do { my ($rc, $out, $) = git($path, 'config', '--get', 'iz4.checkCmd'); $rc == 0 && $out.trim ne '' ?? $out.trim !! Str };
+            @checks = run-checks($doc, $root, :$timeout, :$cmd);
+            $ran = True;
+            record-checks($root, @checks);
+        }
+        elsif $doc.ok { @checks = recorded-checks($root); $recorded = ?@checks }
+        my $secs = (now - $t0).round(0.1);
+        my %state = $doc.ok ?? mark-states($doc, $root, :@checks) !! %();
+        mark-solid(%state);
+        my %ev = $doc.ok ?? evidence-for($doc, $root) !! %();
+        my %by-id; for @checks -> %c { %by-id{$_}.push(%c) for |(%c<invariants> // ()) }
+        my @own = $doc.ok ?? $doc.invariants.grep(*.id.defined) !! ();
+        my %count; %count{%state{.id}}++ for @own;
+        my @inv = @own.map(-> $inv {
+            my @c = |(%by-id{$inv.id} // ());
+            my $note = do if @c { @c.map({ "{.<file>} " ~ (.<outcome> eq 'passed' ?? 'passed' !! .<outcome> eq 'failed' ?? 'FAILED' !! "not run ({.<outcome>})") }).join(', ') }
+                          elsif (%ev<state>{$inv.id} // 'none') eq 'named' { ($checks ?? 'named by ' !! 'not checked; named by ') ~ (%ev<files>{$inv.id} // ()).join(', ') }
+                          elsif (%ev<state>{$inv.id} // 'none') ne 'none' { "a {%ev<state>{$inv.id}} test, not yet real" }
+                          else { 'no test yet' };
+            %( id => $inv.id, mark => %state{$inv.id}, evidence => $note, checks => @c.List );
+        });
+        # this change: what is staged, and whether it touches a commitment
+        my %change;
+        if git($path, 'rev-parse', '--git-dir')[0] == 0 {
+            my ($rc, $out, $) = git($path, 'diff', '--cached', '--name-only');
+            my @staged = $out.lines;
+            %change<staged> = @staged.elems;
+            if @staged {
+                my %g = try run-gate($root, :staged, :!checks);
+                if %g { %change<outcome> = %g<outcome>; %change<changes> = %g<changes>.elems; %change<protections> = %g<protections>.elems;
+                       %change<touches> = %g<touches>.List; %change<approval> = %g<approval><status> }
+            }
+        }
+        # agents: the level a driver reports, else what an earlier iz4 wired
+        my %ag = agent-status($path, :$root);
+        my $driver = driver-binary();
+        my %enf = $driver.defined ?? ((try driver($driver, 'status', :$root)) // %()) !! %();
+        my @legacy = legacy-hooks(:$root);
+        my $level = %enf ?? driver-level(%enf) !! @legacy ?? 'aware' !! 'none';
+        my $bin = launcher-binary();
+        my %agents = level => $level, launcher => ($bin.defined ?? launcher-version($bin) !! Str);
+        # the one next step, in the order that clears the most
+        my @next;
+        @next.push('iz4 check') unless $doc.ok;
+        @next.push("iz4 approve   ({.<file>} fails: which is right, the software or the invariant?)") for @checks.grep({ .<outcome> eq 'failed' }).head(1);
+        @next.push('iz4 approve --staged') if (%change<outcome> // '') eq 'agreement-required';
+        @next.push('iz4 status') if !$checks && !$recorded && @own;
+        @next.push('iz4 test') if @own.grep({ (%ev<state>{.id} // 'none') eq 'none' });
+        @next.push('321 iz4 install') if $driver.defined && $level ne 'guarded' && %enf && so @(%enf<harnesses> // []).grep({ .<detected> });
+        my %s = schema => 'iz4-status/1', iz4 => %( present => True, file => $path.Str, valid => $doc.ok, mode => ($doc.vibe ?? 'vibe' !! 'solid') ),
+                foundation => %( intact => $doc.foundation-intact, status => $doc.foundation-status ),
+                invariants => @inv.List, counts => %count, change => %change, agents => %agents,
+                checks => %( ran => $ran, recorded => $recorded, count => @checks.elems, seconds => $secs ), next => @next.List;
+        if $json { say json-encode(%s); return 0 }
+        my $icon = pretty-on() ?? diamond() ~ ' ' !! '';
+        say pretty("{$icon}iz4 status: $name, " ~ ($doc.vibe ?? 'vibe mode' !! 'solid'));
+        say '';
+        my sub row(Str $k, Str $v) { say pretty(sprintf('%-13s %s', $k, $v)) }
+        row('foundation', $doc.foundation-intact ?? 'held, word for word' !! "CHANGED: {$doc.foundation-status}; iz4 foundation restore puts it back");
+        if !$doc.ok { row('file', "{+$doc.errors} errors; iz4 check lists them") }
+        elsif !@own { row('invariants', 'none of your own yet') }
+        else {
+            my $w = @own.map({ .id.subst('.' ~ ($doc.domain // ''), '') }).map(*.chars).max;
+            row('invariants', "{+@own} of your own: " ~ <held promised broken unknown>.grep({ %count{$_} }).map({ "{%count{$_}} $_" }).join(', '));
+            for @inv -> %i {
+                my $short = %i<id>.subst('.' ~ ($doc.domain // ''), '');
+                say sprintf('  %s %-*s  %s', mark-shown(%i<id>), $w, $short, %i<evidence>);
+            }
+        }
+        if %change {
+            row('this change', !%change<staged> ?? 'nothing staged'
+                !! "{%change<staged>} file{%change<staged> == 1 ?? '' !! 's'} staged"
+                   ~ (%change<outcome> ?? (%change<changes> || %change<protections>
+                        ?? "; {%change<changes>} change{%change<changes> == 1 ?? '' !! 's'} to what it promises, {%change<protections>} to a protection ({%change<outcome>})"
+                        !! '; no commitment changed' ~ (%change<touches> ?? ", touches {%change<touches>.join(', ')}" !! '')) !! ''));
+        }
+        row('agents', $level eq 'none' ?? ($bin.defined ?? "nothing wired; 321 {%agents<launcher>} is installed: 321 iz4 install" !! 'nothing wired; 321 is not installed')
+                                       !! "$level" ~ (%agents<launcher> ?? ", via 321 {%agents<launcher>}" !! ', hooks an earlier iz4 wrote') ~ '; iz4 agent status has the detail');
+        row('checked', ($ran ?? "{+@checks} test{+@checks == 1 ?? '' !! 's'} just now, {$secs}s" !! $recorded ?? "the last run, still good for this tree" !! 'nothing ran (--no-checks)')
+                       ~ '; file facts and test results, never that the software is safe');
+        say '';
+        say pretty(@next ?? "next:  {@next[0]}" !! 'next:  nothing waits on you');
+        say pretty(marks-legend()) if pretty-on();
+        0;
     }
-    mark-solid(%solid);
 }
 
 multi MAIN('invariants', Str $file?) {

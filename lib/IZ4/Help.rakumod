@@ -42,15 +42,19 @@ sub topics(--> List) is export {
       ['iz4 add', 'iz4 add invariant ALWAYS --where=... --protects=... --name=NAME', 'iz4 add for-what TEXT', 'iz4 add for-who TEXT'],
       'Alone, it coaches you to one invariant in three questions: where it applies (WHERE), what must remain true there (ALWAYS), and what must not be defeated (PROTECTS), then its name. With the words, it adds it at once. The name is a few lower-case words joined by hyphens.',
       "iz4 add invariant 'Charged once.' --where='an order is paid' --protects='the money paid' --name=charged-once"),
+    t('status', EVERY-DAY, 'where things stand: the foundation, each invariant, this change',
+      ['iz4 status', 'iz4 status --json', 'iz4 status --no-checks'],
+      'One screen: the foundation, each invariant with its mark (held, promised, broken, not checked), what is staged and whether it changes a commitment, how agents are wired, and the next command. It runs the tests that name invariants; --no-checks reads the last run. File facts and test results, never that the software is safe.',
+      'iz4 status'),
     t('check', EVERY-DAY, 'what is true of the file, and what to do next',
       ['iz4 check', 'iz4 check --strict'],
       'Ticks what is true, marks what is not, and lists the next steps in order. It fails only on errors; --strict fails on anything marked. It never says the software keeps its invariants: it cannot know.',
       'iz4 check'),
     t('show', EVERY-DAY, 'read the IZ4, or one part of it',
       ['iz4 show', 'iz4 show for-what | for-who | invariants', 'iz4 show invariant NAME'],
-      'The first part of a name will do where only one invariant begins with it. 0 to 4, or zero, finds the foundation by its order. On a terminal the diamond before a name is closed when a test names the invariant and open when nothing does yet.',
+      'The first part of a name will do where only one invariant begins with it. 0 to 4, or zero, finds the foundation by its order. The mark before a name: a closed green diamond when its test passed at the last iz4 status, an open one for a promise nothing yet shows, a red cross when the test fails, ? when it could not be checked.',
       'iz4 show invariant charged-once'),
-    t('test', EVERY-DAY, 'a test for each invariant that has none',
+    t('test', 'Shaping an invariant', 'a test for each invariant that has none',
       ['iz4 test', 'iz4 test NAME', 'iz4 test list'],
       'Writes a test that fails until you make it real, in your own test language. With an agent on a terminal it drafts a real one for you to approve. list shows the evidence each invariant has.',
       'iz4 test list'),
@@ -267,16 +271,41 @@ my constant OFF   = "\e[0m";
 #| brand's mark in one character.
 sub diamond(--> Str) is export { utf8-terminal() ?? '◈' !! '*' }
 
-#| Before a name, the diamond says whether the invariant is held: closed
-#| and green when a test names it (or it is the foundation, held word for
-#| word), open when nothing yet does.  The command sets this from the
-#| evidence before it prints; where nothing is known, the icon stands.
+#| Before a name, one of four marks says what is known of the invariant.
+#| Each is a different shape, so it reads without colour, and each has a
+#| plain twin for a terminal that cannot draw it:
+#|   held      ◆ (*)  a test names it and passed; the foundation, word for word
+#|   promised  ◇ (o)  in the IZ4 and settled; nothing yet shows it holds
+#|   broken    ✕ (x)  a test names it and fails
+#|   unknown   ? (?)  it could not be checked: no run, no runner, a timeout
+#| The command sets the map from the evidence before it prints.  A name
+#| the map does not know keeps the icon: this command assessed nothing.
 my %SOLID;
 sub mark-solid(%solid) is export { %SOLID = %solid }
-sub mark-for(Str $name --> Str) {
-    return diamond() unless %SOLID && (%SOLID{$name}:exists);
-    return %SOLID{$name} ?? '*' !! 'o' unless utf8-terminal();
-    %SOLID{$name} ?? '◆' !! '◇';
+my constant %GLYPH = held => ('◆', '*'), promised => ('◇', 'o'), broken => ('✕', 'x'), unknown => ('?', '?');
+#| The state behind a name: held, promised, broken, unknown, or '' when the
+#| map does not know it.  True and False still mean held and promised.
+sub mark-state(Str $name --> Str) is export {
+    return '' unless %SOLID && (%SOLID{$name}:exists);
+    my $v = %SOLID{$name};
+    $v ~~ Bool ?? ($v ?? 'held' !! 'promised') !! ~$v;
+}
+sub mark-for(Str $name --> Str) is export {
+    my $s = mark-state($name);
+    return diamond() unless $s;
+    %GLYPH{$s}[utf8-terminal() ?? 0 !! 1];
+}
+#| The mark with its colour, for a line a command builds itself: green when
+#| held, red when broken, plain otherwise; plain throughout when colour is off.
+sub mark-shown(Str $name, Bool :$on = pretty-on() --> Str) is export {
+    my $m = mark-for($name);
+    return $m unless $on;
+    given mark-state($name) { when 'held' | '' { green() ~ $m ~ OFF }; when 'broken' { RED ~ $m ~ OFF }; default { $m } }
+}
+#| The marks and what each means, one line, as this terminal draws them.
+sub marks-legend(--> Str) is export {
+    my $i = utf8-terminal() ?? 0 !! 1;
+    "{%GLYPH<held>[$i]} held  {%GLYPH<promised>[$i]} promised, nothing shows it yet  {%GLYPH<broken>[$i]} broken  {%GLYPH<unknown>[$i]} not checked";
 }
 
 #| Text as a person sees it on a terminal: an invariant's name under a
@@ -302,8 +331,8 @@ sub pretty(Str $text, Bool :$on = pretty-on() --> Str) is export {
         # the lines that open a section, before a heading could be taken for one
         if $l ~~ / ^ ('outcome' | 'next' | 'gate' | 'commitments and protections' | 'checks' | 'touches' | 'approval' | 'checked') ':' (.*) $ / { $l = "{BOLD}{$0}:{OFF}{emphasise(~$1)}" }
         # an invariant's heading, or INVARIANT name (in the gate and the named form)
-        elsif $l ~~ / ^ (<[a..z 0..9]> <[\w.\-]>*) ':' (\h*) $ / { my $m = mark-for(~$0); $l = "{$m eq '◇' | 'o' ?? '' !! $g}{$m}{OFF} {BOLD}{$0}{OFF}{$1}" }
-        elsif $l ~~ / ^ (\h*) 'INVARIANT ' (\S+) (.*) $ / { my $m = mark-for(~$1); $l = "{$0}{$m eq '◇' | 'o' ?? '' !! $g}{$m}{OFF} {BOLD}{$1}{OFF}{emphasise(~$2)}" }
+        elsif $l ~~ / ^ (<[a..z 0..9]> <[\w.\-]>*) ':' (\h*) $ / { $l = "{mark-shown(~$0, :on)} {BOLD}{$0}{OFF}{$1}" }
+        elsif $l ~~ / ^ (\h*) 'INVARIANT ' (\S+) (.*) $ / { $l = "{$0}{mark-shown(~$1, :on)} {BOLD}{$1}{OFF}{emphasise(~$2)}" }
         # the clause labels, wherever they lead a line, and the two questions
         elsif $l ~~ / ^ (\h*) ('WHERE' | 'ALWAYS' | 'PROTECTS') (':' | ' before:' | ' after:') (.*) $ / { $l = "{$0}{BOLD}{$1}{$2}{OFF}{$3}" }
         elsif $l ~~ / ^ ('IS FOR WHAT?' | 'IS FOR WHO?') (.*) $ / { $l = "{BOLD}{$0}{OFF}{$1}" }

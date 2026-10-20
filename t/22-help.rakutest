@@ -118,12 +118,17 @@ subtest 'pretty dresses output for a terminal only' => {
     my $r = run-iz4('foundation');
     unlike $r<out>, /"\e["/, 'into a pipe, iz4 writes no colour at all';
     unlike $r<out>, /'◈'/, 'and no diamond';
-    # the diamond before a name says whether the invariant is held
-    mark-solid(%( 'held.shop.example.com' => True, 'held' => True, 'open.shop.example.com' => False ));
-    like pretty("held:\n", :on), /"\e[38;" <[0..9;]>+ 'm' '◆' "\e[0m" ' ' "\e[1m" 'held' "\e[0m"/, 'a test names it: a closed green diamond (truecolor or 256-colour)';
-    like pretty("open.shop.example.com:\n", :on), / ^ '◇' "\e[0m" ' ' "\e[1m" 'open.shop.example.com' /, 'nothing names it yet: an open diamond, not green';
+    # the mark before a name says what is known of the invariant: four shapes, read without colour
+    mark-solid(%( 'held.shop.example.com' => True, 'held' => True, 'open.shop.example.com' => False, 'broken' => 'broken', 'unknown' => 'unknown' ));
+    like pretty("held:\n", :on), /"\e[38;" <[0..9;]>+ 'm' '◆' "\e[0m" ' ' "\e[1m" 'held' "\e[0m"/, 'a test names it and passed: a closed green diamond (truecolor or 256-colour)';
+    like pretty("open.shop.example.com:\n", :on), / ^ '◇' ' ' "\e[1m" 'open.shop.example.com' /, 'a promise nothing yet shows: an open diamond, no colour';
+    like pretty("broken:\n", :on), / ^ "\e[31m" '✕' "\e[0m" ' ' "\e[1m" 'broken' /, 'its test fails: a red cross';
+    like pretty("unknown:\n", :on), / ^ '?' ' ' "\e[1m" 'unknown' /, 'it could not be checked: a question mark, no colour';
     like pretty("INVARIANT held.shop.example.com added: X\n", :on), /'◆' .* 'held.shop.example.com'/, 'the gate\'s INVARIANT lines follow the same map';
-    like pretty("unknown:\n", :on), /'◈' .* 'unknown'/, 'a name the map does not know keeps the icon';
+    like pretty("elsewhere:\n", :on), /'◈' .* 'elsewhere'/, 'a name the map does not know keeps the icon';
+    is mark-state('broken'), 'broken', 'the state behind a name is exported for commands that draw their own lines';
+    is mark-for('held'), '◆', 'and so is the glyph';
+    like marks-legend(), / '◆ held' .* '◇ promised' .* '✕ broken' .* '? not checked' /, 'the legend names all four';
     mark-solid(%());
 }
 

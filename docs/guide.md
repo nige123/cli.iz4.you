@@ -53,6 +53,9 @@ the tests that exist only for it; the name is retired for good.
 
 ## Keeping it true
 
+- `iz4 status` is the screen to type first: the foundation, each invariant
+  with its mark (◆ held by a passing test, ◇ promised, ✕ broken, ? not
+  checked), what is staged, how agents are wired, and the one next command.
 - `iz4 check` ticks what is true of the file and lists the next steps. It
   never claims the software keeps its invariants; it cannot know.
 - `iz4 test` writes a failing test for each invariant without one, in your
@@ -88,6 +91,7 @@ iz4 add                    find an invariant, one question at a time
 iz4 where NAME WHAT        say where an invariant applies
 iz4 because NAME WHAT      say what an invariant protects
 iz4 withdraw NAME          take an invariant out, with its tests
+iz4 status                 where things stand: each invariant's mark, this change, the next step
 iz4 check                  what is true of the file, and what to do next
 iz4 test [NAME]            a test for each invariant without one
 iz4 gate --staged          does this change alter a promise?
