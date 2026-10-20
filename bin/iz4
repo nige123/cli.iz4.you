@@ -835,6 +835,11 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
                        ~ '; file facts and test results, never that the software is safe');
         say '';
         say pretty(@next ?? "next:  {@next[0]}" !! 'next:  nothing waits on you');
+        # when every one of them held just now, say so plainly, last
+        if @own && (%count<held> // 0) == @own && $doc.foundation-intact && (%change<outcome> // 'pass') eq 'pass' {
+            say '';
+            say pretty("All held: {+@own} of {+@own} invariants by their tests" ~ ($ran ?? ' just now' !! ' at the last run') ~ ', and the foundation word for word.');
+        }
         if pretty-on() { say ''; say pretty(marks-legend()) }
         0;
     }

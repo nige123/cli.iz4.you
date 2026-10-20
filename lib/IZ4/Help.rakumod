@@ -329,7 +329,7 @@ sub pretty(Str $text, Bool :$on = pretty-on() --> Str) is export {
         my $nl = $line.ends-with("\n") ?? "\n" !! '';
         my $l = $line.chomp;
         # the lines that open a section, before a heading could be taken for one
-        if $l ~~ / ^ ('outcome' | 'next' | 'gate' | 'commitments and protections' | 'checks' | 'touches' | 'approval' | 'checked') ':' (.*) $ / { $l = "{BOLD}{$0}:{OFF}{emphasise(~$1)}" }
+        if $l ~~ / ^ ('outcome' | 'next' | 'gate' | 'commitments and protections' | 'checks' | 'touches' | 'approval' | 'checked' | 'All held') ':' (.*) $ / { $l = "{BOLD}{$0}:{OFF}{emphasise(~$1)}" }
         # an invariant's heading, or INVARIANT name (in the gate and the named form)
         elsif $l ~~ / ^ (<[a..z 0..9]> <[\w.\-]>*) ':' (\h*) $ / { $l = "{mark-shown(~$0, :on)} {BOLD}{$0}{OFF}{$1}" }
         elsif $l ~~ / ^ (\h*) 'INVARIANT ' (\S+) (.*) $ / { $l = "{$0}{mark-shown(~$1, :on)} {BOLD}{$1}{OFF}{emphasise(~$2)}" }

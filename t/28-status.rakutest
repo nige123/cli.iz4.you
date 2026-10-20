@@ -47,6 +47,7 @@ like $out, / 'this change   nothing staged' /, 'nothing staged';
 like $out, / 'agents        nothing wired' /, 'no agent wiring in a bare repository';
 like $out, / 'checked       0 tests just now' .* 'never that the software is safe' /, 'what was checked, and the disclaimer';
 like $out, / \n 'next:  nothing waits on you' \n /, 'and nothing to do';
+unlike $out, / 'All held' /, 'with no invariants of its own there is nothing to call held';
 unlike $out, / '◆' | '◇' /, 'no marks without invariants';
 
 # ---- a promise ---------------------------------------------------------------
@@ -70,7 +71,7 @@ $test.spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
 is $rc, 0, 'status with a passing test';
 like $out, / 'invariants    1 of your own: 1 held' \n '  ◆ charged-once  t/charged-once.t passed' \n \n /, 'a test names it and passed: a closed diamond';
 like $out, / 'checked       1 test just now, ' \d+ ['.' \d+]? 's;' /, 'it says it ran the test';
-like $out, / 'next:  nothing waits on you' /, 'nothing to do';
+like $out, / 'next:  nothing waits on you' \n \n 'All held: 1 of 1 invariants by their tests just now, and the foundation word for word.' \n /, 'nothing to do, and it says plainly that everything held';
 my %j = Rakudo::Internals::JSON.from-json(iz4($r, 'status', '--json')[1]);
 is %j<invariants>[0]<mark>, 'held', 'the JSON says held';
 is %j<invariants>[0]<id>, 'charged-once.shop.example.com', 'by full name';
@@ -81,6 +82,7 @@ ok %j<checks><ran>, 'and that it ran the checks';
 is $rc, 0, '--no-checks, as the help spells it';
 like $out, / '  ◆ charged-once  t/charged-once.t passed' /, 'without running, the last run still speaks for the same content';
 like $out, / 'checked       the last run, still good for this tree' /, 'and says so';
+like $out, / 'All held: 1 of 1 invariants by their tests at the last run' /, 'the plain statement says which run';
 $test.spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 1\n");
 ($rc, $out, $err) = iz4($r, 'status', '--/checks');
 like $out, / '  ◇ charged-once  not checked; named by t/charged-once.t' /, 'the test changed: the last run no longer speaks, so it is a promise again';
