@@ -25,7 +25,7 @@ def grade_text(ref, a):
 tasks = []
 for o in ans:
     for ref in truth[o['scenario']]:
-        key = ref['fqn'] if o['format'] in ('F2-cards','F3-heldby','F4-asked','F5-sentences','F6-card2','F7-card-long','F8-card-final') else ref['name']
+        key = ref['fqn'] if o['format'] in ('F2-cards','F3-heldby','F4-asked','F5-sentences','F6-card2','F7-card-long','F8-card-final','F9-card-by') else ref['name']
         a = (o['answers'] or {}).get(key) or (o['answers'] or {}).get(ref['name']) or (o['answers'] or {}).get(ref['fqn']) or {}
         tasks.append((o, ref, a))
 with ThreadPoolExecutor(6) as ex: text_grades = list(ex.map(lambda t: grade_text(t[1], t[2]), tasks))

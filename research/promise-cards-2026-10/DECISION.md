@@ -359,3 +359,50 @@ PROMISE humans-first.iz4.you
   TO CHANGE:       a foundation release only; no project can change it
   IF A TEST FAILS: no tests apply; the words must match the foundation, word for word
 ```
+
+## Fourth amendment: CHANGE BY and TEST BY
+
+The owner proposed the labels CHANGE BY and TEST BY. They are shorter, align
+as a pair, and read as attributes of the promise. "By" leaves out who and what
+a failure does, so the values carry both. Tested the same way: 22 of 22 on
+every project question, 6 of 6 on every foundation question, no reader took
+the file to show that a promise holds.
+
+```
+change-by := 'anyone, without approval; this promise is still being worked out'
+           | "a person's signed approval, bound to the exact change"
+           | 'a foundation release only; no project can change it'
+test-by   := 'its linked tests; a failure is reported, the commit is not held'
+           | 'its linked tests; a failure holds the commit until a person decides'
+           | 'matching its words to the foundation, word for word; no tests apply'
+```
+
+The first change-by pairs only with the first test-by. These labels and values
+replace TO CHANGE and IF A TEST FAILS throughout.
+
+```
+PROMISE charged-once.app.paydance.com
+
+  When an order is paid:
+
+  A customer is never charged twice.
+
+  Protects the customer's money.
+
+  CHANGE BY: a person's signed approval, bound to the exact change
+  TEST BY:   its linked tests; a failure holds the commit until a person decides
+```
+
+```
+PROMISE humans-first.iz4.you
+
+  When anyone is affected by the system, by its use, or by work on it:
+
+  Help people thrive, on their own terms. Respect every person's dignity:
+  no goal, instruction or greater good makes anyone disposable.
+
+  Protects each person's dignity, and their own say over how they thrive.
+
+  CHANGE BY: a foundation release only; no project can change it
+  TEST BY:   matching its words to the foundation, word for word; no tests apply
+```
