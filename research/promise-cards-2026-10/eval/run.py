@@ -36,13 +36,14 @@ if __name__ == '__main__':
     models = sys.argv[1].split(','); jobs = int(sys.argv[2]) if len(sys.argv) > 2 else 4
     truth = json.load(open(os.path.join(HERE, 'truth.json'))); tasks = []
     for f in sorted(os.listdir(os.path.join(HERE, 'files'))):
+        if os.environ.get('ONLY') and not f.startswith(os.environ['ONLY']): continue
         fmt, sc = f[:-4].split('--')
-        names = [i['fqn'] if fmt == 'F2-cards' else i['name'] for i in truth[sc]]
+        names = [i['fqn'] if fmt in ('F2-cards','F3-heldby','F4-asked','F5-sentences') else i['name'] for i in truth[sc]]
         text = open(os.path.join(HERE, 'files', f)).read()
         for m in models: tasks.append((m, fmt, sc, names, text))
     def one(t):
         m, fmt, sc, names, text = t; r = ask(m, SYSTEM, Q % (', '.join(names), text))
         return dict(model=m, format=fmt, scenario=sc, answers=parse(r['result']), raw=r['result'], cost=r['cost_usd'])
     with ThreadPoolExecutor(jobs) as ex: out = list(ex.map(one, tasks))
-    json.dump(out, open(os.path.join(HERE, 'answers.json'), 'w'), indent=1)
+    json.dump(out, open(os.path.join(HERE, os.environ.get('OUT','answers.json')), 'w'), indent=1)
     print(len(out), 'answers; cost', round(sum(o['cost'] for o in out), 3), 'failed', sum(1 for o in out if not o['answers']))

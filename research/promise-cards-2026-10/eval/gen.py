@@ -10,6 +10,15 @@ spec = importlib.util.spec_from_file_location('gen0', os.path.join(HERE, 'gen0.p
 SC = {k: g0.SCENARIOS[k] for k in ('startup', 'payments', 'mature')}
 STATE = {'D': ('none', 'report'), 'F': ('signed', 'report'), 'H': ('signed', 'block')}
 CHANGE = {'none': 'no approval', 'signed': 'signed human approval', 'canon': 'canonical foundation release only'}
+HELDBY = {('none','report'): 'no one yet', ('signed','report'): 'signed human approval', ('signed','block'): 'signed human approval and its tests', ('canon','canon'): 'the foundation, word for word in every IZ4'}
+ASKED = {'none': 'no approval needed', 'signed': 'signed human approval', 'canon': 'a foundation release; never a project'}
+FAILS = {'report': 'the failure is reported', 'block': 'the commit is held', 'canon': 'no tests; the words are matched to the foundation'}
+SENT_CH = {'none': 'Anyone may change this promise, without approval.', 'signed': 'Changing this promise takes signed human approval.', 'canon': 'Only a foundation release changes this promise; no project can.'}
+SENT_CK = {'report': 'A failing linked test is reported.', 'block': 'A failing linked test holds the commit.', 'canon': 'Its words are matched to the canonical foundation.'}
+def sentences(name, where, always, protects, ch, ck):
+    import textwrap
+    body = clauses(name, where, always, protects).rstrip('\n')
+    return body + '\n\n  ' + SENT_CH[ch] + ' ' + SENT_CK[ck] + '\n\n'
 CHECK  = {'report': 'report linked test failures', 'block': 'block on linked test failure', 'canon': 'match canonical foundation'}
 
 # the foundation, parsed from the canonical block so the words are the canonical words
@@ -30,7 +39,7 @@ def wrap(label, text, width=72):
 
 def clauses(name, where, always, protects, head='', extra=()):
     lines = [f"{name}:{(' ' + head) if head else ''}", wrap('WHERE', where), wrap('ALWAYS', always), wrap('PROTECTS', protects)]
-    lines += [f"  {k + ':':<10}{v}" for k, v in extra]
+    w = max([10] + [len(k) + 2 for k, _ in extra]); lines += [f"  {k + ':':<{w}}{v}" for k, v in extra]
     return '\n'.join(lines) + '\n\n'
 
 def card(fqn, where, always, protects, change, check):
@@ -57,17 +66,29 @@ def render(fmt, key):
         ch, ck = STATE[st]
         if fmt == 'F1-clauses':
             out.append(clauses(name, where, always, protects, extra=(('CHANGE', CHANGE[ch]), ('CHECK', CHECK[ck]))))
+        elif fmt == 'F3-heldby':
+            out.append(clauses(f"{name}.{d}", where, always, protects, extra=(('HELD BY', HELDBY[(ch, ck)]),)))
+        elif fmt == 'F4-asked':
+            out.append(clauses(f"{name}.{d}", where, always, protects, extra=(('TO CHANGE', ASKED[ch]), ('IF A TEST FAILS', FAILS[ck]))))
+        elif fmt == 'F5-sentences':
+            out.append(sentences(f"{name}.{d}", where, always, protects, ch, ck))
         else:
             out.append(card(f"{name}.{d}", where, always, protects, CHANGE[ch], CHECK[ck]))
     out.append(sep)
     for name, cl in FOUND:
         if fmt == 'F1-clauses':
             out.append(clauses(name, cl['WHERE'], cl['ALWAYS'], cl['PROTECTS'], extra=(('CHANGE', CHANGE['canon']), ('CHECK', CHECK['canon']))))
+        elif fmt == 'F3-heldby':
+            out.append(clauses(name, cl['WHERE'], cl['ALWAYS'], cl['PROTECTS'], extra=(('HELD BY', HELDBY[('canon','canon')]),)))
+        elif fmt == 'F4-asked':
+            out.append(clauses(name, cl['WHERE'], cl['ALWAYS'], cl['PROTECTS'], extra=(('TO CHANGE', ASKED['canon']), ('IF A TEST FAILS', FAILS['canon']))))
+        elif fmt == 'F5-sentences':
+            out.append(sentences(name, cl['WHERE'], cl['ALWAYS'], cl['PROTECTS'], 'canon', 'canon'))
         else:
             out.append(card(name, cl['WHERE'], cl['ALWAYS'], cl['PROTECTS'], CHANGE['canon'], CHECK['canon']))
     return ''.join(head + out).rstrip('\n') + '\n'
 
-FORMATS = ['F0-current', 'F1-clauses', 'F2-cards']
+FORMATS = ['F0-current', 'F1-clauses', 'F2-cards', 'F3-heldby', 'F4-asked', 'F5-sentences']
 if __name__ == '__main__':
     os.makedirs('files', exist_ok=True)
     truth = {}

@@ -5,7 +5,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from run import ask, parse
-truth = json.load(open(os.path.join(HERE, 'truth.json'))); ans = json.load(open(os.path.join(HERE, 'answers.json')))
+truth = json.load(open(os.path.join(HERE, 'truth.json'))); ans = json.load(open(os.path.join(HERE, os.environ.get('OUT','answers.json'))))
 Q4 = {'none': 'anyone, without approval', 'signed': 'a human, by signed approval', 'canon': 'nobody in this project'}
 Q5 = {'report': 'reported only', 'block': 'held', 'canon': 'not applicable, something else is checked'}
 def norm(v): return re.sub(r'[^a-z, ]', '', (v or '').lower()).strip()
@@ -25,7 +25,7 @@ def grade_text(ref, a):
 tasks = []
 for o in ans:
     for ref in truth[o['scenario']]:
-        key = ref['fqn'] if o['format'] == 'F2-cards' else ref['name']
+        key = ref['fqn'] if o['format'] in ('F2-cards','F3-heldby','F4-asked','F5-sentences') else ref['name']
         a = (o['answers'] or {}).get(key) or (o['answers'] or {}).get(ref['name']) or (o['answers'] or {}).get(ref['fqn']) or {}
         tasks.append((o, ref, a))
 with ThreadPoolExecutor(6) as ex: text_grades = list(ex.map(lambda t: grade_text(t[1], t[2]), tasks))
@@ -38,7 +38,7 @@ for (o, ref, a), tg in zip(tasks, text_grades):
              Q7='self-contained' if norm(a.get('Q7')).startswith('no') else 'looked elsewhere')
     for q, v in r.items(): tab[(fmt, kind)][q][v] += 1
     rows.append(dict(model=o['model'], format=fmt, scenario=o['scenario'], name=ref['name'], **r, raw=a))
-json.dump(rows, open(os.path.join(HERE, 'graded.json'), 'w'), indent=1)
+json.dump(rows, open(os.path.join(HERE, os.environ.get('GOUT','graded.json')), 'w'), indent=1)
 def cell(d, good): n = sum(d.values()); return f"{d.get(good,0)}/{n}"
 print('| format | promises | Q1 what | Q2 when | Q3 protects | Q4 who may change | Q5 on a failing test | Q6 file shows no evidence | Q7 self-contained | when and must merged |')
 print('|---|---|---|---|---|---|---|---|---|---|')

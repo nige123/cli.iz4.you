@@ -1,6 +1,9 @@
 # Decision: how an IZ4 invariant carries its own governance
 
 2026-10-21. Design decision only; no code or foundation file changed.
+Amended the same day: the two governance lines are kept, their labels changed
+to the questions a reader asks, after the owner pointed out the friction of
+switching subject from the software to the promise. See "Amendment".
 
 ## Decision
 
@@ -162,3 +165,59 @@ Nothing in the model weakens:
 
 Implement option 2 as specified above, after the owner signs the new
 foundation text. Do not implement Promise Cards.
+
+## Amendment: the subject shift
+
+WHERE, ALWAYS and PROTECTS have the software as their subject; CHANGE and
+CHECK have the promise itself. The owner found the switch jarring, and read as
+configuration keys the last two lines do not flow. Three further forms were
+tested the same way, same files, same questions, same models.
+
+| form | who may change (project) | on a failing test (project) | foundation: who / on a test | file shows no evidence |
+|---|---|---|---|---|
+| `CHANGE:` / `CHECK:` (decided above) | 22/22 | 22/22 | 4/6 / 6/6 | 22/22 |
+| one line, `HELD BY: signed human approval and its tests` | 5/22 | 1/22 | 6/6 / 3/6 | 18/22 |
+| `TO CHANGE:` / `IF A TEST FAILS:` | 22/22 | 22/22 | 6/6 / 6/6 | 22/22 |
+| two plain sentences after a blank line | 22/22 | 22/22 | 6/6 / 3/6 | 22/22 |
+
+The one fluent line reads best and comprehends worst: folding two switches into
+one phrase lost both, and `no one yet` was read by haiku as a statement about
+evidence. Two statements, one per switch, with the behaviour spelt out, are
+what readers get right. Labels phrased as the reader's own questions keep that
+precision, make the change of subject explicit instead of hiding it, and were
+the only form read correctly on every question for the foundation too.
+
+The decided format therefore becomes:
+
+```
+charged-once.app.paydance.com:
+  WHERE:           an order is paid
+  ALWAYS:          A customer is never charged twice.
+  PROTECTS:        the customer's money
+  TO CHANGE:       signed human approval
+  IF A TEST FAILS: the commit is held
+```
+
+```
+humans-first.iz4.you:
+  WHERE:           anyone is affected by the system, by its use, or by work on it
+  ALWAYS:          Help people thrive, on their own terms. Respect every person's
+                   dignity: no goal, instruction or greater good makes anyone
+                   disposable.
+  PROTECTS:        each person's dignity, and their own say over how they thrive
+  TO CHANGE:       a foundation release; never a project
+  IF A TEST FAILS: no tests; the words are matched to the foundation
+```
+
+Values:
+
+```
+to-change := 'no approval needed' | 'signed human approval' | 'a foundation release; never a project'
+on-fail   := 'the failure is reported' | 'the commit is held' | 'no tests; the words are matched to the foundation'
+```
+
+`no approval needed` pairs only with `the failure is reported`. The foundation
+values appear only on the five foundation names and all of them carry exactly
+these. Everything else in this document stands, with CHANGE and CHECK read as
+TO CHANGE and IF A TEST FAILS. The alignment column widens to the longest
+label; whether a blank line before the two lines helps was not tested.
