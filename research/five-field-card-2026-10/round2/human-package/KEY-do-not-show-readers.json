@@ -1,0 +1,22 @@
+{
+ "C": {
+  "format": "G0-current",
+  "description": "current three-arm format",
+  "lines": 118
+ },
+ "D": {
+  "format": "G1-paragraph",
+  "description": "paragraph Promise Card",
+  "lines": 202
+ },
+ "B": {
+  "format": "G2-five-field",
+  "description": "five-field card, original footer",
+  "lines": 206
+ },
+ "A": {
+  "format": "G4-five-field-short",
+  "description": "five-field card, shortened footer",
+  "lines": 193
+ }
+}
