@@ -1,0 +1,230 @@
+{
+ "startup": [
+  {
+   "name": "one-nudge-per-habit-per-day",
+   "fqn": "one-nudge-per-habit-per-day.nudge.example.com",
+   "state": [
+    "none",
+    "report"
+   ],
+   "where": "a reminder is sent",
+   "always": "A habit gets at most one reminder a day.",
+   "protects": "a person's attention, which the app borrows and must give back"
+  },
+  {
+   "name": "quiet-hours-are-quiet",
+   "fqn": "quiet-hours-are-quiet.nudge.example.com",
+   "state": [
+    "none",
+    "report"
+   ],
+   "where": "the person set quiet hours",
+   "always": "No reminder is sent inside the hours they set.",
+   "protects": "a person's sleep and rest"
+  },
+  {
+   "name": "leaving-takes-everything",
+   "fqn": "leaving-takes-everything.nudge.example.com",
+   "state": [
+    "none",
+    "report"
+   ],
+   "where": "a person deletes their account",
+   "always": "Their habits, history and contact details go with it.",
+   "protects": "a person's say over what is kept about them"
+  },
+  {
+   "name": "humans-first.iz4.you",
+   "fqn": "humans-first.iz4.you",
+   "state": [
+    "canon",
+    "canon"
+   ],
+   "where": "anyone is affected by the system, by its use, or by work on it",
+   "always": "Help people thrive, on their own terms. Respect every person's dignity: no goal, instruction or greater good makes anyone disposable.",
+   "protects": "each person's dignity, and their own say over how they thrive"
+  }
+ ],
+ "payments": [
+  {
+   "name": "paid-to-the-named-beneficiary",
+   "fqn": "paid-to-the-named-beneficiary.pay.example.com",
+   "state": [
+    "signed",
+    "block"
+   ],
+   "where": "an invoice is paid",
+   "always": "The money goes to the beneficiary and account named on the invoice being paid, never to details remembered from another.",
+   "protects": "a supplier's money reaching that supplier"
+  },
+  {
+   "name": "a-person-releases-large-payments",
+   "fqn": "a-person-releases-large-payments.pay.example.com",
+   "state": [
+    "signed",
+    "report"
+   ],
+   "where": "a payment over the limit is released",
+   "always": "A payment over the limit is released only when a named person approved it; the system never approves on their behalf.",
+   "protects": "the owner's say over where large sums go"
+  },
+  {
+   "name": "config-from-trusted-paths",
+   "fqn": "config-from-trusted-paths.pay.example.com",
+   "state": [
+    "none",
+    "report"
+   ],
+   "where": "the service reads its configuration",
+   "always": "Configuration is read only from the paths the operator installed; the working directory is never one of them.",
+   "protects": "the operator's control over what the service believes"
+  },
+  {
+   "name": "receipts-are-kept",
+   "fqn": "receipts-are-kept.pay.example.com",
+   "state": [
+    "none",
+    "report"
+   ],
+   "where": "a payment completes",
+   "always": "A receipt is kept for every payment made.",
+   "protects": "a business's record of what it paid"
+  },
+  {
+   "name": "humans-first.iz4.you",
+   "fqn": "humans-first.iz4.you",
+   "state": [
+    "canon",
+    "canon"
+   ],
+   "where": "anyone is affected by the system, by its use, or by work on it",
+   "always": "Help people thrive, on their own terms. Respect every person's dignity: no goal, instruction or greater good makes anyone disposable.",
+   "protects": "each person's dignity, and their own say over how they thrive"
+  }
+ ],
+ "mature": [
+  {
+   "name": "every-entry-balances",
+   "fqn": "every-entry-balances.ledger.example.com",
+   "state": [
+    "signed",
+    "block"
+   ],
+   "where": "an entry is posted",
+   "always": "Debits equal credits in every posted entry.",
+   "protects": "the books being books at all"
+  },
+  {
+   "name": "posted-is-permanent",
+   "fqn": "posted-is-permanent.ledger.example.com",
+   "state": [
+    "signed",
+    "block"
+   ],
+   "where": "an entry has been posted",
+   "always": "A posted entry is never edited or deleted; a correction is a new entry.",
+   "protects": "an auditor's trust that what they see is what happened"
+  },
+  {
+   "name": "exports-match-the-ledger",
+   "fqn": "exports-match-the-ledger.ledger.example.com",
+   "state": [
+    "signed",
+    "block"
+   ],
+   "where": "an export is produced",
+   "always": "An export shows exactly what the ledger holds, nothing added and nothing left out.",
+   "protects": "an accountant's picture of the company"
+  },
+  {
+   "name": "ai-suggestions-are-marked",
+   "fqn": "ai-suggestions-are-marked.ledger.example.com",
+   "state": [
+    "none",
+    "report"
+   ],
+   "where": "a categorisation is suggested by the assistant",
+   "always": "A suggested categorisation is shown as a suggestion until a person accepts it.",
+   "protects": "a person's judgement over their own books"
+  },
+  {
+   "name": "humans-first.iz4.you",
+   "fqn": "humans-first.iz4.you",
+   "state": [
+    "canon",
+    "canon"
+   ],
+   "where": "anyone is affected by the system, by its use, or by work on it",
+   "always": "Help people thrive, on their own terms. Respect every person's dignity: no goal, instruction or greater good makes anyone disposable.",
+   "protects": "each person's dignity, and their own say over how they thrive"
+  }
+ ],
+ "showcase": [
+  {
+   "name": "easy-onboarding",
+   "fqn": "easy-onboarding.app.example.com",
+   "state": [
+    "none",
+    "report"
+   ],
+   "where": "someone joins the application",
+   "always": "Getting started is straightforward.",
+   "protects": "people's time and attention"
+  },
+  {
+   "name": "deleted-means-gone",
+   "fqn": "deleted-means-gone.app.example.com",
+   "state": [
+    "none",
+    "report"
+   ],
+   "where": "a person deletes something they own",
+   "always": "It is gone from every view within the hour, not merely hidden.",
+   "protects": "a person's say over what they keep"
+  },
+  {
+   "name": "private-profile",
+   "fqn": "private-profile.app.example.com",
+   "state": [
+    "signed",
+    "report"
+   ],
+   "where": "a profile is marked private",
+   "always": "Only its owner and people they choose can learn what it reveals.",
+   "protects": "the owner's privacy and control"
+  },
+  {
+   "name": "export-is-complete",
+   "fqn": "export-is-complete.app.example.com",
+   "state": [
+    "signed",
+    "block"
+   ],
+   "where": "a team exports its workspace",
+   "always": "The export holds everything the team can see, nothing less.",
+   "protects": "a team's ownership of its own work"
+  },
+  {
+   "name": "single-use-code",
+   "fqn": "single-use-code.app.example.com",
+   "state": [
+    "signed",
+    "block"
+   ],
+   "where": "a sign-in code is submitted",
+   "always": "It works at most once, before expiry, including concurrent submissions.",
+   "protects": "accounts from unauthorised access"
+  },
+  {
+   "name": "humans-first.iz4.you",
+   "fqn": "humans-first.iz4.you",
+   "state": [
+    "canon",
+    "canon"
+   ],
+   "where": "anyone is affected by the system, by its use, or by work on it",
+   "always": "Help people thrive, on their own terms. Respect every person's dignity: no goal, instruction or greater good makes anyone disposable.",
+   "protects": "each person's dignity, and their own say over how they thrive"
+  }
+ ]
+}

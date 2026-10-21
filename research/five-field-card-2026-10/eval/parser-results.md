@@ -1,0 +1,21 @@
+- ok   the whole showcase file, five project cards and the foundation: parsed 10 card(s)
+  humans-first ALWAYS reassembled across wrapped lines, colon inside prose kept: "Help people thrive, on their own terms. Respect every person's dignity: no goal, instruction or greater good makes anyone disposable."
+  five-field footer values recognised: change=canon check=canon; project single-use-code: [('signed', 'block')]
+- ok   the brief's own example card, wrapped footer values: parsed 1 card(s); wrapped CHANGE BY/CHECK BY rejoined and matched
+- ok   a colon in ordinary prose (ALWAYS: "dignity: no goal"): parsed 1 card(s)
+- ok   a field re-wrapped at a different width: parsed 1 card(s); wrapping does not change the parsed text
+- ok   missing PROTECTS: rejected: charged-once.app.paydance.com: missing PROTECTS
+- ok   CHANGE BY given twice: rejected: line 10: CHANGE BY given twice in charged-once.app.paydance.com
+- ok   fields reordered (PROTECTS before ALWAYS): rejected: charged-once.app.paydance.com: fields out of order: ['WHEN', 'PROTECTS', 'ALWAYS', 'CHANGE BY', 'CHECK BY']
+- ok   a footer value off by one word: rejected: charged-once.app.paydance.com: CHECK BY is not a permitted value: 'failing linked tests block the commit, pending an authorised override'
+- ok   free wording with blocking tests: rejected: charged-once.app.paydance.com: a blocking test policy with freely editable wording
+- ok   foundation values on a project promise: rejected: charged-once.app.paydance.com: foundation values on a project promise, or project values on the foundation
+- ok   PROMISE heading on a foundation name: rejected: humans-first.iz4.you: heading PROMISE does not fit the name
+- ok   project values on a foundation card: rejected: humans-first.iz4.you: foundation values on a project promise, or project values on the foundation
+- ok   a name without a domain: rejected: line 1: not a domain-qualified name: 'charged-once'
+- ok   a name with a capital letter: rejected: line 1: not a domain-qualified name: 'Charged-once.app.paydance.com'
+- ok   no blank line between the two groups: parsed 1 card(s); the blank line is for people; the parser does not need it
+- ok   a continuation line indented like a label: rejected: line 5: unexpected line in charged-once.app.paydance.com: '  even with retries'
+- ok   a lower-case label: rejected: line 10: unexpected line in charged-once.app.paydance.com: '  check by:  failing linked tests block the commit,'
+- ok   a stray line between cards: rejected: line 13: not a heading: 'not a card'
+- ok   a comment line inside a card: parsed 1 card(s)
