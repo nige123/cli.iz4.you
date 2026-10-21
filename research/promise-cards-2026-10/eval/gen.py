@@ -54,6 +54,25 @@ def card2(fqn, where, always, protects, ch, ck):
     p = textwrap.fill('Protects ' + protects + '.', 74, initial_indent='  ', subsequent_indent='  ')
     return f"PROMISE {fqn}\n\n{w}\n{a}\n\n{p}\n\n  TO CHANGE:       {ASKED[ch]}\n  IF A TEST FAILS: {FAILS[ck]}\n\n"
 
+ASKED_L = {'none': 'no approval needed yet; this promise is still being worked out',
+           'signed': "a person's signed approval, bound to the exact change",
+           'canon': 'a foundation release only; no project can change it'}
+FAILS_L = {'report': 'the failure is reported; the commit is not held',
+           'block': 'the commit is held until a person decides',
+           'canon': 'no tests apply; the words must match the foundation, word for word'}
+def card3(fqn, where, always, protects, ch, ck):
+    w = textwrap.fill('When ' + where + ':', 74, initial_indent='  ', subsequent_indent='  ')
+    a = textwrap.fill(always, 74, initial_indent='  ', subsequent_indent='  ')
+    p = textwrap.fill('Protects ' + protects + '.', 74, initial_indent='  ', subsequent_indent='  ')
+    return f"PROMISE {fqn}\n\n{w}\n\n{a}\n\n{p}\n\n  TO CHANGE:       {ASKED_L[ch]}\n  IF A TEST FAILS: {FAILS_L[ck]}\n\n"
+
+ASKED_F = dict(ASKED_L, none='anyone, without approval; this promise is still being worked out', signed="a person's signed approval, bound to the exact change")
+def card4(fqn, where, always, protects, ch, ck):
+    w = textwrap.fill('When ' + where + ':', 74, initial_indent='  ', subsequent_indent='  ')
+    a = textwrap.fill(always, 74, initial_indent='  ', subsequent_indent='  ')
+    p = textwrap.fill('Protects ' + protects + '.', 74, initial_indent='  ', subsequent_indent='  ')
+    return f"PROMISE {fqn}\n\n{w}\n\n{a}\n\n{p}\n\n  TO CHANGE:       {ASKED_F[ch]}\n  IF A TEST FAILS: {FAILS_L[ck]}\n\n"
+
 def render(fmt, key):
     sc = SC[key]; d = sc['domain']
     head = [f"IZ4 {d}\n\n", f"IS FOR WHAT?  {sc['what']}\n\n", f"IS FOR WHO?   {sc['who']}\n\n"]
@@ -80,6 +99,10 @@ def render(fmt, key):
             out.append(sentences(f"{name}.{d}", where, always, protects, ch, ck))
         elif fmt == 'F6-card2':
             out.append(card2(f"{name}.{d}", where, always, protects, ch, ck))
+        elif fmt == 'F7-card-long':
+            out.append(card3(f"{name}.{d}", where, always, protects, ch, ck))
+        elif fmt == 'F8-card-final':
+            out.append(card4(f"{name}.{d}", where, always, protects, ch, ck))
         else:
             out.append(card(f"{name}.{d}", where, always, protects, CHANGE[ch], CHECK[ck]))
     out.append(sep)
@@ -94,11 +117,15 @@ def render(fmt, key):
             out.append(sentences(name, cl['WHERE'], cl['ALWAYS'], cl['PROTECTS'], 'canon', 'canon'))
         elif fmt == 'F6-card2':
             out.append(card2(name, cl['WHERE'], cl['ALWAYS'], cl['PROTECTS'], 'canon', 'canon'))
+        elif fmt == 'F7-card-long':
+            out.append(card3(name, cl['WHERE'], cl['ALWAYS'], cl['PROTECTS'], 'canon', 'canon'))
+        elif fmt == 'F8-card-final':
+            out.append(card4(name, cl['WHERE'], cl['ALWAYS'], cl['PROTECTS'], 'canon', 'canon'))
         else:
             out.append(card(name, cl['WHERE'], cl['ALWAYS'], cl['PROTECTS'], CHANGE['canon'], CHECK['canon']))
     return ''.join(head + out).rstrip('\n') + '\n'
 
-FORMATS = ['F0-current', 'F1-clauses', 'F2-cards', 'F3-heldby', 'F4-asked', 'F5-sentences', 'F6-card2']
+FORMATS = ['F0-current', 'F1-clauses', 'F2-cards', 'F3-heldby', 'F4-asked', 'F5-sentences', 'F6-card2', 'F7-card-long', 'F8-card-final']
 if __name__ == '__main__':
     os.makedirs('files', exist_ok=True)
     truth = {}

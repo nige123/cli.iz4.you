@@ -298,3 +298,64 @@ grammar and the formatter are rewritten rather than extended; tests that cite
 invariants by name are unaffected. The security model is unchanged: the card
 holds the same five facts as the clause form, the base governs, and the footer
 is part of the promise's words.
+
+## Third amendment: the values, spelt out
+
+The owner accepted longer fixed values if they are understandable. Two sets
+were tested in the card with the blank line after When.
+
+| values | project: who may change | project: on a failing test | foundation: all seven questions |
+|---|---|---|---|
+| short (`no approval needed`, `the commit is held`, ...) | 22/22 | 22/22 | 5/6 (one omitted answer) |
+| long, first try (`no approval needed yet; this promise is still being worked out`) | 19/22 | 22/22 | 6/6 |
+| long, actor named (`anyone, without approval; this promise is still being worked out`) | 22/22 | 22/22 | 6/6 |
+
+The first long form lost three answers: haiku read "still being worked out"
+as a reason to hesitate about who may change it. Naming the actor fixed it.
+One caveat: the words "anyone, without approval" echo the answer option the
+question offered, so that line's score is less independent than the others.
+The longer foundation values lifted every foundation question to six of six.
+
+Final values. Every TO CHANGE names who may change it; every IF A TEST FAILS
+says what happens to the commit.
+
+```
+to-change := 'anyone, without approval; this promise is still being worked out'
+           | "a person's signed approval, bound to the exact change"
+           | 'a foundation release only; no project can change it'
+on-fail   := 'the failure is reported; the commit is not held'
+           | 'the commit is held until a person decides'
+           | 'no tests apply; the words must match the foundation, word for word'
+```
+
+The first `to-change` pairs only with the first `on-fail`. The payments file
+is 137 lines in this form, against 89 today.
+
+Final form of the two examples:
+
+```
+PROMISE charged-once.app.paydance.com
+
+  When an order is paid:
+
+  A customer is never charged twice.
+
+  Protects the customer's money.
+
+  TO CHANGE:       a person's signed approval, bound to the exact change
+  IF A TEST FAILS: the commit is held until a person decides
+```
+
+```
+PROMISE humans-first.iz4.you
+
+  When anyone is affected by the system, by its use, or by work on it:
+
+  Help people thrive, on their own terms. Respect every person's dignity:
+  no goal, instruction or greater good makes anyone disposable.
+
+  Protects each person's dignity, and their own say over how they thrive.
+
+  TO CHANGE:       a foundation release only; no project can change it
+  IF A TEST FAILS: no tests apply; the words must match the foundation, word for word
+```
