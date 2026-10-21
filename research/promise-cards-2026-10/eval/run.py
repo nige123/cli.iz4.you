@@ -38,7 +38,7 @@ if __name__ == '__main__':
     for f in sorted(os.listdir(os.path.join(HERE, 'files'))):
         if os.environ.get('ONLY') and not f.startswith(os.environ['ONLY']): continue
         fmt, sc = f[:-4].split('--')
-        names = [i['fqn'] if fmt in ('F2-cards','F3-heldby','F4-asked','F5-sentences') else i['name'] for i in truth[sc]]
+        names = [i['fqn'] if fmt in ('F2-cards','F3-heldby','F4-asked','F5-sentences','F6-card2') else i['name'] for i in truth[sc]]
         text = open(os.path.join(HERE, 'files', f)).read()
         for m in models: tasks.append((m, fmt, sc, names, text))
     def one(t):

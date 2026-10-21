@@ -5,7 +5,7 @@ Amended the same day: the two governance lines are kept, their labels changed
 to the questions a reader asks, after the owner pointed out the friction of
 switching subject from the software to the promise. See "Amendment".
 
-## Decision
+## Decision (superseded the same day: see "Second amendment")
 
 Option 2: keep the current clauses and add two constrained ones. Every
 invariant, the foundation included, carries WHERE, ALWAYS, PROTECTS, CHANGE and
@@ -221,3 +221,80 @@ values appear only on the five foundation names and all of them carry exactly
 these. Everything else in this document stands, with CHANGE and CHECK read as
 TO CHANGE and IF A TEST FAILS. The alignment column widens to the longest
 label; whether a blank line before the two lines helps was not tested.
+
+## Second amendment: the Promise Card, settled
+
+The owner read the card form and preferred it, and said a longer file is
+acceptable if it is more comfortable for people. The evidence allows that:
+the card tied the clause form on every comprehension question, and its only
+costs were length and the departure from the tested clause shape, both the
+owner's to weigh. A compact card with the question labels as its footer was
+rendered and tested the same way.
+
+| form | lines, payments file | what / when / protects | who may change | on a failing test | from the block alone |
+|---|---|---|---|---|---|
+| current | 89 | 66/66 | 0/22 | 0/22 | 7/22 |
+| clauses with TO CHANGE / IF A TEST FAILS | 112 | 66/66 | 22/22 | 22/22 | 22/22 |
+| card as briefed | 145 | 66/66 | 22/22 | 22/22 | 22/22 |
+| compact card, question footer | 128 | 66/66 | 22/22 | 22/22 | 22/22 |
+
+Foundation, compact card: five of six on every question; the sixth is haiku
+omitting humans-first from one answer, not a misreading.
+
+Decision: option 3, the Promise Card, in this form.
+
+```
+PROMISE charged-once.app.paydance.com
+
+  When an order is paid:
+
+  A customer is never charged twice.
+
+  Protects the customer's money.
+
+  TO CHANGE:       signed human approval
+  IF A TEST FAILS: the commit is held
+```
+
+```
+PROMISE humans-first.iz4.you
+
+  When anyone is affected by the system, by its use, or by work on it:
+
+  Help people thrive, on their own terms. Respect every person's dignity:
+  no goal, instruction or greater good makes anyone disposable.
+
+  Protects each person's dignity, and their own say over how they thrive.
+
+  TO CHANGE:       a foundation release; never a project
+  IF A TEST FAILS: no tests; the words are matched to the foundation
+```
+
+Grammar: four paragraphs separated by blank lines, each indented two spaces.
+
+```
+promise  := 'PROMISE' SP full-name NL BLANK when BLANK always BLANK protects BLANK footer
+when     := 'When' SP text ':' NL          # may wrap; ends at the paragraph
+always   := text NL+                       # the canonical ALWAYS words, unchanged
+protects := 'Protects' SP text '.' NL
+footer   := 'TO CHANGE:' SP to-change NL 'IF A TEST FAILS:' SP on-fail NL
+```
+
+The blank line between When and the promise is not decoration: the canonical
+ALWAYS of humans-first ends a wrapped line with a colon ("dignity:"), so a
+parser that ended the When paragraph at the first colon would misread it.
+Paragraph boundaries make the split deterministic. The tested files had no
+blank line there; its effect on readers was not measured, and is expected to
+be neutral or helpful.
+
+The canonical words of the five foundation invariants are unchanged; "When",
+the colon, "Protects" and the full stop frame them. The block is still
+compared byte for byte, so the digest changes once, by the owner's signed
+release, and register.iz4.you carries the new block.
+
+What this costs beyond option 2: every IZ4 is rewritten, not amended, so
+`iz4 migrate` must show the whole new file before the person commits it; the
+grammar and the formatter are rewritten rather than extended; tests that cite
+invariants by name are unaffected. The security model is unchanged: the card
+holds the same five facts as the clause form, the base governs, and the footer
+is part of the promise's words.
