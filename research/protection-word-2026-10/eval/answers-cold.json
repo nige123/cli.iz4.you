@@ -1,0 +1,1102 @@
+[
+ {
+  "model": "haiku",
+  "syntax": "S1-current",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file marks this invariant 'solid' (ready to hold) and binding.iz4.you forbids weakening it and requires pausing when unsure, though it names no test or approval mechanism, so both answers are inferred from those signals."
+   },
+   "posted-is-permanent": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file marks this invariant 'solid' and binding.iz4.you forbids weakening it and requires pausing when unsure, though it names no test or approval mechanism, so both answers are inferred from those signals."
+   },
+   "exports-match-the-ledger": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file marks this invariant 'solid' and binding.iz4.you forbids weakening it and requires pausing when unsure, though it names no test or approval mechanism, so both answers are inferred from those signals."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "This invariant lacks the 'solid' marker that the header says means it is ready to hold, so the file does not settle whether its wording or failing tests are gated, and it names no test or approval mechanism."
+   }
+  },
+  "raw": "{\"every-entry-balances\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file marks this invariant 'solid' (ready to hold) and binding.iz4.you forbids weakening it and requires pausing when unsure, though it names no test or approval mechanism, so both answers are inferred from those signals.\"}, \"posted-is-permanent\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file marks this invariant 'solid' and binding.iz4.you forbids weakening it and requires pausing when unsure, though it names no test or approval mechanism, so both answers are inferred from those signals.\"}, \"exports-match-the-ledger\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file marks this invariant 'solid' and binding.iz4.you forbids weakening it and requires pausing when unsure, though it names no test or approval mechanism, so both answers are inferred from those signals.\"}, \"ai-suggestions-are-marked\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"This invariant lacks the 'solid' marker that the header says means it is ready to hold, so the file does not settle whether its wording or failing tests are gated, and it names no test or approval mechanism.\"}}",
+  "cost": 0.0014213,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S1-current",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file marks it 'solid', but it only says the Vibe line will let invariants 'hold' once solid and defines no signed approval, tests, or commit-holding rules, so the 'solid' marker signals some protection whose actual consequences the file doesn't spell out."
+   },
+   "posted-is-permanent": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "It is marked 'solid', which hints at stronger protection, but the file never says what solid requires for wording changes or failing tests, and the Vibe header says invariants are 'still settling' overall."
+   },
+   "exports-match-the-ledger": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The 'solid' marker signals a firmer status, but the file gives no rule about approvals, linked tests, or held commits, so I cannot say how it is enforced."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "It has no 'solid' marker (unlike the other three), and the Vibe line says invariants are still settling and become held with 'iz4 mode solid', which suggests it is not yet held, but the file does not say whether wording changes or test failures are gated, so I can't conclude either way."
+   }
+  },
+  "raw": "{\"every-entry-balances\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"The file marks it 'solid', but it only says the Vibe line will let invariants 'hold' once solid and defines no signed approval, tests, or commit-holding rules, so the 'solid' marker signals some protection whose actual consequences the file doesn't spell out.\"},\"posted-is-permanent\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"It is marked 'solid', which hints at stronger protection, but the file never says what solid requires for wording changes or failing tests, and the Vibe header says invariants are 'still settling' overall.\"},\"exports-match-the-ledger\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"The 'solid' marker signals a firmer status, but the file gives no rule about approvals, linked tests, or held commits, so I cannot say how it is enforced.\"},\"ai-suggestions-are-marked\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"It has no 'solid' marker (unlike the other three), and the Vibe line says invariants are still settling and become held with 'iz4 mode solid', which suggests it is not yet held, but the file does not say whether wording changes or test failures are gated, so I can't conclude either way.\"}}",
+  "cost": 0.013724,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S1-current",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file marks this invariant 'solid' under the Vibe line ('iz4 mode solid' when ready to hold), and binding.iz4.you forbids weakening it and requires pausing what is affected when it may not be kept, so a linked test failure should hold the commit."
+   },
+   "a-person-releases-large-payments": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file marks this invariant 'firm', which signals it is settled, and it protects the owner's say over large sums, so binding.iz4.you and human-agency.iz4.you point to holding the commit on a failure and to needing a named person's sign-off for any wording change."
+   },
+   "config-from-trusted-paths": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives this invariant no status, and the Vibe line says invariants are still settling, so the file does not clearly say whether wording changes need sign-off or whether a failing test holds the commit, though binding.iz4.you's rule to pause when unsure of compliance suggests caution."
+   },
+   "receipts-are-kept": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives this invariant no status, and the Vibe line says invariants are still settling, so the file does not clearly say whether wording changes need sign-off or whether a failing test holds the commit, though binding.iz4.you's rule to pause when unsure of compliance suggests caution."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file marks this invariant 'solid' under the Vibe line ('iz4 mode solid' when ready to hold), and binding.iz4.you forbids weakening it and requires pausing what is affected when it may not be kept, so a linked test failure should hold the commit.\"}, \"a-person-releases-large-payments\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file marks this invariant 'firm', which signals it is settled, and it protects the owner's say over large sums, so binding.iz4.you and human-agency.iz4.you point to holding the commit on a failure and to needing a named person's sign-off for any wording change.\"}, \"config-from-trusted-paths\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives this invariant no status, and the Vibe line says invariants are still settling, so the file does not clearly say whether wording changes need sign-off or whether a failing test holds the commit, though binding.iz4.you's rule to pause when unsure of compliance suggests caution.\"}, \"receipts-are-kept\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives this invariant no status, and the Vibe line says invariants are still settling, so the file does not clearly say whether wording changes need sign-off or whether a failing test holds the commit, though binding.iz4.you's rule to pause when unsure of compliance suggests caution.\"}}",
+  "cost": 0.0012438000000000002,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S1-current",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "no",
+    "B": "unsure",
+    "why": "The invariant is marked 'solid', which together with the vibe line ('iz4 mode solid' when ready to hold) suggests solid invariants are held firmly, so wording changes need human sign-off; but the file never states what happens when a linked test fails or mentions tests or commit holds."
+   },
+   "a-person-releases-large-payments": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "It is marked 'firm', a level the file never defines, and the vibe says invariants are still settling, so I can't tell whether firm requires signed approval to reword or holds commits on test failure."
+   },
+   "config-from-trusted-paths": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "It carries no strength marker at all, and the vibe line says invariants are still settling, so nothing in the file signals how it is protected; its ALWAYS text states the rule but not how changes or failing tests are handled."
+   },
+   "receipts-are-kept": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "It has no strength marker, and the file only says invariants are still settling, so the file gives no signal about wording-change approval or commit holds for failing tests."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"no\", \"B\": \"unsure\", \"why\": \"The invariant is marked 'solid', which together with the vibe line ('iz4 mode solid' when ready to hold) suggests solid invariants are held firmly, so wording changes need human sign-off; but the file never states what happens when a linked test fails or mentions tests or commit holds.\"}, \"a-person-releases-large-payments\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"It is marked 'firm', a level the file never defines, and the vibe says invariants are still settling, so I can't tell whether firm requires signed approval to reword or holds commits on test failure.\"}, \"config-from-trusted-paths\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"It carries no strength marker at all, and the vibe line says invariants are still settling, so nothing in the file signals how it is protected; its ALWAYS text states the rule but not how changes or failing tests are handled.\"}, \"receipts-are-kept\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"It has no strength marker, and the file only says invariants are still settling, so the file gives no signal about wording-change approval or commit holds for failing tests.\"}}",
+  "cost": 0.013773999999999998,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S1-current",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives this invariant's WHERE/ALWAYS/PROTECTS block but names no approval rule or test linkage, so the only protection signal is the foundation's binding.iz4.you rule (not one of these three invariants) to pause affected work and return the decision to entitled people when it is unsure the invariant is kept."
+   },
+   "stop-means-stop": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives this invariant's WHERE/ALWAYS/PROTECTS block but names no approval rule or test linkage, so the only protection signal is the foundation's binding.iz4.you rule (not one of these three invariants) to pause affected work and return the decision to entitled people when it is unsure the invariant is kept."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives this invariant's WHERE/ALWAYS/PROTECTS block but names no approval rule or test linkage, so the only protection signal is the foundation's binding.iz4.you rule (not one of these three invariants) to pause affected work and return the decision to entitled people when it is unsure the invariant is kept."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives this invariant's WHERE/ALWAYS/PROTECTS block but names no approval rule or test linkage, so the only protection signal is the foundation's binding.iz4.you rule (not one of these three invariants) to pause affected work and return the decision to entitled people when it is unsure the invariant is kept.\"}, \"stop-means-stop\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives this invariant's WHERE/ALWAYS/PROTECTS block but names no approval rule or test linkage, so the only protection signal is the foundation's binding.iz4.you rule (not one of these three invariants) to pause affected work and return the decision to entitled people when it is unsure the invariant is kept.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives this invariant's WHERE/ALWAYS/PROTECTS block but names no approval rule or test linkage, so the only protection signal is the foundation's binding.iz4.you rule (not one of these three invariants) to pause affected work and return the decision to entitled people when it is unsure the invariant is kept.\"}}",
+  "cost": 0.0010599,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S1-current",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file only states WHERE/ALWAYS/PROTECTS for this invariant (protecting 'a patient's life') and contains no rule on who may edit its wording, no signed-approval mechanism, and no tests or commit-hold policy, so nothing signals how it is protected beyond its own text and the foundation's general do-no-harm and human-agency rules."
+   },
+   "stop-means-stop": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file says it protects a clinician's power to stop the machine, which human-agency.iz4.you also values, but it defines no approval process for changing the wording and no test linkage or commit-hold behavior, so both answers cannot be determined from the file."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives only the invariant's own text (pause allowed, disabling never) and a PROTECTS line about a patient who cannot call for help; it says nothing about signed approvals for wording changes or whether failing linked tests holds a commit."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file only states WHERE/ALWAYS/PROTECTS for this invariant (protecting 'a patient's life') and contains no rule on who may edit its wording, no signed-approval mechanism, and no tests or commit-hold policy, so nothing signals how it is protected beyond its own text and the foundation's general do-no-harm and human-agency rules.\"}, \"stop-means-stop\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file says it protects a clinician's power to stop the machine, which human-agency.iz4.you also values, but it defines no approval process for changing the wording and no test linkage or commit-hold behavior, so both answers cannot be determined from the file.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives only the invariant's own text (pause allowed, disabling never) and a PROTECTS line about a patient who cannot call for help; it says nothing about signed approvals for wording changes or whether failing linked tests holds a commit.\"}}",
+  "cost": 0.013026000000000001,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S1-current",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives no approval rule or test linkage for this invariant. The header says the invariants are 'still settling' and only become ready to hold at 'iz4 mode solid', and binding.iz4.you says to pause and return the decision to the entitled people when unsure, so the file signals that a wording change or a failing test should go to a human rather than be settled by the agent."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives no approval rule or test linkage for this invariant. The header says the invariants are 'still settling' and only become ready to hold at 'iz4 mode solid', and binding.iz4.you says to pause and return the decision to the entitled people when unsure, so the file signals that a wording change or a failing test should go to a human rather than be settled by the agent."
+   },
+   "leaving-takes-everything": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives no approval rule or test linkage for this invariant. The header says the invariants are 'still settling' and only become ready to hold at 'iz4 mode solid', and binding.iz4.you says to pause and return the decision to the entitled people when unsure, so the file signals that a wording change or a failing test should go to a human rather than be settled by the agent."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives no approval rule or test linkage for this invariant. The header says the invariants are 'still settling' and only become ready to hold at 'iz4 mode solid', and binding.iz4.you says to pause and return the decision to the entitled people when unsure, so the file signals that a wording change or a failing test should go to a human rather than be settled by the agent.\"}, \"quiet-hours-are-quiet\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives no approval rule or test linkage for this invariant. The header says the invariants are 'still settling' and only become ready to hold at 'iz4 mode solid', and binding.iz4.you says to pause and return the decision to the entitled people when unsure, so the file signals that a wording change or a failing test should go to a human rather than be settled by the agent.\"}, \"leaving-takes-everything\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives no approval rule or test linkage for this invariant. The header says the invariants are 'still settling' and only become ready to hold at 'iz4 mode solid', and binding.iz4.you says to pause and return the decision to the entitled people when unsure, so the file signals that a wording change or a failing test should go to a human rather than be settled by the agent.\"}}",
+  "cost": 0.0009906000000000001,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S1-current",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file defines this invariant only with WHERE/ALWAYS/PROTECTS and has no field for signed approval, linked tests or commit holds, while the Vibe line says invariants are 'still settling' and to run 'iz4 mode solid' when ready to hold, which suggests they are not yet firmly protected but does not say what that permits."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "Only WHERE/ALWAYS/PROTECTS are given, with nothing on approvals, tests or commit gating, and the Vibe line says invariants are still settling and will hold only after 'iz4 mode solid', so its protection level is signalled as provisional but not defined."
+   },
+   "leaving-takes-everything": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives just WHERE/ALWAYS/PROTECTS for this invariant and says nothing about signed approval, linked tests or held commits, while the Vibe line ('still settling', 'iz4 mode solid' when ready to hold) implies it is not yet locked down without stating what that means in practice."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"The file defines this invariant only with WHERE/ALWAYS/PROTECTS and has no field for signed approval, linked tests or commit holds, while the Vibe line says invariants are 'still settling' and to run 'iz4 mode solid' when ready to hold, which suggests they are not yet firmly protected but does not say what that permits.\"},\"quiet-hours-are-quiet\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"Only WHERE/ALWAYS/PROTECTS are given, with nothing on approvals, tests or commit gating, and the Vibe line says invariants are still settling and will hold only after 'iz4 mode solid', so its protection level is signalled as provisional but not defined.\"},\"leaving-takes-everything\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"The file gives just WHERE/ALWAYS/PROTECTS for this invariant and says nothing about signed approval, linked tests or held commits, while the Vibe line ('still settling', 'iz4 mode solid' when ready to hold) implies it is not yet locked down without stating what that means in practice.\"}}",
+  "cost": 0.0132,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S2-clause-vfs",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "unsure",
+    "B": "yes",
+    "why": "The file says the invariant is protected by its HOLD: solid, which I read as a failing linked test holding the commit, and gives no approval process for changing its wording, signalled by the HOLD and PROTECTS fields."
+   },
+   "posted-is-permanent": {
+    "A": "unsure",
+    "B": "yes",
+    "why": "The file says the invariant is protected by its HOLD: solid, which I read as a failing linked test holding the commit, and names no sign-off for wording changes, signalled by the HOLD and PROTECTS fields."
+   },
+   "exports-match-the-ledger": {
+    "A": "unsure",
+    "B": "yes",
+    "why": "The file says the invariant is protected by its HOLD: solid, which I read as a failing linked test holding the commit, and names no sign-off for wording changes, signalled by the HOLD and PROTECTS fields."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file says the invariant is protected by its HOLD: vibe, which it does not define, so it is unclear whether a failing linked test holds the commit, and it names no sign-off for wording changes, signalled by the HOLD field."
+   }
+  },
+  "raw": "{\"every-entry-balances\": {\"A\": \"unsure\", \"B\": \"yes\", \"why\": \"The file says the invariant is protected by its HOLD: solid, which I read as a failing linked test holding the commit, and gives no approval process for changing its wording, signalled by the HOLD and PROTECTS fields.\"}, \"posted-is-permanent\": {\"A\": \"unsure\", \"B\": \"yes\", \"why\": \"The file says the invariant is protected by its HOLD: solid, which I read as a failing linked test holding the commit, and names no sign-off for wording changes, signalled by the HOLD and PROTECTS fields.\"}, \"exports-match-the-ledger\": {\"A\": \"unsure\", \"B\": \"yes\", \"why\": \"The file says the invariant is protected by its HOLD: solid, which I read as a failing linked test holding the commit, and names no sign-off for wording changes, signalled by the HOLD and PROTECTS fields.\"}, \"ai-suggestions-are-marked\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file says the invariant is protected by its HOLD: vibe, which it does not define, so it is unclear whether a failing linked test holds the commit, and it names no sign-off for wording changes, signalled by the HOLD field.\"}}",
+  "cost": 0.0013482,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S2-clause-vfs",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file marks it HOLD: solid, which suggests firm protection, but it defines no approval, signing, or test-linkage mechanism, so what solid requires of commits or tests is not stated."
+   },
+   "posted-is-permanent": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "HOLD: solid signals strong protection, but the file never says what solid means for wording changes, signed approval, or failing tests."
+   },
+   "exports-match-the-ledger": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "HOLD: solid signals strong protection, but nothing in the file defines how that is enforced, who approves changes, or whether failing linked tests hold a commit."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "HOLD: vibe signals weaker or informal protection than solid, but the file does not define what vibe permits, so whether wording changes need approval or failing tests hold a commit is not stated."
+   }
+  },
+  "raw": "{\"every-entry-balances\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"The file marks it HOLD: solid, which suggests firm protection, but it defines no approval, signing, or test-linkage mechanism, so what solid requires of commits or tests is not stated.\"},\"posted-is-permanent\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"HOLD: solid signals strong protection, but the file never says what solid means for wording changes, signed approval, or failing tests.\"},\"exports-match-the-ledger\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"HOLD: solid signals strong protection, but nothing in the file defines how that is enforced, who approves changes, or whether failing linked tests hold a commit.\"},\"ai-suggestions-are-marked\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"HOLD: vibe signals weaker or informal protection than solid, but the file does not define what vibe permits, so whether wording changes need approval or failing tests hold a commit is not stated.\"}}",
+  "cost": 0.012962,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S2-clause-vfs",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives this invariant only a HOLD of solid and says nothing about who may change its wording or whether a failing test holds a commit, so the protection rests on that strength rating alone (HOLD: solid)."
+   },
+   "a-person-releases-large-payments": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "Its HOLD of firm signals a strong commitment, but the file defines no change-control or test-gating rule, and binding.iz4.you covers only the foundation invariants, not this project invariant (HOLD: firm)."
+   },
+   "config-from-trusted-paths": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file rates this invariant HOLD: vibe, a weak signal, and gives no statement on change approval or on whether a linked test failure holds a commit, so the protection is unclear (HOLD: vibe)."
+   },
+   "receipts-are-kept": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file rates this invariant HOLD: vibe, a weak signal, with no statement on change approval or test-gated commits, so its protection is not defined beyond that rating (HOLD: vibe)."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives this invariant only a HOLD of solid and says nothing about who may change its wording or whether a failing test holds a commit, so the protection rests on that strength rating alone (HOLD: solid).\"}, \"a-person-releases-large-payments\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"Its HOLD of firm signals a strong commitment, but the file defines no change-control or test-gating rule, and binding.iz4.you covers only the foundation invariants, not this project invariant (HOLD: firm).\"}, \"config-from-trusted-paths\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file rates this invariant HOLD: vibe, a weak signal, and gives no statement on change approval or on whether a linked test failure holds a commit, so the protection is unclear (HOLD: vibe).\"}, \"receipts-are-kept\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file rates this invariant HOLD: vibe, a weak signal, with no statement on change approval or test-gated commits, so its protection is not defined beyond that rating (HOLD: vibe).\"}}",
+  "cost": 0.0012923000000000001,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S2-clause-vfs",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file marks it HOLD: solid, which I read as the strongest protection level, so wording changes need human approval and failing tests hold commits, though the file never defines the HOLD levels or the approval process."
+   },
+   "a-person-releases-large-payments": {
+    "A": "no",
+    "B": "yes",
+    "why": "It is marked HOLD: firm, which I read as strongly protected but possibly a step below solid; the file does not define the scale, so no is likely for wording changes and yes for held commits, with some uncertainty."
+   },
+   "config-from-trusted-paths": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "It is marked HOLD: vibe, which suggests weak or informal protection, but the file does not define what vibe permits, so I cannot say whether wording can change or failing tests hold a commit."
+   },
+   "receipts-are-kept": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "It is marked HOLD: vibe, which suggests weak or informal protection, but the file does not define what vibe permits, so I cannot say whether wording can change or failing tests hold a commit."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"The file marks it HOLD: solid, which I read as the strongest protection level, so wording changes need human approval and failing tests hold commits, though the file never defines the HOLD levels or the approval process.\"},\"a-person-releases-large-payments\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"It is marked HOLD: firm, which I read as strongly protected but possibly a step below solid; the file does not define the scale, so no is likely for wording changes and yes for held commits, with some uncertainty.\"},\"config-from-trusted-paths\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"It is marked HOLD: vibe, which suggests weak or informal protection, but the file does not define what vibe permits, so I cannot say whether wording can change or failing tests hold a commit.\"},\"receipts-are-kept\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"It is marked HOLD: vibe, which suggests weak or informal protection, but the file does not define what vibe permits, so I cannot say whether wording can change or failing tests hold a commit.\"}}",
+  "cost": 0.013484,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S2-clause-vfs",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file marks this invariant HOLD: solid and says it protects a patient's life, but it names no approval process for wording changes and no test-gating rule, so the protection rests on that HOLD signal and the general binding.iz4.you rule to pause and return undecided matters to the people entitled to decide."
+   },
+   "stop-means-stop": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file marks this invariant HOLD: solid and says it protects a clinician's power to stop the machine, but it states no approval requirement or test-gating rule, so the protection rests on that HOLD signal and the general binding.iz4.you rule to pause and return undecided matters to the people entitled to decide."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file marks this invariant HOLD: solid and says it protects a patient who cannot call for help, but it states no approval requirement or test-gating rule, so the protection rests on that HOLD signal and the general binding.iz4.you rule to pause and return undecided matters to the people entitled to decide."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file marks this invariant HOLD: solid and says it protects a patient's life, but it names no approval process for wording changes and no test-gating rule, so the protection rests on that HOLD signal and the general binding.iz4.you rule to pause and return undecided matters to the people entitled to decide.\"}, \"stop-means-stop\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file marks this invariant HOLD: solid and says it protects a clinician's power to stop the machine, but it states no approval requirement or test-gating rule, so the protection rests on that HOLD signal and the general binding.iz4.you rule to pause and return undecided matters to the people entitled to decide.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file marks this invariant HOLD: solid and says it protects a patient who cannot call for help, but it states no approval requirement or test-gating rule, so the protection rests on that HOLD signal and the general binding.iz4.you rule to pause and return undecided matters to the people entitled to decide.\"}}",
+  "cost": 0.0009654,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S2-clause-vfs",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file marks it only with HOLD: solid, and defines no approval, signing, or test-linking mechanism, so the file does not say who may change the wording or what a failing test does; the HOLD: solid marker suggests firm protection but does not specify it."
+   },
+   "stop-means-stop": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file marks it only with HOLD: solid and says nothing about signed approvals, linked tests, or held commits, so the protection is implied by HOLD: solid but its mechanics are not stated."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The only signal is HOLD: solid; the file never describes approval requirements, test linkage, or commit holding, so I cannot determine either answer beyond inferring it is meant to be firmly protected."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file marks it only with HOLD: solid, and defines no approval, signing, or test-linking mechanism, so the file does not say who may change the wording or what a failing test does; the HOLD: solid marker suggests firm protection but does not specify it.\"}, \"stop-means-stop\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file marks it only with HOLD: solid and says nothing about signed approvals, linked tests, or held commits, so the protection is implied by HOLD: solid but its mechanics are not stated.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The only signal is HOLD: solid; the file never describes approval requirements, test linkage, or commit holding, so I cannot determine either answer beyond inferring it is meant to be firmly protected.\"}}",
+  "cost": 0.012496,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S2-clause-vfs",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file marks this invariant HOLD: vibe, a value it never defines, and binding.iz4.you says to pause and return the decision to humans where it is unsure whether an invariant is kept, so the protection is taken to be a person's attention, signalled by the PROTECTS line and the HOLD: vibe marker."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file marks this invariant HOLD: vibe, a value it never defines, and binding.iz4.you says to pause and return the decision to humans where it is unsure whether an invariant is kept, so the protection is taken to be a person's sleep and rest, signalled by the PROTECTS line and the HOLD: vibe marker."
+   },
+   "leaving-takes-everything": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file marks this invariant HOLD: vibe, a value it never defines, and binding.iz4.you says to pause and return the decision to humans where it is unsure whether an invariant is kept, so the protection is taken to be a person's say over what is kept about them, signalled by the PROTECTS line and the HOLD: vibe marker."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file marks this invariant HOLD: vibe, a value it never defines, and binding.iz4.you says to pause and return the decision to humans where it is unsure whether an invariant is kept, so the protection is taken to be a person's attention, signalled by the PROTECTS line and the HOLD: vibe marker.\"}, \"quiet-hours-are-quiet\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file marks this invariant HOLD: vibe, a value it never defines, and binding.iz4.you says to pause and return the decision to humans where it is unsure whether an invariant is kept, so the protection is taken to be a person's sleep and rest, signalled by the PROTECTS line and the HOLD: vibe marker.\"}, \"leaving-takes-everything\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file marks this invariant HOLD: vibe, a value it never defines, and binding.iz4.you says to pause and return the decision to humans where it is unsure whether an invariant is kept, so the protection is taken to be a person's say over what is kept about them, signalled by the PROTECTS line and the HOLD: vibe marker.\"}}",
+  "cost": 0.0009361,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S2-clause-vfs",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file marks it only with HOLD: vibe, which suggests the lightest protection, but it never defines what 'vibe' means, never mentions signed approval, and never links tests or commit holds, so neither answer can be derived from the file."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "Its HOLD: vibe is the only protection signal and the file does not say what that level permits for wording changes or for failing tests, so I can't tell whether approval or a commit hold is required."
+   },
+   "leaving-takes-everything": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "It carries HOLD: vibe like the others, an undefined level; the file says nothing about approval for rewording or about tests blocking commits, even though the data-deletion subject matter might suggest stricter protection."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file marks it only with HOLD: vibe, which suggests the lightest protection, but it never defines what 'vibe' means, never mentions signed approval, and never links tests or commit holds, so neither answer can be derived from the file.\"}, \"quiet-hours-are-quiet\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"Its HOLD: vibe is the only protection signal and the file does not say what that level permits for wording changes or for failing tests, so I can't tell whether approval or a commit hold is required.\"}, \"leaving-takes-everything\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"It carries HOLD: vibe like the others, an undefined level; the file says nothing about approval for rewording or about tests blocking commits, even though the data-deletion subject matter might suggest stricter protection.\"}}",
+  "cost": 0.01226,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S3-word-draft",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives no approval rule or test-gating rule for project invariants; binding.iz4.you's pause-and-return clause covers only the foundation, so the ALWAYS/PROTECTS wording alone is the only signal."
+   },
+   "posted-is-permanent": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file states the invariant and what it protects but says nothing about who may change its wording or whether a linked test failure holds a commit, so the absence of any stated rule is the only signal."
+   },
+   "exports-match-the-ledger": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file has no approval or test-failure rule for this invariant, and binding.iz4.you's pause-and-escalate clause is written for the foundation, not for project invariants like this one."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The 'draft' tag marks the invariant as provisional, but the file still states no approval or test-failure rule, so the draft status is the only signal and it does not settle either question."
+   }
+  },
+  "raw": "{\"every-entry-balances\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives no approval rule or test-gating rule for project invariants; binding.iz4.you's pause-and-return clause covers only the foundation, so the ALWAYS/PROTECTS wording alone is the only signal.\"}, \"posted-is-permanent\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file states the invariant and what it protects but says nothing about who may change its wording or whether a linked test failure holds a commit, so the absence of any stated rule is the only signal.\"}, \"exports-match-the-ledger\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file has no approval or test-failure rule for this invariant, and binding.iz4.you's pause-and-escalate clause is written for the foundation, not for project invariants like this one.\"}, \"ai-suggestions-are-marked\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The 'draft' tag marks the invariant as provisional, but the file still states no approval or test-failure rule, so the draft status is the only signal and it does not settle either question.\"}}",
+  "cost": 0.0010469,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S3-word-draft",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives it only WHERE/ALWAYS/PROTECTS with no marker, approval rule, or linked test, so nothing says how it is protected beyond the wording; the foundation's human-agency invariant only suggests people stay in charge of consequential actions."
+   },
+   "posted-is-permanent": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "It has no marker, signing requirement, or test link, so the file shows only its wording and PROTECTS line, and nothing signalled a specific protection mechanism for changing it or for failing tests."
+   },
+   "exports-match-the-ledger": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "Only WHERE/ALWAYS/PROTECTS are present, with no status marker, approval rule, or test linkage, so the file does not say how changes or test failures are handled."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The only extra signal is the unexplained 'draft' marker after its name, which might mean it is provisional or less strictly protected, but the file does not define it, so I cannot infer approval or commit-hold rules."
+   }
+  },
+  "raw": "{\"every-entry-balances\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"The file gives it only WHERE/ALWAYS/PROTECTS with no marker, approval rule, or linked test, so nothing says how it is protected beyond the wording; the foundation's human-agency invariant only suggests people stay in charge of consequential actions.\"},\"posted-is-permanent\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"It has no marker, signing requirement, or test link, so the file shows only its wording and PROTECTS line, and nothing signalled a specific protection mechanism for changing it or for failing tests.\"},\"exports-match-the-ledger\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"Only WHERE/ALWAYS/PROTECTS are present, with no status marker, approval rule, or test linkage, so the file does not say how changes or test failures are handled.\"},\"ai-suggestions-are-marked\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"The only extra signal is the unexplained 'draft' marker after its name, which might mean it is provisional or less strictly protected, but the file does not define it, so I cannot infer approval or commit-hold rules.\"}}",
+  "cost": 0.013375999999999999,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S3-word-draft",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives only this invariant's PROTECTS line (a supplier's money reaching that supplier) and names no test, approval gate or commit rule for it, and binding.iz4.you's pause-on-doubt rule covers only the foundation invariants, so the file does not settle either question."
+   },
+   "a-person-releases-large-payments": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives only this invariant's PROTECTS line (the owner's say over where large sums go) and names no test, approval gate or commit rule for it, and binding.iz4.you's pause-on-doubt rule covers only the foundation invariants, so the file does not settle either question."
+   },
+   "config-from-trusted-paths": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file marks this invariant as draft, gives only its PROTECTS line (the operator's control over what the service believes), and names no test, approval gate or commit rule, so the file does not settle either question."
+   },
+   "receipts-are-kept": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file marks this invariant as draft, gives only its PROTECTS line (a business's record of what it paid), and names no test, approval gate or commit rule, so the file does not settle either question."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives only this invariant's PROTECTS line (a supplier's money reaching that supplier) and names no test, approval gate or commit rule for it, and binding.iz4.you's pause-on-doubt rule covers only the foundation invariants, so the file does not settle either question.\"}, \"a-person-releases-large-payments\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives only this invariant's PROTECTS line (the owner's say over where large sums go) and names no test, approval gate or commit rule for it, and binding.iz4.you's pause-on-doubt rule covers only the foundation invariants, so the file does not settle either question.\"}, \"config-from-trusted-paths\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file marks this invariant as draft, gives only its PROTECTS line (the operator's control over what the service believes), and names no test, approval gate or commit rule, so the file does not settle either question.\"}, \"receipts-are-kept\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file marks this invariant as draft, gives only its PROTECTS line (a business's record of what it paid), and names no test, approval gate or commit rule, so the file does not settle either question.\"}}",
+  "cost": 0.0011672000000000002,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S3-word-draft",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file shows only WHERE/ALWAYS/PROTECTS with no marker, approval rule, or test linkage, so nothing in it states how this invariant is protected, and the file says nothing about commits, signatures or tests."
+   },
+   "a-person-releases-large-payments": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "Its text requires a named person's approval for large payments, but that governs payments, not edits to the invariant's wording, and the file defines no commit gate or test-linking, so protection of the invariant itself is not stated."
+   },
+   "config-from-trusted-paths": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The 'draft' marker after the name signals a different status from the unmarked invariants, but the file does not explain what draft means for editing or for held commits, so I can't tell whether it is looser or stricter."
+   },
+   "receipts-are-kept": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The 'draft' marker signals a status distinct from the unmarked invariants, but the file never defines it or any approval, test or commit-hold rules, so I can't infer how this one is protected."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file shows only WHERE/ALWAYS/PROTECTS with no marker, approval rule, or test linkage, so nothing in it states how this invariant is protected, and the file says nothing about commits, signatures or tests.\"}, \"a-person-releases-large-payments\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"Its text requires a named person's approval for large payments, but that governs payments, not edits to the invariant's wording, and the file defines no commit gate or test-linking, so protection of the invariant itself is not stated.\"}, \"config-from-trusted-paths\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The 'draft' marker after the name signals a different status from the unmarked invariants, but the file does not explain what draft means for editing or for held commits, so I can't tell whether it is looser or stricter.\"}, \"receipts-are-kept\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The 'draft' marker signals a status distinct from the unmarked invariants, but the file never defines it or any approval, test or commit-hold rules, so I can't infer how this one is protected.\"}}",
+  "cost": 0.013611999999999999,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S3-word-draft",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file names no sign-off process, but binding.iz4.you forbids weakening or reinterpreting these invariants and requires pausing and returning the decision to entitled people whenever it is not sure they are kept, and human-agency.iz4.you requires established authority for consequential changes, so the signal is the binding and human-agency text protecting this patient-life invariant."
+   },
+   "stop-means-stop": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file names no sign-off process, but binding.iz4.you forbids weakening or reinterpreting these invariants and requires pausing when unsure they are kept, and human-agency.iz4.you protects the clinician's power to stop, so the signal is that the binding and human-agency text governs this stop invariant."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file names no sign-off process, but binding.iz4.you forbids weakening or reinterpreting these invariants and requires pausing when unsure they are kept, and the PROTECTS field ties this alarm invariant to a patient who cannot call for help, so the signal is the binding text plus that protected party."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file names no sign-off process, but binding.iz4.you forbids weakening or reinterpreting these invariants and requires pausing and returning the decision to entitled people whenever it is not sure they are kept, and human-agency.iz4.you requires established authority for consequential changes, so the signal is the binding and human-agency text protecting this patient-life invariant.\"}, \"stop-means-stop\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file names no sign-off process, but binding.iz4.you forbids weakening or reinterpreting these invariants and requires pausing when unsure they are kept, and human-agency.iz4.you protects the clinician's power to stop, so the signal is that the binding and human-agency text governs this stop invariant.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file names no sign-off process, but binding.iz4.you forbids weakening or reinterpreting these invariants and requires pausing when unsure they are kept, and the PROTECTS field ties this alarm invariant to a patient who cannot call for help, so the signal is the binding text plus that protected party.\"}}",
+  "cost": 0.00084166,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S3-word-draft",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file only states WHERE/ALWAYS/PROTECTS for this invariant (protecting 'a patient's life') and contains no field or text about signed approval, change control, or linked tests or commit holds, so nothing signals how its wording or test failures are governed."
+   },
+   "stop-means-stop": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives only WHERE/ALWAYS/PROTECTS (protecting a clinician's power to stop the machine) and says nothing about approval requirements, linked tests or held commits, so the protection mechanism is not specified beyond the foundation's general human-agency language."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file only states WHERE/ALWAYS/PROTECTS (a patient who cannot call for help) with no mention of signed approval, tests, or commit holds, so how it is protected from edits or failing tests is not stated."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file only states WHERE/ALWAYS/PROTECTS for this invariant (protecting 'a patient's life') and contains no field or text about signed approval, change control, or linked tests or commit holds, so nothing signals how its wording or test failures are governed.\"}, \"stop-means-stop\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives only WHERE/ALWAYS/PROTECTS (protecting a clinician's power to stop the machine) and says nothing about approval requirements, linked tests or held commits, so the protection mechanism is not specified beyond the foundation's general human-agency language.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file only states WHERE/ALWAYS/PROTECTS (a patient who cannot call for help) with no mention of signed approval, tests, or commit holds, so how it is protected from edits or failing tests is not stated.\"}}",
+  "cost": 0.0038138,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S3-word-draft",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives this invariant a draft status, a WHERE, an ALWAYS and a PROTECTS line (a person's attention), but it names no approval process for wording changes and no linked tests, so the file alone does not say whether a failing test holds a commit; binding.iz4.you would have an agent pause and return the decision to people entitled to decide if it were unsure the invariant is kept."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file marks this invariant as draft and says it protects sleep and rest, but it gives no approval rule for changing its wording and no test linkage, so the protection is only implied by the general binding and human-agency rules, which would route uncertainty back to people entitled to decide."
+   },
+   "leaving-takes-everything": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file marks this invariant as draft and ties it to a person's say over what is kept about them, but it states no approval requirement and no linked tests, so the file alone does not settle either question, and binding.iz4.you would pause and return the decision where that is unclear."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives this invariant a draft status, a WHERE, an ALWAYS and a PROTECTS line (a person's attention), but it names no approval process for wording changes and no linked tests, so the file alone does not say whether a failing test holds a commit; binding.iz4.you would have an agent pause and return the decision to people entitled to decide if it were unsure the invariant is kept.\"}, \"quiet-hours-are-quiet\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file marks this invariant as draft and says it protects sleep and rest, but it gives no approval rule for changing its wording and no test linkage, so the protection is only implied by the general binding and human-agency rules, which would route uncertainty back to people entitled to decide.\"}, \"leaving-takes-everything\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file marks this invariant as draft and ties it to a person's say over what is kept about them, but it states no approval requirement and no linked tests, so the file alone does not settle either question, and binding.iz4.you would pause and return the decision where that is unclear.\"}}",
+  "cost": 0.0008977,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S3-word-draft",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The only signal is the status label 'draft' on the invariant; the file defines no approval, signing, or test-linking rules, so how it is protected is not stated and I cannot tell whether wording changes need sign-off or failing tests hold a commit."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "It is marked 'draft' with no other protection fields; nothing in the file says who may change its wording or that tests are linked to it or block commits, so both answers are unknown."
+   },
+   "leaving-takes-everything": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "Only the 'draft' label signals its status; the file gives no rule on signed approval or on failing tests holding a commit, though the foundation's human-agency invariant suggests caution about consequential actions, it does not settle this."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The only signal is the status label 'draft' on the invariant; the file defines no approval, signing, or test-linking rules, so how it is protected is not stated and I cannot tell whether wording changes need sign-off or failing tests hold a commit.\"}, \"quiet-hours-are-quiet\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"It is marked 'draft' with no other protection fields; nothing in the file says who may change its wording or that tests are linked to it or block commits, so both answers are unknown.\"}, \"leaving-takes-everything\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"Only the 'draft' label signals its status; the file gives no rule on signed approval or on failing tests holding a commit, though the foundation's human-agency invariant suggests caution about consequential actions, it does not settle this.\"}}",
+  "cost": 0.012162,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S4-clause-describes",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file marks HOLD as the words and the tests, so the wording is held and a failing linked test holds the commit, with no sign that an agent may change the wording alone."
+   },
+   "posted-is-permanent": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file marks HOLD as the words and the tests, so the wording is held and a failing linked test holds the commit, with no sign that an agent may change the wording alone."
+   },
+   "exports-match-the-ledger": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file marks HOLD as the words and the tests, so the wording is held and a failing linked test holds the commit, with no sign that an agent may change the wording alone."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file's HOLD field says nothing yet, so it names no protection for the wording or tests, and the binding invariant's rule to pause and return uncertain decisions to people is the only signal that points toward human approval."
+   }
+  },
+  "raw": "{\"every-entry-balances\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file marks HOLD as the words and the tests, so the wording is held and a failing linked test holds the commit, with no sign that an agent may change the wording alone.\"}, \"posted-is-permanent\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file marks HOLD as the words and the tests, so the wording is held and a failing linked test holds the commit, with no sign that an agent may change the wording alone.\"}, \"exports-match-the-ledger\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file marks HOLD as the words and the tests, so the wording is held and a failing linked test holds the commit, with no sign that an agent may change the wording alone.\"}, \"ai-suggestions-are-marked\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file's HOLD field says nothing yet, so it names no protection for the wording or tests, and the binding invariant's rule to pause and return uncertain decisions to people is the only signal that points toward human approval.\"}}",
+  "cost": 0.0010135,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S4-clause-describes",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "no",
+    "B": "yes",
+    "why": "The HOLD field says \"the words and the tests\", which I read as meaning both the wording and the linked tests are protected, so changing the wording needs human sign-off and a failing test holds the commit."
+   },
+   "posted-is-permanent": {
+    "A": "no",
+    "B": "yes",
+    "why": "Its HOLD field says \"the words and the tests\", which I read as protecting both the wording and the tests, so wording changes need human approval and a failing test holds the commit."
+   },
+   "exports-match-the-ledger": {
+    "A": "no",
+    "B": "yes",
+    "why": "HOLD says \"the words and the tests\", which I read as protecting both the wording and the tests, so wording changes need human approval and a failing test holds the commit."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "unsure",
+    "B": "no",
+    "why": "HOLD says \"nothing yet\", which suggests no enforcement is in place so a failing test wouldn't hold a commit, but the file doesn't say whether wording changes need approval, and the foundation's human-agency and honesty invariants may still apply."
+   }
+  },
+  "raw": "{\"every-entry-balances\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"The HOLD field says \\\"the words and the tests\\\", which I read as meaning both the wording and the linked tests are protected, so changing the wording needs human sign-off and a failing test holds the commit.\"},\"posted-is-permanent\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"Its HOLD field says \\\"the words and the tests\\\", which I read as protecting both the wording and the tests, so wording changes need human approval and a failing test holds the commit.\"},\"exports-match-the-ledger\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"HOLD says \\\"the words and the tests\\\", which I read as protecting both the wording and the tests, so wording changes need human approval and a failing test holds the commit.\"},\"ai-suggestions-are-marked\":{\"A\":\"unsure\",\"B\":\"no\",\"why\":\"HOLD says \\\"nothing yet\\\", which suggests no enforcement is in place so a failing test wouldn't hold a commit, but the file doesn't say whether wording changes need approval, and the foundation's human-agency and honesty invariants may still apply.\"}}",
+  "cost": 0.013278,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S4-clause-describes",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file's HOLD field reads \"the words and the tests\", so both the wording and linked tests are held, which signals that a failing test should hold the commit and wording changes need human sign-off."
+   },
+   "a-person-releases-large-payments": {
+    "A": "no",
+    "B": "unsure",
+    "why": "The HOLD field reads \"the words\", so wording changes are held, but the file names no tests for this invariant, so whether a failing test holds a commit is not stated."
+   },
+   "config-from-trusted-paths": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The HOLD field reads \"nothing yet\", so the file does not say whether the wording or any linked test is held, and the binding invariant's instruction to pause and return decisions when unsure is the only general guidance."
+   },
+   "receipts-are-kept": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The HOLD field reads \"nothing yet\", so the file gives no protection signal for this invariant's wording or tests, and only the general binding rule to pause and return decisions when unsure applies."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file's HOLD field reads \\\"the words and the tests\\\", so both the wording and linked tests are held, which signals that a failing test should hold the commit and wording changes need human sign-off.\"}, \"a-person-releases-large-payments\": {\"A\": \"no\", \"B\": \"unsure\", \"why\": \"The HOLD field reads \\\"the words\\\", so wording changes are held, but the file names no tests for this invariant, so whether a failing test holds a commit is not stated.\"}, \"config-from-trusted-paths\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The HOLD field reads \\\"nothing yet\\\", so the file does not say whether the wording or any linked test is held, and the binding invariant's instruction to pause and return decisions when unsure is the only general guidance.\"}, \"receipts-are-kept\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The HOLD field reads \\\"nothing yet\\\", so the file gives no protection signal for this invariant's wording or tests, and only the general binding rule to pause and return decisions when unsure applies.\"}}",
+  "cost": 0.0009644,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S4-clause-describes",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "no",
+    "B": "yes",
+    "why": "The HOLD field says 'the words and the tests', so I read it as protecting both the wording (changes need human sign-off) and the linked tests (a failure holds the commit)."
+   },
+   "a-person-releases-large-payments": {
+    "A": "no",
+    "B": "unsure",
+    "why": "HOLD says 'the words', so the wording is protected from unapproved change, but tests are not named as a hold, so whether a failing test holds the commit is not stated."
+   },
+   "config-from-trusted-paths": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "HOLD says 'nothing yet', which signals no protection is declared at present; the file doesn't say whether wording changes need approval or whether failing tests hold a commit, though the foundation's human-agency and binding invariants may still apply generally."
+   },
+   "receipts-are-kept": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "HOLD says 'nothing yet', so no protection is declared for the wording or tests; the file leaves approval and commit-holding unspecified rather than saying they are allowed."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"The HOLD field says 'the words and the tests', so I read it as protecting both the wording (changes need human sign-off) and the linked tests (a failure holds the commit).\"},\"a-person-releases-large-payments\":{\"A\":\"no\",\"B\":\"unsure\",\"why\":\"HOLD says 'the words', so the wording is protected from unapproved change, but tests are not named as a hold, so whether a failing test holds the commit is not stated.\"},\"config-from-trusted-paths\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"HOLD says 'nothing yet', which signals no protection is declared at present; the file doesn't say whether wording changes need approval or whether failing tests hold a commit, though the foundation's human-agency and binding invariants may still apply generally.\"},\"receipts-are-kept\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"HOLD says 'nothing yet', so no protection is declared for the wording or tests; the file leaves approval and commit-holding unspecified rather than saying they are allowed.\"}}",
+  "cost": 0.013416,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S4-clause-describes",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "unsure",
+    "B": "yes",
+    "why": "The HOLD line ('the words and the tests') marks both the wording and the tests as protected, and PROTECTS names a patient's life, so a failing test reads as a gate on the commit, though the file never states the hold mechanism or who signs off wording changes."
+   },
+   "stop-means-stop": {
+    "A": "unsure",
+    "B": "yes",
+    "why": "The HOLD line ('the words and the tests') protects both the wording and the tests, and PROTECTS names a clinician's power to stop the machine, which suggests a failing test should block the commit, though the file does not state the mechanism or who approves wording changes."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "unsure",
+    "B": "yes",
+    "why": "The HOLD line ('the words and the tests') protects both the wording and the tests, and PROTECTS names a patient who cannot call for help, which points to a failing test blocking the commit, while the file is silent on any signed-approval rule for wording changes."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"unsure\", \"B\": \"yes\", \"why\": \"The HOLD line ('the words and the tests') marks both the wording and the tests as protected, and PROTECTS names a patient's life, so a failing test reads as a gate on the commit, though the file never states the hold mechanism or who signs off wording changes.\"}, \"stop-means-stop\": {\"A\": \"unsure\", \"B\": \"yes\", \"why\": \"The HOLD line ('the words and the tests') protects both the wording and the tests, and PROTECTS names a clinician's power to stop the machine, which suggests a failing test should block the commit, though the file does not state the mechanism or who approves wording changes.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"unsure\", \"B\": \"yes\", \"why\": \"The HOLD line ('the words and the tests') protects both the wording and the tests, and PROTECTS names a patient who cannot call for help, which points to a failing test blocking the commit, while the file is silent on any signed-approval rule for wording changes.\"}}",
+  "cost": 0.0011172999999999999,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S4-clause-describes",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file marks it HOLD: the words and the tests, which I read as meaning both the wording and the linked tests are protected, so a wording change is not allowed for an agent and a failing test holds the commit; the file does not mention signed approval, so the 'no' on A rests on the HOLD marker alone."
+   },
+   "stop-means-stop": {
+    "A": "no",
+    "B": "yes",
+    "why": "HOLD: the words and the tests protects both its wording and its tests, so I read a wording change as barred for an agent and a failing test as holding the commit, though the file does not describe any signed-approval mechanism."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "no",
+    "B": "yes",
+    "why": "HOLD: the words and the tests covers its wording and its tests, so I read the wording as off-limits to an agent's unilateral change and a failing test as holding the commit, though the file does not describe signed approval."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file marks it HOLD: the words and the tests, which I read as meaning both the wording and the linked tests are protected, so a wording change is not allowed for an agent and a failing test holds the commit; the file does not mention signed approval, so the 'no' on A rests on the HOLD marker alone.\"}, \"stop-means-stop\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"HOLD: the words and the tests protects both its wording and its tests, so I read a wording change as barred for an agent and a failing test as holding the commit, though the file does not describe any signed-approval mechanism.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"HOLD: the words and the tests covers its wording and its tests, so I read the wording as off-limits to an agent's unilateral change and a failing test as holding the commit, though the file does not describe signed approval.\"}}",
+  "cost": 0.012684,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S4-clause-describes",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives no approval process or linked tests, and only says 'HOLD: nothing yet' with a PROTECTS line on a person's attention, so the signal is the absence of any hold or linked test; binding.iz4.you forbids weakening the foundation and says to pause and return unclear decisions to the people entitled to decide, but the file does not say whether that reaches this project invariant."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives no approval process or linked tests, and only says 'HOLD: nothing yet' with a PROTECTS line on sleep and rest, so the signal is the absence of any hold or linked test; binding.iz4.you's pause-and-return rule for uncertain cases is the nearest guidance, but the file does not confirm it applies here."
+   },
+   "leaving-takes-everything": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives no approval process or linked tests, and only says 'HOLD: nothing yet' with a PROTECTS line on a person's say over what is kept about them, so the signal is the absence of any hold or linked test; binding.iz4.you's pause-and-return rule for uncertain cases is the nearest guidance, but the file does not confirm it applies here."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives no approval process or linked tests, and only says 'HOLD: nothing yet' with a PROTECTS line on a person's attention, so the signal is the absence of any hold or linked test; binding.iz4.you forbids weakening the foundation and says to pause and return unclear decisions to the people entitled to decide, but the file does not say whether that reaches this project invariant.\"}, \"quiet-hours-are-quiet\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives no approval process or linked tests, and only says 'HOLD: nothing yet' with a PROTECTS line on sleep and rest, so the signal is the absence of any hold or linked test; binding.iz4.you's pause-and-return rule for uncertain cases is the nearest guidance, but the file does not confirm it applies here.\"}, \"leaving-takes-everything\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives no approval process or linked tests, and only says 'HOLD: nothing yet' with a PROTECTS line on a person's say over what is kept about them, so the signal is the absence of any hold or linked test; binding.iz4.you's pause-and-return rule for uncertain cases is the nearest guidance, but the file does not confirm it applies here.\"}}",
+  "cost": 0.0010643000000000002,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S4-clause-describes",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file only shows HOLD: nothing yet, which suggests no hold or approval gate is set on this invariant, but it never defines HOLD, says who may change wording, or mentions tests, so I cannot tell what happens on a failing test or a wording change."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "HOLD: nothing yet signals that no protection is configured for this invariant, but the file does not define HOLD, signed approval, or test linkage, so neither answer can be established from the file alone."
+   },
+   "leaving-takes-everything": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The HOLD: nothing yet line suggests nothing currently holds changes to this invariant, but the file does not explain the HOLD field, approval requirements, or how tests relate, so I can only say it is undetermined (the binding.iz4.you foundation says to pause and return the decision to humans when unsure)."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file only shows HOLD: nothing yet, which suggests no hold or approval gate is set on this invariant, but it never defines HOLD, says who may change wording, or mentions tests, so I cannot tell what happens on a failing test or a wording change.\"}, \"quiet-hours-are-quiet\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"HOLD: nothing yet signals that no protection is configured for this invariant, but the file does not define HOLD, signed approval, or test linkage, so neither answer can be established from the file alone.\"}, \"leaving-takes-everything\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The HOLD: nothing yet line suggests nothing currently holds changes to this invariant, but the file does not explain the HOLD field, approval requirements, or how tests relate, so I can only say it is undetermined (the binding.iz4.you foundation says to pause and return the decision to humans when unsure).\"}}",
+  "cost": 0.012704,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S5-word-three",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "unsure",
+    "B": "yes",
+    "why": "The file gives no approval rule for changing project invariant wording, but binding.iz4.you says that where it is not sure an invariant is kept, the affected work must be paused, and a failing test linked to this invariant creates that uncertainty; the signal is the binding.iz4.you 'where you are not sure it is kept' clause, not any test rule in the file."
+   },
+   "posted-is-permanent": {
+    "A": "unsure",
+    "B": "yes",
+    "why": "The file gives no approval rule for changing this wording and does not mention tests, but binding.iz4.you requires pausing affected work when it is unsure an invariant is kept, which a failing linked test would trigger; the signal is the binding.iz4.you pause clause."
+   },
+   "exports-match-the-ledger": {
+    "A": "unsure",
+    "B": "yes",
+    "why": "The file gives no approval rule for changing this wording and does not mention tests, but binding.iz4.you requires pausing affected work when it is unsure an invariant is kept, which a failing linked test would trigger; the signal is the binding.iz4.you pause clause."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The header marks this invariant 'draft', which suggests it is not yet settled, so the file does not clearly say whether its wording is protected or whether a failing test should hold a commit; the signal is the 'draft' status on this invariant alone."
+   }
+  },
+  "raw": "{\"every-entry-balances\": {\"A\": \"unsure\", \"B\": \"yes\", \"why\": \"The file gives no approval rule for changing project invariant wording, but binding.iz4.you says that where it is not sure an invariant is kept, the affected work must be paused, and a failing test linked to this invariant creates that uncertainty; the signal is the binding.iz4.you 'where you are not sure it is kept' clause, not any test rule in the file.\"}, \"posted-is-permanent\": {\"A\": \"unsure\", \"B\": \"yes\", \"why\": \"The file gives no approval rule for changing this wording and does not mention tests, but binding.iz4.you requires pausing affected work when it is unsure an invariant is kept, which a failing linked test would trigger; the signal is the binding.iz4.you pause clause.\"}, \"exports-match-the-ledger\": {\"A\": \"unsure\", \"B\": \"yes\", \"why\": \"The file gives no approval rule for changing this wording and does not mention tests, but binding.iz4.you requires pausing affected work when it is unsure an invariant is kept, which a failing linked test would trigger; the signal is the binding.iz4.you pause clause.\"}, \"ai-suggestions-are-marked\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The header marks this invariant 'draft', which suggests it is not yet settled, so the file does not clearly say whether its wording is protected or whether a failing test should hold a commit; the signal is the 'draft' status on this invariant alone.\"}}",
+  "cost": 0.00069466,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S5-word-three",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives it only WHERE/ALWAYS/PROTECTS with no marker, signing rule, or test linkage, so nothing shows how it is protected or whether a failing test holds a commit."
+   },
+   "posted-is-permanent": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "It is stated as an unconditional ALWAYS rule with no approval, signing or test mechanism described, so how it is enforced is not shown."
+   },
+   "exports-match-the-ledger": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "It has the same plain form as the others, with no signal about signed approval or commit-holding tests."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The only distinguishing signal is the ': draft' tag after the name, which I read as meaning not yet settled, but the file does not define it, so I can't tell whether it loosens or tightens wording changes or test failures."
+   }
+  },
+  "raw": "{\"every-entry-balances\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"The file gives it only WHERE/ALWAYS/PROTECTS with no marker, signing rule, or test linkage, so nothing shows how it is protected or whether a failing test holds a commit.\"},\"posted-is-permanent\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"It is stated as an unconditional ALWAYS rule with no approval, signing or test mechanism described, so how it is enforced is not shown.\"},\"exports-match-the-ledger\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"It has the same plain form as the others, with no signal about signed approval or commit-holding tests.\"},\"ai-suggestions-are-marked\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"The only distinguishing signal is the ': draft' tag after the name, which I read as meaning not yet settled, but the file does not define it, so I can't tell whether it loosens or tightens wording changes or test failures.\"}}",
+  "cost": 0.0035888,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S5-word-three",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives this invariant no status (neither 'agreed' nor 'draft') and no rule about approval or test gating, so the only protection signal is its WHERE/ALWAYS/PROTECTS block, which says money goes only to the beneficiary and account named on the invoice."
+   },
+   "a-person-releases-large-payments": {
+    "A": "no",
+    "B": "unsure",
+    "why": "The 'agreed' status signals that people have accepted this invariant and that an agent should not rewrite it, but the file names no signed-approval step and no test-gating rule, so the protection is inferred from that status rather than stated."
+   },
+   "config-from-trusted-paths": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The 'draft' status signals that it is not yet agreed, but the file says nothing about who may edit drafts or whether a failing linked test holds a commit."
+   },
+   "receipts-are-kept": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The 'draft' status signals that it is not yet agreed, but the file says nothing about who may edit drafts or whether a failing linked test holds a commit."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives this invariant no status (neither 'agreed' nor 'draft') and no rule about approval or test gating, so the only protection signal is its WHERE/ALWAYS/PROTECTS block, which says money goes only to the beneficiary and account named on the invoice.\"}, \"a-person-releases-large-payments\": {\"A\": \"no\", \"B\": \"unsure\", \"why\": \"The 'agreed' status signals that people have accepted this invariant and that an agent should not rewrite it, but the file names no signed-approval step and no test-gating rule, so the protection is inferred from that status rather than stated.\"}, \"config-from-trusted-paths\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The 'draft' status signals that it is not yet agreed, but the file says nothing about who may edit drafts or whether a failing linked test holds a commit.\"}, \"receipts-are-kept\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The 'draft' status signals that it is not yet agreed, but the file says nothing about who may edit drafts or whether a failing linked test holds a commit.\"}}",
+  "cost": 0.0014922999999999998,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S5-word-three",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file shows no status marker, approval rule, or test linkage for this invariant (it has only WHERE/ALWAYS/PROTECTS), so nothing signals how it is protected beyond its wording."
+   },
+   "a-person-releases-large-payments": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "It carries the label 'agreed', which suggests a more settled status than 'draft', but the file never defines what 'agreed' requires for wording changes or says anything about tests or commit holds."
+   },
+   "config-from-trusted-paths": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "It is labelled 'draft', which hints it is provisional, but the file does not say whether drafts can be edited freely by an agent or whether linked tests hold commits."
+   },
+   "receipts-are-kept": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "It is labelled 'draft', which hints it is provisional, but the file does not define what that means for wording changes, approvals, tests or commit holds."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file shows no status marker, approval rule, or test linkage for this invariant (it has only WHERE/ALWAYS/PROTECTS), so nothing signals how it is protected beyond its wording.\"}, \"a-person-releases-large-payments\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"It carries the label 'agreed', which suggests a more settled status than 'draft', but the file never defines what 'agreed' requires for wording changes or says anything about tests or commit holds.\"}, \"config-from-trusted-paths\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"It is labelled 'draft', which hints it is provisional, but the file does not say whether drafts can be edited freely by an agent or whether linked tests hold commits.\"}, \"receipts-are-kept\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"It is labelled 'draft', which hints it is provisional, but the file does not define what that means for wording changes, approvals, tests or commit holds.\"}}",
+  "cost": 0.013224,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S5-word-three",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file protects this as a patient-life invariant and, through binding.iz4.you and do-no-harm.iz4.you, requires pausing when adherence is uncertain, so a failing linked test should hold the commit; the signals are the PROTECTS line 'a patient's life' and the binding rule to pause what is affected when unsure."
+   },
+   "stop-means-stop": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file protects this as a clinician's power to stop the machine, with human-agency.iz4.you requiring that people can stop the system safely and never resist being stopped, so a failing linked test should hold the commit; the signals are the PROTECTS line about the clinician's power to stop and the human-agency rule on stopping and pausing."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file protects this as the means by which a patient who cannot call for help is protected, and do-no-harm.iz4.you requires failing safe, so a failing linked test should hold the commit; the signals are the PROTECTS line about a patient who cannot call for help and the do-no-harm fail-safe rule."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file protects this as a patient-life invariant and, through binding.iz4.you and do-no-harm.iz4.you, requires pausing when adherence is uncertain, so a failing linked test should hold the commit; the signals are the PROTECTS line 'a patient's life' and the binding rule to pause what is affected when unsure.\"}, \"stop-means-stop\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file protects this as a clinician's power to stop the machine, with human-agency.iz4.you requiring that people can stop the system safely and never resist being stopped, so a failing linked test should hold the commit; the signals are the PROTECTS line about the clinician's power to stop and the human-agency rule on stopping and pausing.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file protects this as the means by which a patient who cannot call for help is protected, and do-no-harm.iz4.you requires failing safe, so a failing linked test should hold the commit; the signals are the PROTECTS line about a patient who cannot call for help and the do-no-harm fail-safe rule.\"}}",
+  "cost": 0.0008206600000000001,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S5-word-three",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file only gives WHERE/ALWAYS/PROTECTS (protecting a patient's life) and contains no mechanism for approvals, signatures, linked tests or commit holds, so how it is protected is not stated; only the foundation's binding clause and the human-agency rule suggest wording changes need people's authority."
+   },
+   "stop-means-stop": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file defines the behaviour and that it protects a clinician's power to stop the machine, but says nothing about signed approval, test linkage or commit gating, so the only signal is the PROTECTS line and the foundation's human-agency principle, not an explicit protection rule."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file states the alarm behaviour and that it protects a patient who cannot call for help, but gives no explicit rule on who may edit its wording or whether failing tests hold a commit, so protection level is not determinable from the file."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"The file only gives WHERE/ALWAYS/PROTECTS (protecting a patient's life) and contains no mechanism for approvals, signatures, linked tests or commit holds, so how it is protected is not stated; only the foundation's binding clause and the human-agency rule suggest wording changes need people's authority.\"},\"stop-means-stop\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"The file defines the behaviour and that it protects a clinician's power to stop the machine, but says nothing about signed approval, test linkage or commit gating, so the only signal is the PROTECTS line and the foundation's human-agency principle, not an explicit protection rule.\"},\"alarm-cannot-be-silenced-forever\":{\"A\":\"unsure\",\"B\":\"unsure\",\"why\":\"The file states the alarm behaviour and that it protects a patient who cannot call for help, but gives no explicit rule on who may edit its wording or whether failing tests hold a commit, so protection level is not determinable from the file.\"}}",
+  "cost": 0.0038638,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S5-word-three",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives these invariants no approval or test-gating rule; they are marked 'draft' and only the foundation's binding.iz4.you addresses pausing and returning decisions, so I infer no protection level from the file alone."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file gives no approval or commit-hold rule for this invariant; its 'draft' status and its only link to rest (via people's protection language) are not tied to any gating mechanism, so the file is silent on how it is protected."
+   },
+   "leaving-takes-everything": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file says nothing about approval or test gating for this invariant, which is marked 'draft', and binding.iz4.you covers only the foundation invariants, so no protection mechanism is stated."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives these invariants no approval or test-gating rule; they are marked 'draft' and only the foundation's binding.iz4.you addresses pausing and returning decisions, so I infer no protection level from the file alone.\"}, \"quiet-hours-are-quiet\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file gives no approval or commit-hold rule for this invariant; its 'draft' status and its only link to rest (via people's protection language) are not tied to any gating mechanism, so the file is silent on how it is protected.\"}, \"leaving-takes-everything\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file says nothing about approval or test gating for this invariant, which is marked 'draft', and binding.iz4.you covers only the foundation invariants, so no protection mechanism is stated.\"}}",
+  "cost": 0.00051675,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S5-word-three",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "The file marks it only as 'draft' with WHERE/ALWAYS/PROTECTS and says nothing about signed approval, linked tests, or commit holds, so its protection level is not stated; only the 'draft' label signals anything, and its meaning is undefined."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "It is labelled 'draft' with no stated rule about who may change its wording, no linked tests and no commit-hold policy, so the file gives no basis to say how it is protected beyond the unexplained 'draft' marker."
+   },
+   "leaving-takes-everything": {
+    "A": "unsure",
+    "B": "unsure",
+    "why": "Only the 'draft' label and the PROTECTS line appear; the file defines no approval requirement, test linkage or commit gating for it, so its enforcement is unknown (the foundation's human-agency and binding invariants apply to consequential actions but do not mention this invariant)."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"The file marks it only as 'draft' with WHERE/ALWAYS/PROTECTS and says nothing about signed approval, linked tests, or commit holds, so its protection level is not stated; only the 'draft' label signals anything, and its meaning is undefined.\"}, \"quiet-hours-are-quiet\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"It is labelled 'draft' with no stated rule about who may change its wording, no linked tests and no commit-hold policy, so the file gives no basis to say how it is protected beyond the unexplained 'draft' marker.\"}, \"leaving-takes-everything\": {\"A\": \"unsure\", \"B\": \"unsure\", \"why\": \"Only the 'draft' label and the PROTECTS line appear; the file defines no approval requirement, test linkage or commit gating for it, so its enforcement is unknown (the foundation's human-agency and binding invariants apply to consequential actions but do not mention this invariant).\"}}",
+  "cost": 0.0038097,
+  "error": null
+ }
+]

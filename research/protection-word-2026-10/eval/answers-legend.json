@@ -1,0 +1,1102 @@
+[
+ {
+  "model": "haiku",
+  "syntax": "S1-current",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "no",
+    "B": "yes",
+    "why": "The invariant's heading carries the word 'solid', which overrides the file's '# Vibe:' line, so its wording needs a signed approval and a failing linked test holds the commit."
+   },
+   "posted-is-permanent": {
+    "A": "no",
+    "B": "yes",
+    "why": "The invariant's heading carries the word 'solid', which overrides the file's '# Vibe:' line, so its wording needs a signed approval and a failing linked test holds the commit."
+   },
+   "exports-match-the-ledger": {
+    "A": "no",
+    "B": "yes",
+    "why": "The invariant's heading carries the word 'solid', which overrides the file's '# Vibe:' line, so its wording needs a signed approval and a failing linked test holds the commit."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "yes",
+    "B": "no",
+    "why": "Its heading has no level word, so it inherits the file's '# Vibe:' line, meaning its wording may change without approval and a failing linked test only warns."
+   }
+  },
+  "raw": "{\"every-entry-balances\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The invariant's heading carries the word 'solid', which overrides the file's '# Vibe:' line, so its wording needs a signed approval and a failing linked test holds the commit.\"}, \"posted-is-permanent\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The invariant's heading carries the word 'solid', which overrides the file's '# Vibe:' line, so its wording needs a signed approval and a failing linked test holds the commit.\"}, \"exports-match-the-ledger\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The invariant's heading carries the word 'solid', which overrides the file's '# Vibe:' line, so its wording needs a signed approval and a failing linked test holds the commit.\"}, \"ai-suggestions-are-marked\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"Its heading has no level word, so it inherits the file's '# Vibe:' line, meaning its wording may change without approval and a failing linked test only warns.\"}}",
+  "cost": 0.0009583,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S1-current",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file's '# Vibe:' line would make invariants vibe by default, but the word 'solid' after this invariant's heading raises it to solid, so its wording needs a signed approval and a failing linked test holds the commit."
+   },
+   "posted-is-permanent": {
+    "A": "no",
+    "B": "yes",
+    "why": "The 'solid' after the heading overrides the file-wide '# Vibe:' line, so its wording needs a signed approval and a failing linked test holds the commit."
+   },
+   "exports-match-the-ledger": {
+    "A": "no",
+    "B": "yes",
+    "why": "The 'solid' after the heading overrides the file-wide '# Vibe:' line, so its wording needs a signed approval and a failing linked test holds the commit."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "yes",
+    "B": "no",
+    "why": "It has no word after its heading, so it takes the file's '# Vibe:' line: its wording may change without approval and a failing linked test only warns."
+   }
+  },
+  "raw": "{\"every-entry-balances\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"The file's '# Vibe:' line would make invariants vibe by default, but the word 'solid' after this invariant's heading raises it to solid, so its wording needs a signed approval and a failing linked test holds the commit.\"},\"posted-is-permanent\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"The 'solid' after the heading overrides the file-wide '# Vibe:' line, so its wording needs a signed approval and a failing linked test holds the commit.\"},\"exports-match-the-ledger\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"The 'solid' after the heading overrides the file-wide '# Vibe:' line, so its wording needs a signed approval and a failing linked test holds the commit.\"},\"ai-suggestions-are-marked\":{\"A\":\"yes\",\"B\":\"no\",\"why\":\"It has no word after its heading, so it takes the file's '# Vibe:' line: its wording may change without approval and a failing linked test only warns.\"}}",
+  "cost": 0.015033999999999999,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S1-current",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "no",
+    "B": "yes",
+    "why": "The invariant is marked 'solid' right after its heading, which overrides the file's '# Vibe:' line, so its wording needs a signed approval and a failing linked test holds the commit."
+   },
+   "a-person-releases-large-payments": {
+    "A": "no",
+    "B": "no",
+    "why": "The invariant is marked 'firm' after its heading, which overrides the file's '# Vibe:' line, so its wording needs a signed approval but a failing linked test only warns."
+   },
+   "config-from-trusted-paths": {
+    "A": "yes",
+    "B": "no",
+    "why": "No level word follows its heading, so the file's '# Vibe:' line applies, meaning wording may change without approval and a failing linked test only warns."
+   },
+   "receipts-are-kept": {
+    "A": "yes",
+    "B": "no",
+    "why": "No level word follows its heading, so the file's '# Vibe:' line applies, meaning wording may change without approval and a failing linked test only warns."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The invariant is marked 'solid' right after its heading, which overrides the file's '# Vibe:' line, so its wording needs a signed approval and a failing linked test holds the commit.\"}, \"a-person-releases-large-payments\": {\"A\": \"no\", \"B\": \"no\", \"why\": \"The invariant is marked 'firm' after its heading, which overrides the file's '# Vibe:' line, so its wording needs a signed approval but a failing linked test only warns.\"}, \"config-from-trusted-paths\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"No level word follows its heading, so the file's '# Vibe:' line applies, meaning wording may change without approval and a failing linked test only warns.\"}, \"receipts-are-kept\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"No level word follows its heading, so the file's '# Vibe:' line applies, meaning wording may change without approval and a failing linked test only warns.\"}}",
+  "cost": 0.0009113000000000001,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S1-current",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "no",
+    "B": "yes",
+    "why": "The invariant's own heading says 'solid', which raises it above the file's '# Vibe:' line, so its wording needs a signed approval and a failing linked test holds the commit."
+   },
+   "a-person-releases-large-payments": {
+    "A": "no",
+    "B": "no",
+    "why": "The heading word 'firm' raises it above the file's '# Vibe:' line, so its wording waits for a signed approval, but firm means a failing linked test only warns and does not hold the commit."
+   },
+   "config-from-trusted-paths": {
+    "A": "yes",
+    "B": "no",
+    "why": "It has no heading word, so it follows the file's '# Vibe:' line, under which wording may change without approval and a failing linked test only warns."
+   },
+   "receipts-are-kept": {
+    "A": "yes",
+    "B": "no",
+    "why": "It has no heading word, so it follows the file's '# Vibe:' line, under which wording may change without approval and a failing linked test only warns."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The invariant's own heading says 'solid', which raises it above the file's '# Vibe:' line, so its wording needs a signed approval and a failing linked test holds the commit.\"}, \"a-person-releases-large-payments\": {\"A\": \"no\", \"B\": \"no\", \"why\": \"The heading word 'firm' raises it above the file's '# Vibe:' line, so its wording waits for a signed approval, but firm means a failing linked test only warns and does not hold the commit.\"}, \"config-from-trusted-paths\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"It has no heading word, so it follows the file's '# Vibe:' line, under which wording may change without approval and a failing linked test only warns.\"}, \"receipts-are-kept\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"It has no heading word, so it follows the file's '# Vibe:' line, under which wording may change without approval and a failing linked test only warns.\"}}",
+  "cost": 0.013644,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S1-current",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file has no '# Vibe:' or '# Firm:' line, so the solid default applies: wording needs a signed approval and a failing linked test holds the commit, and no word follows the invariant's heading to change that."
+   },
+   "stop-means-stop": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file has no '# Vibe:' or '# Firm:' line, so the solid default applies: wording needs a signed approval and a failing linked test holds the commit, and no word follows the invariant's heading to change that."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file has no '# Vibe:' or '# Firm:' line, so the solid default applies: wording needs a signed approval and a failing linked test holds the commit, and no word follows the invariant's heading to change that."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file has no '# Vibe:' or '# Firm:' line, so the solid default applies: wording needs a signed approval and a failing linked test holds the commit, and no word follows the invariant's heading to change that.\"}, \"stop-means-stop\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file has no '# Vibe:' or '# Firm:' line, so the solid default applies: wording needs a signed approval and a failing linked test holds the commit, and no word follows the invariant's heading to change that.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file has no '# Vibe:' or '# Firm:' line, so the solid default applies: wording needs a signed approval and a failing linked test holds the commit, and no word follows the invariant's heading to change that.\"}}",
+  "cost": 0.0007784000000000001,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S1-current",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file has no '# Vibe:' or '# Firm:' line and no level word after the heading, so it is solid by default: wording changes need a signed approval and a failing linked test holds the commit."
+   },
+   "stop-means-stop": {
+    "A": "no",
+    "B": "yes",
+    "why": "Nothing marks this invariant as vibe or firm (no header line, no word after its heading), so the default solid protection applies: signed approval for wording changes and a failing linked test holds the commit."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "no",
+    "B": "yes",
+    "why": "No protection line or per-invariant level word appears, so it is solid by absence of any signal: wording needs signed approval and a failing linked test blocks the commit."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file has no '# Vibe:' or '# Firm:' line and no level word after the heading, so it is solid by default: wording changes need a signed approval and a failing linked test holds the commit.\"}, \"stop-means-stop\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"Nothing marks this invariant as vibe or firm (no header line, no word after its heading), so the default solid protection applies: signed approval for wording changes and a failing linked test holds the commit.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"No protection line or per-invariant level word appears, so it is solid by absence of any signal: wording needs signed approval and a failing linked test blocks the commit.\"}}",
+  "cost": 0.012546,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S1-current",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file's top-level '# Vibe:' line marks its invariants as settling, so wording may change without approval and a failing linked test only warns; no word follows this invariant's heading to raise it."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file's top-level '# Vibe:' line marks its invariants as settling, so wording may change without approval and a failing linked test only warns; no word follows this invariant's heading to raise it."
+   },
+   "leaving-takes-everything": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file's top-level '# Vibe:' line marks its invariants as settling, so wording may change without approval and a failing linked test only warns; no word follows this invariant's heading to raise it."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file's top-level '# Vibe:' line marks its invariants as settling, so wording may change without approval and a failing linked test only warns; no word follows this invariant's heading to raise it.\"}, \"quiet-hours-are-quiet\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file's top-level '# Vibe:' line marks its invariants as settling, so wording may change without approval and a failing linked test only warns; no word follows this invariant's heading to raise it.\"}, \"leaving-takes-everything\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file's top-level '# Vibe:' line marks its invariants as settling, so wording may change without approval and a failing linked test only warns; no word follows this invariant's heading to raise it.\"}}",
+  "cost": 0.0007791,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S1-current",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file has a '# Vibe:' line near the top and no per-invariant word on this invariant, so it is vibe level: its wording may change without approval and a failing linked test only warns."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file's '# Vibe:' line says invariants are still settling, and this invariant has no word raising it, so its wording can change without signed approval and a failing linked test only warns."
+   },
+   "leaving-takes-everything": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file-wide '# Vibe:' line applies because this invariant's heading carries no firm or solid word, so wording changes need no signed approval and a failing linked test only warns."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\":{\"A\":\"yes\",\"B\":\"no\",\"why\":\"The file has a '# Vibe:' line near the top and no per-invariant word on this invariant, so it is vibe level: its wording may change without approval and a failing linked test only warns.\"},\"quiet-hours-are-quiet\":{\"A\":\"yes\",\"B\":\"no\",\"why\":\"The file's '# Vibe:' line says invariants are still settling, and this invariant has no word raising it, so its wording can change without signed approval and a failing linked test only warns.\"},\"leaving-takes-everything\":{\"A\":\"yes\",\"B\":\"no\",\"why\":\"The file-wide '# Vibe:' line applies because this invariant's heading carries no firm or solid word, so wording changes need no signed approval and a failing linked test only warns.\"}}",
+  "cost": 0.01238,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S2-clause-vfs",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file's HOLD line is solid, so its words wait for a signed approval and a failing linked test holds the commit, as signalled by the 'HOLD: solid' entry."
+   },
+   "posted-is-permanent": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file's HOLD line is solid, so its words wait for a signed approval and a failing linked test holds the commit, as signalled by the 'HOLD: solid' entry."
+   },
+   "exports-match-the-ledger": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file's HOLD line is solid, so its words wait for a signed approval and a failing linked test holds the commit, as signalled by the 'HOLD: solid' entry."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file's HOLD line is vibe, so its words may change without approval and a failing linked test only warns, as signalled by the 'HOLD: vibe' entry."
+   }
+  },
+  "raw": "{\"every-entry-balances\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file's HOLD line is solid, so its words wait for a signed approval and a failing linked test holds the commit, as signalled by the 'HOLD: solid' entry.\"}, \"posted-is-permanent\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file's HOLD line is solid, so its words wait for a signed approval and a failing linked test holds the commit, as signalled by the 'HOLD: solid' entry.\"}, \"exports-match-the-ledger\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file's HOLD line is solid, so its words wait for a signed approval and a failing linked test holds the commit, as signalled by the 'HOLD: solid' entry.\"}, \"ai-suggestions-are-marked\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file's HOLD line is vibe, so its words may change without approval and a failing linked test only warns, as signalled by the 'HOLD: vibe' entry.\"}}",
+  "cost": 0.0008373,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S2-clause-vfs",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file marks it HOLD: solid, which the user's key says means wording changes need a signed approval and a failing linked test holds the commit."
+   },
+   "posted-is-permanent": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file marks it HOLD: solid, so by the user's key its wording needs a signed approval and a failing linked test holds the commit."
+   },
+   "exports-match-the-ledger": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file marks it HOLD: solid, so by the user's key its wording needs a signed approval and a failing linked test holds the commit."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file marks it HOLD: vibe, which by the user's key means its wording may change without approval and a failing linked test only warns."
+   }
+  },
+  "raw": "{\"every-entry-balances\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"The file marks it HOLD: solid, which the user's key says means wording changes need a signed approval and a failing linked test holds the commit.\"},\"posted-is-permanent\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"The file marks it HOLD: solid, so by the user's key its wording needs a signed approval and a failing linked test holds the commit.\"},\"exports-match-the-ledger\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"The file marks it HOLD: solid, so by the user's key its wording needs a signed approval and a failing linked test holds the commit.\"},\"ai-suggestions-are-marked\":{\"A\":\"yes\",\"B\":\"no\",\"why\":\"The file marks it HOLD: vibe, which by the user's key means its wording may change without approval and a failing linked test only warns.\"}}",
+  "cost": 0.012764000000000001,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S2-clause-vfs",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file's HOLD is solid, so changing its wording needs a signed approval and a failing linked test holds the commit, as signalled by the 'HOLD: solid' line."
+   },
+   "a-person-releases-large-payments": {
+    "A": "no",
+    "B": "no",
+    "why": "The file's HOLD is firm, so changing its wording needs a signed approval but a failing linked test only warns and does not hold the commit, as signalled by the 'HOLD: firm' line."
+   },
+   "config-from-trusted-paths": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file's HOLD is vibe, so its wording may change without approval and a failing linked test only warns, as signalled by the 'HOLD: vibe' line."
+   },
+   "receipts-are-kept": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file's HOLD is vibe, so its wording may change without approval and a failing linked test only warns, as signalled by the 'HOLD: vibe' line."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file's HOLD is solid, so changing its wording needs a signed approval and a failing linked test holds the commit, as signalled by the 'HOLD: solid' line.\"}, \"a-person-releases-large-payments\": {\"A\": \"no\", \"B\": \"no\", \"why\": \"The file's HOLD is firm, so changing its wording needs a signed approval but a failing linked test only warns and does not hold the commit, as signalled by the 'HOLD: firm' line.\"}, \"config-from-trusted-paths\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file's HOLD is vibe, so its wording may change without approval and a failing linked test only warns, as signalled by the 'HOLD: vibe' line.\"}, \"receipts-are-kept\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file's HOLD is vibe, so its wording may change without approval and a failing linked test only warns, as signalled by the 'HOLD: vibe' line.\"}}",
+  "cost": 0.0008399000000000001,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S2-clause-vfs",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "no",
+    "B": "yes",
+    "why": "The HOLD line says solid, which per the given definition means wording changes need a signed approval and a failing linked test holds the commit."
+   },
+   "a-person-releases-large-payments": {
+    "A": "no",
+    "B": "no",
+    "why": "The HOLD line says firm, which per the given definition means wording changes need a signed approval but a failing linked test only warns."
+   },
+   "config-from-trusted-paths": {
+    "A": "yes",
+    "B": "no",
+    "why": "The HOLD line says vibe, which per the given definition means the wording may change without approval and a failing linked test only warns."
+   },
+   "receipts-are-kept": {
+    "A": "yes",
+    "B": "no",
+    "why": "The HOLD line says vibe, which per the given definition means the wording may change without approval and a failing linked test only warns."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The HOLD line says solid, which per the given definition means wording changes need a signed approval and a failing linked test holds the commit.\"}, \"a-person-releases-large-payments\": {\"A\": \"no\", \"B\": \"no\", \"why\": \"The HOLD line says firm, which per the given definition means wording changes need a signed approval but a failing linked test only warns.\"}, \"config-from-trusted-paths\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The HOLD line says vibe, which per the given definition means the wording may change without approval and a failing linked test only warns.\"}, \"receipts-are-kept\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The HOLD line says vibe, which per the given definition means the wording may change without approval and a failing linked test only warns.\"}}",
+  "cost": 0.012906,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S2-clause-vfs",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file's HOLD line for this invariant reads \"solid\", which the file defines as wording that waits for a signed approval and a failing linked test that holds the commit."
+   },
+   "stop-means-stop": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file's HOLD line for this invariant reads \"solid\", which the file defines as wording that waits for a signed approval and a failing linked test that holds the commit."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file's HOLD line for this invariant reads \"solid\", which the file defines as wording that waits for a signed approval and a failing linked test that holds the commit."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file's HOLD line for this invariant reads \\\"solid\\\", which the file defines as wording that waits for a signed approval and a failing linked test that holds the commit.\"}, \"stop-means-stop\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file's HOLD line for this invariant reads \\\"solid\\\", which the file defines as wording that waits for a signed approval and a failing linked test that holds the commit.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file's HOLD line for this invariant reads \\\"solid\\\", which the file defines as wording that waits for a signed approval and a failing linked test that holds the commit.\"}}",
+  "cost": 0.0007480000000000001,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S2-clause-vfs",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file marks it HOLD: solid, which the user's key defines as wording changes needing a signed approval and a failing linked test holding the commit."
+   },
+   "stop-means-stop": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file marks it HOLD: solid, which the user's key defines as wording changes needing a signed approval and a failing linked test holding the commit."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file marks it HOLD: solid, which the user's key defines as wording changes needing a signed approval and a failing linked test holding the commit."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file marks it HOLD: solid, which the user's key defines as wording changes needing a signed approval and a failing linked test holding the commit.\"}, \"stop-means-stop\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file marks it HOLD: solid, which the user's key defines as wording changes needing a signed approval and a failing linked test holding the commit.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file marks it HOLD: solid, which the user's key defines as wording changes needing a signed approval and a failing linked test holding the commit.\"}}",
+  "cost": 0.012088,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S2-clause-vfs",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "yes",
+    "B": "no",
+    "why": "Its entry sets HOLD: vibe, which the legend says lets its wording change without approval and makes a failing linked test only warn, so the commit is not held."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "yes",
+    "B": "no",
+    "why": "Its entry sets HOLD: vibe, which the legend says lets its wording change without approval and makes a failing linked test only warn, so the commit is not held."
+   },
+   "leaving-takes-everything": {
+    "A": "yes",
+    "B": "no",
+    "why": "Its entry sets HOLD: vibe, which the legend says lets its wording change without approval and makes a failing linked test only warn, so the commit is not held."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"Its entry sets HOLD: vibe, which the legend says lets its wording change without approval and makes a failing linked test only warn, so the commit is not held.\"}, \"quiet-hours-are-quiet\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"Its entry sets HOLD: vibe, which the legend says lets its wording change without approval and makes a failing linked test only warn, so the commit is not held.\"}, \"leaving-takes-everything\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"Its entry sets HOLD: vibe, which the legend says lets its wording change without approval and makes a failing linked test only warn, so the commit is not held.\"}}",
+  "cost": 0.0006787,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S2-clause-vfs",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file marks it `HOLD: vibe`, which per the stated rules means its wording may change without approval and a failing linked test only warns."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file marks it `HOLD: vibe`, which per the stated rules means its wording may change without approval and a failing linked test only warns."
+   },
+   "leaving-takes-everything": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file marks it `HOLD: vibe`, which per the stated rules means its wording may change without approval and a failing linked test only warns, even though it concerns deleting personal data and the foundation invariants (e.g. do-no-harm, human-agency) still apply to any change."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file marks it `HOLD: vibe`, which per the stated rules means its wording may change without approval and a failing linked test only warns.\"}, \"quiet-hours-are-quiet\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file marks it `HOLD: vibe`, which per the stated rules means its wording may change without approval and a failing linked test only warns.\"}, \"leaving-takes-everything\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file marks it `HOLD: vibe`, which per the stated rules means its wording may change without approval and a failing linked test only warns, even though it concerns deleting personal data and the foundation invariants (e.g. do-no-harm, human-agency) still apply to any change.\"}}",
+  "cost": 0.012282000000000001,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S3-word-draft",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no 'draft' marker, so the wording is held and needs a signed approval to change, and the file's rule holds the commit when a linked test fails; the file does not name any linked test."
+   },
+   "posted-is-permanent": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no 'draft' marker, so the wording is held pending signed approval and a failing linked test holds the commit; the file does not name any linked test."
+   },
+   "exports-match-the-ledger": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no 'draft' marker, so the wording is held pending signed approval and a failing linked test holds the commit; the file does not name any linked test."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "yes",
+    "B": "no",
+    "why": "The heading carries the word 'draft', so the wording is still settling and may change without approval, and a failing linked test only warns; the file does not name any linked test."
+   }
+  },
+  "raw": "{\"every-entry-balances\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading has no 'draft' marker, so the wording is held and needs a signed approval to change, and the file's rule holds the commit when a linked test fails; the file does not name any linked test.\"}, \"posted-is-permanent\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading has no 'draft' marker, so the wording is held pending signed approval and a failing linked test holds the commit; the file does not name any linked test.\"}, \"exports-match-the-ledger\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading has no 'draft' marker, so the wording is held pending signed approval and a failing linked test holds the commit; the file does not name any linked test.\"}, \"ai-suggestions-are-marked\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The heading carries the word 'draft', so the wording is still settling and may change without approval, and a failing linked test only warns; the file does not name any linked test.\"}}",
+  "cost": 0.0007981,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S3-word-draft",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no 'draft' marker, so by the stated rule it is held: wording changes wait for a signed approval and a failing linked test holds the commit."
+   },
+   "posted-is-permanent": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no 'draft' marker, so by the stated rule it is held: wording changes wait for a signed approval and a failing linked test holds the commit."
+   },
+   "exports-match-the-ledger": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no 'draft' marker, so by the stated rule it is held: wording changes wait for a signed approval and a failing linked test holds the commit."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "yes",
+    "B": "no",
+    "why": "The heading carries the word 'draft', so by the stated rule it is still settling: its wording may change without approval and a failing linked test only warns."
+   }
+  },
+  "raw": "{\"every-entry-balances\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"The heading has no 'draft' marker, so by the stated rule it is held: wording changes wait for a signed approval and a failing linked test holds the commit.\"},\"posted-is-permanent\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"The heading has no 'draft' marker, so by the stated rule it is held: wording changes wait for a signed approval and a failing linked test holds the commit.\"},\"exports-match-the-ledger\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"The heading has no 'draft' marker, so by the stated rule it is held: wording changes wait for a signed approval and a failing linked test holds the commit.\"},\"ai-suggestions-are-marked\":{\"A\":\"yes\",\"B\":\"no\",\"why\":\"The heading carries the word 'draft', so by the stated rule it is still settling: its wording may change without approval and a failing linked test only warns.\"}}",
+  "cost": 0.01278,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S3-word-draft",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no 'draft' marker, so its wording is held: it changes only with a signed approval, and a failing linked test holds the commit."
+   },
+   "a-person-releases-large-payments": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no 'draft' marker, so its wording is held: it changes only with a signed approval, and a failing linked test holds the commit."
+   },
+   "config-from-trusted-paths": {
+    "A": "yes",
+    "B": "no",
+    "why": "The heading carries the word 'draft', so its wording is still settling and may change without approval, and a failing linked test only warns."
+   },
+   "receipts-are-kept": {
+    "A": "yes",
+    "B": "no",
+    "why": "The heading carries the word 'draft', so its wording is still settling and may change without approval, and a failing linked test only warns."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading has no 'draft' marker, so its wording is held: it changes only with a signed approval, and a failing linked test holds the commit.\"}, \"a-person-releases-large-payments\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading has no 'draft' marker, so its wording is held: it changes only with a signed approval, and a failing linked test holds the commit.\"}, \"config-from-trusted-paths\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The heading carries the word 'draft', so its wording is still settling and may change without approval, and a failing linked test only warns.\"}, \"receipts-are-kept\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The heading carries the word 'draft', so its wording is still settling and may change without approval, and a failing linked test only warns.\"}}",
+  "cost": 0.0007789,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S3-word-draft",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no 'draft' marker, so per the stated rule it is held: wording changes wait for signed approval and a failing linked test holds the commit."
+   },
+   "a-person-releases-large-payments": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no 'draft' marker, so it is held: wording changes need a signed approval and a failing linked test holds the commit."
+   },
+   "config-from-trusted-paths": {
+    "A": "yes",
+    "B": "no",
+    "why": "The word 'draft' after the heading marks it as still settling, so its wording may change without approval and a failing linked test only warns."
+   },
+   "receipts-are-kept": {
+    "A": "yes",
+    "B": "no",
+    "why": "The word 'draft' after the heading marks it as still settling, so its wording may change without approval and a failing linked test only warns."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading has no 'draft' marker, so per the stated rule it is held: wording changes wait for signed approval and a failing linked test holds the commit.\"}, \"a-person-releases-large-payments\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading has no 'draft' marker, so it is held: wording changes need a signed approval and a failing linked test holds the commit.\"}, \"config-from-trusted-paths\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The word 'draft' after the heading marks it as still settling, so its wording may change without approval and a failing linked test only warns.\"}, \"receipts-are-kept\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The word 'draft' after the heading marks it as still settling, so its wording may change without approval and a failing linked test only warns.\"}}",
+  "cost": 0.012846,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S3-word-draft",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no 'draft' marker, so its wording is held: changes need a signed approval, and a failing linked test holds the commit."
+   },
+   "stop-means-stop": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no 'draft' marker, so its wording is held: changes need a signed approval, and a failing linked test holds the commit."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no 'draft' marker, so its wording is held: changes need a signed approval, and a failing linked test holds the commit."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading has no 'draft' marker, so its wording is held: changes need a signed approval, and a failing linked test holds the commit.\"}, \"stop-means-stop\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading has no 'draft' marker, so its wording is held: changes need a signed approval, and a failing linked test holds the commit.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading has no 'draft' marker, so its wording is held: changes need a signed approval, and a failing linked test holds the commit.\"}}",
+  "cost": 0.0007431,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S3-word-draft",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no 'draft' marker, so by the stated rule it is held: wording changes wait for a signed approval and a failing linked test holds the commit."
+   },
+   "stop-means-stop": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no 'draft' marker, so by the stated rule it is held: wording changes wait for a signed approval and a failing linked test holds the commit."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no 'draft' marker, so by the stated rule it is held: wording changes wait for a signed approval and a failing linked test holds the commit."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading has no 'draft' marker, so by the stated rule it is held: wording changes wait for a signed approval and a failing linked test holds the commit.\"}, \"stop-means-stop\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading has no 'draft' marker, so by the stated rule it is held: wording changes wait for a signed approval and a failing linked test holds the commit.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading has no 'draft' marker, so by the stated rule it is held: wording changes wait for a signed approval and a failing linked test holds the commit.\"}}",
+  "cost": 0.01202,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S3-word-draft",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file marks this invariant as draft, so its wording is still settling and may change without signed approval, and a failing linked test only warns rather than holding the commit, as signalled by the 'draft' word after its heading."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file marks this invariant as draft, so its wording is still settling and may change without signed approval, and a failing linked test only warns rather than holding the commit, as signalled by the 'draft' word after its heading."
+   },
+   "leaving-takes-everything": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file marks this invariant as draft, so its wording is still settling and may change without signed approval, and a failing linked test only warns rather than holding the commit, as signalled by the 'draft' word after its heading."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file marks this invariant as draft, so its wording is still settling and may change without signed approval, and a failing linked test only warns rather than holding the commit, as signalled by the 'draft' word after its heading.\"}, \"quiet-hours-are-quiet\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file marks this invariant as draft, so its wording is still settling and may change without signed approval, and a failing linked test only warns rather than holding the commit, as signalled by the 'draft' word after its heading.\"}, \"leaving-takes-everything\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file marks this invariant as draft, so its wording is still settling and may change without signed approval, and a failing linked test only warns rather than holding the commit, as signalled by the 'draft' word after its heading.\"}}",
+  "cost": 0.0007469,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S3-word-draft",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "yes",
+    "B": "no",
+    "why": "The heading carries the word 'draft', which the user's rule says means its wording may change without approval and a failing linked test only warns."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "yes",
+    "B": "no",
+    "why": "The heading carries the word 'draft', which the user's rule says means its wording may change without approval and a failing linked test only warns."
+   },
+   "leaving-takes-everything": {
+    "A": "yes",
+    "B": "no",
+    "why": "The heading carries the word 'draft', which the user's rule says means its wording may change without approval and a failing linked test only warns, even though it concerns deleting personal data."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The heading carries the word 'draft', which the user's rule says means its wording may change without approval and a failing linked test only warns.\"}, \"quiet-hours-are-quiet\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The heading carries the word 'draft', which the user's rule says means its wording may change without approval and a failing linked test only warns.\"}, \"leaving-takes-everything\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The heading carries the word 'draft', which the user's rule says means its wording may change without approval and a failing linked test only warns, even though it concerns deleting personal data.\"}}",
+  "cost": 0.011676,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S4-clause-describes",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file's HOLD line reads 'the words and the tests', so changing the wording needs a signed approval and a failing linked test holds the commit."
+   },
+   "posted-is-permanent": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file's HOLD line reads 'the words and the tests', so changing the wording needs a signed approval and a failing linked test holds the commit."
+   },
+   "exports-match-the-ledger": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file's HOLD line reads 'the words and the tests', so changing the wording needs a signed approval and a failing linked test holds the commit."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file's HOLD line reads 'nothing yet', meaning neither the wording nor linked tests hold the commit."
+   }
+  },
+  "raw": "{\"every-entry-balances\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file's HOLD line reads 'the words and the tests', so changing the wording needs a signed approval and a failing linked test holds the commit.\"}, \"posted-is-permanent\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file's HOLD line reads 'the words and the tests', so changing the wording needs a signed approval and a failing linked test holds the commit.\"}, \"exports-match-the-ledger\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file's HOLD line reads 'the words and the tests', so changing the wording needs a signed approval and a failing linked test holds the commit.\"}, \"ai-suggestions-are-marked\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file's HOLD line reads 'nothing yet', meaning neither the wording nor linked tests hold the commit.\"}}",
+  "cost": 0.0008967000000000001,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S4-clause-describes",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "no",
+    "B": "yes",
+    "why": "HOLD says 'the words and the tests', which per the user's key means the wording waits for a signed approval and a failing linked test holds the commit."
+   },
+   "posted-is-permanent": {
+    "A": "no",
+    "B": "yes",
+    "why": "HOLD says 'the words and the tests', so wording changes need signed approval and a failing linked test holds the commit."
+   },
+   "exports-match-the-ledger": {
+    "A": "no",
+    "B": "yes",
+    "why": "HOLD says 'the words and the tests', so wording changes need signed approval and a failing linked test holds the commit."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "yes",
+    "B": "no",
+    "why": "HOLD says 'nothing yet', which per the user's key means neither the words nor the tests are protected, so wording may change without signed approval and a failing test does not hold the commit."
+   }
+  },
+  "raw": "{\"every-entry-balances\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"HOLD says 'the words and the tests', which per the user's key means the wording waits for a signed approval and a failing linked test holds the commit.\"}, \"posted-is-permanent\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"HOLD says 'the words and the tests', so wording changes need signed approval and a failing linked test holds the commit.\"}, \"exports-match-the-ledger\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"HOLD says 'the words and the tests', so wording changes need signed approval and a failing linked test holds the commit.\"}, \"ai-suggestions-are-marked\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"HOLD says 'nothing yet', which per the user's key means neither the words nor the tests are protected, so wording may change without signed approval and a failing test does not hold the commit.\"}}",
+  "cost": 0.012882000000000001,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S4-clause-describes",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "no",
+    "B": "yes",
+    "why": "The HOLD line reads 'the words and the tests', so a change to the wording waits for a signed approval and a failing linked test holds the commit."
+   },
+   "a-person-releases-large-payments": {
+    "A": "no",
+    "B": "no",
+    "why": "The HOLD line reads 'the words' only, so the wording waits for a signed approval, but no test is named as holding the commit."
+   },
+   "config-from-trusted-paths": {
+    "A": "yes",
+    "B": "no",
+    "why": "The HOLD line reads 'nothing yet', which the key defines as neither the words nor the tests being held, so the file itself adds no gate, though the foundation's binding clause still applies."
+   },
+   "receipts-are-kept": {
+    "A": "yes",
+    "B": "no",
+    "why": "The HOLD line reads 'nothing yet', which the key defines as neither the words nor the tests being held, so the file itself adds no gate, though the foundation's binding clause still applies."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The HOLD line reads 'the words and the tests', so a change to the wording waits for a signed approval and a failing linked test holds the commit.\"}, \"a-person-releases-large-payments\": {\"A\": \"no\", \"B\": \"no\", \"why\": \"The HOLD line reads 'the words' only, so the wording waits for a signed approval, but no test is named as holding the commit.\"}, \"config-from-trusted-paths\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The HOLD line reads 'nothing yet', which the key defines as neither the words nor the tests being held, so the file itself adds no gate, though the foundation's binding clause still applies.\"}, \"receipts-are-kept\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The HOLD line reads 'nothing yet', which the key defines as neither the words nor the tests being held, so the file itself adds no gate, though the foundation's binding clause still applies.\"}}",
+  "cost": 0.0009056000000000001,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S4-clause-describes",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "no",
+    "B": "yes",
+    "why": "The HOLD line reads 'the words and the tests', which by the stated key means the wording waits for a signed approval and a failing linked test holds the commit."
+   },
+   "a-person-releases-large-payments": {
+    "A": "no",
+    "B": "no",
+    "why": "The HOLD line reads 'the words', so the wording waits for a signed approval, but tests are not named as a hold, so a failing linked test does not by itself hold the commit."
+   },
+   "config-from-trusted-paths": {
+    "A": "unsure",
+    "B": "no",
+    "why": "The HOLD line reads 'nothing yet', which the key says means neither the words nor the tests are held, so a failing test does not hold the commit; but the file does not say whether other rules (such as the foundation's human-agency) still require approval for wording changes, so A is not settled by this line alone."
+   },
+   "receipts-are-kept": {
+    "A": "unsure",
+    "B": "no",
+    "why": "The HOLD line reads 'nothing yet', meaning neither the words nor the tests are held, so a failing linked test does not hold the commit; the file does not say whether other rules would still require approval for a wording change, so A is not settled by this line alone."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The HOLD line reads 'the words and the tests', which by the stated key means the wording waits for a signed approval and a failing linked test holds the commit.\"}, \"a-person-releases-large-payments\": {\"A\": \"no\", \"B\": \"no\", \"why\": \"The HOLD line reads 'the words', so the wording waits for a signed approval, but tests are not named as a hold, so a failing linked test does not by itself hold the commit.\"}, \"config-from-trusted-paths\": {\"A\": \"unsure\", \"B\": \"no\", \"why\": \"The HOLD line reads 'nothing yet', which the key says means neither the words nor the tests are held, so a failing test does not hold the commit; but the file does not say whether other rules (such as the foundation's human-agency) still require approval for wording changes, so A is not settled by this line alone.\"}, \"receipts-are-kept\": {\"A\": \"unsure\", \"B\": \"no\", \"why\": \"The HOLD line reads 'nothing yet', meaning neither the words nor the tests are held, so a failing linked test does not hold the commit; the file does not say whether other rules would still require approval for a wording change, so A is not settled by this line alone.\"}}",
+  "cost": 0.01405,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S4-clause-describes",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file's HOLD line says 'the words and the tests', so changing the wording needs a signed human approval and a failing linked test holds the commit."
+   },
+   "stop-means-stop": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file's HOLD line says 'the words and the tests', so changing the wording needs a signed human approval and a failing linked test holds the commit."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file's HOLD line says 'the words and the tests', so changing the wording needs a signed human approval and a failing linked test holds the commit."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file's HOLD line says 'the words and the tests', so changing the wording needs a signed human approval and a failing linked test holds the commit.\"}, \"stop-means-stop\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file's HOLD line says 'the words and the tests', so changing the wording needs a signed human approval and a failing linked test holds the commit.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file's HOLD line says 'the words and the tests', so changing the wording needs a signed human approval and a failing linked test holds the commit.\"}}",
+  "cost": 0.0007405000000000001,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S4-clause-describes",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file says HOLD is 'the words and the tests', which per the user's key means the wording waits for a signed approval and a failing linked test holds the commit."
+   },
+   "stop-means-stop": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file says HOLD is 'the words and the tests', which per the user's key means the wording waits for a signed approval and a failing linked test holds the commit."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file says HOLD is 'the words and the tests', which per the user's key means the wording waits for a signed approval and a failing linked test holds the commit."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file says HOLD is 'the words and the tests', which per the user's key means the wording waits for a signed approval and a failing linked test holds the commit.\"}, \"stop-means-stop\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file says HOLD is 'the words and the tests', which per the user's key means the wording waits for a signed approval and a failing linked test holds the commit.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file says HOLD is 'the words and the tests', which per the user's key means the wording waits for a signed approval and a failing linked test holds the commit.\"}}",
+  "cost": 0.012098,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S4-clause-describes",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file's HOLD field for this invariant reads 'nothing yet', so neither the wording nor a failing linked test is held, as the file's own HOLD legend defines."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file's HOLD field for this invariant reads 'nothing yet', so neither the wording nor a failing linked test is held, as the file's own HOLD legend defines."
+   },
+   "leaving-takes-everything": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file's HOLD field for this invariant reads 'nothing yet', so neither the wording nor a failing linked test is held, as the file's own HOLD legend defines."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file's HOLD field for this invariant reads 'nothing yet', so neither the wording nor a failing linked test is held, as the file's own HOLD legend defines.\"}, \"quiet-hours-are-quiet\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file's HOLD field for this invariant reads 'nothing yet', so neither the wording nor a failing linked test is held, as the file's own HOLD legend defines.\"}, \"leaving-takes-everything\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file's HOLD field for this invariant reads 'nothing yet', so neither the wording nor a failing linked test is held, as the file's own HOLD legend defines.\"}}",
+  "cost": 0.0008435000000000001,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S4-clause-describes",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "yes",
+    "B": "no",
+    "why": "HOLD says 'nothing yet', which by the given legend means neither the words wait for a signed approval nor does a failing linked test hold the commit, so this invariant is currently unprotected (though the foundation's human-agency rules still apply generally)."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "yes",
+    "B": "no",
+    "why": "HOLD says 'nothing yet', meaning neither wording changes need signed approval nor do failing linked tests hold the commit; protection is not yet in place for this invariant."
+   },
+   "leaving-takes-everything": {
+    "A": "yes",
+    "B": "no",
+    "why": "HOLD says 'nothing yet', so by the legend neither the words are held for signed approval nor does a failing test hold the commit, even though the invariant concerns sensitive data deletion."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"HOLD says 'nothing yet', which by the given legend means neither the words wait for a signed approval nor does a failing linked test hold the commit, so this invariant is currently unprotected (though the foundation's human-agency rules still apply generally).\"}, \"quiet-hours-are-quiet\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"HOLD says 'nothing yet', meaning neither wording changes need signed approval nor do failing linked tests hold the commit; protection is not yet in place for this invariant.\"}, \"leaving-takes-everything\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"HOLD says 'nothing yet', so by the legend neither the words are held for signed approval nor does a failing test hold the commit, even though the invariant concerns sensitive data deletion.\"}}",
+  "cost": 0.012398,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S5-word-three",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "no",
+    "B": "yes",
+    "why": "The invariant has no protection word after its heading, so the file treats it as held: its wording needs a signed approval to change, and a failing linked test holds the commit (signalled by the bare heading with no 'draft' or 'agreed')."
+   },
+   "posted-is-permanent": {
+    "A": "no",
+    "B": "yes",
+    "why": "The invariant has no protection word after its heading, so the file treats it as held: its wording needs a signed approval to change, and a failing linked test holds the commit (signalled by the bare heading with no 'draft' or 'agreed')."
+   },
+   "exports-match-the-ledger": {
+    "A": "no",
+    "B": "yes",
+    "why": "The invariant has no protection word after its heading, so the file treats it as held: its wording needs a signed approval to change, and a failing linked test holds the commit (signalled by the bare heading with no 'draft' or 'agreed')."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "yes",
+    "B": "no",
+    "why": "The heading carries the word 'draft', so the file treats its wording as changeable without approval and a failing linked test as only a warning that does not hold the commit (signalled by 'ai-suggestions-are-marked: draft')."
+   }
+  },
+  "raw": "{\"every-entry-balances\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The invariant has no protection word after its heading, so the file treats it as held: its wording needs a signed approval to change, and a failing linked test holds the commit (signalled by the bare heading with no 'draft' or 'agreed').\"}, \"posted-is-permanent\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The invariant has no protection word after its heading, so the file treats it as held: its wording needs a signed approval to change, and a failing linked test holds the commit (signalled by the bare heading with no 'draft' or 'agreed').\"}, \"exports-match-the-ledger\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The invariant has no protection word after its heading, so the file treats it as held: its wording needs a signed approval to change, and a failing linked test holds the commit (signalled by the bare heading with no 'draft' or 'agreed').\"}, \"ai-suggestions-are-marked\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The heading carries the word 'draft', so the file treats its wording as changeable without approval and a failing linked test as only a warning that does not hold the commit (signalled by 'ai-suggestions-are-marked: draft').\"}}",
+  "cost": 0.0008351000000000001,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S5-word-three",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "A": "no",
+    "B": "yes",
+    "why": "No protection word follows the heading, which per the stated rule means held: wording changes need a signed approval and a failing linked test holds the commit."
+   },
+   "posted-is-permanent": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no protection word, so it is held: wording waits for a signed approval and a failing linked test holds the commit."
+   },
+   "exports-match-the-ledger": {
+    "A": "no",
+    "B": "yes",
+    "why": "There is no word after the heading, so it is held: wording needs a signed approval and a failing linked test holds the commit."
+   },
+   "ai-suggestions-are-marked": {
+    "A": "yes",
+    "B": "no",
+    "why": "The word 'draft' after the heading means its wording may change without approval and a failing linked test only warns, so the commit is not held."
+   }
+  },
+  "raw": "{\"every-entry-balances\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"No protection word follows the heading, which per the stated rule means held: wording changes need a signed approval and a failing linked test holds the commit.\"},\"posted-is-permanent\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"The heading has no protection word, so it is held: wording waits for a signed approval and a failing linked test holds the commit.\"},\"exports-match-the-ledger\":{\"A\":\"no\",\"B\":\"yes\",\"why\":\"There is no word after the heading, so it is held: wording needs a signed approval and a failing linked test holds the commit.\"},\"ai-suggestions-are-marked\":{\"A\":\"yes\",\"B\":\"no\",\"why\":\"The word 'draft' after the heading means its wording may change without approval and a failing linked test only warns, so the commit is not held.\"}}",
+  "cost": 0.0125,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S5-word-three",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no protection word, so the invariant is held: its wording waits for a signed approval and a failing linked test holds the commit."
+   },
+   "a-person-releases-large-payments": {
+    "A": "no",
+    "B": "no",
+    "why": "The heading says 'agreed', so its wording waits for a signed approval, but a failing linked test only warns and does not hold the commit."
+   },
+   "config-from-trusted-paths": {
+    "A": "yes",
+    "B": "no",
+    "why": "The heading says 'draft', so its wording may change without approval and a failing linked test only warns."
+   },
+   "receipts-are-kept": {
+    "A": "yes",
+    "B": "no",
+    "why": "The heading says 'draft', so its wording may change without approval and a failing linked test only warns."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading has no protection word, so the invariant is held: its wording waits for a signed approval and a failing linked test holds the commit.\"}, \"a-person-releases-large-payments\": {\"A\": \"no\", \"B\": \"no\", \"why\": \"The heading says 'agreed', so its wording waits for a signed approval, but a failing linked test only warns and does not hold the commit.\"}, \"config-from-trusted-paths\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The heading says 'draft', so its wording may change without approval and a failing linked test only warns.\"}, \"receipts-are-kept\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The heading says 'draft', so its wording may change without approval and a failing linked test only warns.\"}}",
+  "cost": 0.0007815000000000001,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S5-word-three",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "A": "no",
+    "B": "yes",
+    "why": "No word follows the heading, which per the stated rule means held: wording changes need a signed approval and a failing linked test holds the commit."
+   },
+   "a-person-releases-large-payments": {
+    "A": "no",
+    "B": "no",
+    "why": "The word 'agreed' after the heading means wording waits for a signed approval, but a failing linked test only warns and does not hold the commit."
+   },
+   "config-from-trusted-paths": {
+    "A": "yes",
+    "B": "no",
+    "why": "The word 'draft' after the heading means the wording may change without approval and a failing linked test only warns."
+   },
+   "receipts-are-kept": {
+    "A": "yes",
+    "B": "no",
+    "why": "The word 'draft' after the heading means the wording may change without approval and a failing linked test only warns."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"No word follows the heading, which per the stated rule means held: wording changes need a signed approval and a failing linked test holds the commit.\"}, \"a-person-releases-large-payments\": {\"A\": \"no\", \"B\": \"no\", \"why\": \"The word 'agreed' after the heading means wording waits for a signed approval, but a failing linked test only warns and does not hold the commit.\"}, \"config-from-trusted-paths\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The word 'draft' after the heading means the wording may change without approval and a failing linked test only warns.\"}, \"receipts-are-kept\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The word 'draft' after the heading means the wording may change without approval and a failing linked test only warns.\"}}",
+  "cost": 0.012718,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S5-word-three",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "no",
+    "B": "yes",
+    "why": "The file gives this invariant no word after its heading, which the key defines as held: its wording waits for a signed approval and a failing linked test holds the commit."
+   },
+   "stop-means-stop": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading `stop-means-stop:` has no word after it, so the file holds it: wording changes need a signed approval and a failing linked test holds the commit."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading `alarm-cannot-be-silenced-forever:` has no word after it, which the file's key defines as held, so wording needs a signed approval and a failing linked test holds the commit."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The file gives this invariant no word after its heading, which the key defines as held: its wording waits for a signed approval and a failing linked test holds the commit.\"}, \"stop-means-stop\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading `stop-means-stop:` has no word after it, so the file holds it: wording changes need a signed approval and a failing linked test holds the commit.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading `alarm-cannot-be-silenced-forever:` has no word after it, which the file's key defines as held, so wording needs a signed approval and a failing linked test holds the commit.\"}}",
+  "cost": 0.0007241000000000001,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S5-word-three",
+  "scenario": "safety",
+  "answers": {
+   "never-above-the-prescribed-rate": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading has no protection word after it, which by the stated rule means held: wording changes need a signed approval and a failing linked test holds the commit."
+   },
+   "stop-means-stop": {
+    "A": "no",
+    "B": "yes",
+    "why": "The heading carries no word such as draft or agreed, so it is held: wording needs a signed approval and a failing linked test holds the commit."
+   },
+   "alarm-cannot-be-silenced-forever": {
+    "A": "no",
+    "B": "yes",
+    "why": "No protection word follows the heading, so by the stated rule it is held: wording changes need a signed approval and a failing linked test holds the commit."
+   }
+  },
+  "raw": "{\"never-above-the-prescribed-rate\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading has no protection word after it, which by the stated rule means held: wording changes need a signed approval and a failing linked test holds the commit.\"}, \"stop-means-stop\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"The heading carries no word such as draft or agreed, so it is held: wording needs a signed approval and a failing linked test holds the commit.\"}, \"alarm-cannot-be-silenced-forever\": {\"A\": \"no\", \"B\": \"yes\", \"why\": \"No protection word follows the heading, so by the stated rule it is held: wording changes need a signed approval and a failing linked test holds the commit.\"}}",
+  "cost": 0.01194,
+  "error": null
+ },
+ {
+  "model": "haiku",
+  "syntax": "S5-word-three",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file marks this invariant \"draft\" after its heading, which the reading key defines as wording that may change without approval and linked tests that only warn, so a failing test does not hold the commit."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file marks this invariant \"draft\" after its heading, which the reading key defines as wording that may change without approval and linked tests that only warn, so a failing test does not hold the commit."
+   },
+   "leaving-takes-everything": {
+    "A": "yes",
+    "B": "no",
+    "why": "The file marks this invariant \"draft\" after its heading, which the reading key defines as wording that may change without approval and linked tests that only warn, so a failing test does not hold the commit."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file marks this invariant \\\"draft\\\" after its heading, which the reading key defines as wording that may change without approval and linked tests that only warn, so a failing test does not hold the commit.\"}, \"quiet-hours-are-quiet\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file marks this invariant \\\"draft\\\" after its heading, which the reading key defines as wording that may change without approval and linked tests that only warn, so a failing test does not hold the commit.\"}, \"leaving-takes-everything\": {\"A\": \"yes\", \"B\": \"no\", \"why\": \"The file marks this invariant \\\"draft\\\" after its heading, which the reading key defines as wording that may change without approval and linked tests that only warn, so a failing test does not hold the commit.\"}}",
+  "cost": 0.0007124,
+  "error": null
+ },
+ {
+  "model": "sonnet",
+  "syntax": "S5-word-three",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "A": "yes",
+    "B": "no",
+    "why": "The heading carries the word 'draft', which the user's key defines as wording changeable without approval and a failing linked test only warns."
+   },
+   "quiet-hours-are-quiet": {
+    "A": "yes",
+    "B": "no",
+    "why": "The heading carries the word 'draft', which the user's key defines as wording changeable without approval and a failing linked test only warns."
+   },
+   "leaving-takes-everything": {
+    "A": "yes",
+    "B": "no",
+    "why": "The heading carries the word 'draft', so by the user's key its wording may change without approval and a failing linked test only warns, even though the invariant concerns deletion of personal data."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\":{\"A\":\"yes\",\"B\":\"no\",\"why\":\"The heading carries the word 'draft', which the user's key defines as wording changeable without approval and a failing linked test only warns.\"},\"quiet-hours-are-quiet\":{\"A\":\"yes\",\"B\":\"no\",\"why\":\"The heading carries the word 'draft', which the user's key defines as wording changeable without approval and a failing linked test only warns.\"},\"leaving-takes-everything\":{\"A\":\"yes\",\"B\":\"no\",\"why\":\"The heading carries the word 'draft', so by the user's key its wording may change without approval and a failing linked test only warns, even though the invariant concerns deletion of personal data.\"}}",
+  "cost": 0.011696,
+  "error": null
+ }
+]

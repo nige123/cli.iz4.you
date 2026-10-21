@@ -1,0 +1,66 @@
+{
+ "startup": [
+  [
+   "one-nudge-per-habit-per-day",
+   "D"
+  ],
+  [
+   "quiet-hours-are-quiet",
+   "D"
+  ],
+  [
+   "leaving-takes-everything",
+   "D"
+  ]
+ ],
+ "payments": [
+  [
+   "paid-to-the-named-beneficiary",
+   "H"
+  ],
+  [
+   "a-person-releases-large-payments",
+   "F"
+  ],
+  [
+   "config-from-trusted-paths",
+   "D"
+  ],
+  [
+   "receipts-are-kept",
+   "D"
+  ]
+ ],
+ "mature": [
+  [
+   "every-entry-balances",
+   "H"
+  ],
+  [
+   "posted-is-permanent",
+   "H"
+  ],
+  [
+   "exports-match-the-ledger",
+   "H"
+  ],
+  [
+   "ai-suggestions-are-marked",
+   "D"
+  ]
+ ],
+ "safety": [
+  [
+   "never-above-the-prescribed-rate",
+   "H"
+  ],
+  [
+   "stop-means-stop",
+   "H"
+  ],
+  [
+   "alarm-cannot-be-silenced-forever",
+   "H"
+  ]
+ ]
+}
