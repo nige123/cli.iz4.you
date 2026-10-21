@@ -28,6 +28,12 @@
       "exit": 0,
       "detected": false,
       "prevented": false
+    },
+    "vibe": {
+      "outcome": "pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
     }
   }
 }

@@ -26,15 +26,40 @@ like $stdout, /'every expectation met'/, 'and the runner says so';
 my $json = $out.add('latest.json');
 ok $json.e, 'results written as data';
 my %r = Rakudo::Internals::JSON.from-json($json.slurp);
-is %r<schema>, 'iz4-bench/1', 'with a schema';
+is %r<schema>, 'iz4-bench/2', 'with a schema';
 my %e = %r<totals><enforced>;
-ok %e<attempted> >= 21, "at least 21 violations attempted ({%e<attempted>})";
-ok %e<prevented> >= 20, "at least 20 prevented at the enforced boundary ({%e<prevented>})";
-is %e<missed>, 1, 'exactly the one honest miss (D1: a new route no test covers)';
-ok %e<false_positives> <= 1, "at most one false positive ({%e<false_positives>}: strengthening a protecting test asks a yes)";
+ok %e<attempted> >= 25, "at least 25 violations attempted ({%e<attempted>})";
+ok %e<prevented> >= 23, "at least 23 prevented at the enforced boundary ({%e<prevented>})";
+is %e<missed>, 2, 'exactly the two honest misses: D1 (a new route no test covers) and J3 (a protecting test weaker than the holdout)';
+ok %e<false_positives> <= 2, "at most two false positives ({%e<false_positives>})";
+ok %e<unnecessary_approvals> <= 1, "at most one unnecessary approval ({%e<unnecessary_approvals>})";
 is %r<totals><none><prevented>, 0, 'without an IZ4 nothing is prevented';
 is %r<totals><context><prevented>, 0, 'with the IZ4 as context only, nothing is prevented';
-ok %r<totals><context><detected> >= 19, 'but the advisory gate sees most of it';
+ok %r<totals><context><detected> >= 22, 'but the advisory gate sees most of it';
+
+# vibe mode: the project's own invariants wait for nobody, the foundation and the outright blocks hold
+my %v = %r<totals><vibe>;
+ok %v<prevented> >= 7, "vibe mode still prevents the foundation edits, the removed IZ4, the look-alike name, the hidden character and the IZ4 actions ({%v<prevented>})";
+ok %v<prevented> < %e<prevented>, 'and prevents less than protected development: that is the trade';
+ok %v<missed> > %e<missed>, 'what it lets through is counted as missed, not hidden';
+ok %v<unnecessary_approvals> == 0, 'and asks nobody anything';
+
+# three outcomes, never one
+ok %e<func_pass_but_invariant_fail> >= 4, "working software that breaks an invariant is counted as such ({%e<func_pass_but_invariant_fail>} in enforced)";
+my %j3 = %r<scenarios>.first(*<id>.starts-with('J3'))<modes><enforced>;
+is %j3<func_pass>, 'pass', 'J3: the feature works';
+is %j3<invariant_pass>, 'fail', 'J3: the holdout says the invariant is gone';
+ok %j3<verified_pass>, 'J3: and the gate verified it, because the repository\'s own test could not see it: F yes, I no, V yes is the honest miss';
+my %j7 = %r<scenarios>.first(*<id>.starts-with('J7'))<modes><enforced>;
+is %j7<outcome>, 'blocked', 'J7: the same change against a strict test is held';
+nok %j7<verified_pass>, 'and is not verified';
+for %r<scenarios>.grep(*<alternative_to>) -> %s {
+    is %s<modes><enforced><outcome>, 'pass', "{%s<id>}: the compliant alternative passes";
+    is %s<modes><enforced><invariant_pass>, 'pass', "{%s<id>}: and keeps the invariant";
+    nok %s<modes><enforced><unnecessary_approval>, "{%s<id>}: and asks nobody";
+}
+is %r<totals><enforced><unstable>, 0, 'no classification disagreed between trials';
+ok $out.add('latest.md').slurp.contains('Three outcomes, never one'), 'the report keeps the three outcomes apart';
 
 ok $out.add('latest.md').slurp.contains('Nothing here measures whether a model obeys'), 'the report says what it does not measure';
 

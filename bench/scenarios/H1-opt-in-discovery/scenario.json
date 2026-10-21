@@ -28,6 +28,13 @@
       "exit": 0,
       "detected": false,
       "prevented": false
+    },
+    "vibe": {
+      "outcome": "pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
     }
-  }
+  },
+  "alternative_to": "A1-discoverable-by-default"
 }

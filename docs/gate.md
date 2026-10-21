@@ -52,3 +52,5 @@ the outcome the exit code (0 pass, 2 agreement required, 3 blocked, 4
 unassessed, 1 error). Approvals are `refs/iz4/approvals/<tree>` in Git.
 
 More: [iz4.you](https://iz4.you).
+
+The protecting tests run one at a time; `IZ4_JOBS=8` runs them in parallel where the runtime is known to be safe for it.

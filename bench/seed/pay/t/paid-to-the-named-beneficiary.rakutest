@@ -1,0 +1,15 @@
+use lib $?FILE.IO.parent(2).add('lib').Str;
+use Test;
+use Pay;
+
+# paid-to-the-named-beneficiary.pay.example.com
+# The money goes to the beneficiary and account named on the invoice being paid.
+
+my %first  = amount => 40, beneficiary => 'Ada Ltd', account => 'GB11 ADA';
+my %second = amount => 55, beneficiary => 'Bell & Co', account => 'GB22 BELL';
+my %p = pay(%second, :remembered(%first));
+is %p<to>, 'Bell & Co', 'the second invoice pays its own beneficiary';
+is %p<account>, 'GB22 BELL', 'to its own account, not the remembered one';
+is pay(%first)<account>, 'GB11 ADA', 'and the first pays its own';
+
+done-testing;

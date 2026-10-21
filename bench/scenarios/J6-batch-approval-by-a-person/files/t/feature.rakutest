@@ -1,0 +1,9 @@
+use lib $?FILE.IO.parent(2).add('lib').Str;
+use Test;
+use Pay;
+
+# the feature's own test: it works
+is-deeply release-batch([%( amount => 5000 ), %( amount => 7000 )], :approved-by<nige>), ('released', 'released'), 'one person, one sitting, two payments';
+dies-ok { release-batch([%( amount => 5000 )], :approved-by<system>) }, 'still never the system';
+
+done-testing;

@@ -208,15 +208,15 @@ sub collect-report(IO::Path $iz4, Str :$release, Str :$run-id --> Hash) is expor
 # ---------------------------------------------------------------- JSON
 
 #| Canonical JSON (sorted keys), enough for the report payload.
-sub json-encode(\v --> Str) is export {
-    return 'null' without v;
-    given v {
-        when Bool        { v ?? 'true' !! 'false' }
-        when Str         { json-str(v) }
-        when Numeric     { v.Str }
-        when Associative { '{' ~ v.pairs.sort(*.key).map({ json-str(.key.Str) ~ ':' ~ json-encode(.value) }).join(',') ~ '}' }
-        when Positional  { '[' ~ v.map({ json-encode($_) }).join(',') ~ ']' }
-        default          { json-str(v.Str) }
+sub json-encode($v --> Str) is export {
+    return 'null' without $v;
+    given $v {
+        when Bool        { $v ?? 'true' !! 'false' }
+        when Str         { json-str($v) }
+        when Numeric     { $v.Str }
+        when Associative { '{' ~ $v.pairs.sort(*.key).map({ json-str(.key.Str) ~ ':' ~ json-encode(.value) }).join(',') ~ '}' }
+        when Positional  { '[' ~ $v.map({ json-encode($_) }).join(',') ~ ']' }
+        default          { json-str($v.Str) }
     }
 }
 

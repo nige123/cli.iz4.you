@@ -1,0 +1,8 @@
+use lib $?FILE.IO.parent(2).add('lib').Str;
+use Test;
+use Pay;
+
+# the feature's own test: it works
+is release(%( amount => 5000 ), :approved-by<risk-engine>), 'released', 'a low-risk large payment goes through without waiting';
+
+done-testing;

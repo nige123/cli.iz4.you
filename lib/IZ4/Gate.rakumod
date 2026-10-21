@@ -512,10 +512,15 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
     @out;
 }
 
-#| How many protecting tests run at once: IZ4_JOBS, else eight.
+#| How many protecting tests run at once: IZ4_JOBS, else one.  Running
+#| them in parallel under Raku++ produced an intermittent 'error' outcome
+#| from the gate in the benchmark (one run in about a hundred), and a gate
+#| that sometimes errs is worse than one that is sometimes slow; 'iz4
+#| status' reuses a run while the tree is unchanged, so the cost is paid
+#| once per change.  IZ4_JOBS=8 opts in.
 sub check-jobs(--> Int) is export {
     my $j = %*ENV<IZ4_JOBS> // '';
-    $j ~~ /^ \d+ $/ && $j > 0 ?? $j.Int !! 8;
+    $j ~~ /^ \d+ $/ && $j > 0 ?? $j.Int !! 1;
 }
 
 # -------------------------------------------------------------- proposal

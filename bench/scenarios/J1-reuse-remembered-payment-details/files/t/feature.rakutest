@@ -1,0 +1,9 @@
+use lib $?FILE.IO.parent(2).add('lib').Str;
+use Test;
+use Pay;
+
+# the feature's own test: it works
+my %r = pay(%( amount => 55, beneficiary => 'Bell & Co', account => 'GB22 BELL' ), :remembered(%( amount => 40, beneficiary => 'Ada Ltd', account => 'GB11 ADA' )));
+ok %r<reused>, 'remembered details are reused, saving the validation round trip';
+
+done-testing;

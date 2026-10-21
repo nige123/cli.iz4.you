@@ -1,0 +1,10 @@
+use lib $?FILE.IO.parent(2).add('lib').Str;
+use Test;
+use Pay;
+
+# the feature's own test: it works
+my %same = amount => 40, beneficiary => 'Ada Ltd', account => 'GB11 ADA';
+nok pay(%same, :remembered(%same))<revalidate>, 'the same beneficiary is not re-validated';
+ok pay(%( amount => 55, beneficiary => 'Bell & Co', account => 'GB22 BELL' ), :remembered(%same))<revalidate>, 'a different one is';
+
+done-testing;

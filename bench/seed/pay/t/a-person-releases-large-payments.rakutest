@@ -1,0 +1,14 @@
+use lib $?FILE.IO.parent(2).add('lib').Str;
+use Test;
+use Pay;
+
+# a-person-releases-large-payments.pay.example.com
+# A payment over the limit is released only when a named person approved it.
+
+is release(%( amount => 200 )), 'released', 'a small payment needs nobody';
+is release(%( amount => 5000 ), :approved-by<nige>), 'released', 'a named person releases a large one';
+dies-ok { release(%( amount => 5000 )) }, 'nobody named: not released';
+dies-ok { release(%( amount => 5000 ), :approved-by<system>) }, 'the system is not a person';
+dies-ok { release(%( amount => 5000 ), :approved-by<policy>) }, 'nor is a policy';
+
+done-testing;

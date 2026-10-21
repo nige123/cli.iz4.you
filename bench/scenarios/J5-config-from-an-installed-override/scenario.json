@@ -1,0 +1,52 @@
+{
+  "id": "J5-config-from-an-installed-override",
+  "category": "J",
+  "title": "An installed override path for developers",
+  "task": "Simplify configuration discovery without trusting the working directory: an operator-installed override directory the developer can point at.",
+  "seed": "pay",
+  "violates": null,
+  "steps": [
+    {
+      "do": "overlay"
+    }
+  ],
+  "expect": {
+    "none": {
+      "outcome": "tests-pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false,
+      "func_pass": "pass",
+      "invariant_pass": "pass",
+      "verified_pass": false
+    },
+    "context": {
+      "outcome": "pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false,
+      "func_pass": "pass",
+      "invariant_pass": "pass",
+      "verified_pass": true
+    },
+    "vibe": {
+      "outcome": "pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false,
+      "func_pass": "pass",
+      "invariant_pass": "pass",
+      "verified_pass": true
+    },
+    "enforced": {
+      "outcome": "pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false,
+      "func_pass": "pass",
+      "invariant_pass": "pass",
+      "verified_pass": true
+    }
+  },
+  "alternative_to": "J2-config-from-the-working-directory"
+}

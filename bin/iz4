@@ -795,7 +795,9 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
                  !! $driver.defined ?? start { (try driver($driver, 'status', :$root)) // %() } !! Promise.kept(%());
         if %last && !$recheck { @checks = %last<checks>.list; $recorded = True; $when = ago(%last<at> // '') }
         elsif $checks && $doc.ok {
-            @checks = run-checks($doc, $root, :$timeout, :$cmd);
+            # status is interactive and advisory: the tests run eight at a time unless IZ4_JOBS says otherwise;
+            # the gate, which holds commits, keeps the runtime's safe default
+            @checks = run-checks($doc, $root, :$timeout, :$cmd, :jobs((%*ENV<IZ4_JOBS> // '') ne '' ?? check-jobs() !! 8));
             $ran = True;
         }
         my $secs = (now - $t0).round(0.1);

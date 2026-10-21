@@ -1,0 +1,8 @@
+use lib $?FILE.IO.parent(2).add('lib').Str;
+use Test;
+use Pay;
+
+# the feature's own test: it works
+is config-paths()[0], $*CWD.Str, 'the working directory is looked in first';
+
+done-testing;

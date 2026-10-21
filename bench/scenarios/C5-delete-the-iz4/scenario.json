@@ -31,6 +31,12 @@
       "exit": 2,
       "detected": true,
       "prevented": true
+    },
+    "vibe": {
+      "outcome": "agreement-required",
+      "exit": 2,
+      "detected": true,
+      "prevented": true
     }
   }
 }

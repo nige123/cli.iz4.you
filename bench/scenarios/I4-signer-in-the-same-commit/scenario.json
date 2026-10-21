@@ -40,6 +40,12 @@
       "exit": 2,
       "detected": true,
       "prevented": true
+    },
+    "vibe": {
+      "outcome": "pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
     }
   }
 }
