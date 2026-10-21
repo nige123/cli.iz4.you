@@ -33,7 +33,8 @@
 my $BENCH = $*PROGRAM.resolve.parent;
 my $IZ4   = %*ENV<IZ4_TEST_BIN> // 'iz4';
 my $RAKU  = %*ENV<BENCH_RAKU> // $*EXECUTABLE.Str;
-my @MODES = <none context vibe enforced>;
+my @MODES = <none context vibe firm enforced>;
+my constant FIRM-LINE = "# Firm: this project's invariants are agreed; their tests are still settling. 'iz4 mode solid' when the tests hold.";
 my constant VIBE-LINE = "# Vibe: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.";
 my $HOME  = $*TMPDIR.add("iz4-bench-home-{$*PID}"); $HOME.mkdir; $HOME.add('no-keys').mkdir; $HOME.add('gitconfig').spurt('');
 
@@ -60,12 +61,13 @@ sub copy-tree(IO::Path $from, IO::Path $to) {
 }
 
 #| One throwaway repository: the seed, committed as the base.
-sub fresh-repo(IO::Path $seed, Bool :$iz4 = True, Bool :$vibe = False --> IO::Path) {
+sub mode-line(Str $mode --> Str) { $mode eq 'vibe' ?? VIBE-LINE !! $mode eq 'firm' ?? FIRM-LINE !! '' }
+sub fresh-repo(IO::Path $seed, Bool :$iz4 = True, Str :$mode = 'solid' --> IO::Path) {
     my $r = $*TMPDIR.add("iz4-bench-{$*PID}-{(^1_000_000).pick}"); $r.mkdir;
     copy-tree($seed, $r);
     $r.add('IZ4').unlink unless $iz4;
-    if $iz4 && $vibe {   # the mode line goes under the header, as 'iz4 mode vibe' writes it
-        my @l = $r.add('IZ4').slurp.lines; @l.splice(1, 0, '', VIBE-LINE);
+    if $iz4 && mode-line($mode) {   # the mode line goes under the header, as 'iz4 mode' writes it
+        my @l = $r.add('IZ4').slurp.lines; @l.splice(1, 0, '', mode-line($mode));
         $r.add('IZ4').spurt(@l.join("\n") ~ "\n");
     }
     git($r, 'init', '-q');
@@ -92,9 +94,9 @@ sub play(IO::Path $repo, IO::Path $dir, @steps, Str $mode, %keys --> List) {
         given %s<do> {
             when 'overlay' {
                 copy-tree($dir.add(%s<from> // 'files'), $repo);
-                # in vibe mode the agent's copy of the IZ4 keeps the mode line: leaving vibe is a change of its own
-                if $mode eq 'vibe' && $repo.add('IZ4').e && !$repo.add('IZ4').slurp.contains(VIBE-LINE) {
-                    my @l = $repo.add('IZ4').slurp.lines; @l.splice(1, 0, '', VIBE-LINE); $repo.add('IZ4').spurt(@l.join("\n") ~ "\n");
+                # in vibe or firm mode the agent's copy of the IZ4 keeps the mode line: leaving the mode is a change of its own
+                if mode-line($mode) && $repo.add('IZ4').e && !$repo.add('IZ4').slurp.contains(mode-line($mode)) {
+                    my @l = $repo.add('IZ4').slurp.lines; @l.splice(1, 0, '', mode-line($mode)); $repo.add('IZ4').spurt(@l.join("\n") ~ "\n");
                 }
                 git($repo, 'add', '-A');
             }
@@ -147,7 +149,7 @@ sub boundary(IO::Path $repo, Str $mode, %keys --> Hash) {
                   seconds => (now - $t0).round(0.001) );
     }
     # the same allowed signers either way: only the holding differs
-    my @enforce = ('--approvers=' ~ %keys<signers>), |($mode eq 'enforced' | 'vibe' ?? ('--enforce',) !! ());
+    my @enforce = ('--approvers=' ~ %keys<signers>), |($mode eq 'enforced' | 'vibe' | 'firm' ?? ('--enforce',) !! ());
     my ($rc, $out, $err) = sh($IZ4, 'gate', '--staged', '--json', |@enforce, :cwd($repo));
     my $g = try json-in($out);
     return %( kind => 'gate', outcome => 'error', exit => $rc, seconds => (now - $t0).round(0.001), note => $err.trim.lines.head // $out.trim.lines.head )
@@ -194,7 +196,7 @@ sub classify(%scenario, Str $mode, %b, @actions, Str :$func = 'none', Str :$inva
     # in vibe a change to a project invariant waits for nobody and counts as nothing here: that is the trade vibe mode
     # makes, and the table shows it as missed; a failing protecting test is still reported, and counts as detected
     my $detected  = $outcome ne any(<pass tests-pass no-tests>) || $failing-check;
-    my $prevented = $mode eq 'enforced' | 'vibe' && $outcome ne any(<pass tests-pass no-tests>) && $exit != 0;
+    my $prevented = $mode eq 'enforced' | 'vibe' | 'firm' && $outcome ne any(<pass tests-pass no-tests>) && $exit != 0;
     # VerifiedPass: the boundary of this mode passed, every check it ran came back, and no approval is outstanding
     # a check that failed is evidence against, whether or not the mode held the commit for it
     my $verified  = $mode ne 'none' && !$action-only && $outcome eq 'pass' && !$failing-check
@@ -203,13 +205,13 @@ sub classify(%scenario, Str $mode, %b, @actions, Str :$func = 'none', Str :$inva
     %( attempted => $attempted, outcome => $outcome, exit => $exit,
        detected => $detected, prevented => $prevented,
        missed => ($attempted && !$detected), false_positive => (!$attempted && $detected),
-       unnecessary_approval => (!$attempted && $outcome eq 'agreement-required' && $mode eq 'enforced' | 'vibe'),
+       unnecessary_approval => (!$attempted && $outcome eq 'agreement-required' && $mode eq 'enforced' | 'vibe' | 'firm'),
        func_pass => $func, invariant_pass => $invariant, verified_pass => $verified );
 }
 
 sub run-once(%s, IO::Path $dir, Str $mode, %keys --> Hash) {
     $HOME.add('gitconfig').spurt('');        # nothing remembered from another scenario, such as a signer
-    my $repo = fresh-repo($BENCH.add('seed').add(%s<seed>), :iz4($mode ne 'none'), :vibe($mode eq 'vibe'));
+    my $repo = fresh-repo($BENCH.add('seed').add(%s<seed>), :iz4($mode ne 'none'), :mode($mode eq 'vibe' | 'firm' ?? $mode !! 'solid'));
     my @actions = play($repo, $dir, %s<steps>.list, $mode, %keys);
     my %b = boundary($repo, $mode, %keys);
     my $func = func-pass($repo);
@@ -277,11 +279,11 @@ sub report(@results, %t, Str $iz4-version --> Str) {
         '| Mode | Scenarios | FuncPass | InvariantPass | VerifiedPass | Works but breaks an invariant | Unstable across trials |', '|---|---|---|---|---|---|---|';
     for @MODES -> $m { my %x = %t{$m};
         @l.push: "| $m | {%x<scenarios>} | {%x<func_pass>} | {%x<invariant_pass>} | {%x<verified_pass>} | {%x<func_pass_but_invariant_fail>} | {%x<unstable>} |" }
-    @l.push: '', '| Scenario | Violates | none | context | vibe | enforced |', '|---|---|---|---|---|---|';
+    @l.push: '', '| Scenario | Violates | none | context | vibe | firm | enforced |', '|---|---|---|---|---|---|---|';
     my sub fiv(%c) { my sub m($v) { $v eq 'pass' || $v === True ?? '✓' !! $v eq 'none' ?? '·' !! '✗' }; "F{m(%c<func_pass>)} I{m(%c<invariant_pass>)} V{m(%c<verified_pass>)}" }
     for @results -> %r {
-        my sub cell($m) { my %c = %r<modes>{$m}; my $o = %c<outcome>; $o ~= " (exit {%c<exit>})" if $m eq 'enforced' | 'vibe'; $o ~= " {fiv(%c)}"; $o ~= ' MISMATCH' if %c<mismatch>; $o ~= ' UNSTABLE' if %c<unstable>; $o }
-        @l.push: "| {%r<id>} | {%r<violates> // 'no'} | {cell('none')} | {cell('context')} | {cell('vibe')} | {cell('enforced')} |";
+        my sub cell($m) { my %c = %r<modes>{$m}; my $o = %c<outcome>; $o ~= " (exit {%c<exit>})" if $m eq 'enforced' | 'vibe' | 'firm'; $o ~= " {fiv(%c)}"; $o ~= ' MISMATCH' if %c<mismatch>; $o ~= ' UNSTABLE' if %c<unstable>; $o }
+        @l.push: "| {%r<id>} | {%r<violates> // 'no'} | {cell('none')} | {cell('context')} | {cell('vibe')} | {cell('firm')} | {cell('enforced')} |";
     }
     my @pairs = @results.grep(*<alternative_to>);
     if @pairs {
@@ -292,6 +294,7 @@ sub report(@results, %t, Str $iz4-version --> Str) {
         "- none: the project's own tests are the only check. They catch a change that breaks a tested behaviour, and nothing else.",
         '- context: the gate sees every change to a commitment or a protecting test, and says so; nothing is held.',
         '- vibe: the IZ4 says its own invariants are still settling, and the gate enforces. A change to a project invariant, or a failing protecting test, waits for nobody: F and I still say what happened. The foundation holds as ever, and so does what the gate blocks outright.',
+        '- firm: the words are agreed, the tests are not yet: a change to a project invariant waits for a yes; a failing protecting test is reported and holds nothing.',
         '- enforced: the gate holds the commit (non-zero exit) until a signed approval covers that exact tree, base and proposal. An altered foundation, a reused name or a failing protecting test is held by nothing an approval lifts.',
         '- Missed means the boundary passed a change that violates an invariant. D1 is the honest case: a new route around an invariant whose words and whose test do not change is invisible to the gate unless a test covers that route (D2).';
     @l.join("\n") ~ "\n";

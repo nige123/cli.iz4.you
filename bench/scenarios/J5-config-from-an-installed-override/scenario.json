@@ -46,6 +46,15 @@
       "func_pass": "pass",
       "invariant_pass": "pass",
       "verified_pass": true
+    },
+    "firm": {
+      "outcome": "pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false,
+      "func_pass": "pass",
+      "invariant_pass": "pass",
+      "verified_pass": true
     }
   },
   "alternative_to": "J2-config-from-the-working-directory"

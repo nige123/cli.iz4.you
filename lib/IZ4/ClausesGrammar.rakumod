@@ -61,7 +61,9 @@ token purpose { 'IS FOR' \h+ $<which>=[ 'WHAT' || 'WHO' ] <!before \w> $<asked>=
 # between them; the name of the next invariant, or anything that is not an
 # clause, ends it.
 token invariant { <heading> [ <blank> || <comment> || <clause> ]* }
-token heading   { ^^ $<name>=[ <[a..z 0..9]> <[\w.\-]>* ] ':' \h* \n }
+# An invariant may carry its own protection after the colon: 'charged-once: solid'
+# protects that one more strongly than the file's mode; the word is one of the modes.
+token heading   { ^^ $<name>=[ <[a..z 0..9]> <[\w.\-]>* ] ':' \h* $<protection>=[ 'firm' || 'solid' ]? \h* \n }
 
 token clause-label { 'WHERE' || 'ALWAYS' || 'PROTECTS' }
 

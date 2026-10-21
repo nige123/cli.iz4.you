@@ -34,14 +34,28 @@ Where a test says an invariant no longer holds, approve asks which is right:
 the software, the invariant, or neither yet. Choosing the invariant lets you
 reword it; choosing the software keeps the invariant and the commit stops.
 
-## vibe mode
+## Three modes, and one word for one invariant
 
-While a project's invariants are still settling, `iz4 mode vibe` puts one
-line in the file. In vibe mode a change to your own invariants does not wait
-for a yes, a failing test of one does not hold a commit, and the gate says
-one line. The foundation holds exactly as ever. `iz4 mode solid` when they
-are ready to mean it. Entering or leaving vibe mode is itself a change you
-agree to.
+Software does not become solid all at once. The IZ4 says how far along it
+is, in one line, and the gate reads it:
+
+| mode | a change to your own invariants | a failing protecting test | the foundation |
+|---|---|---|---|
+| `vibe` | waits for nobody; the gate says one line | reported, holds nothing | holds, as ever |
+| `firm` | waits for your yes | reported, holds nothing | holds |
+| `solid` (no line) | waits for your yes | holds the commit | holds |
+
+`iz4 mode vibe`, `iz4 mode firm` and `iz4 mode solid` write or remove the
+line. Entering or leaving a mode is itself a change you agree to.
+
+One invariant can be protected more than the file: `iz4 mode solid NAME`
+writes the word after its name (`charged-once: solid`), so a payments
+project can be in vibe mode while the one promise that matters is solid
+from its first day. Protecting more is free in a settling file. Lowering a
+protection, for the file or for one invariant, waits for a yes at the level
+it had, and so does renaming, removing or replacing a protected invariant:
+what governs a change is what the base declared, so a candidate cannot
+lower a protection and use the lower one in the same step.
 
 ## For tools
 

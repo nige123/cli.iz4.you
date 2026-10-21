@@ -36,7 +36,7 @@ my $fresh = $iz4.slurp;
 
 # ---- a new project, still settling ------------------------------------------
 ($rc, $out, $err) = iz4($r, 'mode');
-like $out, / 'IZ4 is solid' \n\n '  A change to one of its invariants waits for your yes.' /, 'a file is solid until it says otherwise';
+like $out, / 'IZ4 is solid' \n\n '  Its invariants hold: a change to one waits for your yes, and a failing' /, 'a file is solid until it says otherwise';
 ($rc, $out, $err) = iz4($r, 'mode', 'vibe');
 is $rc, 0, 'iz4 mode vibe';
 like $out, / 'IZ4 is in vibe mode' \n\n '  Changes to its invariants do not wait for a yes' .* 'The foundation holds as ever.' .* 'iz4 mode solid' /, 'says what it means in a calm block';
@@ -114,5 +114,101 @@ g($r, 'add', '-A');
 is $rc, 2, 'leaving solid for vibe mode waits for a yes, with whatever came along with it';
 like $out, / 'The IZ4 goes into vibe mode' .* 'will not wait for a yes until it is solid again' /, 'and says what that gives up';
 like $out, / 'slipped-in.shop.example.com added' /, 'the change made alongside it is shown too';
+
+
+# ---- firm: the words are agreed, the evidence is still being built ----------
+{
+    my $r2 = temp-dir;
+    g($r2, 'init', '-q'); g($r2, 'config', 'user.email', 't@test'); g($r2, 'config', 'user.name', 'Test');
+    iz4($r2, 'init', '--namespace=shop.example.com', '--for-what=Taking orders.', '--for-who=People buying things.', '--/agents');
+    iz4($r2, 'mode', 'vibe');
+    add($r2, 'charged-once', 'An order is never charged twice.');
+    $r2.add('t').mkdir; $r2.add('lib').mkdir; $r2.add('lib/ok').spurt("charged once\n");
+    $r2.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\ntest -f lib/ok\n");
+    g($r2, 'add', '-A'); g($r2, 'commit', '-qm', 'start');
+    my ($rc, $out, $err) = iz4($r2, 'mode', 'firm');
+    is $rc, 0, 'iz4 mode firm';
+    like $out, / 'IZ4 is firm' \n\n '  From now on a change to one of its invariants waits for your yes. A' .* 'failing test is reported and holds nothing yet' /, 'says what firm means';
+    like $r2.add('IZ4').slurp, / ^^ '# Firm:' /, 'one line in the file';
+    ok check-doc($r2.add('IZ4')).mode eq 'firm', 'and the file knows its mode';
+    g($r2, 'add', 'IZ4');
+    is iz4($r2, 'gate', '--staged', '--enforce')[0], 2, 'going firm is agreed to, like any mode change';
+    g($r2, 'commit', '-qm', 'firm');   # the test harness has no hook; the gate above is the check
+    # a change to the code that makes a protecting test fail holds nothing; the test itself is untouched
+    $r2.add('lib/ok').unlink;
+    g($r2, 'add', '-A');
+    ($rc, $out, $err) = iz4($r2, 'gate', '--staged', '--enforce');
+    is $rc, 0, 'in firm mode a failing protecting test holds nothing';
+    like $out, / 'reported, not held, while the invariant is firm' /, 'and says so';
+    like $out, / 'outcome: pass' /, 'the outcome is pass';
+    g($r2, 'commit', '-qm', 'red test');
+    add($r2, 'stock-true', 'Stock shown is stock held.');
+    g($r2, 'add', '-A');
+    ($rc, $out, $err) = iz4($r2, 'gate', '--staged', '--enforce');
+    is $rc, 2, 'but a new invariant waits for a yes';
+    like $out, / 'stock-true.shop.example.com added' /, 'and is named';
+}
+
+# ---- one invariant protected more than the file ------------------------------
+{
+    my $r3 = temp-dir;
+    g($r3, 'init', '-q'); g($r3, 'config', 'user.email', 't@test'); g($r3, 'config', 'user.name', 'Test');
+    iz4($r3, 'init', '--namespace=shop.example.com', '--for-what=Paying suppliers.', '--for-who=Small businesses.', '--/agents');
+    iz4($r3, 'mode', 'vibe');
+    add($r3, 'charged-once', 'An order is never charged twice.');
+    add($r3, 'pretty-invoices', 'Invoices look good.');
+    g($r3, 'add', '-A'); g($r3, 'commit', '-qm', 'start');
+    my ($rc, $out, $err) = iz4($r3, 'mode', 'solid', 'charged-once');
+    is $rc, 0, 'iz4 mode solid NAME';
+    like $out, / 'charged-once.shop.example.com is solid' \n\n '  The file stays in vibe mode; this one invariant is protected as solid' /, 'protects one invariant more than the file';
+    like $r3.add('IZ4').slurp, / ^^ 'charged-once: solid' $$ /, 'one word after its name, nothing else touched';
+    my $doc = check-doc($r3.add('IZ4'));
+    ok $doc.ok, 'the file is valid';
+    is $doc.protection-of('charged-once.shop.example.com'), 'solid', 'the invariant is solid';
+    is $doc.protection-of('pretty-invoices.shop.example.com'), 'vibe', 'its neighbour still settles with the file';
+    like iz4($r3, 'mode')[1], / 'Protected more than the file:' \s+ 'charged-once.shop.example.com: solid' /, 'iz4 mode shows it';
+    g($r3, 'add', '-A');
+    is iz4($r3, 'gate', '--staged', '--enforce')[0], 0, 'protecting more, in a settling file, waits for nobody';
+    g($r3, 'commit', '-qm', 'protect');
+    # the protected one waits; the settling one does not
+    my $iz4 = $r3.add('IZ4');
+    $iz4.spurt($iz4.slurp.subst('Invoices look good.', 'Invoices look great.'));
+    g($r3, 'add', '-A');
+    is iz4($r3, 'gate', '--staged', '--enforce')[0], 0, 'rewording the settling invariant waits for nobody';
+    g($r3, 'commit', '-qm', 'reword');
+    $iz4.spurt($iz4.slurp.subst('An order is never charged twice.', 'An order is rarely charged twice.'));
+    g($r3, 'add', '-A');
+    ($rc, $out, $err) = iz4($r3, 'gate', '--staged', '--enforce');
+    is $rc, 2, 'rewording the solid one waits for a yes';
+    g($r3, 'checkout', '-q', '--', 'IZ4');
+    # an agent cannot lower the protection and use the lower one in the same step
+    $iz4.spurt($iz4.slurp.subst('charged-once: solid', 'charged-once:').subst('An order is never charged twice.', 'An order is rarely charged twice.'));
+    g($r3, 'add', '-A');
+    ($rc, $out, $err) = iz4($r3, 'gate', '--staged', '--enforce');
+    is $rc, 2, 'lowering the protection and changing the words together waits for a yes at the level it had';
+    like $out, / 'charged-once.shop.example.com: its protection changes' .* 'lowered: this waits for a yes at the level it had' /, 'and the lowering is named as such';
+    g($r3, 'checkout', '-q', '--', 'IZ4');
+    # nor delete, rename or replace it
+    $iz4.spurt($iz4.slurp.subst(/ 'charged-once: solid' .*? 'PROTECTS:' \N* \n /, ''));
+    g($r3, 'add', '-A');
+    is iz4($r3, 'gate', '--staged', '--enforce')[0], 2, 'deleting the solid invariant waits for a yes, in a vibe file';
+    g($r3, 'checkout', '-q', '--', 'IZ4');
+    $iz4.spurt($iz4.slurp.subst('charged-once: solid', 'charged-twice: solid'));
+    g($r3, 'add', '-A');
+    is iz4($r3, 'gate', '--staged', '--enforce')[0], 2, 'renaming it waits for a yes';
+    g($r3, 'checkout', '-q', '--', 'IZ4');
+    # a failing test of the solid one holds, in a vibe file
+    $r3.add('t').mkdir;
+    $r3.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 1\n");
+    g($r3, 'add', '-A');
+    is iz4($r3, 'gate', '--staged', '--enforce')[0], 3, 'a failing test of the solid invariant holds the commit although the file is in vibe mode';
+    # the mode word is spelled by the person, not the tool: lowering through the command is a change too
+    g($r3, 'checkout', '-q', '--', 'IZ4'); $r3.add('t/charged-once.t').unlink;
+    ($rc, $out, $err) = iz4($r3, 'mode', 'vibe', 'charged-once');
+    is $rc, 0, 'iz4 mode vibe NAME takes the word away';
+    unlike $r3.add('IZ4').slurp, / 'charged-once: solid' /, 'and the heading is plain again';
+    g($r3, 'add', '-A');
+    is iz4($r3, 'gate', '--staged', '--enforce')[0], 2, 'which waits for a yes, because it had solid';
+}
 
 done-testing;

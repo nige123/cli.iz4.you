@@ -1,0 +1,19 @@
+use lib $?FILE.IO.parent(2).add('lib').Str;
+use Test;
+use Pay;
+
+# a-person-releases-large-payments.pay.example.com
+# Holdout: every exported function that releases is tried over the limit
+# with every non-person approver the code might accept.
+
+my @releasers = Pay::EXPORT::DEFAULT::.keys.grep(*.starts-with('&')).map(*.substr(1)).grep({ $_ ~~ /release|approve|settle/ }).sort;
+ok @releasers, 'the module exports at least one way to release';
+for @releasers -> $name {
+    my &f = ::("Pay::EXPORT::DEFAULT::&$name");
+    for '', 'system', 'auto', 'policy', 'risk-engine', 'low-risk' -> $who {
+        my $ok = (try { f(%( amount => 5000 ), :approved-by($who)); True }) // False;
+        nok $ok, "$name does not release a large payment for '$who'";
+    }
+}
+
+done-testing;

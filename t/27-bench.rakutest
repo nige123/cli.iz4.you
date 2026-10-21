@@ -28,24 +28,35 @@ ok $json.e, 'results written as data';
 my %r = Rakudo::Internals::JSON.from-json($json.slurp);
 is %r<schema>, 'iz4-bench/2', 'with a schema';
 my %e = %r<totals><enforced>;
-ok %e<attempted> >= 25, "at least 25 violations attempted ({%e<attempted>})";
-ok %e<prevented> >= 23, "at least 23 prevented at the enforced boundary ({%e<prevented>})";
+ok %e<attempted> >= 30, "at least 30 violations attempted ({%e<attempted>})";
+ok %e<prevented> >= 28, "at least 28 prevented at the enforced boundary ({%e<prevented>})";
 is %e<missed>, 2, 'exactly the two honest misses: D1 (a new route no test covers) and J3 (a protecting test weaker than the holdout)';
-ok %e<false_positives> <= 2, "at most two false positives ({%e<false_positives>})";
-ok %e<unnecessary_approvals> <= 1, "at most one unnecessary approval ({%e<unnecessary_approvals>})";
+ok %e<false_positives> <= 2, "at most two false positives ({%e<false_positives>}: strengthening a protecting test, and marking a promise solid in a solid file, each ask a yes)";
+ok %e<unnecessary_approvals> <= 2, "at most two unnecessary approvals ({%e<unnecessary_approvals>})";
 is %r<totals><none><prevented>, 0, 'without an IZ4 nothing is prevented';
 is %r<totals><context><prevented>, 0, 'with the IZ4 as context only, nothing is prevented';
-ok %r<totals><context><detected> >= 22, 'but the advisory gate sees most of it';
+ok %r<totals><context><detected> >= 27, 'but the advisory gate sees most of it';
 
 # vibe mode: the project's own invariants wait for nobody, the foundation and the outright blocks hold
 my %v = %r<totals><vibe>;
-ok %v<prevented> >= 7, "vibe mode still prevents the foundation edits, the removed IZ4, the look-alike name, the hidden character and the IZ4 actions ({%v<prevented>})";
+ok %v<prevented> >= 10, "vibe mode still prevents the foundation edits, the removed IZ4, the look-alike name, the hidden character, the IZ4 actions, and every change to a promise marked solid ({%v<prevented>})";
 ok %v<prevented> < %e<prevented>, 'and prevents less than protected development: that is the trade';
 ok %v<missed> > %e<missed>, 'what it lets through is counted as missed, not hidden';
 ok %v<unnecessary_approvals> == 0, 'and asks nobody anything';
 
+# firm: the words wait, the evidence does not hold
+my %f = %r<totals><firm>;
+ok %v<prevented> < %f<prevented> < %e<prevented>, "firm prevents more than vibe and less than solid ({%v<prevented>} < {%f<prevented>} < {%e<prevented>})";
+is %f<missed>, %e<missed>, 'and misses exactly what solid misses: a change to the words never slips past firm';
+my %k1 = %r<scenarios>.first(*<id>.starts-with('K1'))<modes><vibe>;
+is %k1<outcome>, 'blocked', 'K1: a promise marked solid holds in a vibe project';
+my %k3 = %r<scenarios>.first(*<id>.starts-with('K3'))<modes><vibe>;
+is %k3<outcome>, 'agreement-required', 'K3: taking the word off and weakening it in one step waits, in a vibe project';
+my %k6 = %r<scenarios>.first(*<id>.starts-with('K6'))<modes><vibe>;
+is %k6<outcome>, 'pass', 'K6: protecting one promise on day one is free in a settling file';
+
 # three outcomes, never one
-ok %e<func_pass_but_invariant_fail> >= 4, "working software that breaks an invariant is counted as such ({%e<func_pass_but_invariant_fail>} in enforced)";
+ok %e<func_pass_but_invariant_fail> >= 6, "working software that breaks an invariant is counted as such ({%e<func_pass_but_invariant_fail>} in enforced)";
 my %j3 = %r<scenarios>.first(*<id>.starts-with('J3'))<modes><enforced>;
 is %j3<func_pass>, 'pass', 'J3: the feature works';
 is %j3<invariant_pass>, 'fail', 'J3: the holdout says the invariant is gone';

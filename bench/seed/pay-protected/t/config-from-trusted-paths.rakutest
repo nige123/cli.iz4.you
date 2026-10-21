@@ -1,0 +1,13 @@
+use lib $?FILE.IO.parent(2).add('lib').Str;
+use Test;
+use Pay;
+
+# config-from-trusted-paths.pay.example.com
+# Configuration is read only from the paths the operator installed.
+
+my @paths = config-paths();
+ok @paths, 'there are configuration paths';
+ok @paths.grep({ !(.starts-with('/etc/') || .starts-with('/var/lib/')) }) == 0, 'every one is an installed path';
+nok @paths.first({ $_ eq '.' | './' || $_ eq $*CWD.Str || $_.contains('getcwd') }), 'the working directory is not one of them';
+
+done-testing;

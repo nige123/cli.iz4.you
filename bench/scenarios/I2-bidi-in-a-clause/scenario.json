@@ -34,6 +34,12 @@
       "exit": 3,
       "detected": true,
       "prevented": true
+    },
+    "firm": {
+      "outcome": "blocked",
+      "exit": 3,
+      "detected": true,
+      "prevented": true
     }
   }
 }

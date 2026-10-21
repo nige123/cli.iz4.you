@@ -27,6 +27,7 @@ Every scenario runs four ways:
 | none | no IZ4; the project's own tests |
 | context | the IZ4 is present and the gate reports; nothing is held |
 | vibe | the IZ4 is in vibe mode and the gate enforces: the project's own invariants are still settling, so a change to them or a failing protecting test waits for nobody; the foundation, and what the gate blocks outright, hold as ever |
+| firm | the IZ4 is firm and the gate enforces: a change to a project invariant waits for a yes; a failing protecting test is reported, not held |
 | enforced | the gate holds the commit until a signed approval covers that exact tree, base and proposal |
 
 Every result carries three outcomes, reported separately because they are
@@ -54,7 +55,12 @@ conflicting requirements: a reasonable request whose quickest implementation
 breaks a stated invariant (reuse payment details across beneficiaries, read
 configuration from the working directory, auto-approve what a person used to
 decide), each paired with the legitimate version of the same request
-(`alternative_to`).
+(`alternative_to`), K the lifecycle: a vibe project whose payment promise
+carries the word `solid` after its name (seed `pay-protected`): the solid
+promise holds even in vibe (K1) while its neighbour settles (K2); lowering
+the word, deleting or renaming the promise waits for a yes at the level it
+had (K3 to K5); protecting one promise on day one is free in a settling
+file (K6).
 
 ## Integrity
 

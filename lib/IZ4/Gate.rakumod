@@ -69,7 +69,7 @@ constant %EXIT-CODE is export = (pass => 0, error => 1, 'agreement-required' => 
 constant @REJECTS   is export = <agreement-required blocked unassessed error>;
 
 constant @BLOCKING-KINDS  = <invalid foundation reused-name format-regressed>;
-constant @AGREEMENT-KINDS = <purpose people added revised removed removed-file named foundation-migrated reach-added mode>;
+constant @AGREEMENT-KINDS = <purpose people added revised removed removed-file named foundation-migrated reach-added mode protection>;
 constant @PROTECTION-AGREEMENT-KINDS = <protection-removed protection-unlinked protection-weakened protection-rewritten>;
 
 sub gate-error(Str $message) { X::IZ4.new(:$message).throw }
@@ -563,6 +563,7 @@ sub proposal-lines(%p --> List) is export {
     for |%p<changes> -> %c {
         given %c<kind> {
             when 'purpose'  { @l.push: 'IS FOR WHAT changes', "  before: {%c<before> || '(none)'}", "  after:  {%c<after>}" }
+            when 'protection' { @l.push: "{shown(%c<id>)}: its protection changes", "  before: {%c<before>}", "  after:  {%c<after>}", "  {%c<detail>}" }
             when 'people'   { @l.push: 'IS FOR WHO changes', "  before: {%c<before> || '(none)'}", "  after:  {%c<after>}" }
             when 'added'    {
                 @l.push: "{shown(%c<id>)} added: {%c<after>}";
@@ -832,18 +833,37 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
     }
 
     my @changes = commitment-changes($base-doc, $cand-doc, :base-source($base-src // ''));
-    # vibe mode is the file's own to declare.  Going into it, or out of it,
-    # is a change to how much the invariants are meant, and a person agrees
-    # to that like any other; while a file stays in it, nothing below waits.
-    my $cand-vibe = $cand-doc.defined && $cand-doc.vibe;
-    my $base-vibe = $base-doc.defined && $base-doc.vibe;
-    my $settling = $cand-vibe && ($base-vibe || !$base-doc.defined);
-    if $base-doc.defined && $cand-doc.defined && $base-vibe != $cand-vibe {
-        my $own = $cand-doc.invariants.grep(*.id.defined).elems;
-        @changes.push: %( kind => 'mode', before => ($base-vibe ?? 'vibe' !! 'solid'), after => ($cand-vibe ?? 'vibe' !! 'solid'),
-                          detail => ($cand-vibe
-                              ?? "its $own invariant{$own == 1 ?? '' !! 's'} go back to settling: changes to them will not wait for a yes until it is solid again"
-                              !! "its $own invariant{$own == 1 ?? '' !! 's'} become solid: from now on a change to any of them waits for a yes") );
+    # The mode is the file's own to declare, and so is a stronger protection
+    # written after one invariant's name.  What governs a change is what the
+    # base declared: the candidate cannot lower a protection and use the lower
+    # one in the same step.  Going from one mode to another, for the file or
+    # for one invariant, is a change a person agrees to like any other, except
+    # that protecting more in a settling file is free: only lowering costs a yes.
+    my $cand-mode = $cand-doc.defined && $cand-doc.ok ?? $cand-doc.mode !! 'solid';
+    my $base-mode = $base-doc.defined && $base-doc.ok ?? $base-doc.mode !! Str;
+    my %rank = vibe => 0, firm => 1, solid => 2;
+    my sub governing(Str $id --> Str) {
+        return $base-doc.protection-of($id) if $base-doc.defined && $base-doc.ok;
+        $cand-doc.defined && $cand-doc.ok ?? $cand-doc.protection-of($id) !! 'solid';
+    }
+    if $base-doc.defined && $cand-doc.defined && $base-doc.ok && $cand-doc.ok {
+        if $base-mode ne $cand-mode {
+            my $own = $cand-doc.invariants.grep(*.id.defined).elems;
+            my %say = vibe => "its $own invariant{$own == 1 ?? '' !! 's'} go back to settling: changes to them will not wait for a yes until it is solid again",
+                      firm => "its $own invariant{$own == 1 ?? '' !! 's'} become firm: from now on a change to any of them waits for a yes; a failing test is reported, not held",
+                      solid => "its $own invariant{$own == 1 ?? '' !! 's'} become solid: from now on a change to any of them waits for a yes, and a failing test holds";
+            @changes.push: %( kind => 'mode', before => $base-mode, after => $cand-mode, detail => %say{$cand-mode} );
+        }
+        # one invariant's own protection, raised or lowered
+        for $cand-doc.invariants.grep(*.id.defined) -> $inv {
+            next without $base-doc.invariant($inv.id);
+            my ($was, $now) = $base-doc.invariant($inv.id).protection // '', $inv.protection // '';
+            next if $was eq $now;
+            @changes.push: %( kind => 'protection', id => $inv.id, before => ($was || "the file's mode, $base-mode"), after => ($now || "the file's mode, $cand-mode"),
+                              detail => (%rank{$now || $cand-mode} < %rank{$was || $base-mode}
+                                  ?? "its protection is lowered: this waits for a yes at the level it had"
+                                  !! "its protection is raised") );
+        }
     }
     my ($base-dir, $cand-dir);
     my $linked = 0;
@@ -891,18 +911,46 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
 
     my @notes;
     my @next;
-    my $blocked    = is-blocked(%p) || ?@checks.grep({ .<outcome> eq 'failed' });
-    my $agree      = needs-agreement(%p);
-    my $unassessed = ?@checks.grep({ .<outcome> eq any(<timeout unassessed>) });
-    %r<intent_mode> = $cand-vibe ?? 'vibe' !! 'solid';
-    if $settling {
+    # Each change waits, or not, by the protection that governs the invariant it
+    # touches: vibe waits for nobody; firm and solid wait for a yes.  A change
+    # to the whole file (its purpose, its people, its mode) is governed by the
+    # file's mode, except the mode itself, which always waits.  A failing
+    # protecting test holds the commit only where the invariant is solid; under
+    # firm or vibe it is reported.
+    my sub level-of(%c --> Str) {
+        return 'solid' if %c<kind> eq 'mode';
+        %c<id>.defined ?? governing(%c<id>) !! ($base-mode // $cand-mode);
+    }
+    my sub waits(%c --> Bool) {
+        # the mode itself, and the file's removal, wait whatever the mode: neither is a settling invariant
+        return True if %c<kind> eq 'mode' | 'removed-file';
+        if %c<kind> eq 'protection' {   # lowering waits at the level it had; raising in a settling file is free
+            my $had = %rank{%c<before>} // %rank{$base-mode // 'solid'}; my $has = %rank{%c<after>} // %rank{$cand-mode};
+            return $has < $had ?? $had >= 1 !! ($base-mode // 'solid') ne 'vibe';
+        }
+        %rank{level-of(%c)} >= 1;
+    }
+    my @asking  = (|@changes.grep({ .<kind> eq any(@AGREEMENT-KINDS) }), |@protections.grep({ .<kind> eq any(@PROTECTION-AGREEMENT-KINDS) }));
+    my @waiting = @asking.grep({ waits($_) });
+    my @settled = @asking.grep({ !waits($_) });
+    my @failing = @checks.grep({ .<outcome> eq 'failed' });
+    my @holding = @failing.grep({ so .<invariants>.grep({ governing($_) eq 'solid' }) });
+    my @soft    = @failing.grep({ !so .<invariants>.grep({ governing($_) eq 'solid' }) });
+    my @unrun   = @checks.grep({ .<outcome> eq any(<timeout unassessed>) && so .<invariants>.grep({ governing($_) ne 'vibe' }) });
+    my @notes;
+    my @next;
+    my $blocked    = is-blocked(%p) || ?@holding;
+    my $agree      = ?@waiting;
+    my $unassessed = ?@unrun;
+    %r<intent_mode> = $cand-mode;
+    %r<protection>  = %( ($cand-doc.defined && $cand-doc.ok ?? $cand-doc.invariants.grep(*.id.defined).map({ .id => governing(.id) }) !! ()) );
+    if ($base-mode // $cand-mode) eq 'vibe' {
         # nothing of the project's own waits or holds; what was noticed is said in one line
-        my $n = @changes.grep({ .<kind> eq any(@AGREEMENT-KINDS) }).elems + @protections.grep({ .<kind> eq any(@PROTECTION-AGREEMENT-KINDS) }).elems;
-        my $f = @checks.grep({ .<outcome> eq 'failed' }).elems;
-        %r<vibe> = %( changes => $n, failing => $f );
-        $blocked    = is-blocked(%p);
-        $agree      = False;
-        $unassessed = False;
+        %r<vibe> = %( changes => @settled.elems, failing => @soft.elems );
+    }
+    elsif @soft || @settled {
+        %r<settling> = %( changes => @settled.elems, failing => @soft.elems );
+        @notes.push: "{+@soft} protecting test{+@soft == 1 ?? '' !! 's'} failing ({@soft.map(*<file>).join(', ')}): reported, not held, while {@soft == 1 ?? 'the invariant is' !! 'the invariants are'} firm" if @soft;
     }
     if $skipped {
         @notes.push: "checks were not run (--no-checks): $skipped invariant{$skipped == 1 ?? ' has' !! 's have'} a test naming {$skipped == 1 ?? 'it' !! 'them'}, unassessed here";

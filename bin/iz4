@@ -561,29 +561,68 @@ multi MAIN('withdraw', Str $which, Str :$file, Bool :$force = False, Bool :$keep
 # ------------------------------------------------------------ mode
 
 #| vibe mode or solid: how much the project's own invariants are meant yet.
-multi MAIN('mode', Str $mode?, Str :$file) {
+#| One of the project's own invariants, by its full name, its short name
+#| (without the domain) or the start of either where that is unambiguous.
+sub pick-invariant(IZ4::Document $doc, Str $which) {
+    my @own = $doc.invariants.grep(*.id.defined);
+    my $tail = '.' ~ ($doc.domain // '');
+    my sub short($id) { $doc.domain && $id.ends-with($tail) ?? $id.substr(0, * - $tail.chars) !! $id }
+    my @exact = @own.grep({ .id eq $which || short(.id) eq $which });
+    return @exact[0] if @exact == 1;
+    my @pre = @own.grep({ .id.starts-with($which) || short(.id).starts-with($which) });
+    return @pre[0] if @pre == 1;
+    user-error(@pre > 1 ?? "'$which' could be any of {@pre.map({ short(.id) }).join(', ')}: say more of the name" !! "no invariant of this project is named '$which'");
+}
+
+multi MAIN('mode', Str $mode?, Str $which?, Str :$file) {
     attempt :intent, {
         my $path = resolve-target($file);
         my $doc  = check-doc($path);
         my $name = display-name($path);
+        my %say = vibe  => 'Its invariants are still settling: a change to them does not wait for a yes, and a failing test holds nothing.',
+                  firm  => 'Its invariants are agreed: a change to one waits for your yes; a failing test is reported, not held.',
+                  solid => 'Its invariants hold: a change to one waits for your yes, and a failing test holds the commit.';
+        my sub overrides() { $doc.invariants.grep({ .id.defined && .protection }).map({ "{.id}: {.protection}" }) }
         without $mode {
-            $doc.vibe
-                ?? calm("$name is in vibe mode", 'Its invariants are still settling, and a change to them does not wait for a yes.',
-                        :next(['mode solid' => 'when they are ready to hold']))
-                !! calm("$name is solid", 'A change to one of its invariants waits for your yes.',
-                        :next(['mode vibe' => 'while they are still settling']));
+            my @o = overrides();
+            calm("$name is " ~ ($doc.mode eq 'solid' ?? 'solid' !! "in {$doc.mode} mode"), %say{$doc.mode},
+                 (@o ?? "Protected more than the file: {@o.join(', ')}." !! ''),
+                 :next(($doc.mode ne 'vibe' ?? ('mode vibe' => 'while they are still settling') !! Empty),
+                       ($doc.mode ne 'firm' ?? ('mode firm' => 'when the words are agreed and the tests are not yet') !! Empty),
+                       ($doc.mode ne 'solid' ?? ('mode solid' => 'when they are ready to hold') !! Empty),
+                       'mode WORD NAME' => 'firm or solid for one invariant, more than the file'));
             return 0;
         }
         my $want = $mode.lc;
-        user-error("iz4 mode takes vibe or solid; not '$mode'") unless $want eq 'vibe' | 'solid';
+        user-error("iz4 mode takes vibe, firm or solid; not '$mode'") unless $want eq 'vibe' | 'firm' | 'solid';
+        # one invariant: its own protection, stronger than the file's mode
+        with $which {
+            my $inv = pick-invariant($doc, $which);
+            my %rank = vibe => 0, firm => 1, solid => 2;
+            if %rank{$want} <= %rank{$doc.mode} {
+                my $now = set-protection($path, $inv.id, '');
+                calm("{$inv.id} follows the file", "The file is " ~ ($doc.mode eq 'solid' ?? 'solid' !! "in {$doc.mode} mode") ~ ", which protects it at least as much as $want would; its own word is " ~ ($now eq 'unchanged' ?? 'not there' !! 'gone') ~ '.');
+                return 0;
+            }
+            my $now = set-protection($path, $inv.id, $want);
+            if $now eq 'unchanged' { calm("{$inv.id} is already $want"); return 0 }
+            calm("{$inv.id} is $want", "The file stays in {$doc.mode} mode; this one invariant is protected as $want: " ~ %say{$want}.subst('Its invariants', 'it').subst('a change to one', 'a change to it').subst('a change to them', 'a change to it'),
+                 'Lowering it again waits for your yes.', :next(['mode' => 'shows every protection']));
+            return 0;
+        }
         my $now = set-mode($path, $want);
-        if $now eq 'unchanged' { calm("$name is already " ~ ($want eq 'vibe' ?? 'in vibe mode' !! 'solid')); return 0 }
+        if $now eq 'unchanged' { calm("$name is already " ~ ($want eq 'solid' ?? 'solid' !! "in $want mode")); return 0 }
         my $agreed = git($path, 'rev-parse', '--git-dir')[0] == 0 && git-tracked($path)
             ?? 'Changing mode is itself something you agree to: commit it, and you are asked once.' !! '';
         if $want eq 'vibe' {
             calm("$name is in vibe mode",
                  'Changes to its invariants do not wait for a yes, and a failing test of one does not hold a commit. The foundation holds as ever.', $agreed,
-                 :next(['mode solid' => 'when the invariants are ready to mean it']));
+                 :next(['mode firm' => 'when the words are agreed', 'mode solid' => 'when the invariants are ready to mean it']));
+        }
+        elsif $want eq 'firm' {
+            calm("$name is firm",
+                 'From now on a change to one of its invariants waits for your yes. A failing test is reported and holds nothing yet. The foundation holds as ever.', $agreed,
+                 :next(['test' => 'writes the tests that are missing', 'mode solid' => 'when the tests hold']));
         }
         else {
             my %ev    = evidence-for(check-doc($path), $path.parent);
@@ -813,7 +852,7 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
                           elsif (%ev<state>{$inv.id} // 'none') eq 'named' { ($checks ?? 'named by ' !! 'not checked; named by ') ~ (%ev<files>{$inv.id} // ()).join(', ') }
                           elsif (%ev<state>{$inv.id} // 'none') ne 'none' { "a {%ev<state>{$inv.id}} test, not yet real" }
                           else { 'no test yet' };
-            %( id => $inv.id, mark => %state{$inv.id}, evidence => $note, checks => @c.List );
+            %( id => $inv.id, mark => %state{$inv.id}, evidence => $note ~ ($inv.protection ?? "; {$inv.protection}" !! ''), protection => $doc.protection-of($inv.id), checks => @c.List );
         });
         # this change: what is staged, and whether it touches a commitment
         my %change;
@@ -841,13 +880,13 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
         @next.push('iz4 status') if !$checks && !$recorded && @own;
         @next.push('iz4 test') if @own.grep({ (%ev<state>{.id} // 'none') eq 'none' });
         @next.push('321 iz4 install') if $driver.defined && $level ne 'guarded' && %enf && so @(%enf<harnesses> // []).grep({ .<detected> });
-        my %s = schema => 'iz4-status/1', iz4 => %( present => True, file => $path.Str, valid => $doc.ok, mode => ($doc.vibe ?? 'vibe' !! 'solid') ),
+        my %s = schema => 'iz4-status/1', iz4 => %( present => True, file => $path.Str, valid => $doc.ok, mode => $doc.mode ),
                 foundation => %( intact => $doc.foundation-intact, status => $doc.foundation-status ),
                 invariants => @inv.List, counts => %count, change => %change, agents => %agents,
                 checks => %( ran => $ran, recorded => $recorded, at => (%last<at> // Str), count => @checks.elems, seconds => $secs ), next => @next.List;
         if $json { say json-encode(%s); return 0 }
         my $icon = pretty-on() ?? diamond() ~ ' ' !! '';
-        say pretty("{$icon}iz4 status: $name, " ~ ($doc.vibe ?? 'vibe mode' !! 'solid'));
+        say pretty("{$icon}iz4 status: $name, " ~ ($doc.mode eq 'solid' ?? 'solid' !! "{$doc.mode} mode"));
         say '';
         my sub row(Str $k, Str $v) { say pretty(sprintf('%-13s %s', $k, $v)) }
         row('foundation', $doc.foundation-intact ?? 'held, word for word' !! "CHANGED: {$doc.foundation-status}; iz4 foundation restore puts it back");
@@ -1784,6 +1823,11 @@ sub brief-line(%r --> Str) {
         @said.push: "{%m<changes>} change{%m<changes> == 1 ?? '' !! 's'} to what it promises" if %m<changes>;
         @said.push: "{%m<failing>} invariant test{%m<failing> == 1 ?? '' !! 's'} failing" if %m<failing>;
         return 'iz4: vibe mode, ' ~ (@said ?? @said.join(', ') ~ ". Nothing waits on you; 'iz4 mode solid' when they are ready to hold." !! 'nothing it promises changed.');
+    }
+    with %r<settling> -> %m {   # firm: what was noticed and not held is still said
+        my @said;
+        @said.push: "{%m<failing>} protecting test{%m<failing> == 1 ?? '' !! 's'} failing, reported while the file is firm" if %m<failing>;
+        return 'iz4: ' ~ @said.join(', ') ~ '.' if @said;
     }
     (%r<approval><status> // '') eq 'valid'
         ?? "iz4: the change to what this promises is agreed, by {%r<approval><approved_by>}."

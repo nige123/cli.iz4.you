@@ -34,6 +34,12 @@
       "exit": 0,
       "detected": true,
       "prevented": false
+    },
+    "firm": {
+      "outcome": "agreement-required",
+      "exit": 2,
+      "detected": true,
+      "prevented": true
     }
   }
 }

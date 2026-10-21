@@ -269,28 +269,42 @@ constant EXAMPLES is export = q:to/END/;
 
 #| Put a file into vibe mode or make it solid.  Only the one comment line
 #| comes or goes.  Returns 'vibe', 'solid' or 'unchanged'.
-sub set-mode(IO::Path $path, Str $mode where 'vibe' | 'solid' --> Str) is export {
+sub set-mode(IO::Path $path, Str $mode where 'vibe' | 'firm' | 'solid' --> Str) is export {
     my $doc = check-doc($path);
-    return 'unchanged' if $doc.vibe == ($mode eq 'vibe');
+    return 'unchanged' if $doc.mode eq $mode;
     my @lines = $path.lines;
-    if $mode eq 'solid' {
-        my @kept;
-        for @lines.kv -> $i, $l {
-            if $l ~~ /^ '#' \s* 'Vibe:' / {
-                @kept.pop if @kept && @kept[*-1].trim eq '' && ($i + 1 >= @lines.elems || @lines[$i + 1].trim eq '');
-                next;
-            }
-            @kept.push($l);
+    # take out whatever mode line is there; solid is the absence of one
+    my @kept;
+    for @lines.kv -> $i, $l {
+        if $l ~~ /^ '#' \s* ['Vibe' | 'Firm'] ':' / {
+            @kept.pop if @kept && @kept[*-1].trim eq '' && ($i + 1 >= @lines.elems || @lines[$i + 1].trim eq '');
+            next;
         }
-        $path.spurt(@kept.join("\n") ~ "\n");
-        return 'solid';
+        @kept.push($l);
     }
-    # after the comments the file opens with, before IS FOR WHAT
-    my $at = @lines.first({ $_ ~~ /^ 'IS FOR' / }, :k) // @lines.elems;
-    $at-- while $at > 0 && @lines[$at - 1].trim eq '';
-    @lines.splice($at, 0, '', VIBE-COMMENT);
+    if $mode ne 'solid' {
+        # after the comments the file opens with, before IS FOR WHAT
+        my $at = @kept.first({ $_ ~~ /^ 'IS FOR' / }, :k) // @kept.elems;
+        $at-- while $at > 0 && @kept[$at - 1].trim eq '';
+        @kept.splice($at, 0, '', ($mode eq 'vibe' ?? VIBE-COMMENT !! FIRM-COMMENT));
+    }
+    $path.spurt(@kept.join("\n") ~ "\n");
+    $mode;
+}
+
+#| One invariant's own protection: the word after its name, 'firm' or
+#| 'solid', or none ('') so the file's mode applies.  Touches that heading
+#| line and nothing else.  Returns the word now written, or 'unchanged'.
+sub set-protection(IO::Path $path, Str $id, Str $word where '' | 'firm' | 'solid' --> Str) is export {
+    my $doc = check-doc($path);
+    my $inv = $doc.invariant($id) // die "no invariant named $id";
+    return 'unchanged' if ($inv.protection // '') eq $word;
+    my @lines = $path.lines;
+    my $l = @lines[$inv.line - 1];
+    $l ~~ / ^ (<[a..z 0..9]> <[\w.\-]>*) ':' / or die "line {$inv.line} is not the heading of $id";
+    @lines[$inv.line - 1] = ~$0 ~ ':' ~ ($word ?? " $word" !! '');
     $path.spurt(@lines.join("\n") ~ "\n");
-    'vibe';
+    $word || 'none';
 }
 
 # ---------------------------------------------------------------- init

@@ -36,7 +36,9 @@ humans-first.iz4.you:
 - **The header**: `IZ4` and the domain your project answers for. It is said
   once, so the names below can be short.
 - **Two questions**, `IS FOR WHAT?` and `IS FOR WHO?`, each answered once.
-- **Your invariants.** Each is a name and a colon, then three clauses:
+- **Your invariants.** Each is a name and a colon, then three clauses. A
+  word after the colon, `firm` or `solid`, protects that one invariant more
+  than the file's mode (`charged-once: solid`); most carry none.
 
   | Clause | Says | Write |
   |---|---|---|

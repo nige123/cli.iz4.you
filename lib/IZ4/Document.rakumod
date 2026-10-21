@@ -192,6 +192,13 @@ sub foundation-earlier(Str $id, Str $text, Str $because --> Str) is export {
 #| settings, so everyone who has the file can see which mode it is in.
 constant VIBE-COMMENT is export =
     "# Vibe: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.";
+#| The line for firm mode: the words of the file's own invariants are agreed,
+#| so a change to them waits for a yes, while their evidence is still being
+#| built, so a failing test of one is reported and holds nothing.
+constant FIRM-COMMENT is export =
+    "# Firm: this project's invariants are agreed; their tests are still settling. 'iz4 mode solid' when the tests hold.";
+#| The protection words, weakest first.
+constant @MODES is export = <vibe firm solid>;
 
 #| The namespace the foundation lives in.  Exactly the names above
 #| are valid directly under it; deeper names (x.cli.iz4.you) are ordinary
@@ -429,6 +436,7 @@ class Invariant {
     has Str $.because;                    # undefined when none given
     has Int $.line    is required;        # its INVARIANT line
     has Int $.because-line;
+    has Str $.protection;                 # 'firm' or 'solid' written after the name, else undefined: the file's mode applies
     has Int $.last-line is rw;            # last line of the INVARIANT block
     #| The exact words its digest covers.
     method canonical(--> Str) {
@@ -488,8 +496,25 @@ method unexplained-invariants(--> List) { @!invariants.grep({ !(.because // '').
 #| One project invariant by identity.
 method invariant(Str $id) { @!invariants.first({ (.id // '') eq $id }) }
 
+#| The file's mode, one line it declares: 'vibe' while its own invariants are
+#| still settling, 'firm' once their words are agreed but their evidence is
+#| not yet, 'solid' when nothing is said.  The foundation is the same in all.
+method mode(--> Str) {
+    return 'vibe' if @!lines.first({ $_ ~~ /^ '#' \s* 'Vibe:' / });
+    return 'firm' if @!lines.first({ $_ ~~ /^ '#' \s* 'Firm:' / });
+    'solid';
+}
 #| Is this file in vibe mode: its own invariants still settling?
-method vibe(--> Bool) { so @!lines.first({ $_ ~~ /^ '#' \s* 'Vibe:' / }) }
+method vibe(--> Bool) { self.mode eq 'vibe' }
+#| How strongly one of the file's own invariants is protected: the stronger
+#| of the file's mode and the word written after its name.  Unknown names
+#| take the file's mode.
+method protection-of(Str $id --> Str) {
+    my $inv = self.invariant($id);
+    my $own = $inv.defined ?? ($inv.protection // '') !! '';
+    my %rank = vibe => 0, firm => 1, solid => 2;
+    (%rank{$own} // -1) > %rank{self.mode} ?? $own !! self.mode;
+}
 
 #| The namespace this project's invariants live in, as far as the file
 #| shows it.  The file says so in one comment line, written when the
@@ -759,7 +784,7 @@ method !clauses-invariant($v, %ids, %foundation, $broken is rw, &line-of, &last-
         self!problem($line, "$name: has no $need: every invariant says where it applies (WHERE:), what must remain true there (ALWAYS:) and what must not be defeated (PROTECTS:)",
             :fix("add '$need:' under $name: on line $line"));
     }
-    @!invariants.push: Invariant.new(:id($id), :reach($reach), :text($rule // ''), :because($why),
+    @!invariants.push: Invariant.new(:id($id), :reach($reach), :text($rule // ''), :because($why), :protection($h<protection> ?? ~$h<protection> !! Str),
         :$line, :last-line($last), :reach-line(%clause<WHERE>.defined ?? %clause<WHERE>.line !! Int),
         :rule-line(%clause<ALWAYS>.defined ?? %clause<ALWAYS>.line !! Int),
         :because-line(%clause<PROTECTS>.defined ?? %clause<PROTECTS>.line !! Int));

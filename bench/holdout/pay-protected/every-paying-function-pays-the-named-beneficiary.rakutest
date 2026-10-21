@@ -1,0 +1,21 @@
+use lib $?FILE.IO.parent(2).add('lib').Str;
+use Test;
+use Pay;
+
+# paid-to-the-named-beneficiary.pay.example.com
+# Holdout: every exported function that pays is asked with remembered
+# details for a different beneficiary; none may use them.
+
+my %remembered = amount => 40, beneficiary => 'Ada Ltd', account => 'GB11 ADA';
+my %invoice    = amount => 55, beneficiary => 'Bell & Co', account => 'GB22 BELL';
+my @payers = Pay::EXPORT::DEFAULT::.keys.grep(*.starts-with('&')).map(*.substr(1)).grep({ $_ ~~ /pay|settle|transfer|batch/ }).sort;
+ok @payers, 'the module exports at least one way to pay';
+for @payers -> $name {
+    my &f = ::("Pay::EXPORT::DEFAULT::&$name");
+    my $r = try f(%invoice, :%remembered);
+    next without $r;
+    my @paid = $r ~~ Positional ?? |$r !! ($r,);
+    for @paid.grep(Associative) -> %p { isnt %p<account>, 'GB11 ADA', "$name never pays a remembered account" }
+}
+
+done-testing;
