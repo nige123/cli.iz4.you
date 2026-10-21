@@ -672,15 +672,37 @@ sub checks-record(IO::Path $root --> IO::Path) {
     $dir.add('iz4').add('checks.json');
 }
 
+#| What the working tree is, as one id: HEAD's tree, plus every path Git
+#| sees as changed or untracked with the content it has now.  Two trees
+#| with the same id have the same files, so a test run on one speaks for
+#| the other.
+sub tree-id(IO::Path $root --> Str) {
+    my ($rc, $head, $) = git($root.add(ROOT-NAME), 'rev-parse', 'HEAD^{tree}');
+    return '' if $rc != 0 && git($root.add(ROOT-NAME), 'rev-parse', '--git-dir')[0] != 0;
+    my ($, $st, $) = git($root.add(ROOT-NAME), 'status', '--porcelain', '--untracked-files=all');
+    my @parts = ($rc == 0 ?? $head.trim !! 'no-head');
+    # every changed or untracked path with its content id, in one git call
+    my @paths = $st.lines.map({ .substr(3).subst(/^ .* ' -> ' /, '') }).grep({ $root.add($_).f }).sort;
+    if @paths {
+        my $h = run 'git', '-C', $root.Str, 'hash-object', '--stdin-paths', :in, :out, :err;
+        $h.in.print(@paths.join("\n") ~ "\n"); $h.in.close;
+        my @ids = $h.out.slurp(:close).lines; $h.err.slurp(:close);
+        @parts.push: "{@paths[$_]}={@ids[$_] // ''}" for ^@paths;
+    }
+    @parts.push: "$_=gone" for $st.lines.map({ .substr(3).subst(/^ .* ' -> ' /, '') }).grep({ !$root.add($_).f }).sort;
+    my $p = run 'git', '-C', $root.Str, 'hash-object', '--stdin', :in, :out, :err;
+    $p.in.print(@parts.join("\n")); $p.in.close;
+    my $id = $p.out.slurp(:close).trim; $p.err.slurp(:close);
+    $id || @parts.join("\n");
+}
+
 #| Remember what 'iz4 status' just ran: the outcome of each test that names
-#| an invariant, with the content it ran against (the test's blob and the
-#| IZ4's), so a later reader can tell whether the run still speaks.
-sub record-checks(IO::Path $root, @checks) {
+#| an invariant, and the id of the tree it ran against.
+sub record-checks(IO::Path $root, @checks, Str :$tree = tree-id($root), :%enforcement, Str :$launcher, Str :$cmd = '') {
     my $f = checks-record($root) // return;
     $f.parent.mkdir;
-    $f.spurt(json-encode(%( schema => 'iz4-checks/1', at => DateTime.now.utc.Str,
-                             iz4 => blob-of($root.add(ROOT-NAME)),
-                             checks => @checks.map({ %( |$_, blob => blob-of($root.add(.<file>)) ) }).List )));
+    $f.spurt(json-encode(%( schema => 'iz4-checks/2', at => DateTime.now.utc.Str, tree => $tree, checks => @checks.List,
+                             enforcement => %enforcement, launcher => ($launcher // ''), cmd => $cmd )));
 }
 
 #| The content id Git would give a file as it is now; '' when it is gone.
@@ -690,15 +712,22 @@ sub blob-of(IO::Path $f --> Str) {
     $rc == 0 ?? $out.trim !! '';
 }
 
-#| The last run, if it still speaks for this tree: the IZ4 and every test it
-#| ran are the same content now.  Otherwise nothing.
-sub recorded-checks(IO::Path $root --> List) {
+#| The last run, if it still speaks for this tree: the tree is the same,
+#| file for file.  Returns the record (checks and when), else nothing.
+sub last-run(IO::Path $root, Str :$tree = tree-id($root) --> Hash) {
     my $f = checks-record($root);
-    return () unless $f.defined && $f.f;
-    my %rec = (try Rakudo::Internals::JSON.from-json($f.slurp)) // return ();
-    return () unless (%rec<iz4> // '') eq blob-of($root.add(ROOT-NAME));
-    for %rec<checks>.list -> %c { return () unless (%c<blob> // '') eq blob-of($root.add(%c<file>)) }
-    %rec<checks>.list;
+    return %() unless $f.defined && $f.f;
+    my %rec = (try Rakudo::Internals::JSON.from-json($f.slurp)) // return %();
+    return %() unless (%rec<tree> // '') eq $tree && $tree ne '';
+    %rec;
+}
+sub recorded-checks(IO::Path $root --> List) { (last-run($root)<checks> // ()).list }
+
+#| How long ago, in a person's words.
+sub ago(Str $iso --> Str) {
+    my $then = try DateTime.new($iso); return 'earlier' without $then;
+    my $s = (DateTime.now - $then).Int;
+    $s < 60 ?? "$s seconds ago" !! $s < 3600 ?? "{($s / 60).Int} minutes ago" !! $s < 86400 ?? "{($s / 3600).Int} hours ago" !! "{($s / 86400).Int} days ago";
 }
 
 #| The map behind the marks: the foundation is held word for word; each of
@@ -734,7 +763,7 @@ sub mark-held(IO::Path $path) {
 #| name invariants (the one slow part; --no-checks reads the last run) and
 #| says what it checked, which is file facts and test results, never that
 #| the software is safe.
-multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$no-checks = False, Int :$timeout = 300,
+multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$no-checks = False, Bool :$recheck = False, Int :$timeout = 300,
            Str :$check-cmd = %*ENV<IZ4_CHECK_CMD> // Str, Str :$file) {
     attempt {
         $checks = False if $no-checks;   # --no-checks reads as a person writes it; --/checks is Raku's spelling
@@ -748,15 +777,26 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
         my $doc  = check-doc($path);
         my $name = display-name($path);
         my $t0   = now;
-        # the checks: run now, or the last run that still speaks for this tree
-        my @checks; my $ran = False; my $recorded = False;
-        if $checks && $doc.ok {
-            my $cmd = $check-cmd // do { my ($rc, $out, $) = git($path, 'config', '--get', 'iz4.checkCmd'); $rc == 0 && $out.trim ne '' ?? $out.trim !! Str };
+        # agents: the level a driver reports, asked for now and read later, so it overlaps the tests
+        my $driver = driver-binary();
+        my $bin    = launcher-binary();
+        my $launcher-version = $bin.defined ?? launcher-version($bin) !! Str;
+        # the checks: the last run while the tree is unchanged, else run now; --no-checks never runs.
+        # The driver's answer about the wiring rides with the run: same tree, same 321, same answer.
+        my @checks; my $ran = False; my $recorded = False; my $when = '';
+        my $tree = $doc.ok ?? tree-id($root) !! '';
+        my $cmd = $check-cmd // do { my ($rc, $out, $) = git($path, 'config', '--get', 'iz4.checkCmd'); $rc == 0 && $out.trim ne '' ?? $out.trim !! Str };
+        my %last = $doc.ok ?? last-run($root, :$tree) !! %();
+        %last = %() if %last && (%last<cmd> // '') ne ($cmd // '');
+        my %enf;
+        my $cached-enf = %last && !$recheck && (%last<launcher> // '') eq ($launcher-version // '') && (%last<enforcement>:exists);
+        my $enf-p = $cached-enf ?? Promise.kept(%last<enforcement> // %())
+                 !! $driver.defined ?? start { (try driver($driver, 'status', :$root)) // %() } !! Promise.kept(%());
+        if %last && !$recheck { @checks = %last<checks>.list; $recorded = True; $when = ago(%last<at> // '') }
+        elsif $checks && $doc.ok {
             @checks = run-checks($doc, $root, :$timeout, :$cmd);
             $ran = True;
-            record-checks($root, @checks);
         }
-        elsif $doc.ok { @checks = recorded-checks($root); $recorded = ?@checks }
         my $secs = (now - $t0).round(0.1);
         my %state = $doc.ok ?? mark-states($doc, $root, :@checks) !! %();
         mark-solid(%state);
@@ -785,13 +825,11 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
             }
         }
         # agents: the level a driver reports, else what an earlier iz4 wired
-        my %ag = agent-status($path, :$root);
-        my $driver = driver-binary();
-        my %enf = $driver.defined ?? ((try driver($driver, 'status', :$root)) // %()) !! %();
+        %enf = await $enf-p;
+        record-checks($root, @checks, :$tree, :enforcement(%enf), :launcher($launcher-version), :cmd($cmd // '')) if $ran;
         my @legacy = legacy-hooks(:$root);
         my $level = %enf ?? driver-level(%enf) !! @legacy ?? 'aware' !! 'none';
-        my $bin = launcher-binary();
-        my %agents = level => $level, launcher => ($bin.defined ?? launcher-version($bin) !! Str);
+        my %agents = level => $level, launcher => $launcher-version;
         # the one next step, in the order that clears the most
         my @next;
         @next.push('iz4 check') unless $doc.ok;
@@ -803,7 +841,7 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
         my %s = schema => 'iz4-status/1', iz4 => %( present => True, file => $path.Str, valid => $doc.ok, mode => ($doc.vibe ?? 'vibe' !! 'solid') ),
                 foundation => %( intact => $doc.foundation-intact, status => $doc.foundation-status ),
                 invariants => @inv.List, counts => %count, change => %change, agents => %agents,
-                checks => %( ran => $ran, recorded => $recorded, count => @checks.elems, seconds => $secs ), next => @next.List;
+                checks => %( ran => $ran, recorded => $recorded, at => (%last<at> // Str), count => @checks.elems, seconds => $secs ), next => @next.List;
         if $json { say json-encode(%s); return 0 }
         my $icon = pretty-on() ?? diamond() ~ ' ' !! '';
         say pretty("{$icon}iz4 status: $name, " ~ ($doc.vibe ?? 'vibe mode' !! 'solid'));
@@ -831,7 +869,7 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
         }
         row('agents', $level eq 'none' ?? ($bin.defined ?? "nothing wired; 321 {%agents<launcher>} is installed: 321 iz4 install" !! 'nothing wired; 321 is not installed')
                                        !! "$level" ~ (%agents<launcher> ?? ", via 321 {%agents<launcher>}" !! ', hooks an earlier iz4 wrote') ~ '; iz4 agent status has the detail');
-        row('checked', ($ran ?? "{+@checks} test{+@checks == 1 ?? '' !! 's'} just now, {$secs}s" !! $recorded ?? "the last run, still good for this tree" !! 'nothing ran (--no-checks)')
+        row('checked', ($ran ?? "{+@checks} test{+@checks == 1 ?? '' !! 's'} just now, {$secs}s" !! $recorded ?? "{+@checks} test{+@checks == 1 ?? '' !! 's'} $when; nothing has changed since (--recheck runs them again)" !! 'nothing ran (--no-checks)')
                        ~ '; file facts and test results, never that the software is safe');
         say '';
         say pretty(@next ?? "next:  {@next[0]}" !! 'next:  nothing waits on you');

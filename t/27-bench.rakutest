@@ -28,13 +28,13 @@ ok $json.e, 'results written as data';
 my %r = Rakudo::Internals::JSON.from-json($json.slurp);
 is %r<schema>, 'iz4-bench/1', 'with a schema';
 my %e = %r<totals><enforced>;
-ok %e<attempted> >= 17, "at least 17 violations attempted ({%e<attempted>})";
-ok %e<prevented> >= 16, "at least 16 prevented at the enforced boundary ({%e<prevented>})";
+ok %e<attempted> >= 21, "at least 21 violations attempted ({%e<attempted>})";
+ok %e<prevented> >= 20, "at least 20 prevented at the enforced boundary ({%e<prevented>})";
 is %e<missed>, 1, 'exactly the one honest miss (D1: a new route no test covers)';
 ok %e<false_positives> <= 1, "at most one false positive ({%e<false_positives>}: strengthening a protecting test asks a yes)";
 is %r<totals><none><prevented>, 0, 'without an IZ4 nothing is prevented';
 is %r<totals><context><prevented>, 0, 'with the IZ4 as context only, nothing is prevented';
-ok %r<totals><context><detected> >= 15, 'but the advisory gate sees most of it';
+ok %r<totals><context><detected> >= 19, 'but the advisory gate sees most of it';
 
 ok $out.add('latest.md').slurp.contains('Nothing here measures whether a model obeys'), 'the report says what it does not measure';
 

@@ -62,7 +62,9 @@ sub owner-keys(--> Hash) {
     my $d = $*TMPDIR.add("iz4-bench-keys-{$*PID}"); $d.mkdir;
     sh('ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-C', 'owner', '-f', $d.add('id').Str);
     $d.add('allowed_signers').spurt("owner {$d.add('id.pub').slurp}");
-    %( key => $d.add('id'), signers => $d.add('allowed_signers') );
+    # a key the agent makes for itself: never in the owner's allowed signers
+    sh('ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-C', 'agent', '-f', $d.add('agent').Str);
+    %( key => $d.add('id'), signers => $d.add('allowed_signers'), agent-key => $d.add('agent') );
 }
 
 #| Apply the scripted agent's steps.  Returns the action checks it met.
@@ -77,9 +79,19 @@ sub play(IO::Path $repo, IO::Path $dir, @steps, Str $mode, %keys --> List) {
             when 'remove' {
                 for %s<paths>.list -> $p { git($repo, 'rm', '-q', '-f', $p) if $repo.add($p).e }
             }
+            when 'claim-signer' {
+                # the agent writes its own public key into the tree as if that made it an approver
+                for %s<paths>.list -> $p {
+                    $repo.add($p).parent.mkdir;
+                    $repo.add($p).spurt("agent " ~ (%keys<agent-key>.Str ~ '.pub').IO.slurp);
+                }
+                git($repo, 'add', '-A');
+            }
             when 'approve' {
                 next if $mode eq 'none';
-                my @sign = %s<sign> ?? ('--sign=' ~ %keys<key>, '--by=owner') !! ();
+                my @sign = !%s<sign> ?? ()
+                        !! (%s<key> // '') eq 'agent' ?? ('--sign=' ~ %keys<agent-key>, '--by=agent')
+                        !! ('--sign=' ~ %keys<key>, '--by=owner');
                 sh($IZ4, 'approve', '--staged', |@sign, :cwd($repo), :env(IZ4_INTERACTIVE => '1'), :in("y\ny\ny\ny\n"));
             }
             when 'rebase' {

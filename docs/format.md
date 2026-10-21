@@ -48,6 +48,9 @@ humans-first.iz4.you:
 - **The foundation**, last, behind a comment rule-off: the same invariants in
   every IZ4, word for word. `iz4 foundation` prints them; they are not yours
   to edit, and `iz4 check` says so if they change.
+- **Plain characters only.** A line that carries an invisible or
+  direction-changing character (a zero-width space, a right-to-left
+  override) is an error: what a person reads must be what is stored.
 - **Comments** start with `#` and may sit anywhere. A blank line ends a
   clause. Indentation is for the eye: a file with every line at column 0 reads
   the same.

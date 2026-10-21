@@ -75,14 +75,18 @@ like $out, / 'next:  nothing waits on you' \n \n 'All held: 1 of 1 invariants by
 my %j = Rakudo::Internals::JSON.from-json(iz4($r, 'status', '--json')[1]);
 is %j<invariants>[0]<mark>, 'held', 'the JSON says held';
 is %j<invariants>[0]<id>, 'charged-once.shop.example.com', 'by full name';
-ok %j<checks><ran>, 'and that it ran the checks';
+ok %j<checks><ran> || %j<checks><recorded>, 'and that it ran the checks, or read the run it had just made';
 
 # the last run speaks while the IZ4 and the test are unchanged
 ($rc, $out, $err) = iz4($r, 'status', '--no-checks');
 is $rc, 0, '--no-checks, as the help spells it';
 like $out, / '  ◆ charged-once  t/charged-once.t passed' /, 'without running, the last run still speaks for the same content';
-like $out, / 'checked       the last run, still good for this tree' /, 'and says so';
+like $out, / 'checked       1 test ' \d+ ' seconds ago; nothing has changed since' /, 'and says when, and that nothing changed';
+($rc, $out, $err) = iz4($r, 'status');
+like $out, / 'checked       1 test ' \d+ ' seconds ago; nothing has changed since' /, 'a plain status on an unchanged tree reads the same run instead of running again';
 like $out, / 'All held: 1 of 1 invariants by their tests at the last run' /, 'the plain statement says which run';
+($rc, $out, $err) = iz4($r, 'status', '--recheck');
+like $out, / 'checked       1 test just now' /, '--recheck runs them regardless';
 $test.spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 1\n");
 ($rc, $out, $err) = iz4($r, 'status', '--/checks');
 like $out, / '  ◇ charged-once  not checked; named by t/charged-once.t' /, 'the test changed: the last run no longer speaks, so it is a promise again';
@@ -96,7 +100,7 @@ like $out, / 'invariants    1 of your own: 1 broken' \n '  ✕ charged-once  t/c
 like $out, / 'next:  iz4 approve   (t/charged-once.t fails: which is right, the software or the invariant?)' /, 'the next step asks which is right';
 
 # ---- not checked -------------------------------------------------------------
-($rc, $out, $err) = iz4($r, 'status', :env(IZ4_CHECK_CMD => 'no-such-runner-anywhere {file}'));
+($rc, $out, $err) = iz4($r, 'status', :env(IZ4_CHECK_CMD => 'no-such-runner-anywhere {file}'));   # another runner is another run: nothing is reused
 like $out, / '  ? charged-once  t/charged-once.t not run (unassessed)' /, 'a runner that is not there: a question mark';
 like $out, / 'invariants    1 of your own: 1 unknown' /, 'counted as unknown';
 

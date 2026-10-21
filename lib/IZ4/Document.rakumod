@@ -548,6 +548,22 @@ method fixes(--> List) {
 #| then judge what the blocks add up to.
 method !parse() {
     @!lines = $!source.lines;
+    # What a person reads must be what is stored.  A character that is
+    # invisible or changes the reading direction can make one text look
+    # like another, so a line that carries one is an error, named by its
+    # code.  Listed by code point, not by Unicode category, so every
+    # runtime reads the same list: the C0 and C1 controls but tab, the
+    # soft hyphen, the Arabic and Mongolian format marks, the zero-width
+    # and bidi characters of General Punctuation, and the byte-order mark.
+    for @!lines.kv -> $i, $l {
+        my $bad = $l.comb.first(-> $ch { my $o = $ch.ord;
+            ($o < 0x20 && $o != 0x09) || (0x7F <= $o <= 0x9F) || $o == 0xAD || $o == 0x61C || $o == 0x180E
+            || (0x200B <= $o <= 0x200F) || (0x202A <= $o <= 0x202E) || (0x2060 <= $o <= 0x2064) || (0x2066 <= $o <= 0x2069) || $o == 0xFEFF });
+        with $bad {
+            self!problem($i + 1, "invisible or direction-changing character U+{.ord.base(16).fmt('%4s').subst(' ', '0', :g)} in this line: what a person reads must be what is stored",
+                         :fix('delete the character; retype the line if you cannot see where it is'));
+        }
+    }
     my $text = $!source.ends-with("\n") || $!source eq '' ?? $!source !! $!source ~ "\n";
     # the three-clause form says so in its header: 'IZ4 domain'
     if $text ~~ / ^ [ \h* [ '#' \N* ]? \n ]* 'IZ4' \h+ \S / {

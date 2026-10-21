@@ -440,7 +440,7 @@ sub have-timeout(--> Bool) {
 #| Run the tests naming invariants from the candidate tree, each file
 #| once, with a timeout where the system has one.  A test that cannot be
 #| run is unassessed, never passed.
-sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str :$cmd --> List) is export {
+sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str :$cmd, Int :$jobs = check-jobs() --> List) is export {
     return () without $cand;
     my %ec = evidence-for($cand, $cand-dir);
     my %by-file;
@@ -455,8 +455,7 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
     # inherit them: it would read or write this repository's index.
     my %clean = %*ENV.grep({ .key ne any(<GIT_INDEX_FILE GIT_DIR GIT_WORK_TREE GIT_PREFIX GIT_COMMON_DIR
                                            GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE>) });
-    my @out;
-    for %by-file.keys.sort -> $f {
+    my sub check-one(Str $f --> Hash) {
         my @argv = $cmd.defined
             ?? $cmd.subst('{file}', $f, :g).words
             !! runner-for($lang, $f, $cand-dir);
@@ -464,22 +463,19 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
         if !@argv {
             %r<outcome> = 'unassessed';
             %r<detail>  = "no runner known for $lang tests; set IZ4_CHECK_CMD, e.g. 'npm test -- \{file\}'";
-            @out.push: %r;
-            next;
+            return %r;
         }
         unless have-command(@argv[0]) {
             %r<outcome> = 'unassessed';
             %r<detail>  = "could not run {@argv[0]}: not found";
-            @out.push: %r;
-            next;
+            return %r;
         }
         my @run = $has-timeout ?? ('timeout', $timeout.Str, |@argv) !! @argv;
         my $p = try run |@run, :cwd($cand-dir.Str), :env(%clean), :out, :err, :bin;
         without $p {
             %r<outcome> = 'unassessed';
             %r<detail>  = "could not run {@argv[0]}: not found";
-            @out.push: %r;
-            next;
+            return %r;
         }
         # a test may print anything; bytes that are not UTF-8 must not stop the gate
         my $o = text-of($p.out.slurp(:close));
@@ -504,9 +500,22 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
             my @said = ($e.lines.grep(*.trim ne '').tail(3), $o.lines.grep(*.trim ne '').tail(2)).flat;
             %r<detail>  = $p.exitcode == 0 ?? '' !! @said.join(' | ').substr(0, 400);
         }
-        @out.push: %r;
+        %r;
+    }
+    # The tests are independent of one another, so they run a few at a
+    # time; the results come back in file order whatever finished first.
+    my @files = %by-file.keys.sort;
+    my @out;
+    for @files.batch($jobs max 1) -> @batch {
+        @out.append: await @batch.map(-> $f { start { check-one($f) } });
     }
     @out;
+}
+
+#| How many protecting tests run at once: IZ4_JOBS, else eight.
+sub check-jobs(--> Int) is export {
+    my $j = %*ENV<IZ4_JOBS> // '';
+    $j ~~ /^ \d+ $/ && $j > 0 ?? $j.Int !! 8;
 }
 
 # -------------------------------------------------------------- proposal

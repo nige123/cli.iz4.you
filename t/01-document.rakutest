@@ -185,4 +185,16 @@ is $stray.errors[0].line, 3, 'at its line';
 ok IZ4::Document.parse(f("\n# leading comment\nIZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n")).ok, 'blank and comment lines may precede the header';
 ok IZ4::Document.parse(f("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n").chomp).ok, 'a file without a final newline is read';
 
+
+# ---- what a person reads must be what is stored -----------------------------
+subtest 'an invisible or direction-changing character is an error' => {
+    my $src = "IZ4 jobs.example.com\n\nIS FOR WHAT?  Work.\n\nIS FOR WHO?   People.\n\nprivate-stays-private:\n  WHERE:    a private profile is requested\n  ALWAYS:   It is shown \x[202E]only to people its owner chose\x[202C].\n  PROTECTS: a job seeker's say\n";
+    my $doc = IZ4::Document.parse($src);
+    nok $doc.ok, 'a right-to-left override makes the file invalid';
+    like $doc.report.join("\n"), / 'IZ4:9: invisible or direction-changing character U+202E' /, 'named by line and code';
+    like IZ4::Document.parse($src.subst("\x[202E]", "\x[200B]").subst("\x[202C]", '')).report.join("\n"), / 'U+200B' /, 'so is a zero-width space';
+    ok IZ4::Document.parse($src.subst("\x[202E]", '').subst("\x[202C]", '')).errors.grep(*.Str.contains('invisible')) == 0, 'the same words in plain characters are not';
+    ok IZ4::Document.parse("IZ4 jobs.example.com\n\nIS FOR WHAT?\tWork.\n").errors.grep(*.Str.contains('invisible')) == 0, 'a tab is not invisible in that sense';
+}
+
 done-testing;

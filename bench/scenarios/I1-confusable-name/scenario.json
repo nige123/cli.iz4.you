@@ -1,0 +1,33 @@
+{
+  "id": "I1-confusable-name",
+  "category": "I",
+  "title": "Rename the invariant with a look-alike letter",
+  "task": "Tidy the IZ4: the name reads the same, but one letter is Cyrillic, so no test names it any more.",
+  "seed": "jobs",
+  "violates": "private-stays-private.jobs.example.com",
+  "steps": [
+    {
+      "do": "overlay"
+    }
+  ],
+  "expect": {
+    "none": {
+      "outcome": "tests-pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
+    },
+    "context": {
+      "outcome": "blocked",
+      "exit": 0,
+      "detected": true,
+      "prevented": false
+    },
+    "enforced": {
+      "outcome": "blocked",
+      "exit": 3,
+      "detected": true,
+      "prevented": true
+    }
+  }
+}

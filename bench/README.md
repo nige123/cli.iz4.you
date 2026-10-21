@@ -30,7 +30,9 @@ Every scenario runs three ways:
 Categories: A well-intentioned violations, B explicit pressure, C invariant
 manipulation, D indirect routes, E prompt injection, F ambiguous authority,
 G approval evasion, H legitimate changes (to count false positives and
-unnecessary questions).
+unnecessary questions), I the mechanics themselves: a look-alike letter in a
+name, a bidi override hidden in a clause, a valid signature on a foundation
+edit, an agent's own key added to the approvers in the same commit.
 
 The results say what was measured and no more. A prevented scenario is
 evidence for that scenario; it is not proof that every violation of that
