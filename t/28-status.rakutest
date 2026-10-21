@@ -44,8 +44,8 @@ g($r, 'add', '-A'); g($r, 'commit', '-qm', 'start');
 is $rc, 0, 'status';
 like $out, / ^ 'iz4 status: IZ4, solid' \n \n 'foundation    held, word for word' \n \n 'invariants    none of your own yet' \n \n 'this change' /, 'the header, the foundation, no invariants yet, each in its own chunk';
 like $out, / 'this change   nothing staged' /, 'nothing staged';
-like $out, / 'agents        nothing wired' /, 'no agent wiring in a bare repository';
-like $out, / 'checked       0 tests just now' .* 'never that the software is safe' /, 'what was checked, and the disclaimer';
+like $out, / 'agents        nothing wired' \h+ '321 is not installed' /, 'no agent wiring in a bare repository, in a table row';
+like $out, / 'checked       0 tests just now' .* \n \n 'file facts and test results, never that the software is safe' \n /, 'what was checked, then the disclaimer on its own line';
 like $out, / \n 'next:  nothing waits on you' \n /, 'and nothing to do';
 unlike $out, / 'All held' /, 'with no invariants of its own there is nothing to call held';
 unlike $out, / '◆' | '◇' /, 'no marks without invariants';
@@ -59,7 +59,7 @@ like $out, / 'next:  iz4 test' /, 'and the next step is a test';
 like $out, / 'this change   nothing staged' /, 'the IZ4 changed in the worktree but nothing is staged';
 g($r, 'add', 'IZ4');
 ($rc, $out, $err) = iz4($r, 'status');
-like $out, / 'this change   1 file staged; 1 change to what it promises, 0 to a protection (agreement-required)' /, 'staged, it is a change to what the software promises';
+like $out, / 'this change   1 file staged' \h+ '1 change to what it promises, 0 to a protection: agreement-required' /, 'staged, it is a change to what the software promises';
 like $out, / 'next:  iz4 approve --staged' /, 'which waits for a yes';
 g($r, 'commit', '-qm', 'charged once');
 
@@ -70,7 +70,7 @@ $test.spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
 ($rc, $out, $err) = iz4($r, 'status');
 is $rc, 0, 'status with a passing test';
 like $out, / 'invariants    1 of your own: 1 held' \n '  ◆ charged-once  t/charged-once.t passed' \n \n /, 'a test names it and passed: a closed diamond';
-like $out, / 'checked       1 test just now, ' \d+ ['.' \d+]? 's;' /, 'it says it ran the test';
+like $out, / 'checked       1 test just now, ' \d+ ['.' \d+]? 's' \n /, 'it says it ran the test';
 like $out, / 'next:  nothing waits on you' \n \n 'All held: 1 of 1 invariants by their tests just now, and the foundation word for word.' \n /, 'nothing to do, and it says plainly that everything held';
 my %j = Rakudo::Internals::JSON.from-json(iz4($r, 'status', '--json')[1]);
 is %j<invariants>[0]<mark>, 'held', 'the JSON says held';
@@ -81,16 +81,16 @@ ok %j<checks><ran> || %j<checks><recorded>, 'and that it ran the checks, or read
 ($rc, $out, $err) = iz4($r, 'status', '--no-checks');
 is $rc, 0, '--no-checks, as the help spells it';
 like $out, / '  ◆ charged-once  t/charged-once.t passed' /, 'without running, the last run still speaks for the same content';
-like $out, / 'checked       1 test ' \d+ ' seconds ago; nothing has changed since' /, 'and says when, and that nothing changed';
+like $out, / 'checked       1 test, ' \d+ ' second' 's'? ' ago' \h+ 'nothing has changed since; --recheck runs them again' /, 'and says when, and that nothing changed';
 ($rc, $out, $err) = iz4($r, 'status');
-like $out, / 'checked       1 test ' \d+ ' seconds ago; nothing has changed since' /, 'a plain status on an unchanged tree reads the same run instead of running again';
+like $out, / 'checked       1 test, ' \d+ ' second' 's'? ' ago' /, 'a plain status on an unchanged tree reads the same run instead of running again';
 like $out, / 'All held: 1 of 1 invariants by their tests at the last run' /, 'the plain statement says which run';
 ($rc, $out, $err) = iz4($r, 'status', '--recheck');
 like $out, / 'checked       1 test just now' /, '--recheck runs them regardless';
 $test.spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 1\n");
 ($rc, $out, $err) = iz4($r, 'status', '--/checks');
 like $out, / '  ◇ charged-once  not checked; named by t/charged-once.t' /, 'the test changed: the last run no longer speaks, so it is a promise again';
-like $out, / 'checked       nothing ran (--no-checks)' /, 'and nothing ran';
+like $out, / 'checked       nothing ran' \h+ '--no-checks' /, 'and nothing ran';
 like $out, / 'next:  iz4 status' /, 'the next step is to run them';
 
 # ---- broken ------------------------------------------------------------------

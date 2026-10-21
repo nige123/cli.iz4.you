@@ -727,7 +727,8 @@ sub recorded-checks(IO::Path $root --> List) { (last-run($root)<checks> // ()).l
 sub ago(Str $iso --> Str) {
     my $then = try DateTime.new($iso); return 'earlier' without $then;
     my $s = (DateTime.now - $then).Int;
-    $s < 60 ?? "$s seconds ago" !! $s < 3600 ?? "{($s / 60).Int} minutes ago" !! $s < 86400 ?? "{($s / 3600).Int} hours ago" !! "{($s / 86400).Int} days ago";
+    my sub n(Int $k, Str $unit) { "$k {$unit}{$k == 1 ?? '' !! 's'} ago" }
+    $s < 60 ?? n($s, 'second') !! $s < 3600 ?? n(($s / 60).Int, 'minute') !! $s < 86400 ?? n(($s / 3600).Int, 'hour') !! n(($s / 86400).Int, 'day');
 }
 
 #| The map behind the marks: the foundation is held word for word; each of
@@ -860,17 +861,24 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
             }
         }
         say '';
+        # the standing of the work, as a table: what, where it stands, and the detail
+        my @rows;
         if %change {
-            row('this change', !%change<staged> ?? 'nothing staged'
-                !! "{%change<staged>} file{%change<staged> == 1 ?? '' !! 's'} staged"
-                   ~ (%change<outcome> ?? (%change<changes> || %change<protections>
-                        ?? "; {%change<changes>} change{%change<changes> == 1 ?? '' !! 's'} to what it promises, {%change<protections>} to a protection ({%change<outcome>})"
-                        !! '; no commitment changed' ~ (%change<touches> ?? ", touches {%change<touches>.join(', ')}" !! '')) !! ''));
+            @rows.push: ['this change', !%change<staged> ?? 'nothing staged' !! "{%change<staged>} file{%change<staged> == 1 ?? '' !! 's'} staged",
+                        !%change<staged> || !%change<outcome> ?? ''
+                        !! %change<changes> || %change<protections>
+                            ?? "{%change<changes>} change{%change<changes> == 1 ?? '' !! 's'} to what it promises, {%change<protections>} to a protection: {%change<outcome>}"
+                            !! 'no commitment changed' ~ (%change<touches> ?? "; touches {%change<touches>.join(', ')}" !! '')];
         }
-        row('agents', $level eq 'none' ?? ($bin.defined ?? "nothing wired; 321 {%agents<launcher>} is installed: 321 iz4 install" !! 'nothing wired; 321 is not installed')
-                                       !! "$level" ~ (%agents<launcher> ?? ", via 321 {%agents<launcher>}" !! ', hooks an earlier iz4 wrote') ~ '; iz4 agent status has the detail');
-        row('checked', ($ran ?? "{+@checks} test{+@checks == 1 ?? '' !! 's'} just now, {$secs}s" !! $recorded ?? "{+@checks} test{+@checks == 1 ?? '' !! 's'} $when; nothing has changed since (--recheck runs them again)" !! 'nothing ran (--no-checks)')
-                       ~ '; file facts and test results, never that the software is safe');
+        @rows.push: ['agents', $level eq 'none' ?? 'nothing wired' !! "$level" ~ (%agents<launcher> ?? ", via 321 {%agents<launcher>}" !! ', hooks an earlier iz4 wrote'),
+                     $level eq 'none' ?? ($bin.defined ?? "321 {%agents<launcher>} is installed: 321 iz4 install" !! '321 is not installed') !! 'iz4 agent status has the detail'];
+        my $tests = "{+@checks} test{+@checks == 1 ?? '' !! 's'}";
+        @rows.push: ['checked', $ran ?? "$tests just now, {$secs}s" !! $recorded ?? "$tests, $when" !! 'nothing ran',
+                     $ran ?? '' !! $recorded ?? 'nothing has changed since; --recheck runs them again' !! '--no-checks'];
+        my $w = @rows.map(*[1].chars).max;
+        say pretty(sprintf('%-13s %-*s  %s', .[0], $w, .[1], .[2]).trim-trailing) for @rows;
+        say '';
+        say pretty('file facts and test results, never that the software is safe');
         say '';
         say pretty(@next ?? "next:  {@next[0]}" !! 'next:  nothing waits on you');
         # when every one of them held just now, say so plainly, last
