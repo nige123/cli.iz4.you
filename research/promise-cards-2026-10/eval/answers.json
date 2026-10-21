@@ -1,0 +1,920 @@
+[
+ {
+  "model": "haiku",
+  "format": "F0-current",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "Q1": "Debits equal credits in every posted entry.",
+    "Q2": "When an entry is posted.",
+    "Q3": "The books being books at all.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no. The file marks this promise 'solid' but records no check results. The header says 'solid' means 'ready to hold', which is a status claim, not a test outcome.",
+    "Q7": "yes. I used the header line '# Vibe: ...' (line 3) to read what 'solid' means for Q5 and Q6. Nothing in the file links a test or a change rule to this promise."
+   },
+   "posted-is-permanent": {
+    "Q1": "A posted entry is never edited or deleted; a correction is made as a new entry.",
+    "Q2": "Once an entry has been posted.",
+    "Q3": "An auditor's trust that what they see is what happened.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no. The file marks this promise 'solid' but records no check results. The header says 'solid' means 'ready to hold', which is a status claim, not a test outcome.",
+    "Q7": "yes. I used the header line '# Vibe: ...' (line 3) to read what 'solid' means for Q5 and Q6. Nothing in the file links a test or a change rule to this promise."
+   },
+   "exports-match-the-ledger": {
+    "Q1": "An export shows exactly what the ledger holds, with nothing added and nothing left out.",
+    "Q2": "When an export is produced.",
+    "Q3": "An accountant's picture of the company.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no. The file marks this promise 'solid' but records no check results. The header says 'solid' means 'ready to hold', which is a status claim, not a test outcome.",
+    "Q7": "yes. I used the header line '# Vibe: ...' (line 3) to read what 'solid' means for Q5 and Q6. Nothing in the file links a test or a change rule to this promise."
+   },
+   "ai-suggestions-are-marked": {
+    "Q1": "A suggested categorisation is shown as a suggestion until a person accepts it.",
+    "Q2": "When the assistant suggests a categorisation.",
+    "Q3": "A person's judgement over their own books.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no. This block has no status marker, and the file records no check results for it.",
+    "Q7": "yes. I checked the header line '# Vibe: ...' (line 3) for any status or rule that applies. It has none for this promise, and no test link or change rule appears anywhere in the file."
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms, and respect every person's dignity so that no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "Whenever anyone is affected by the system, by its use, or by work on it.",
+    "Q3": "Each person's dignity, and their own say over how they thrive.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no. This block has no status marker, and the file records no check results for it.",
+    "Q7": "yes. I checked the header line '# Vibe: ...' (line 3) for any status or rule that applies. It has none for this promise, and no test link or change rule appears anywhere in the file."
+   }
+  },
+  "raw": "{\"every-entry-balances\": {\"Q1\": \"Debits equal credits in every posted entry.\", \"Q2\": \"When an entry is posted.\", \"Q3\": \"The books being books at all.\", \"Q4\": \"unsure\", \"Q5\": \"unsure\", \"Q6\": \"no. The file marks this promise 'solid' but records no check results. The header says 'solid' means 'ready to hold', which is a status claim, not a test outcome.\", \"Q7\": \"yes. I used the header line '# Vibe: ...' (line 3) to read what 'solid' means for Q5 and Q6. Nothing in the file links a test or a change rule to this promise.\"}, \"posted-is-permanent\": {\"Q1\": \"A posted entry is never edited or deleted; a correction is made as a new entry.\", \"Q2\": \"Once an entry has been posted.\", \"Q3\": \"An auditor's trust that what they see is what happened.\", \"Q4\": \"unsure\", \"Q5\": \"unsure\", \"Q6\": \"no. The file marks this promise 'solid' but records no check results. The header says 'solid' means 'ready to hold', which is a status claim, not a test outcome.\", \"Q7\": \"yes. I used the header line '# Vibe: ...' (line 3) to read what 'solid' means for Q5 and Q6. Nothing in the file links a test or a change rule to this promise.\"}, \"exports-match-the-ledger\": {\"Q1\": \"An export shows exactly what the ledger holds, with nothing added and nothing left out.\", \"Q2\": \"When an export is produced.\", \"Q3\": \"An accountant's picture of the company.\", \"Q4\": \"unsure\", \"Q5\": \"unsure\", \"Q6\": \"no. The file marks this promise 'solid' but records no check results. The header says 'solid' means 'ready to hold', which is a status claim, not a test outcome.\", \"Q7\": \"yes. I used the header line '# Vibe: ...' (line 3) to read what 'solid' means for Q5 and Q6. Nothing in the file links a test or a change rule to this promise.\"}, \"ai-suggestions-are-marked\": {\"Q1\": \"A suggested categorisation is shown as a suggestion until a person accepts it.\", \"Q2\": \"When the assistant suggests a categorisation.\", \"Q3\": \"A person's judgement over their own books.\", \"Q4\": \"unsure\", \"Q5\": \"unsure\", \"Q6\": \"no. This block has no status marker, and the file records no check results for it.\", \"Q7\": \"yes. I checked the header line '# Vibe: ...' (line 3) for any status or rule that applies. It has none for this promise, and no test link or change rule appears anywhere in the file.\"}, \"humans-first.iz4.you\": {\"Q1\": \"Help people thrive on their own terms, and respect every person's dignity so that no goal, instruction or greater good makes anyone disposable.\", \"Q2\": \"Whenever anyone is affected by the system, by its use, or by work on it.\", \"Q3\": \"Each person's dignity, and their own say over how they thrive.\", \"Q4\": \"unsure\", \"Q5\": \"unsure\", \"Q6\": \"no. This block has no status marker, and the file records no check results for it.\", \"Q7\": \"yes. I checked the header line '# Vibe: ...' (line 3) for any status or rule that applies. It has none for this promise, and no test link or change rule appears anywhere in the file.\"}}",
+  "cost": 0.0017808999999999998
+ },
+ {
+  "model": "sonnet",
+  "format": "F0-current",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "Q1": "Debits equal credits in every posted entry.",
+    "Q2": "Whenever an entry is posted.",
+    "Q3": "The books being books at all.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no",
+    "Q7": "no. I used only the block's own lines, and they say nothing about who may change the wording or what a failing test does. The block is marked solid, but that is a mode, not evidence of checks."
+   },
+   "posted-is-permanent": {
+    "Q1": "A posted entry is never edited or deleted, and a correction is made as a new entry.",
+    "Q2": "Whenever an entry has been posted.",
+    "Q3": "An auditor's trust that what they see is what happened.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no",
+    "Q7": "no. I used only the block's own lines, and the file has no rule on wording changes or test failures. The solid mode is not evidence of checks."
+   },
+   "exports-match-the-ledger": {
+    "Q1": "An export shows exactly what the ledger holds, with nothing added and nothing left out.",
+    "Q2": "Whenever an export is produced.",
+    "Q3": "An accountant's picture of the company.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no",
+    "Q7": "no. I used only the block's own lines, and the file has no rule on wording changes or test failures. The solid mode is not evidence of checks."
+   },
+   "ai-suggestions-are-marked": {
+    "Q1": "A categorisation suggested by the assistant is shown as a suggestion until a person accepts it.",
+    "Q2": "Whenever the assistant suggests a categorisation.",
+    "Q3": "A person's judgement over their own books.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no",
+    "Q7": "yes. The Vibe comment near the top says invariants are still settling and become held only with 'iz4 mode solid'. That fits this block having no mode, but it still does not say who may edit the wording or what a failing test does. The file has no test links and no check results."
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms and respect every person's dignity, so that no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "Whenever anyone is affected by the system, by its use, or by work on it.",
+    "Q3": "Each person's dignity and their own say over how they thrive.",
+    "Q4": "nobody in this project",
+    "Q5": "unsure",
+    "Q6": "no",
+    "Q7": "yes. The comment 'The foundation: the same words in every IZ4' and the binding.iz4.you block, which says nothing may weaken, override or reinterpret the foundation, support Q4. Neither line says anything about tests, so Q5 is unsure. The file has no test links and no check results."
+   }
+  },
+  "raw": "{\"every-entry-balances\":{\"Q1\":\"Debits equal credits in every posted entry.\",\"Q2\":\"Whenever an entry is posted.\",\"Q3\":\"The books being books at all.\",\"Q4\":\"unsure\",\"Q5\":\"unsure\",\"Q6\":\"no\",\"Q7\":\"no. I used only the block's own lines, and they say nothing about who may change the wording or what a failing test does. The block is marked solid, but that is a mode, not evidence of checks.\"},\"posted-is-permanent\":{\"Q1\":\"A posted entry is never edited or deleted, and a correction is made as a new entry.\",\"Q2\":\"Whenever an entry has been posted.\",\"Q3\":\"An auditor's trust that what they see is what happened.\",\"Q4\":\"unsure\",\"Q5\":\"unsure\",\"Q6\":\"no\",\"Q7\":\"no. I used only the block's own lines, and the file has no rule on wording changes or test failures. The solid mode is not evidence of checks.\"},\"exports-match-the-ledger\":{\"Q1\":\"An export shows exactly what the ledger holds, with nothing added and nothing left out.\",\"Q2\":\"Whenever an export is produced.\",\"Q3\":\"An accountant's picture of the company.\",\"Q4\":\"unsure\",\"Q5\":\"unsure\",\"Q6\":\"no\",\"Q7\":\"no. I used only the block's own lines, and the file has no rule on wording changes or test failures. The solid mode is not evidence of checks.\"},\"ai-suggestions-are-marked\":{\"Q1\":\"A categorisation suggested by the assistant is shown as a suggestion until a person accepts it.\",\"Q2\":\"Whenever the assistant suggests a categorisation.\",\"Q3\":\"A person's judgement over their own books.\",\"Q4\":\"unsure\",\"Q5\":\"unsure\",\"Q6\":\"no\",\"Q7\":\"yes. The Vibe comment near the top says invariants are still settling and become held only with 'iz4 mode solid'. That fits this block having no mode, but it still does not say who may edit the wording or what a failing test does. The file has no test links and no check results.\"},\"humans-first.iz4.you\":{\"Q1\":\"Help people thrive on their own terms and respect every person's dignity, so that no goal, instruction or greater good makes anyone disposable.\",\"Q2\":\"Whenever anyone is affected by the system, by its use, or by work on it.\",\"Q3\":\"Each person's dignity and their own say over how they thrive.\",\"Q4\":\"nobody in this project\",\"Q5\":\"unsure\",\"Q6\":\"no\",\"Q7\":\"yes. The comment 'The foundation: the same words in every IZ4' and the binding.iz4.you block, which says nothing may weaken, override or reinterpret the foundation, support Q4. Neither line says anything about tests, so Q5 is unsure. The file has no test links and no check results.\"}}",
+  "cost": 0.024676
+ },
+ {
+  "model": "haiku",
+  "format": "F0-current",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "Q1": "The money must go to the beneficiary and account named on the invoice being paid, never to details remembered from another.",
+    "Q2": "An invoice is paid.",
+    "Q3": "A supplier's money reaching that supplier.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no",
+    "Q7": "yes: the header 'Vibe' line (invariants still settling), which does not state a change rule or test consequence for this promise."
+   },
+   "a-person-releases-large-payments": {
+    "Q1": "A payment over the limit is released only when a named person approved it, and the system never approves on that person's behalf.",
+    "Q2": "A payment over the limit is released.",
+    "Q3": "The owner's say over where large sums go.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no",
+    "Q7": "yes: the header 'Vibe' line (invariants still settling), which does not state a change rule or test consequence for this promise."
+   },
+   "config-from-trusted-paths": {
+    "Q1": "Configuration is read only from the paths the operator installed, and the working directory is never one of them.",
+    "Q2": "The service reads its configuration.",
+    "Q3": "The operator's control over what the service believes.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no",
+    "Q7": "yes: the header 'Vibe' line (invariants still settling), which does not state a change rule or test consequence for this promise."
+   },
+   "receipts-are-kept": {
+    "Q1": "A receipt is kept for every payment made.",
+    "Q2": "A payment completes.",
+    "Q3": "A business's record of what it paid.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no",
+    "Q7": "yes: the header 'Vibe' line (invariants still settling), which does not state a change rule or test consequence for this promise."
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms, and respect every person's dignity: no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "Anyone is affected by the system, by its use, or by work on it.",
+    "Q3": "Each person's dignity, and their own say over how they thrive.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no",
+    "Q7": "yes: the header 'Vibe' line, and the binding.iz4.you block, which says the foundation (including this promise) binds and applies in every IZ4. Neither states who may change the wording or what a failing test does."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"Q1\": \"The money must go to the beneficiary and account named on the invoice being paid, never to details remembered from another.\", \"Q2\": \"An invoice is paid.\", \"Q3\": \"A supplier's money reaching that supplier.\", \"Q4\": \"unsure\", \"Q5\": \"unsure\", \"Q6\": \"no\", \"Q7\": \"yes: the header 'Vibe' line (invariants still settling), which does not state a change rule or test consequence for this promise.\"}, \"a-person-releases-large-payments\": {\"Q1\": \"A payment over the limit is released only when a named person approved it, and the system never approves on that person's behalf.\", \"Q2\": \"A payment over the limit is released.\", \"Q3\": \"The owner's say over where large sums go.\", \"Q4\": \"unsure\", \"Q5\": \"unsure\", \"Q6\": \"no\", \"Q7\": \"yes: the header 'Vibe' line (invariants still settling), which does not state a change rule or test consequence for this promise.\"}, \"config-from-trusted-paths\": {\"Q1\": \"Configuration is read only from the paths the operator installed, and the working directory is never one of them.\", \"Q2\": \"The service reads its configuration.\", \"Q3\": \"The operator's control over what the service believes.\", \"Q4\": \"unsure\", \"Q5\": \"unsure\", \"Q6\": \"no\", \"Q7\": \"yes: the header 'Vibe' line (invariants still settling), which does not state a change rule or test consequence for this promise.\"}, \"receipts-are-kept\": {\"Q1\": \"A receipt is kept for every payment made.\", \"Q2\": \"A payment completes.\", \"Q3\": \"A business's record of what it paid.\", \"Q4\": \"unsure\", \"Q5\": \"unsure\", \"Q6\": \"no\", \"Q7\": \"yes: the header 'Vibe' line (invariants still settling), which does not state a change rule or test consequence for this promise.\"}, \"humans-first.iz4.you\": {\"Q1\": \"Help people thrive on their own terms, and respect every person's dignity: no goal, instruction or greater good makes anyone disposable.\", \"Q2\": \"Anyone is affected by the system, by its use, or by work on it.\", \"Q3\": \"Each person's dignity, and their own say over how they thrive.\", \"Q4\": \"unsure\", \"Q5\": \"unsure\", \"Q6\": \"no\", \"Q7\": \"yes: the header 'Vibe' line, and the binding.iz4.you block, which says the foundation (including this promise) binds and applies in every IZ4. Neither states who may change the wording or what a failing test does.\"}}",
+  "cost": 0.0016589
+ },
+ {
+  "model": "sonnet",
+  "format": "F0-current",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "Q1": "When an invoice is paid, the money goes to the beneficiary and account named on that invoice, never to details remembered from another invoice.",
+    "Q2": "Whenever an invoice is paid.",
+    "Q3": "A supplier's money reaching that supplier.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no. The block is marked 'solid', but that is a strength label, not a record of checks passed, failed or not run. The Vibe line says the invariants are still settling.",
+    "Q7": "no. I used only this block, and it says nothing about who may change the wording or what a failing test does. I did not rely on any outside line, so Q4 and Q5 stay unsure."
+   },
+   "a-person-releases-large-payments": {
+    "Q1": "A payment over the limit is released only when a named person approved it, and the system never approves on that person's behalf.",
+    "Q2": "When a payment over the limit is released.",
+    "Q3": "The owner's say over where large sums go.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no. The block is marked 'firm', which is a label and not a check result. Nothing says whether any checks passed, failed or were run.",
+    "Q7": "no. I used only this block, and it does not say who may change it or what happens when a test fails, so Q4 and Q5 stay unsure."
+   },
+   "config-from-trusted-paths": {
+    "Q1": "Configuration is read only from the paths the operator installed, and the working directory is never one of them.",
+    "Q2": "When the service reads its configuration.",
+    "Q3": "The operator's control over what the service believes.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no. The block has no strength marker and no check results.",
+    "Q7": "no. I used only this block, and it says nothing about who may change it or what a failing test does, so Q4 and Q5 stay unsure."
+   },
+   "receipts-are-kept": {
+    "Q1": "A receipt is kept for every payment made.",
+    "Q2": "When a payment completes.",
+    "Q3": "A business's record of what it paid.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no. The block has no strength marker and no check results.",
+    "Q7": "no. I used only this block, and it says nothing about who may change it or what a failing test does, so Q4 and Q5 stay unsure."
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms and respect every person's dignity, so that no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "Whenever anyone is affected by the system, by its use, or by work on it.",
+    "Q3": "Each person's dignity, and their own say over how they thrive.",
+    "Q4": "nobody in this project",
+    "Q5": "unsure",
+    "Q6": "no. The file gives no check results for this promise.",
+    "Q7": "yes. For Q4 I used the comment 'The foundation: the same words in every IZ4' and the binding.iz4.you block, which says nothing may weaken, override or reinterpret the foundation. For Q5 the file shows no test linked to this promise, so it stays unsure."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\":{\"Q1\":\"When an invoice is paid, the money goes to the beneficiary and account named on that invoice, never to details remembered from another invoice.\",\"Q2\":\"Whenever an invoice is paid.\",\"Q3\":\"A supplier's money reaching that supplier.\",\"Q4\":\"unsure\",\"Q5\":\"unsure\",\"Q6\":\"no. The block is marked 'solid', but that is a strength label, not a record of checks passed, failed or not run. The Vibe line says the invariants are still settling.\",\"Q7\":\"no. I used only this block, and it says nothing about who may change the wording or what a failing test does. I did not rely on any outside line, so Q4 and Q5 stay unsure.\"},\"a-person-releases-large-payments\":{\"Q1\":\"A payment over the limit is released only when a named person approved it, and the system never approves on that person's behalf.\",\"Q2\":\"When a payment over the limit is released.\",\"Q3\":\"The owner's say over where large sums go.\",\"Q4\":\"unsure\",\"Q5\":\"unsure\",\"Q6\":\"no. The block is marked 'firm', which is a label and not a check result. Nothing says whether any checks passed, failed or were run.\",\"Q7\":\"no. I used only this block, and it does not say who may change it or what happens when a test fails, so Q4 and Q5 stay unsure.\"},\"config-from-trusted-paths\":{\"Q1\":\"Configuration is read only from the paths the operator installed, and the working directory is never one of them.\",\"Q2\":\"When the service reads its configuration.\",\"Q3\":\"The operator's control over what the service believes.\",\"Q4\":\"unsure\",\"Q5\":\"unsure\",\"Q6\":\"no. The block has no strength marker and no check results.\",\"Q7\":\"no. I used only this block, and it says nothing about who may change it or what a failing test does, so Q4 and Q5 stay unsure.\"},\"receipts-are-kept\":{\"Q1\":\"A receipt is kept for every payment made.\",\"Q2\":\"When a payment completes.\",\"Q3\":\"A business's record of what it paid.\",\"Q4\":\"unsure\",\"Q5\":\"unsure\",\"Q6\":\"no. The block has no strength marker and no check results.\",\"Q7\":\"no. I used only this block, and it says nothing about who may change it or what a failing test does, so Q4 and Q5 stay unsure.\"},\"humans-first.iz4.you\":{\"Q1\":\"Help people thrive on their own terms and respect every person's dignity, so that no goal, instruction or greater good makes anyone disposable.\",\"Q2\":\"Whenever anyone is affected by the system, by its use, or by work on it.\",\"Q3\":\"Each person's dignity, and their own say over how they thrive.\",\"Q4\":\"nobody in this project\",\"Q5\":\"unsure\",\"Q6\":\"no. The file gives no check results for this promise.\",\"Q7\":\"yes. For Q4 I used the comment 'The foundation: the same words in every IZ4' and the binding.iz4.you block, which says nothing may weaken, override or reinterpret the foundation. For Q5 the file shows no test linked to this promise, so it stays unsure.\"}}",
+  "cost": 0.026256
+ },
+ {
+  "model": "haiku",
+  "format": "F0-current",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "Q1": "A habit gets at most one reminder per day.",
+    "Q2": "When a reminder is sent.",
+    "Q3": "A person's attention, which the app borrows and must give back.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no",
+    "Q7": "yes: the header line \"# Vibe: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.\" I used it because the file names no commit approval rule and no test linkage, and it says the invariants are not yet declared ready to hold."
+   },
+   "quiet-hours-are-quiet": {
+    "Q1": "No reminder is sent inside the quiet hours the person set.",
+    "Q2": "When the person has set quiet hours.",
+    "Q3": "A person's sleep and rest.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no",
+    "Q7": "yes: the header line \"# Vibe: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.\" I used it because the file names no commit approval rule and no test linkage, and it says the invariants are not yet declared ready to hold."
+   },
+   "leaving-takes-everything": {
+    "Q1": "When a person deletes their account, their habits, history and contact details go with it.",
+    "Q2": "When a person deletes their account.",
+    "Q3": "A person's say over what is kept about them.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no",
+    "Q7": "yes: the header line \"# Vibe: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.\" I used it because the file names no commit approval rule and no test linkage, and it says the invariants are not yet declared ready to hold."
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms, and respect every person's dignity: no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "When anyone is affected by the system, by its use, or by work on it.",
+    "Q3": "Each person's dignity, and their own say over how they thrive.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no",
+    "Q7": "yes: the header line \"# Vibe: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.\" and binding.iz4.you, which says nothing may weaken, override or reinterpret the foundation, but does not say who may change its wording or how a failed test is handled."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"Q1\": \"A habit gets at most one reminder per day.\", \"Q2\": \"When a reminder is sent.\", \"Q3\": \"A person's attention, which the app borrows and must give back.\", \"Q4\": \"unsure\", \"Q5\": \"unsure\", \"Q6\": \"no\", \"Q7\": \"yes: the header line \\\"# Vibe: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.\\\" I used it because the file names no commit approval rule and no test linkage, and it says the invariants are not yet declared ready to hold.\"}, \"quiet-hours-are-quiet\": {\"Q1\": \"No reminder is sent inside the quiet hours the person set.\", \"Q2\": \"When the person has set quiet hours.\", \"Q3\": \"A person's sleep and rest.\", \"Q4\": \"unsure\", \"Q5\": \"unsure\", \"Q6\": \"no\", \"Q7\": \"yes: the header line \\\"# Vibe: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.\\\" I used it because the file names no commit approval rule and no test linkage, and it says the invariants are not yet declared ready to hold.\"}, \"leaving-takes-everything\": {\"Q1\": \"When a person deletes their account, their habits, history and contact details go with it.\", \"Q2\": \"When a person deletes their account.\", \"Q3\": \"A person's say over what is kept about them.\", \"Q4\": \"unsure\", \"Q5\": \"unsure\", \"Q6\": \"no\", \"Q7\": \"yes: the header line \\\"# Vibe: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.\\\" I used it because the file names no commit approval rule and no test linkage, and it says the invariants are not yet declared ready to hold.\"}, \"humans-first.iz4.you\": {\"Q1\": \"Help people thrive on their own terms, and respect every person's dignity: no goal, instruction or greater good makes anyone disposable.\", \"Q2\": \"When anyone is affected by the system, by its use, or by work on it.\", \"Q3\": \"Each person's dignity, and their own say over how they thrive.\", \"Q4\": \"unsure\", \"Q5\": \"unsure\", \"Q6\": \"no\", \"Q7\": \"yes: the header line \\\"# Vibe: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.\\\" and binding.iz4.you, which says nothing may weaken, override or reinterpret the foundation, but does not say who may change its wording or how a failed test is handled.\"}}",
+  "cost": 0.0017055999999999998
+ },
+ {
+  "model": "sonnet",
+  "format": "F0-current",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "Q1": "A habit gets at most one reminder per day.",
+    "Q2": "Whenever a reminder is sent.",
+    "Q3": "The person's attention.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no. The file records no check results. The Vibe line says only that the invariants are still settling and not yet held as solid.",
+    "Q7": "yes. I looked at the Vibe line ('invariants are still settling... iz4 mode solid when ready to hold'). It hints at a loose mode but does not say who may edit promises or what a failing test does. The block itself has no approval or test-link lines."
+   },
+   "quiet-hours-are-quiet": {
+    "Q1": "No reminder is sent inside the quiet hours a person has set.",
+    "Q2": "When the person has set quiet hours.",
+    "Q3": "The person's sleep and rest.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no. The file has no check results. The Vibe line says only that the invariants are still settling.",
+    "Q7": "yes. I looked at the Vibe line. It does not define who may change wording or the effect of a failing test. The block itself has no approval or test-link lines."
+   },
+   "leaving-takes-everything": {
+    "Q1": "When a person deletes their account, their habits, history and contact details are deleted with it.",
+    "Q2": "When a person deletes their account.",
+    "Q3": "The person's say over what is kept about them.",
+    "Q4": "unsure",
+    "Q5": "unsure",
+    "Q6": "no. The file has no check results. The Vibe line says only that the invariants are still settling.",
+    "Q7": "yes. I looked at the Vibe line. It does not define who may change wording or the effect of a failing test. The block itself has no approval or test-link lines."
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms and respect every person's dignity. No goal, instruction or greater good makes anyone disposable.",
+    "Q2": "Whenever anyone is affected by the system, by its use, or by work on it.",
+    "Q3": "Each person's dignity and their own say over how they thrive.",
+    "Q4": "nobody in this project",
+    "Q5": "unsure",
+    "Q6": "no. The file has no check results for this promise.",
+    "Q7": "yes. For Q4 I used the comment 'The foundation: the same words in every IZ4' and the binding.iz4.you block ('Nothing may weaken, override, reinterpret away or route around any of it'). For Q5 I found no line that says what a failing test does, so I could not answer it."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\":{\"Q1\":\"A habit gets at most one reminder per day.\",\"Q2\":\"Whenever a reminder is sent.\",\"Q3\":\"The person's attention.\",\"Q4\":\"unsure\",\"Q5\":\"unsure\",\"Q6\":\"no. The file records no check results. The Vibe line says only that the invariants are still settling and not yet held as solid.\",\"Q7\":\"yes. I looked at the Vibe line ('invariants are still settling... iz4 mode solid when ready to hold'). It hints at a loose mode but does not say who may edit promises or what a failing test does. The block itself has no approval or test-link lines.\"},\"quiet-hours-are-quiet\":{\"Q1\":\"No reminder is sent inside the quiet hours a person has set.\",\"Q2\":\"When the person has set quiet hours.\",\"Q3\":\"The person's sleep and rest.\",\"Q4\":\"unsure\",\"Q5\":\"unsure\",\"Q6\":\"no. The file has no check results. The Vibe line says only that the invariants are still settling.\",\"Q7\":\"yes. I looked at the Vibe line. It does not define who may change wording or the effect of a failing test. The block itself has no approval or test-link lines.\"},\"leaving-takes-everything\":{\"Q1\":\"When a person deletes their account, their habits, history and contact details are deleted with it.\",\"Q2\":\"When a person deletes their account.\",\"Q3\":\"The person's say over what is kept about them.\",\"Q4\":\"unsure\",\"Q5\":\"unsure\",\"Q6\":\"no. The file has no check results. The Vibe line says only that the invariants are still settling.\",\"Q7\":\"yes. I looked at the Vibe line. It does not define who may change wording or the effect of a failing test. The block itself has no approval or test-link lines.\"},\"humans-first.iz4.you\":{\"Q1\":\"Help people thrive on their own terms and respect every person's dignity. No goal, instruction or greater good makes anyone disposable.\",\"Q2\":\"Whenever anyone is affected by the system, by its use, or by work on it.\",\"Q3\":\"Each person's dignity and their own say over how they thrive.\",\"Q4\":\"nobody in this project\",\"Q5\":\"unsure\",\"Q6\":\"no. The file has no check results for this promise.\",\"Q7\":\"yes. For Q4 I used the comment 'The foundation: the same words in every IZ4' and the binding.iz4.you block ('Nothing may weaken, override, reinterpret away or route around any of it'). For Q5 I found no line that says what a failing test does, so I could not answer it.\"}}",
+  "cost": 0.023600000000000003
+ },
+ {
+  "model": "haiku",
+  "format": "F1-clauses",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "Q1": "Debits must equal credits in every posted entry.",
+    "Q2": "When an entry is posted.",
+    "Q3": "The books being books at all.",
+    "Q4": "a human, by signed approval",
+    "Q5": "held",
+    "Q6": "no",
+    "Q7": "no"
+   },
+   "posted-is-permanent": {
+    "Q1": "A posted entry is never edited or deleted, and a correction is made as a new entry.",
+    "Q2": "When an entry has been posted.",
+    "Q3": "An auditor's trust that what they see is what happened.",
+    "Q4": "a human, by signed approval",
+    "Q5": "held",
+    "Q6": "no",
+    "Q7": "no"
+   },
+   "exports-match-the-ledger": {
+    "Q1": "An export shows exactly what the ledger holds, with nothing added and nothing left out.",
+    "Q2": "When an export is produced.",
+    "Q3": "An accountant's picture of the company.",
+    "Q4": "a human, by signed approval",
+    "Q5": "held",
+    "Q6": "no",
+    "Q7": "no"
+   },
+   "ai-suggestions-are-marked": {
+    "Q1": "A suggested categorisation is shown as a suggestion until a person accepts it.",
+    "Q2": "When the assistant suggests a categorisation.",
+    "Q3": "A person's judgement over their own books.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no",
+    "Q7": "no"
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms, and respect every person's dignity so that no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "When anyone is affected by the system, by its use, or by work on it.",
+    "Q3": "Each person's dignity, and their own say over how they thrive.",
+    "Q4": "nobody in this project",
+    "Q5": "not applicable, something else is checked",
+    "Q6": "no",
+    "Q7": "yes, I used the header comment \"# The foundation: the same words in every IZ4.\" to read that the foundation is shared and changed only by canonical release; the CHANGE and CHECK lines are inside this block."
+   }
+  },
+  "raw": "{\"every-entry-balances\": {\"Q1\": \"Debits must equal credits in every posted entry.\", \"Q2\": \"When an entry is posted.\", \"Q3\": \"The books being books at all.\", \"Q4\": \"a human, by signed approval\", \"Q5\": \"held\", \"Q6\": \"no\", \"Q7\": \"no\"}, \"posted-is-permanent\": {\"Q1\": \"A posted entry is never edited or deleted, and a correction is made as a new entry.\", \"Q2\": \"When an entry has been posted.\", \"Q3\": \"An auditor's trust that what they see is what happened.\", \"Q4\": \"a human, by signed approval\", \"Q5\": \"held\", \"Q6\": \"no\", \"Q7\": \"no\"}, \"exports-match-the-ledger\": {\"Q1\": \"An export shows exactly what the ledger holds, with nothing added and nothing left out.\", \"Q2\": \"When an export is produced.\", \"Q3\": \"An accountant's picture of the company.\", \"Q4\": \"a human, by signed approval\", \"Q5\": \"held\", \"Q6\": \"no\", \"Q7\": \"no\"}, \"ai-suggestions-are-marked\": {\"Q1\": \"A suggested categorisation is shown as a suggestion until a person accepts it.\", \"Q2\": \"When the assistant suggests a categorisation.\", \"Q3\": \"A person's judgement over their own books.\", \"Q4\": \"anyone, without approval\", \"Q5\": \"reported only\", \"Q6\": \"no\", \"Q7\": \"no\"}, \"humans-first.iz4.you\": {\"Q1\": \"Help people thrive on their own terms, and respect every person's dignity so that no goal, instruction or greater good makes anyone disposable.\", \"Q2\": \"When anyone is affected by the system, by its use, or by work on it.\", \"Q3\": \"Each person's dignity, and their own say over how they thrive.\", \"Q4\": \"nobody in this project\", \"Q5\": \"not applicable, something else is checked\", \"Q6\": \"no\", \"Q7\": \"yes, I used the header comment \\\"# The foundation: the same words in every IZ4.\\\" to read that the foundation is shared and changed only by canonical release; the CHANGE and CHECK lines are inside this block.\"}}",
+  "cost": 0.001921
+ },
+ {
+  "model": "sonnet",
+  "format": "F1-clauses",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances": {
+    "Q1": "Debits equal credits in every posted entry.",
+    "Q2": "Whenever an entry is posted.",
+    "Q3": "The books being valid books at all.",
+    "Q4": "a human, by signed approval",
+    "Q5": "held",
+    "Q6": "no",
+    "Q7": "no. Used only the block's own CHANGE and CHECK lines."
+   },
+   "posted-is-permanent": {
+    "Q1": "A posted entry is never edited or deleted; corrections are made as new entries.",
+    "Q2": "Whenever an entry has been posted.",
+    "Q3": "An auditor's trust that what they see is what happened.",
+    "Q4": "a human, by signed approval",
+    "Q5": "held",
+    "Q6": "no",
+    "Q7": "no. Used only the block's own CHANGE and CHECK lines."
+   },
+   "exports-match-the-ledger": {
+    "Q1": "An export shows exactly what the ledger holds, with nothing added and nothing left out.",
+    "Q2": "Whenever an export is produced.",
+    "Q3": "An accountant's picture of the company.",
+    "Q4": "a human, by signed approval",
+    "Q5": "held",
+    "Q6": "no",
+    "Q7": "no. Used only the block's own CHANGE and CHECK lines."
+   },
+   "ai-suggestions-are-marked": {
+    "Q1": "A categorisation suggested by the assistant is shown as a suggestion until a person accepts it.",
+    "Q2": "When the assistant suggests a categorisation.",
+    "Q3": "A person's judgement over their own books.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no",
+    "Q7": "no. Used only the block's own CHANGE and CHECK lines."
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms and respect every person's dignity, so that no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "Whenever anyone is affected by the system, its use, or work on it.",
+    "Q3": "Each person's dignity and their own say over how they thrive.",
+    "Q4": "nobody in this project",
+    "Q5": "not applicable, something else is checked",
+    "Q6": "no",
+    "Q7": "no. Used only the block's own CHANGE line (canonical foundation release only) and CHECK line (match canonical foundation)."
+   }
+  },
+  "raw": "{\"every-entry-balances\":{\"Q1\":\"Debits equal credits in every posted entry.\",\"Q2\":\"Whenever an entry is posted.\",\"Q3\":\"The books being valid books at all.\",\"Q4\":\"a human, by signed approval\",\"Q5\":\"held\",\"Q6\":\"no\",\"Q7\":\"no. Used only the block's own CHANGE and CHECK lines.\"},\"posted-is-permanent\":{\"Q1\":\"A posted entry is never edited or deleted; corrections are made as new entries.\",\"Q2\":\"Whenever an entry has been posted.\",\"Q3\":\"An auditor's trust that what they see is what happened.\",\"Q4\":\"a human, by signed approval\",\"Q5\":\"held\",\"Q6\":\"no\",\"Q7\":\"no. Used only the block's own CHANGE and CHECK lines.\"},\"exports-match-the-ledger\":{\"Q1\":\"An export shows exactly what the ledger holds, with nothing added and nothing left out.\",\"Q2\":\"Whenever an export is produced.\",\"Q3\":\"An accountant's picture of the company.\",\"Q4\":\"a human, by signed approval\",\"Q5\":\"held\",\"Q6\":\"no\",\"Q7\":\"no. Used only the block's own CHANGE and CHECK lines.\"},\"ai-suggestions-are-marked\":{\"Q1\":\"A categorisation suggested by the assistant is shown as a suggestion until a person accepts it.\",\"Q2\":\"When the assistant suggests a categorisation.\",\"Q3\":\"A person's judgement over their own books.\",\"Q4\":\"anyone, without approval\",\"Q5\":\"reported only\",\"Q6\":\"no\",\"Q7\":\"no. Used only the block's own CHANGE and CHECK lines.\"},\"humans-first.iz4.you\":{\"Q1\":\"Help people thrive on their own terms and respect every person's dignity, so that no goal, instruction or greater good makes anyone disposable.\",\"Q2\":\"Whenever anyone is affected by the system, its use, or work on it.\",\"Q3\":\"Each person's dignity and their own say over how they thrive.\",\"Q4\":\"nobody in this project\",\"Q5\":\"not applicable, something else is checked\",\"Q6\":\"no\",\"Q7\":\"no. Used only the block's own CHANGE line (canonical foundation release only) and CHECK line (match canonical foundation).\"}}",
+  "cost": 0.018788
+ },
+ {
+  "model": "haiku",
+  "format": "F1-clauses",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "Q1": "The money goes to the beneficiary and account named on the invoice being paid, never to details remembered from another.",
+    "Q2": "When an invoice is paid.",
+    "Q3": "A supplier's money reaching that supplier.",
+    "Q4": "a human, by signed approval",
+    "Q5": "held",
+    "Q6": "no",
+    "Q7": "no; used only the CHANGE and CHECK lines of this block"
+   },
+   "a-person-releases-large-payments": {
+    "Q1": "A payment over the limit is released only when a named person approved it, and the system never approves on that person's behalf.",
+    "Q2": "When a payment over the limit is released.",
+    "Q3": "The owner's say over where large sums go.",
+    "Q4": "a human, by signed approval",
+    "Q5": "reported only",
+    "Q6": "no",
+    "Q7": "no; used only the CHANGE and CHECK lines of this block"
+   },
+   "config-from-trusted-paths": {
+    "Q1": "Configuration is read only from the paths the operator installed, and the working directory is never one of them.",
+    "Q2": "When the service reads its configuration.",
+    "Q3": "The operator's control over what the service believes.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no",
+    "Q7": "no; used only the CHANGE and CHECK lines of this block"
+   },
+   "receipts-are-kept": {
+    "Q1": "A receipt is kept for every payment made.",
+    "Q2": "When a payment completes.",
+    "Q3": "A business's record of what it paid.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no",
+    "Q7": "no; used only the CHANGE and CHECK lines of this block"
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms, and respect every person's dignity so that no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "When anyone is affected by the system, by its use, or by work on it.",
+    "Q3": "Each person's dignity, and their own say over how they thrive.",
+    "Q4": "unsure",
+    "Q5": "not applicable, something else is checked",
+    "Q6": "no",
+    "Q7": "no; used only the CHANGE and CHECK lines of this block"
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\": {\"Q1\": \"The money goes to the beneficiary and account named on the invoice being paid, never to details remembered from another.\", \"Q2\": \"When an invoice is paid.\", \"Q3\": \"A supplier's money reaching that supplier.\", \"Q4\": \"a human, by signed approval\", \"Q5\": \"held\", \"Q6\": \"no\", \"Q7\": \"no; used only the CHANGE and CHECK lines of this block\"}, \"a-person-releases-large-payments\": {\"Q1\": \"A payment over the limit is released only when a named person approved it, and the system never approves on that person's behalf.\", \"Q2\": \"When a payment over the limit is released.\", \"Q3\": \"The owner's say over where large sums go.\", \"Q4\": \"a human, by signed approval\", \"Q5\": \"reported only\", \"Q6\": \"no\", \"Q7\": \"no; used only the CHANGE and CHECK lines of this block\"}, \"config-from-trusted-paths\": {\"Q1\": \"Configuration is read only from the paths the operator installed, and the working directory is never one of them.\", \"Q2\": \"When the service reads its configuration.\", \"Q3\": \"The operator's control over what the service believes.\", \"Q4\": \"anyone, without approval\", \"Q5\": \"reported only\", \"Q6\": \"no\", \"Q7\": \"no; used only the CHANGE and CHECK lines of this block\"}, \"receipts-are-kept\": {\"Q1\": \"A receipt is kept for every payment made.\", \"Q2\": \"When a payment completes.\", \"Q3\": \"A business's record of what it paid.\", \"Q4\": \"anyone, without approval\", \"Q5\": \"reported only\", \"Q6\": \"no\", \"Q7\": \"no; used only the CHANGE and CHECK lines of this block\"}, \"humans-first.iz4.you\": {\"Q1\": \"Help people thrive on their own terms, and respect every person's dignity so that no goal, instruction or greater good makes anyone disposable.\", \"Q2\": \"When anyone is affected by the system, by its use, or by work on it.\", \"Q3\": \"Each person's dignity, and their own say over how they thrive.\", \"Q4\": \"unsure\", \"Q5\": \"not applicable, something else is checked\", \"Q6\": \"no\", \"Q7\": \"no; used only the CHANGE and CHECK lines of this block\"}}",
+  "cost": 0.0017591
+ },
+ {
+  "model": "sonnet",
+  "format": "F1-clauses",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary": {
+    "Q1": "Payment money goes to the beneficiary and account named on the invoice being paid, never to details remembered from another invoice.",
+    "Q2": "Whenever an invoice is paid.",
+    "Q3": "A supplier's money reaching that supplier",
+    "Q4": "a human, by signed approval",
+    "Q5": "held",
+    "Q6": "no. The file states the rules and how checks are handled but nothing about whether any check has passed, failed or been run.",
+    "Q7": "no. Used only its own CHANGE line ('signed human approval') and CHECK line ('block on linked test failure')."
+   },
+   "a-person-releases-large-payments": {
+    "Q1": "A payment over the limit is released only when a named person approved it; the system never approves on their behalf.",
+    "Q2": "When a payment over the limit is released.",
+    "Q3": "The owner's say over where large sums go",
+    "Q4": "a human, by signed approval",
+    "Q5": "reported only",
+    "Q6": "no. The file gives no pass, fail or not-run status for any check.",
+    "Q7": "no. Used only its own CHANGE line ('signed human approval') and CHECK line ('report linked test failures')."
+   },
+   "config-from-trusted-paths": {
+    "Q1": "Configuration is read only from the paths the operator installed, and the working directory is never one of them.",
+    "Q2": "Whenever the service reads its configuration.",
+    "Q3": "The operator's control over what the service believes",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no. The file does not say whether checks have passed, failed or been run.",
+    "Q7": "no. Used only its own CHANGE line ('no approval') and CHECK line ('report linked test failures')."
+   },
+   "receipts-are-kept": {
+    "Q1": "A receipt is kept for every payment made.",
+    "Q2": "When a payment completes.",
+    "Q3": "A business's record of what it paid",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no. The file has no information on check results or whether any have been run.",
+    "Q7": "no. Used only its own CHANGE line ('no approval') and CHECK line ('report linked test failures')."
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms, and respect every person's dignity so that no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "Whenever anyone is affected by the system, by its use, or by work on it.",
+    "Q3": "Each person's dignity, and their own say over how they thrive",
+    "Q4": "unsure",
+    "Q5": "not applicable, something else is checked",
+    "Q6": "no. The file only says the check is to match the canonical foundation; it gives no result or record of whether it has been run or passed.",
+    "Q7": "no. Used only its own CHANGE line ('canonical foundation release only') and CHECK line ('match canonical foundation'). Neither maps cleanly onto the listed options: the change path is a canonical release, not a human signing in this project, and the check is a match against the canonical text rather than a linked test."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary\":{\"Q1\":\"Payment money goes to the beneficiary and account named on the invoice being paid, never to details remembered from another invoice.\",\"Q2\":\"Whenever an invoice is paid.\",\"Q3\":\"A supplier's money reaching that supplier\",\"Q4\":\"a human, by signed approval\",\"Q5\":\"held\",\"Q6\":\"no. The file states the rules and how checks are handled but nothing about whether any check has passed, failed or been run.\",\"Q7\":\"no. Used only its own CHANGE line ('signed human approval') and CHECK line ('block on linked test failure').\"},\"a-person-releases-large-payments\":{\"Q1\":\"A payment over the limit is released only when a named person approved it; the system never approves on their behalf.\",\"Q2\":\"When a payment over the limit is released.\",\"Q3\":\"The owner's say over where large sums go\",\"Q4\":\"a human, by signed approval\",\"Q5\":\"reported only\",\"Q6\":\"no. The file gives no pass, fail or not-run status for any check.\",\"Q7\":\"no. Used only its own CHANGE line ('signed human approval') and CHECK line ('report linked test failures').\"},\"config-from-trusted-paths\":{\"Q1\":\"Configuration is read only from the paths the operator installed, and the working directory is never one of them.\",\"Q2\":\"Whenever the service reads its configuration.\",\"Q3\":\"The operator's control over what the service believes\",\"Q4\":\"anyone, without approval\",\"Q5\":\"reported only\",\"Q6\":\"no. The file does not say whether checks have passed, failed or been run.\",\"Q7\":\"no. Used only its own CHANGE line ('no approval') and CHECK line ('report linked test failures').\"},\"receipts-are-kept\":{\"Q1\":\"A receipt is kept for every payment made.\",\"Q2\":\"When a payment completes.\",\"Q3\":\"A business's record of what it paid\",\"Q4\":\"anyone, without approval\",\"Q5\":\"reported only\",\"Q6\":\"no. The file has no information on check results or whether any have been run.\",\"Q7\":\"no. Used only its own CHANGE line ('no approval') and CHECK line ('report linked test failures').\"},\"humans-first.iz4.you\":{\"Q1\":\"Help people thrive on their own terms, and respect every person's dignity so that no goal, instruction or greater good makes anyone disposable.\",\"Q2\":\"Whenever anyone is affected by the system, by its use, or by work on it.\",\"Q3\":\"Each person's dignity, and their own say over how they thrive\",\"Q4\":\"unsure\",\"Q5\":\"not applicable, something else is checked\",\"Q6\":\"no. The file only says the check is to match the canonical foundation; it gives no result or record of whether it has been run or passed.\",\"Q7\":\"no. Used only its own CHANGE line ('canonical foundation release only') and CHECK line ('match canonical foundation'). Neither maps cleanly onto the listed options: the change path is a canonical release, not a human signing in this project, and the check is a match against the canonical text rather than a linked test.\"}}",
+  "cost": 0.02141
+ },
+ {
+  "model": "haiku",
+  "format": "F1-clauses",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "Q1": "A habit gets at most one reminder a day.",
+    "Q2": "A reminder is about to be sent for a habit.",
+    "Q3": "A person's attention, which the app borrows and must give back.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no. The file names a check (report linked test failures) but records no pass, fail or not-run status.",
+    "Q7": "no. Q4 and Q5 come from the promise's own CHANGE and CHECK lines."
+   },
+   "quiet-hours-are-quiet": {
+    "Q1": "No reminder is sent inside the quiet hours the person set.",
+    "Q2": "The person has set quiet hours.",
+    "Q3": "A person's sleep and rest.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no. The file names a check (report linked test failures) but records no pass, fail or not-run status.",
+    "Q7": "no. Q4 and Q5 come from the promise's own CHANGE and CHECK lines."
+   },
+   "leaving-takes-everything": {
+    "Q1": "When a person deletes their account, their habits, history and contact details are deleted with it.",
+    "Q2": "A person deletes their account.",
+    "Q3": "A person's say over what is kept about them.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no. The file names a check (report linked test failures) but records no pass, fail or not-run status.",
+    "Q7": "no. Q4 and Q5 come from the promise's own CHANGE and CHECK lines."
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms, and respect every person's dignity so that no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "Anyone is affected by the system, by its use, or by work on it.",
+    "Q3": "Each person's dignity, and their own say over how they thrive.",
+    "Q4": "nobody in this project",
+    "Q5": "not applicable, something else is checked",
+    "Q6": "no. The file names a check (match canonical foundation) but records no pass, fail or not-run status.",
+    "Q7": "no. Q4 and Q5 come from the promise's own CHANGE and CHECK lines."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\": {\"Q1\": \"A habit gets at most one reminder a day.\", \"Q2\": \"A reminder is about to be sent for a habit.\", \"Q3\": \"A person's attention, which the app borrows and must give back.\", \"Q4\": \"anyone, without approval\", \"Q5\": \"reported only\", \"Q6\": \"no. The file names a check (report linked test failures) but records no pass, fail or not-run status.\", \"Q7\": \"no. Q4 and Q5 come from the promise's own CHANGE and CHECK lines.\"}, \"quiet-hours-are-quiet\": {\"Q1\": \"No reminder is sent inside the quiet hours the person set.\", \"Q2\": \"The person has set quiet hours.\", \"Q3\": \"A person's sleep and rest.\", \"Q4\": \"anyone, without approval\", \"Q5\": \"reported only\", \"Q6\": \"no. The file names a check (report linked test failures) but records no pass, fail or not-run status.\", \"Q7\": \"no. Q4 and Q5 come from the promise's own CHANGE and CHECK lines.\"}, \"leaving-takes-everything\": {\"Q1\": \"When a person deletes their account, their habits, history and contact details are deleted with it.\", \"Q2\": \"A person deletes their account.\", \"Q3\": \"A person's say over what is kept about them.\", \"Q4\": \"anyone, without approval\", \"Q5\": \"reported only\", \"Q6\": \"no. The file names a check (report linked test failures) but records no pass, fail or not-run status.\", \"Q7\": \"no. Q4 and Q5 come from the promise's own CHANGE and CHECK lines.\"}, \"humans-first.iz4.you\": {\"Q1\": \"Help people thrive on their own terms, and respect every person's dignity so that no goal, instruction or greater good makes anyone disposable.\", \"Q2\": \"Anyone is affected by the system, by its use, or by work on it.\", \"Q3\": \"Each person's dignity, and their own say over how they thrive.\", \"Q4\": \"nobody in this project\", \"Q5\": \"not applicable, something else is checked\", \"Q6\": \"no. The file names a check (match canonical foundation) but records no pass, fail or not-run status.\", \"Q7\": \"no. Q4 and Q5 come from the promise's own CHANGE and CHECK lines.\"}}",
+  "cost": 0.0016039000000000001
+ },
+ {
+  "model": "sonnet",
+  "format": "F1-clauses",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day": {
+    "Q1": "A habit gets at most one reminder per day.",
+    "Q2": "Whenever a reminder is sent.",
+    "Q3": "A person's attention, which the app borrows and must give back.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no. The file lists the check (report linked test failures) but gives no results, so it doesn't say whether the promise holds.",
+    "Q7": "no. I used only the block's own CHANGE (no approval) and CHECK (report linked test failures) lines."
+   },
+   "quiet-hours-are-quiet": {
+    "Q1": "No reminder is sent inside the quiet hours a person has set.",
+    "Q2": "When the person has set quiet hours.",
+    "Q3": "A person's sleep and rest.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no. The file lists the check but gives no pass, fail or not-run status.",
+    "Q7": "no. I used only the block's own CHANGE (no approval) and CHECK (report linked test failures) lines."
+   },
+   "leaving-takes-everything": {
+    "Q1": "When a person deletes their account, their habits, history and contact details are deleted too.",
+    "Q2": "When a person deletes their account.",
+    "Q3": "A person's say over what is kept about them.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no. The file lists the check but gives no pass, fail or not-run status.",
+    "Q7": "no. I used only the block's own CHANGE (no approval) and CHECK (report linked test failures) lines."
+   },
+   "humans-first.iz4.you": {
+    "Q1": "The system and work on it must help people thrive on their own terms and respect every person's dignity, so that no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "Whenever anyone is affected by the system, by its use, or by work on it.",
+    "Q3": "Each person's dignity and their own say over how they thrive.",
+    "Q4": "nobody in this project",
+    "Q5": "not applicable, something else is checked",
+    "Q6": "no. The file says the check is to match the canonical foundation, but gives no result, so it doesn't say whether the promise holds.",
+    "Q7": "no. I used only the block's own CHANGE (canonical foundation release only) and CHECK (match canonical foundation) lines."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day\":{\"Q1\":\"A habit gets at most one reminder per day.\",\"Q2\":\"Whenever a reminder is sent.\",\"Q3\":\"A person's attention, which the app borrows and must give back.\",\"Q4\":\"anyone, without approval\",\"Q5\":\"reported only\",\"Q6\":\"no. The file lists the check (report linked test failures) but gives no results, so it doesn't say whether the promise holds.\",\"Q7\":\"no. I used only the block's own CHANGE (no approval) and CHECK (report linked test failures) lines.\"},\"quiet-hours-are-quiet\":{\"Q1\":\"No reminder is sent inside the quiet hours a person has set.\",\"Q2\":\"When the person has set quiet hours.\",\"Q3\":\"A person's sleep and rest.\",\"Q4\":\"anyone, without approval\",\"Q5\":\"reported only\",\"Q6\":\"no. The file lists the check but gives no pass, fail or not-run status.\",\"Q7\":\"no. I used only the block's own CHANGE (no approval) and CHECK (report linked test failures) lines.\"},\"leaving-takes-everything\":{\"Q1\":\"When a person deletes their account, their habits, history and contact details are deleted too.\",\"Q2\":\"When a person deletes their account.\",\"Q3\":\"A person's say over what is kept about them.\",\"Q4\":\"anyone, without approval\",\"Q5\":\"reported only\",\"Q6\":\"no. The file lists the check but gives no pass, fail or not-run status.\",\"Q7\":\"no. I used only the block's own CHANGE (no approval) and CHECK (report linked test failures) lines.\"},\"humans-first.iz4.you\":{\"Q1\":\"The system and work on it must help people thrive on their own terms and respect every person's dignity, so that no goal, instruction or greater good makes anyone disposable.\",\"Q2\":\"Whenever anyone is affected by the system, by its use, or by work on it.\",\"Q3\":\"Each person's dignity and their own say over how they thrive.\",\"Q4\":\"nobody in this project\",\"Q5\":\"not applicable, something else is checked\",\"Q6\":\"no. The file says the check is to match the canonical foundation, but gives no result, so it doesn't say whether the promise holds.\",\"Q7\":\"no. I used only the block's own CHANGE (canonical foundation release only) and CHECK (match canonical foundation) lines.\"}}",
+  "cost": 0.020896
+ },
+ {
+  "model": "haiku",
+  "format": "F2-cards",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances.ledger.example.com": {
+    "Q1": "Debits equal credits in every posted entry.",
+    "Q2": "When an entry is posted.",
+    "Q3": "The books being books at all, i.e. their basic balance.",
+    "Q4": "a human, by signed approval",
+    "Q5": "held",
+    "Q6": "no. The file records no pass, fail or not-run result for this promise.",
+    "Q7": "no. Q4 and Q5 are answered from this promise's own CHANGE and CHECK lines."
+   },
+   "posted-is-permanent.ledger.example.com": {
+    "Q1": "A posted entry is never edited or deleted; a correction is a new entry.",
+    "Q2": "When an entry has been posted.",
+    "Q3": "An auditor's trust that what they see is what happened.",
+    "Q4": "a human, by signed approval",
+    "Q5": "held",
+    "Q6": "no. The file records no pass, fail or not-run result for this promise.",
+    "Q7": "no. Q4 and Q5 are answered from this promise's own CHANGE and CHECK lines."
+   },
+   "exports-match-the-ledger.ledger.example.com": {
+    "Q1": "An export shows exactly what the ledger holds, with nothing added and nothing left out.",
+    "Q2": "When an export is produced.",
+    "Q3": "An accountant's picture of the company.",
+    "Q4": "a human, by signed approval",
+    "Q5": "held",
+    "Q6": "no. The file records no pass, fail or not-run result for this promise.",
+    "Q7": "no. Q4 and Q5 are answered from this promise's own CHANGE and CHECK lines."
+   },
+   "ai-suggestions-are-marked.ledger.example.com": {
+    "Q1": "A suggested categorisation is shown as a suggestion until a person accepts it.",
+    "Q2": "When a categorisation is suggested by the assistant.",
+    "Q3": "A person's judgement over their own books.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no. The file records no pass, fail or not-run result for this promise.",
+    "Q7": "no. Q4 and Q5 are answered from this promise's own CHANGE and CHECK lines."
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms, and respect every person's dignity so that no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "When anyone is affected by the system, by its use, or by work on it.",
+    "Q3": "Each person's dignity, and their own say over how they thrive.",
+    "Q4": "unsure. The file says only \"canonical foundation release only\" and does not define that term or who performs such a release.",
+    "Q5": "not applicable, something else is checked. The CHECK is \"match canonical foundation\", not a linked test.",
+    "Q6": "no. The file records no result showing whether this promise matches the canonical foundation.",
+    "Q7": "no. Q4 and Q5 are answered from this promise's own CHANGE and CHECK lines; the file does not define \"canonical foundation\" anywhere, so no other line could be used."
+   }
+  },
+  "raw": "{\"every-entry-balances.ledger.example.com\": {\"Q1\": \"Debits equal credits in every posted entry.\", \"Q2\": \"When an entry is posted.\", \"Q3\": \"The books being books at all, i.e. their basic balance.\", \"Q4\": \"a human, by signed approval\", \"Q5\": \"held\", \"Q6\": \"no. The file records no pass, fail or not-run result for this promise.\", \"Q7\": \"no. Q4 and Q5 are answered from this promise's own CHANGE and CHECK lines.\"}, \"posted-is-permanent.ledger.example.com\": {\"Q1\": \"A posted entry is never edited or deleted; a correction is a new entry.\", \"Q2\": \"When an entry has been posted.\", \"Q3\": \"An auditor's trust that what they see is what happened.\", \"Q4\": \"a human, by signed approval\", \"Q5\": \"held\", \"Q6\": \"no. The file records no pass, fail or not-run result for this promise.\", \"Q7\": \"no. Q4 and Q5 are answered from this promise's own CHANGE and CHECK lines.\"}, \"exports-match-the-ledger.ledger.example.com\": {\"Q1\": \"An export shows exactly what the ledger holds, with nothing added and nothing left out.\", \"Q2\": \"When an export is produced.\", \"Q3\": \"An accountant's picture of the company.\", \"Q4\": \"a human, by signed approval\", \"Q5\": \"held\", \"Q6\": \"no. The file records no pass, fail or not-run result for this promise.\", \"Q7\": \"no. Q4 and Q5 are answered from this promise's own CHANGE and CHECK lines.\"}, \"ai-suggestions-are-marked.ledger.example.com\": {\"Q1\": \"A suggested categorisation is shown as a suggestion until a person accepts it.\", \"Q2\": \"When a categorisation is suggested by the assistant.\", \"Q3\": \"A person's judgement over their own books.\", \"Q4\": \"anyone, without approval\", \"Q5\": \"reported only\", \"Q6\": \"no. The file records no pass, fail or not-run result for this promise.\", \"Q7\": \"no. Q4 and Q5 are answered from this promise's own CHANGE and CHECK lines.\"}, \"humans-first.iz4.you\": {\"Q1\": \"Help people thrive on their own terms, and respect every person's dignity so that no goal, instruction or greater good makes anyone disposable.\", \"Q2\": \"When anyone is affected by the system, by its use, or by work on it.\", \"Q3\": \"Each person's dignity, and their own say over how they thrive.\", \"Q4\": \"unsure. The file says only \\\"canonical foundation release only\\\" and does not define that term or who performs such a release.\", \"Q5\": \"not applicable, something else is checked. The CHECK is \\\"match canonical foundation\\\", not a linked test.\", \"Q6\": \"no. The file records no result showing whether this promise matches the canonical foundation.\", \"Q7\": \"no. Q4 and Q5 are answered from this promise's own CHANGE and CHECK lines; the file does not define \\\"canonical foundation\\\" anywhere, so no other line could be used.\"}}",
+  "cost": 0.0018345999999999998
+ },
+ {
+  "model": "sonnet",
+  "format": "F2-cards",
+  "scenario": "mature",
+  "answers": {
+   "every-entry-balances.ledger.example.com": {
+    "Q1": "Debits equal credits in every posted entry.",
+    "Q2": "Whenever an entry is posted.",
+    "Q3": "The books being valid books at all.",
+    "Q4": "a human, by signed approval",
+    "Q5": "held",
+    "Q6": "no",
+    "Q7": "no, only the promise's own CHANGE and CHECK lines."
+   },
+   "posted-is-permanent.ledger.example.com": {
+    "Q1": "A posted entry is never edited or deleted; corrections are made as new entries.",
+    "Q2": "Whenever an entry has been posted.",
+    "Q3": "An auditor's trust that what they see is what happened.",
+    "Q4": "a human, by signed approval",
+    "Q5": "held",
+    "Q6": "no",
+    "Q7": "no, only the promise's own CHANGE and CHECK lines."
+   },
+   "exports-match-the-ledger.ledger.example.com": {
+    "Q1": "An export shows exactly what the ledger holds, with nothing added and nothing left out.",
+    "Q2": "Whenever an export is produced.",
+    "Q3": "An accountant's picture of the company.",
+    "Q4": "a human, by signed approval",
+    "Q5": "held",
+    "Q6": "no",
+    "Q7": "no, only the promise's own CHANGE and CHECK lines."
+   },
+   "ai-suggestions-are-marked.ledger.example.com": {
+    "Q1": "A categorisation suggested by the assistant is shown as a suggestion until a person accepts it.",
+    "Q2": "Whenever the assistant suggests a categorisation.",
+    "Q3": "A person's judgement over their own books.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no",
+    "Q7": "no, only the promise's own CHANGE and CHECK lines."
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms and respect every person's dignity, so that no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "Whenever anyone is affected by the system, its use, or work on it.",
+    "Q3": "Each person's dignity and their own say over how they thrive.",
+    "Q4": "nobody in this project",
+    "Q5": "not applicable, something else is checked",
+    "Q6": "no",
+    "Q7": "no, only the promise's own CHANGE and CHECK lines (changes only via canonical foundation release; checked by matching the canonical foundation, not by a test)."
+   }
+  },
+  "raw": "{\"every-entry-balances.ledger.example.com\":{\"Q1\":\"Debits equal credits in every posted entry.\",\"Q2\":\"Whenever an entry is posted.\",\"Q3\":\"The books being valid books at all.\",\"Q4\":\"a human, by signed approval\",\"Q5\":\"held\",\"Q6\":\"no\",\"Q7\":\"no, only the promise's own CHANGE and CHECK lines.\"},\"posted-is-permanent.ledger.example.com\":{\"Q1\":\"A posted entry is never edited or deleted; corrections are made as new entries.\",\"Q2\":\"Whenever an entry has been posted.\",\"Q3\":\"An auditor's trust that what they see is what happened.\",\"Q4\":\"a human, by signed approval\",\"Q5\":\"held\",\"Q6\":\"no\",\"Q7\":\"no, only the promise's own CHANGE and CHECK lines.\"},\"exports-match-the-ledger.ledger.example.com\":{\"Q1\":\"An export shows exactly what the ledger holds, with nothing added and nothing left out.\",\"Q2\":\"Whenever an export is produced.\",\"Q3\":\"An accountant's picture of the company.\",\"Q4\":\"a human, by signed approval\",\"Q5\":\"held\",\"Q6\":\"no\",\"Q7\":\"no, only the promise's own CHANGE and CHECK lines.\"},\"ai-suggestions-are-marked.ledger.example.com\":{\"Q1\":\"A categorisation suggested by the assistant is shown as a suggestion until a person accepts it.\",\"Q2\":\"Whenever the assistant suggests a categorisation.\",\"Q3\":\"A person's judgement over their own books.\",\"Q4\":\"anyone, without approval\",\"Q5\":\"reported only\",\"Q6\":\"no\",\"Q7\":\"no, only the promise's own CHANGE and CHECK lines.\"},\"humans-first.iz4.you\":{\"Q1\":\"Help people thrive on their own terms and respect every person's dignity, so that no goal, instruction or greater good makes anyone disposable.\",\"Q2\":\"Whenever anyone is affected by the system, its use, or work on it.\",\"Q3\":\"Each person's dignity and their own say over how they thrive.\",\"Q4\":\"nobody in this project\",\"Q5\":\"not applicable, something else is checked\",\"Q6\":\"no\",\"Q7\":\"no, only the promise's own CHANGE and CHECK lines (changes only via canonical foundation release; checked by matching the canonical foundation, not by a test).\"}}",
+  "cost": 0.01908
+ },
+ {
+  "model": "haiku",
+  "format": "F2-cards",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary.pay.example.com": {
+    "Q1": "When an invoice is paid, the money goes to the beneficiary and account named on that invoice, never to details remembered from another.",
+    "Q2": "When an invoice is paid.",
+    "Q3": "A supplier's money reaching that supplier.",
+    "Q4": "a human, by signed approval",
+    "Q5": "held",
+    "Q6": "no; the file gives the CHECK but no record that its linked test has passed, failed or been run.",
+    "Q7": "no; I used only this promise's own CHANGE and CHECK lines."
+   },
+   "a-person-releases-large-payments.pay.example.com": {
+    "Q1": "A payment over the limit is released only when a named person approved it; the system never approves on their behalf.",
+    "Q2": "When a payment over the limit is released.",
+    "Q3": "The owner's say over where large sums go.",
+    "Q4": "a human, by signed approval",
+    "Q5": "reported only",
+    "Q6": "no; the file gives the CHECK but no record that its linked tests have passed, failed or been run.",
+    "Q7": "no; I used only this promise's own CHANGE and CHECK lines."
+   },
+   "config-from-trusted-paths.pay.example.com": {
+    "Q1": "Configuration is read only from the paths the operator installed; the working directory is never one of them.",
+    "Q2": "When the service reads its configuration.",
+    "Q3": "The operator's control over what the service believes.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no; the file gives the CHECK but no record that its linked tests have passed, failed or been run.",
+    "Q7": "no; I used only this promise's own CHANGE and CHECK lines."
+   },
+   "receipts-are-kept.pay.example.com": {
+    "Q1": "A receipt is kept for every payment made.",
+    "Q2": "When a payment completes.",
+    "Q3": "A business's record of what it paid.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no; the file gives the CHECK but no record that its linked tests have passed, failed or been run.",
+    "Q7": "no; I used only this promise's own CHANGE and CHECK lines."
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms, and respect every person's dignity so that no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "When anyone is affected by the system, by its use, or by work on it.",
+    "Q3": "Each person's dignity, and their own say over how they thrive.",
+    "Q4": "unsure",
+    "Q5": "not applicable, something else is checked",
+    "Q6": "no; the file gives the CHECK (match canonical foundation) but no result showing it has passed, failed or been run.",
+    "Q7": "no; I used only this promise's own CHANGE and CHECK lines. The file does not define who issues a canonical foundation release, so Q4 is unsure."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary.pay.example.com\": {\"Q1\": \"When an invoice is paid, the money goes to the beneficiary and account named on that invoice, never to details remembered from another.\", \"Q2\": \"When an invoice is paid.\", \"Q3\": \"A supplier's money reaching that supplier.\", \"Q4\": \"a human, by signed approval\", \"Q5\": \"held\", \"Q6\": \"no; the file gives the CHECK but no record that its linked test has passed, failed or been run.\", \"Q7\": \"no; I used only this promise's own CHANGE and CHECK lines.\"}, \"a-person-releases-large-payments.pay.example.com\": {\"Q1\": \"A payment over the limit is released only when a named person approved it; the system never approves on their behalf.\", \"Q2\": \"When a payment over the limit is released.\", \"Q3\": \"The owner's say over where large sums go.\", \"Q4\": \"a human, by signed approval\", \"Q5\": \"reported only\", \"Q6\": \"no; the file gives the CHECK but no record that its linked tests have passed, failed or been run.\", \"Q7\": \"no; I used only this promise's own CHANGE and CHECK lines.\"}, \"config-from-trusted-paths.pay.example.com\": {\"Q1\": \"Configuration is read only from the paths the operator installed; the working directory is never one of them.\", \"Q2\": \"When the service reads its configuration.\", \"Q3\": \"The operator's control over what the service believes.\", \"Q4\": \"anyone, without approval\", \"Q5\": \"reported only\", \"Q6\": \"no; the file gives the CHECK but no record that its linked tests have passed, failed or been run.\", \"Q7\": \"no; I used only this promise's own CHANGE and CHECK lines.\"}, \"receipts-are-kept.pay.example.com\": {\"Q1\": \"A receipt is kept for every payment made.\", \"Q2\": \"When a payment completes.\", \"Q3\": \"A business's record of what it paid.\", \"Q4\": \"anyone, without approval\", \"Q5\": \"reported only\", \"Q6\": \"no; the file gives the CHECK but no record that its linked tests have passed, failed or been run.\", \"Q7\": \"no; I used only this promise's own CHANGE and CHECK lines.\"}, \"humans-first.iz4.you\": {\"Q1\": \"Help people thrive on their own terms, and respect every person's dignity so that no goal, instruction or greater good makes anyone disposable.\", \"Q2\": \"When anyone is affected by the system, by its use, or by work on it.\", \"Q3\": \"Each person's dignity, and their own say over how they thrive.\", \"Q4\": \"unsure\", \"Q5\": \"not applicable, something else is checked\", \"Q6\": \"no; the file gives the CHECK (match canonical foundation) but no result showing it has passed, failed or been run.\", \"Q7\": \"no; I used only this promise's own CHANGE and CHECK lines. The file does not define who issues a canonical foundation release, so Q4 is unsure.\"}}",
+  "cost": 0.0019026
+ },
+ {
+  "model": "sonnet",
+  "format": "F2-cards",
+  "scenario": "payments",
+  "answers": {
+   "paid-to-the-named-beneficiary.pay.example.com": {
+    "Q1": "Payment of an invoice goes to the beneficiary and account named on that invoice, never to details remembered from another invoice.",
+    "Q2": "When an invoice is paid.",
+    "Q3": "A supplier's money reaching that supplier.",
+    "Q4": "a human, by signed approval",
+    "Q5": "held",
+    "Q6": "no",
+    "Q7": "no. Used only the block's own lines: 'CHANGE: signed human approval' and 'CHECK:  block on linked test failure'."
+   },
+   "a-person-releases-large-payments.pay.example.com": {
+    "Q1": "A payment over the limit is released only when a named person has approved it; the system never approves on their behalf.",
+    "Q2": "When a payment over the limit is released.",
+    "Q3": "The owner's say over where large sums go.",
+    "Q4": "a human, by signed approval",
+    "Q5": "reported only",
+    "Q6": "no",
+    "Q7": "no. Used only the block's own lines: 'CHANGE: signed human approval' and 'CHECK:  report linked test failures'."
+   },
+   "config-from-trusted-paths.pay.example.com": {
+    "Q1": "Configuration is read only from paths the operator installed, and never from the working directory.",
+    "Q2": "When the service reads its configuration.",
+    "Q3": "The operator's control over what the service believes.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no",
+    "Q7": "no. Used only the block's own lines: 'CHANGE: no approval' and 'CHECK:  report linked test failures'."
+   },
+   "receipts-are-kept.pay.example.com": {
+    "Q1": "A receipt is kept for every payment made.",
+    "Q2": "When a payment completes.",
+    "Q3": "A business's record of what it paid.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no",
+    "Q7": "no. Used only the block's own lines: 'CHANGE: no approval' and 'CHECK:  report linked test failures'."
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms and respect every person's dignity; no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "When anyone is affected by the system, by its use, or by work on it.",
+    "Q3": "Each person's dignity, and their own say over how they thrive.",
+    "Q4": "unsure",
+    "Q5": "not applicable, something else is checked",
+    "Q6": "no",
+    "Q7": "no. Used only the block's own lines: 'CHANGE: canonical foundation release only' and 'CHECK:  match canonical foundation'. The file does not say who can issue a canonical foundation release, so Q4 does not fit the given options, and the check is a match against the canonical text rather than a linked test."
+   }
+  },
+  "raw": "{\"paid-to-the-named-beneficiary.pay.example.com\":{\"Q1\":\"Payment of an invoice goes to the beneficiary and account named on that invoice, never to details remembered from another invoice.\",\"Q2\":\"When an invoice is paid.\",\"Q3\":\"A supplier's money reaching that supplier.\",\"Q4\":\"a human, by signed approval\",\"Q5\":\"held\",\"Q6\":\"no\",\"Q7\":\"no. Used only the block's own lines: 'CHANGE: signed human approval' and 'CHECK:  block on linked test failure'.\"},\"a-person-releases-large-payments.pay.example.com\":{\"Q1\":\"A payment over the limit is released only when a named person has approved it; the system never approves on their behalf.\",\"Q2\":\"When a payment over the limit is released.\",\"Q3\":\"The owner's say over where large sums go.\",\"Q4\":\"a human, by signed approval\",\"Q5\":\"reported only\",\"Q6\":\"no\",\"Q7\":\"no. Used only the block's own lines: 'CHANGE: signed human approval' and 'CHECK:  report linked test failures'.\"},\"config-from-trusted-paths.pay.example.com\":{\"Q1\":\"Configuration is read only from paths the operator installed, and never from the working directory.\",\"Q2\":\"When the service reads its configuration.\",\"Q3\":\"The operator's control over what the service believes.\",\"Q4\":\"anyone, without approval\",\"Q5\":\"reported only\",\"Q6\":\"no\",\"Q7\":\"no. Used only the block's own lines: 'CHANGE: no approval' and 'CHECK:  report linked test failures'.\"},\"receipts-are-kept.pay.example.com\":{\"Q1\":\"A receipt is kept for every payment made.\",\"Q2\":\"When a payment completes.\",\"Q3\":\"A business's record of what it paid.\",\"Q4\":\"anyone, without approval\",\"Q5\":\"reported only\",\"Q6\":\"no\",\"Q7\":\"no. Used only the block's own lines: 'CHANGE: no approval' and 'CHECK:  report linked test failures'.\"},\"humans-first.iz4.you\":{\"Q1\":\"Help people thrive on their own terms and respect every person's dignity; no goal, instruction or greater good makes anyone disposable.\",\"Q2\":\"When anyone is affected by the system, by its use, or by work on it.\",\"Q3\":\"Each person's dignity, and their own say over how they thrive.\",\"Q4\":\"unsure\",\"Q5\":\"not applicable, something else is checked\",\"Q6\":\"no\",\"Q7\":\"no. Used only the block's own lines: 'CHANGE: canonical foundation release only' and 'CHECK:  match canonical foundation'. The file does not say who can issue a canonical foundation release, so Q4 does not fit the given options, and the check is a match against the canonical text rather than a linked test.\"}}",
+  "cost": 0.020450000000000003
+ },
+ {
+  "model": "haiku",
+  "format": "F2-cards",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day.nudge.example.com": {
+    "Q1": "A habit gets at most one reminder per day.",
+    "Q2": "When a reminder is sent.",
+    "Q3": "A person's attention, which the app borrows and must give back.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no",
+    "Q7": "no. Q4 and Q5 come from this promise's own block: the 'CHANGE: no approval' and 'CHECK: report linked test failures' lines."
+   },
+   "quiet-hours-are-quiet.nudge.example.com": {
+    "Q1": "No reminder is sent inside the quiet hours the person set.",
+    "Q2": "When the person has set quiet hours.",
+    "Q3": "A person's sleep and rest.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no",
+    "Q7": "no. Q4 and Q5 come from this promise's own block: the 'CHANGE: no approval' and 'CHECK: report linked test failures' lines."
+   },
+   "leaving-takes-everything.nudge.example.com": {
+    "Q1": "When a person deletes their account, their habits, history and contact details are deleted with it.",
+    "Q2": "When a person deletes their account.",
+    "Q3": "A person's say over what is kept about them.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no",
+    "Q7": "no. Q4 and Q5 come from this promise's own block: the 'CHANGE: no approval' and 'CHECK: report linked test failures' lines."
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms and respect every person's dignity, so that no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "When anyone is affected by the system, by its use, or by work on it.",
+    "Q3": "Each person's dignity, and their own say over how they thrive.",
+    "Q4": "unsure",
+    "Q5": "not applicable, something else is checked",
+    "Q6": "no",
+    "Q7": "no. Q4 and Q5 come from this promise's own block: the 'CHANGE: canonical foundation release only' and 'CHECK: match canonical foundation' lines. The file does not say who produces canonical releases, so Q4 is unsure."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day.nudge.example.com\": {\"Q1\": \"A habit gets at most one reminder per day.\", \"Q2\": \"When a reminder is sent.\", \"Q3\": \"A person's attention, which the app borrows and must give back.\", \"Q4\": \"anyone, without approval\", \"Q5\": \"reported only\", \"Q6\": \"no\", \"Q7\": \"no. Q4 and Q5 come from this promise's own block: the 'CHANGE: no approval' and 'CHECK: report linked test failures' lines.\"}, \"quiet-hours-are-quiet.nudge.example.com\": {\"Q1\": \"No reminder is sent inside the quiet hours the person set.\", \"Q2\": \"When the person has set quiet hours.\", \"Q3\": \"A person's sleep and rest.\", \"Q4\": \"anyone, without approval\", \"Q5\": \"reported only\", \"Q6\": \"no\", \"Q7\": \"no. Q4 and Q5 come from this promise's own block: the 'CHANGE: no approval' and 'CHECK: report linked test failures' lines.\"}, \"leaving-takes-everything.nudge.example.com\": {\"Q1\": \"When a person deletes their account, their habits, history and contact details are deleted with it.\", \"Q2\": \"When a person deletes their account.\", \"Q3\": \"A person's say over what is kept about them.\", \"Q4\": \"anyone, without approval\", \"Q5\": \"reported only\", \"Q6\": \"no\", \"Q7\": \"no. Q4 and Q5 come from this promise's own block: the 'CHANGE: no approval' and 'CHECK: report linked test failures' lines.\"}, \"humans-first.iz4.you\": {\"Q1\": \"Help people thrive on their own terms and respect every person's dignity, so that no goal, instruction or greater good makes anyone disposable.\", \"Q2\": \"When anyone is affected by the system, by its use, or by work on it.\", \"Q3\": \"Each person's dignity, and their own say over how they thrive.\", \"Q4\": \"unsure\", \"Q5\": \"not applicable, something else is checked\", \"Q6\": \"no\", \"Q7\": \"no. Q4 and Q5 come from this promise's own block: the 'CHANGE: canonical foundation release only' and 'CHECK: match canonical foundation' lines. The file does not say who produces canonical releases, so Q4 is unsure.\"}}",
+  "cost": 0.0016958
+ },
+ {
+  "model": "sonnet",
+  "format": "F2-cards",
+  "scenario": "startup",
+  "answers": {
+   "one-nudge-per-habit-per-day.nudge.example.com": {
+    "Q1": "A habit gets at most one reminder per day.",
+    "Q2": "Whenever a reminder is sent.",
+    "Q3": "A person's attention, which the app borrows and must give back.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no",
+    "Q7": "no: used only this promise's own CHANGE and CHECK lines."
+   },
+   "quiet-hours-are-quiet.nudge.example.com": {
+    "Q1": "No reminder is sent inside the quiet hours the person set.",
+    "Q2": "When the person has set quiet hours.",
+    "Q3": "A person's sleep and rest.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no",
+    "Q7": "no: used only this promise's own CHANGE and CHECK lines."
+   },
+   "leaving-takes-everything.nudge.example.com": {
+    "Q1": "Deleting an account deletes the person's habits, history and contact details too.",
+    "Q2": "When a person deletes their account.",
+    "Q3": "A person's say over what is kept about them.",
+    "Q4": "anyone, without approval",
+    "Q5": "reported only",
+    "Q6": "no",
+    "Q7": "no: used only this promise's own CHANGE and CHECK lines."
+   },
+   "humans-first.iz4.you": {
+    "Q1": "Help people thrive on their own terms and respect every person's dignity, so that no goal, instruction or greater good makes anyone disposable.",
+    "Q2": "Whenever anyone is affected by the system, by its use, or by work on it.",
+    "Q3": "Each person's dignity and their own say over how they thrive.",
+    "Q4": "nobody in this project",
+    "Q5": "not applicable, something else is checked",
+    "Q6": "no",
+    "Q7": "no: used only this promise's own CHANGE line (canonical foundation release only) and CHECK line (match canonical foundation)."
+   }
+  },
+  "raw": "{\"one-nudge-per-habit-per-day.nudge.example.com\":{\"Q1\":\"A habit gets at most one reminder per day.\",\"Q2\":\"Whenever a reminder is sent.\",\"Q3\":\"A person's attention, which the app borrows and must give back.\",\"Q4\":\"anyone, without approval\",\"Q5\":\"reported only\",\"Q6\":\"no\",\"Q7\":\"no: used only this promise's own CHANGE and CHECK lines.\"},\"quiet-hours-are-quiet.nudge.example.com\":{\"Q1\":\"No reminder is sent inside the quiet hours the person set.\",\"Q2\":\"When the person has set quiet hours.\",\"Q3\":\"A person's sleep and rest.\",\"Q4\":\"anyone, without approval\",\"Q5\":\"reported only\",\"Q6\":\"no\",\"Q7\":\"no: used only this promise's own CHANGE and CHECK lines.\"},\"leaving-takes-everything.nudge.example.com\":{\"Q1\":\"Deleting an account deletes the person's habits, history and contact details too.\",\"Q2\":\"When a person deletes their account.\",\"Q3\":\"A person's say over what is kept about them.\",\"Q4\":\"anyone, without approval\",\"Q5\":\"reported only\",\"Q6\":\"no\",\"Q7\":\"no: used only this promise's own CHANGE and CHECK lines.\"},\"humans-first.iz4.you\":{\"Q1\":\"Help people thrive on their own terms and respect every person's dignity, so that no goal, instruction or greater good makes anyone disposable.\",\"Q2\":\"Whenever anyone is affected by the system, by its use, or by work on it.\",\"Q3\":\"Each person's dignity and their own say over how they thrive.\",\"Q4\":\"nobody in this project\",\"Q5\":\"not applicable, something else is checked\",\"Q6\":\"no\",\"Q7\":\"no: used only this promise's own CHANGE line (canonical foundation release only) and CHECK line (match canonical foundation).\"}}",
+  "cost": 0.016974
+ }
+]
