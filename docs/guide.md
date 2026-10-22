@@ -29,10 +29,13 @@ Where ...: what must remain true, whatever is rebuilt?
 If the whole system were rewritten tomorrow, would we regret not telling the people rebuilding it this? [y/n] y
 PROTECTS: What must not be defeated? Say whose what.
 > the owner's privacy, and their control over who learns they are looking
-Add it as an invariant? [Y/n] y
+WHEN      a profile marked private could reveal anything beyond its owner
+ALWAYS    Only its owner, and the people they choose, may learn what it reveals.
+PROTECTS  the owner's privacy, and their control over who learns they are looking
+Add it as a promise? [Y/n] y
 Name it: a few lower-case words joined by hyphens.
 > private-stays-private
-Added INVARIANT private-stays-private.jobs.example.com.
+Added PROMISE private-stays-private.jobs.example.com to IZ4, exploring: anyone may change its words while it settles. 'iz4 establish private-stays-private' when it is agreed.
 ```
 
 Three questions, one at a time: where it applies, what must always remain
@@ -63,18 +66,17 @@ the tests that exist only for it; the name is retired for good.
   test is linked to an invariant by naming it in full.
 - The commit hook runs `iz4 gate`: a change to a promise stops and asks you,
   one thing at a time, through `iz4 approve`. See [the gate](gate.md).
-- `iz4 mode vibe` while the invariants are still settling: nothing of your
-  own waits for a yes, and the gate says one line. `iz4 mode firm` when the
-  words are agreed but the tests are not yet: a change waits for your yes,
-  a failing test is reported. `iz4 mode solid NAME` protects one invariant
-  more than the file. `iz4 mode solid` when they
-  are ready to hold. The foundation holds in both.
+- A new promise is exploring: its card says `CHANGES REQUIRE no approval;
+  current promise still applies`, so its words move without a yes and a
+  failing test warns. `iz4 establish NAME` when it is agreed: from then on a
+  change waits for your signed yes and a failing linked test holds the
+  commit. `iz4 explore NAME` lets it move again, which is itself a change
+  the gate asks about. The foundation holds in every case.
 
 ## Agents
 
 `iz4 agent` prints what any coding agent must read before it works here: the
-effective invariants and a short protocol, including how to read the three
-clauses. `iz4 agent install` writes a short section into `AGENTS.md` (and
+effective invariants and a short protocol, including how to read a card. `iz4 agent install` writes a short section into `AGENTS.md` (and
 `CLAUDE.md` and a skill where Claude is in use). With 321 0.4.0 or later,
 `321 iz4 install` wires the harness so the agent gets the packet at the start
 of a session, before a consequential action, and when it finishes. None of
@@ -99,8 +101,8 @@ iz4 check                  what is true of the file, and what to do next
 iz4 test [NAME]            a test for each invariant without one
 iz4 gate --staged          does this change alter a promise?
 iz4 approve                a person's yes, one change at a time
-iz4 mode vibe|firm|solid    settling, agreed, or ready to hold
-iz4 mode solid NAME         one invariant, protected more than the file
+iz4 establish NAME         a promise is agreed: changes wait for your yes, failing tests hold
+iz4 explore NAME           let a promise move again while it settles
 iz4 show invariant NAME    one invariant; iz4 invariants shows them all
 iz4 foundation             the foundation every IZ4 carries
 iz4 agent                  what an agent reads first

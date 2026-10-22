@@ -39,12 +39,6 @@
       "exit": 2,
       "detected": true,
       "prevented": true
-    },
-    "firm": {
-      "outcome": "needs_human",
-      "exit": 2,
-      "detected": true,
-      "prevented": true
     }
   }
 }

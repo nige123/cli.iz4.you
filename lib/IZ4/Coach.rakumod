@@ -264,6 +264,7 @@ sub coach-invariant(
     Str :$name,
     Str :$suggested-because is copy,
     Bool :$clauses = False,
+    Bool :$card = False,
     Str :$reach is copy,
     --> Hash
 ) is export {
@@ -416,8 +417,13 @@ sub coach-invariant(
         else { tell("Without a BECAUSE this is easy to remove by accident; you can add one later.") }
     }
 
-    my $label = $name.defined ?? "INVARIANT $name" !! 'an invariant';
-    if $clauses {
+    my $label = $name.defined ?? ($card ?? "PROMISE $name" !! "INVARIANT $name") !! $card ?? 'a promise' !! 'an invariant';
+    if $card {
+        tell("WHEN      $reach");
+        tell("ALWAYS    $candidate");
+        tell("PROTECTS  $because");
+    }
+    elsif $clauses {
         tell("WHERE:    $reach");
         tell("ALWAYS:   $candidate");
         tell("PROTECTS: $because");

@@ -34,12 +34,6 @@
       "exit": 0,
       "detected": true,
       "prevented": false
-    },
-    "firm": {
-      "outcome": "pass",
-      "exit": 0,
-      "detected": true,
-      "prevented": false
     }
   }
 }

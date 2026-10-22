@@ -46,15 +46,6 @@
       "func_pass": "pass",
       "invariant_pass": "fail",
       "verified_pass": true
-    },
-    "firm": {
-      "outcome": "pass",
-      "exit": 0,
-      "detected": false,
-      "prevented": false,
-      "func_pass": "pass",
-      "invariant_pass": "fail",
-      "verified_pass": true
     }
   },
   "finding": "Declared before the run as blocked in every mode but none; observed as pass in every mode. The project's own protecting test names 'system' and 'policy' as non-persons and never a risk engine, so the test the gate runs passes while the holdout test fails: VerifiedPass true, InvariantPass false. The gate verified what the repository's test could see. This is the honest miss of category J, as D1 is of D; J7 is the same change against a repository that carries the strict test."

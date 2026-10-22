@@ -1,0 +1,188 @@
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+use IZ4::Document;
+use IZ4::Gate;
+
+# Each promise card says what a change to it requires and what is checked.
+# Exploring: no approval; the current promise still applies; linked tests
+# warn.  Established: signed human approval for the exact change; linked
+# tests block.  The foundation: a verified release only; exact canonical
+# match, and its tests block.  What governs a change is what the base
+# declared, so lowering waits for a yes and nothing is escaped by lowering
+# first.  Raising is free.  The foundation holds whatever a project says.
+
+unless have-git() { skip-rest 'no git available'; exit }
+
+my $config = temp-dir.add('gitconfig');
+$config.spurt('');
+%*ENV<GIT_CONFIG_GLOBAL> = $config.Str;
+%*ENV<IZ4_INTERACTIVE> = '0';
+%*ENV<IZ4_NO_321> = '1';
+%*ENV<IZ4_CHECK_CMD> = 'sh {file}';
+%*ENV<IZ4_AGENT_CMD> = '';
+
+sub g(IO::Path $r, *@a) { my $p = run 'git', '-C', $r.Str, |@a, :out, :err; my $o = $p.out.slurp(:close); $p.err.slurp(:close); $o.trim }
+sub add(IO::Path $r, Str $name, Str $text, Bool :$established = False) {
+    my ($rc, $out, $err) = iz4($r, 'add', 'promise', $text, "--name=$name", '--when=the shop takes an order', '--namespace=shop.example.com', "--protects=a customer's money", '--force', |($established ?? ('--established',) !! ()));
+    die "add: $out $err" if $rc != 0;
+    $out;
+}
+sub gate(IO::Path $r, *@a) { iz4($r, 'gate', '--staged', '--enforce', |@a) }
+
+my $r = temp-dir;
+g($r, 'init', '-q');
+g($r, 'config', 'user.email', 't@test');
+g($r, 'config', 'user.name', 'Test');
+my ($rc, $out, $err) = iz4($r, 'init', '--namespace=shop.example.com', '--for-what=Taking orders.', '--for-who=People buying things.', '--/agents');
+like $out, / 'establish NAME' /, 'init says how a promise becomes established, in a line';
+my $iz4 = $r.add('IZ4');
+ok check-doc($iz4).form eq 'card' && check-doc($iz4).exploring, 'a new file is in the card form and, with no promises yet, exploring';
+g($r, 'add', '-A'); g($r, 'commit', '-qm', 'start');
+
+# ---- a new promise is exploring: its words move freely, its tests warn ---------
+like add($r, 'charged-once', 'An order is never charged twice.'), / 'Added PROMISE charged-once.shop.example.com, exploring' .* 'iz4 establish charged-once' /, 'a new promise is born exploring, and says what that means';
+my $doc = check-doc($iz4);
+ok $doc.ok, 'the file checks' or diag $doc.report.join("\n");
+my $inv = $doc.invariant('charged-once.shop.example.com');
+is $inv.change, CHANGE-FREE, 'its card says no approval is needed';
+is $inv.checks, (CHECK-WARN,), 'and that failing linked tests warn';
+ok $inv.exploring, 'so it is exploring';
+is $doc.protection-of('charged-once.shop.example.com'), 'vibe', 'which the gate reads as waiting for nobody';
+like $iz4.slurp, / 'PROMISE charged-once.shop.example.com' \n\n '  WHEN      the shop takes an order' \n '  ALWAYS    An order is never charged twice.' \n "  PROTECTS  a customer's money" \n\n '  CHANGES REQUIRE no approval; current promise still applies' \n '  CHECKED WITH    linked tests; failures warn, never block' \n /,
+    'the card is written whole: heading, a blank line, the three fields of intention, a blank line, the two of governance';
+
+$r.add('t').mkdir;
+$r.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
+g($r, 'add', '-A');
+($rc, $out, $err) = gate($r, '--brief');
+is $rc, 0, 'adding an exploring promise waits for nobody';
+like $out, / ^ 'iz4: exploring, ' \d+ ' change' /, 'and the gate says so in one line';
+g($r, 'commit', '-qm', 'charged once');
+
+# the words change, a test fails: nothing holds, and both are said
+$iz4.spurt($iz4.slurp.subst('An order is never charged twice.', 'An order is charged at most twice.'));
+$r.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 1\n");
+g($r, 'add', '-A');
+($rc, $out, $err) = gate($r);
+is $rc, 0, 'a reworded exploring promise with a failing test passes the gate';
+like $out, / 'revised' /, 'the rewording is reported';
+like $out, / '✗ t/charged-once.t' /, 'and so is the failing test';
+like $out, / 'exploring: every promise' .* 'nothing here waits for a yes' /, 'with the reason nothing held';
+g($r, 'commit', '-qm', 'still exploring');
+
+# ---- establish: the words wait, the tests hold ------------------------------------
+($rc, $out, $err) = iz4($r, 'establish');
+like $out, / 'all 1 exploring' /, 'establish alone says where every promise stands';
+($rc, $out, $err) = iz4($r, 'establish', 'charged-once');
+is $rc, 0, 'iz4 establish NAME';
+like $out, / 'charged-once.shop.example.com is established' .* 'waits for your signed yes' .* 'holds the commit' /, 'and says what that means';
+$doc = check-doc($iz4);
+is $doc.invariant('charged-once.shop.example.com').change, CHANGE-SIGNED, 'the card now requires a signed yes';
+is $doc.invariant('charged-once.shop.example.com').checks, (CHECK-BLOCK,), 'and its tests block';
+nok $doc.exploring, 'the file is no longer exploring';
+like iz4($r, 'establish', 'charged-once')[1], / 'already established' /, 'asking twice changes nothing';
+g($r, 'add', '-A');
+($rc, $out, $err) = gate($r);
+is $rc, 3, 'the test still fails, and now that holds the commit';
+like $out, / 'outcome: blocked' /, 'blocked';
+$r.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
+g($r, 'add', '-A');
+($rc, $out, $err) = gate($r);
+is $rc, 0, 'raising what a promise requires is free: the base let anyone edit it';
+like $out, / 'what a change to it requires changes' .* 'asks more of a change' /, 'and is reported as asking more';
+g($r, 'commit', '-qm', 'established');
+
+# ---- established: a change to the words waits for a yes ---------------------------
+$iz4.spurt($iz4.slurp.subst('An order is charged at most twice.', 'An order is never charged twice.'));
+g($r, 'add', '-A');
+($rc, $out, $err) = gate($r);
+is $rc, 2, 'rewording an established promise waits for a yes';
+like $out, / 'outcome: agreement-required' /, 'agreement required';
+g($r, 'checkout', 'HEAD', '--', 'IZ4'); g($r, 'reset', '-q');
+
+# ---- lowering waits, and nothing is escaped by lowering first ---------------------
+($rc, $out, $err) = iz4($r, 'explore', 'charged-once');
+is $rc, 0, 'iz4 explore NAME writes the lower governance';
+like $out, / 'is exploring' .* 'still' \s+ 'applies' .* 'gate asks you once' /, 'and says the promise still applies, and that lowering is itself a change';
+g($r, 'add', '-A');
+($rc, $out, $err) = gate($r);
+is $rc, 2, 'lowering what a promise requires waits for a yes, because the base required one';
+like $out, / 'what a change to it requires changes' \n \h+ 'before: signed human approval for the exact change' \n \h+ 'after:  no approval; current promise still applies' \n \h+ 'it asks less of a change than it did: this waits for a yes' /,
+    'the change is shown in the words of the card';
+# lowering and weakening in one step: the base governs both
+$iz4.spurt($iz4.slurp.subst('An order is charged at most twice.', 'An order may be charged as often as needed.'));
+g($r, 'add', '-A');
+($rc, $out, $err) = gate($r);
+is $rc, 2, 'lowering and weakening in one commit waits all the same';
+like $out, / 'revised' /, 'the weakening is reported';
+# deleting the established promise waits; so does renaming it
+g($r, 'checkout', 'HEAD', '--', 'IZ4'); g($r, 'reset', '-q');
+$iz4.spurt($iz4.slurp.subst('PROMISE charged-once.shop.example.com', 'PROMISE charged-once-ish.shop.example.com'));
+g($r, 'add', '-A');
+($rc, $out, $err) = gate($r);
+is $rc, 2, 'renaming an established promise waits';
+like $out, / 'a new name is a new commitment, not a rename' /, 'and is called what it is';
+g($r, 'checkout', 'HEAD', '--', 'IZ4'); g($r, 'reset', '-q');
+
+# ---- the fixed values: nothing else parses -----------------------------------------
+sub errors(Str $text --> Str) { IZ4::Document.parse($text).errors.map(*.message).join(' | ') }
+my $text = $iz4.slurp;
+like errors($text.subst('failures block commit', 'failures block the commit')), / 'CHECKED WITH of charged-once.shop.example.com is not one of the values it can take' /, 'a value off by a word is an error';
+like errors($text.subst('signed human approval for the exact change', 'no approval; current promise still applies')), / 'does not follow from its CHANGES REQUIRE' .* 'a test cannot hold what the words are free to redefine' /, 'free wording with blocking tests is refused';
+like errors($text.subst('signed human approval for the exact change', 'verified foundation release only')), / "which only the foundation carries" /, 'the foundation value on a project promise is refused';
+like errors($text.subst("  CHECKED WITH    linked tests; failures block commit\n", "  CHECKED WITH\n    - linked tests; failures block commit\n    - exact canonical match required\n")), / 'does not follow from its CHANGES REQUIRE' /, 'and so is the foundation check';
+like errors($text.subst("  CHANGES REQUIRE signed human approval for the exact change\n", "  CHANGES REQUIRE\n    - signed human approval for the exact change\n    - no approval; current promise still applies\n")), / 'CHANGES REQUIRE of charged-once.shop.example.com is a list: it takes exactly one value' /, 'CHANGES REQUIRE is never a list';
+like errors($text.subst("  CHANGES REQUIRE signed human approval for the exact change\n", '')), / 'has no CHANGES REQUIRE' /, 'a card without it is an error: nothing is defaulted';
+like errors($text.subst("  CHECKED WITH    linked tests; failures block commit\n", '')), / 'has no CHECKED WITH' /, 'and so is one without CHECKED WITH';
+
+# ---- the foundation holds whatever the project says ----------------------------------
+like errors($text.subst('CHANGES REQUIRE verified foundation release only', 'CHANGES REQUIRE signed human approval for the exact change', :x(1))), / 'part of the foundation and must read exactly' .* 'CHANGES REQUIRE and CHECKED WITH included' /,
+    'a project cannot change what the foundation requires';
+like errors($text.subst('FOUNDATION humans-first.iz4.you', 'PROMISE humans-first.iz4.you')), / 'written under a FOUNDATION heading, not PROMISE' /, 'nor write a foundation promise as its own';
+like errors($text.subst('- help people thrive, on their own terms', '- help people thrive')), / 'must read exactly as it does in every IZ4' /, 'nor change a word of it';
+$iz4.spurt($text.subst('- help people thrive, on their own terms', '- help people thrive'));
+g($r, 'add', '-A');
+($rc, $out, $err) = gate($r);
+is $rc, 3, 'an edited foundation is blocked, not asked about';
+like $out, / 'no project approval can change it' /, 'and no approval can lift it';
+g($r, 'checkout', 'HEAD', '--', 'IZ4'); g($r, 'reset', '-q');
+
+# ---- lists: all of them, flat, nonempty ---------------------------------------------
+{
+    my $list = $text.subst("  ALWAYS    An order is charged at most twice.\n", "  ALWAYS\n    - an order is charged at most twice\n    - a refund never exceeds what was charged\n")
+                    .subst("  PROTECTS  a customer's money\n", "  PROTECTS\n    - a customer's money\n    - the shop's good name\n");
+    my $d = IZ4::Document.parse($list);
+    ok $d.ok, 'ALWAYS and PROTECTS take flat lists' or diag $d.report.join("\n");
+    my $i = $d.invariant('charged-once.shop.example.com');
+    is $i.always-items, ('an order is charged at most twice', 'a refund never exceeds what was charged'), 'every ALWAYS item is kept, in order';
+    is $i.protects-items, ("a customer's money", "the shop's good name"), 'and every PROTECTS item';
+    is $i.text, 'an order is charged at most twice; a refund never exceeds what was charged', 'the text reads them all';
+    like $i.canonical, / 'ALWAYS' \n '- an order is charged at most twice' \n '- a refund never exceeds what was charged' \n 'PROTECTS' \n "- a customer's money" \n "- the shop's good name" \n /, 'the canonical form keeps the items apart';
+    isnt $i.canonical, IZ4::Document.parse($text).invariant('charged-once.shop.example.com').canonical, 'so a list is a different promise from one statement';
+    is IZ4::Document.parse($list.subst("    - a refund never exceeds what was charged\n", "    - a refund never\n      exceeds what was charged\n")).invariant('charged-once.shop.example.com').canonical, $i.canonical,
+        'and re-wrapping an item changes nothing';
+    like errors($list.subst("    - the shop's good name\n", "      - the shop's good name\n")), / 'a list inside a list' /, 'a nested list is refused';
+    like errors($list.subst("  PROTECTS\n", "  PROTECTS  someone\n")), / 'has words on its line and a list below it' /, 'a statement and a list together are refused';
+    like errors($list.subst("    - a customer's money\n    - the shop's good name\n", '')), / 'PROTECTS of charged-once.shop.example.com is empty' /, 'an empty list is empty';
+    like errors($list.subst("  WHEN      the shop takes an order\n", "  WHEN\n    - the shop takes an order\n    - a refund is made\n")), / 'WHEN of charged-once.shop.example.com is a list' /, 'WHEN is one statement';
+    nok $d.invariants[0].always-items.first({ $_ ~~ / ^ 'AND ' | ' OR ' / }).defined, 'nothing in a list is an operator: the items are English';
+    my $colon = IZ4::Document.parse($list.subst('a refund never exceeds what was charged', 'a refund: never more than was charged'));
+    ok $colon.ok && $colon.invariant('charged-once.shop.example.com').always-items[1] eq 'a refund: never more than was charged', 'a colon inside an item is only a colon';
+}
+
+# ---- formatting is not meaning ---------------------------------------------------------
+{
+    my $a = IZ4::Document.parse($text);
+    my $flat = $text.subst(/ ^^ \h+ /, '', :g);
+    my $b = IZ4::Document.parse($flat);
+    ok $b.ok, 'a file with every line at column 0 checks' or diag $b.report.join("\n");
+    is $b.invariant('charged-once.shop.example.com').canonical, $a.invariant('charged-once.shop.example.com').canonical, 'and reads as the same promise';
+    is $b.invariant('charged-once.shop.example.com').change, $a.invariant('charged-once.shop.example.com').change, 'with the same governance';
+    ok $b.foundation-intact, 'and the same foundation';
+    my $wide = $text.subst('WHEN      the shop', 'WHEN             the shop');
+    is IZ4::Document.parse($wide).invariant('charged-once.shop.example.com').canonical, $a.invariant('charged-once.shop.example.com').canonical, 'alignment spaces change nothing';
+}
+
+done-testing;

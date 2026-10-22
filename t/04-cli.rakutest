@@ -22,13 +22,13 @@ my $coached = temp-dir;
 ($rc, $out, $err) = iz4-talk($coached, "Helping people find work they love to do.\nPeople looking for work.\nshop.example.com\nn\n", 'init');
 is $rc, 0, 'coached init exits 0';
 like $out, /'What is this for?' .* 'Who is it for?' .* 'Which domain?' .* 'Created IZ4 for shop.example.com.'/, 'init asks what, who and the domain once';
-like $out, /'The foundation, word for word, beginning with Invariant Zero: humans' \s+ 'first.' .* "say where they apply (WHERE), what must" \s+ "remain true there (ALWAYS) and what must not be defeated (PROTECTS)"/, 'init teaches the foundation, and the three clauses your own take';
+like $out, /'The foundation, word for word, beginning with Invariant Zero: humans' \s+ 'first.' .* 'say when they apply (WHEN)' .* '(ALWAYS)' .* '(PROTECTS)'/, 'init teaches the foundation, and the three clauses your own take';
 like $out, /'Add an invariant now? [Y/n]'/, 'and offers to add one';
 unlike $out, /:i 'behaviour' | 'requirement' | 'constraint'/, 'without asking for a specification';
 like $coached.add('IZ4').slurp, /^ 'IZ4 shop.example.com' \n .* 'IS FOR WHAT?' \h+ 'Helping people find work they love to do.' \n+ 'IS FOR WHO?' \h+ 'People looking for work.'/,
     'the header names the domain, and the two answers are on their lines';
 my $declined = IZ4::Document.load($coached.add('IZ4'));
-ok $declined.ok && !$declined.invariants && $declined.form eq 'clauses', 'declining the offer leaves a valid three-clause IZ4 with only the foundation';
+ok $declined.ok && !$declined.invariants && $declined.form eq 'card', 'declining the offer leaves a valid card-form IZ4 with only the foundation';
 ($rc, $out, $err) = iz4($coached, 'init', '--namespace=shop.example.com', '--for-what=x', '--for-who=y');
 is $rc, 1, 'second init fails';
 like $err, /'already exists'/, 'and explains';
@@ -46,10 +46,10 @@ my $first = temp-dir;
 ($rc, $out, $err) = iz4-talk($first,
     "Sign-in codes.\nPeople signing in.\ny\nevery sign-in code\nA code works once and only once.\ny\nA code that works twice lets someone else sign in as you.\ny\nsingle-use-codes\n",
     'init', '--namespace=shop.example.com', '--/agents');
-like $out, /'Where does this apply?' .* 'Where every sign-in code: what must remain true' .* 'WHERE:    every sign-in code' .* 'ALWAYS:   A code works once' .* 'Add it as an invariant? [Y/n]' .* 'Name it:' .* 'Added INVARIANT single-use-codes.shop.example.com'/,
+like $out, /'Where does this apply?' .* 'Where every sign-in code: what must remain true' .* 'WHEN      every sign-in code' .* 'ALWAYS    A code works once' .* 'Add it as a promise? [Y/n]' .* 'Name it:' .* 'Added PROMISE single-use-codes.shop.example.com'/,
     'init can go straight on to a coached first invariant: where, holds, protects, then the name' or diag $err;
-like $first.add('IZ4').slurp, /\n 'single-use-codes:' \n '  WHERE:' \h+ 'every sign-in code' \n '  ALWAYS:' \h+ 'A code works once and only once.' \n '  PROTECTS:' \h+ 'A code that works twice'/,
-    'and it is written in three clauses, under the short name' or diag $first.add('IZ4').slurp;
+like $first.add('IZ4').slurp, /\n 'PROMISE single-use-codes.shop.example.com' \n\n '  WHEN' \h+ 'every sign-in code' \n '  ALWAYS' \h+ 'A code works once and only once.' \n '  PROTECTS' \h+ 'A code that works twice' .* '  CHANGES REQUIRE no approval; current promise still applies' \n '  CHECKED WITH    linked tests; failures warn, never block'/,
+    'and it is written as a card, under its whole name, exploring' or diag $first.add('IZ4').slurp;
 unlike $out, /'Which domain?'/, 'with no second question about the domain: the header already says it';
 
 # the namespace is asked once: a later coached invariant takes it from the file
@@ -92,7 +92,7 @@ is $rc, 0, 'init from a script with both answers';
 unlike $out, /'[Y/n]'/, 'asks nothing';
 ($rc, $out, $err) = iz4($script, 'add');
 is $rc, 1, 'coached add needs a person';
-like $err, /'iz4 add invariant'/, 'and shows the fast path instead';
+like $err, /'iz4 add promise'/, 'and shows the fast path instead';
 
 # ---- add: a name is a person's choice, the namespace is said once ----------------
 my @private = 'add', 'invariant', 'Private profiles never appear in public search.',

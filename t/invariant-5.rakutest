@@ -41,7 +41,7 @@ like $aerr, /'so agent enforcement could not be activated.' \n 'The IZ4 intent i
     'with no connection the driver cannot be fetched, and iz4 says enforcement is inactive: the change stands all the same';
 nok %env<IZ4_BIN>.IO.add('321').e, 'and nothing was installed';
 is offline('check')[0], 0, 'check works';
-like offline('invariants')[1], /'humans-first.iz4.you:' .* 'file-is-source.offline.example.com:'/, 'the foundation is available with no account, and names need no registry';
+like offline('invariants')[1], /'FOUNDATION humans-first.iz4.you' .* 'PROMISE file-is-source.offline.example.com'/, 'the foundation is available with no account, and names need no registry';
 is offline('agent')[0], 0, 'the agent packet works';
 is offline('show', 'invariant', 'file-is-source')[0], 0, 'an invariant is looked up by its name';
 is offline('discover', '--json')[0], 0, 'and the machine interface answers';

@@ -239,14 +239,6 @@ sub canonical-card(Str $id, Str $when, @always, @protects --> Str) is export {
     "PROMISE $id\nWHEN {field($when)}\n" ~ block('ALWAYS', @always) ~ block('PROTECTS', @protects);
 }
 
-#| The canonical bytes the card foundation's digest covers.
-constant FOUNDATION-CARD-TEXT is export =
-    FOUNDATION-CARD.map({ canonical-card(.<id>, .<when>, .<always>.list, .<protects>.list) }).join;
-
-#| sha256 of FOUNDATION-CARD-TEXT.  A test pins it to the bytes.
-constant FOUNDATION-CARD-DIGEST is export =
-    '7c704e757f80df39ebca60a386b8aefdd88d0d42af93daccb514562f076e5508';
-
 #| Whether a card is foundation invariant $id exactly: its WHEN, every
 #| ALWAYS item and every PROTECTS item, word for word, and nothing more.
 sub foundation-card-matches(Str $id, Str $when, @always, @protects --> Bool) is export {
@@ -257,51 +249,6 @@ sub foundation-card-matches(Str $id, Str $when, @always, @protects --> Bool) is 
         True;
     }
     normalised(nfc($when // '')) eq normalised(nfc($f<when>)) && same(@always, $f<always>.list) && same(@protects, $f<protects>.list);
-}
-
-#| One field of a card as it is written: the label in its column and the
-#| words beside it, wrapping under them; or, for a list, the label alone and
-#| each item on a dashed line, wrapping under its words.  $col is where the
-#| words begin, counted from the start of the line.
-sub card-field-lines(Str $label, @items, Int :$col = 12 --> List) is export {
-    my @out;
-    if @items.elems <= 1 {
-        my $head = '  ' ~ $label.fmt("%-{$col - 2}s");
-        my @w = wrap-safely(@items[0] // '', WRAP-WIDTH - $head.chars);
-        @w = ('',) unless @w;
-        @out.push: ($head ~ @w[0]).trim-trailing;
-        @out.append: @w[1 .. *].map({ ' ' x $head.chars ~ $_ });
-    }
-    else {
-        @out.push: "  $label";
-        for @items -> $it {
-            my @w = wrap-safely($it, WRAP-WIDTH - 6);
-            @w = ('',) unless @w;
-            @out.push: '    - ' ~ @w[0];
-            @out.append: @w[1 .. *].map({ ' ' x 6 ~ $_ });
-        }
-    }
-    @out;
-}
-
-#| One card as it is written: heading, a blank line, the three fields of
-#| intention, a blank line, the two of governance.  @checks defaults to what
-#| $change decides.
-sub card-lines(Str $kind, Str $name, Str $when, @always, @protects, Str $change, :@checks = checks-for($change) --> List) is export {
-    ("$kind $name", '',
-     |card-field-lines('WHEN', ($when,)), |card-field-lines('ALWAYS', @always), |card-field-lines('PROTECTS', @protects), '',
-     |card-field-lines('CHANGES REQUIRE', ($change,), :col(18)), |card-field-lines('CHECKED WITH', @checks, :col(18))).List;
-}
-
-#| The foundation in the card form, as it is written into every file: a
-#| rule-off, the comment, then the five cards, each ending in a blank line.
-sub card-foundation-block(--> Str) is export {
-    my @out = FOUNDATION-RULE-OFF, |FOUNDATION-COMMENT.lines, '';
-    for FOUNDATION-CARD -> %f {
-        @out.append: card-lines('FOUNDATION', %f<id>, %f<when>, %f<always>.list, %f<protects>.list, CHANGE-FOUNDATION);
-        @out.push: '';
-    }
-    @out.join("\n");
 }
 
 #| Wordings the foundation has had since it was named, by invariant, each
@@ -554,6 +501,15 @@ constant FOUNDATION-CLAUSES-TEXT is export =
 constant FOUNDATION-CLAUSES-DIGEST is export =
     'c7278fe5414ec2a053dc6c1ed7c091df92eced8dc80531a6a2f068a1a0a77f07';
 
+#| The canonical bytes the card foundation's digest covers.  Declared after
+#| normalised and nfc, which it uses at compile time.
+constant FOUNDATION-CARD-TEXT is export =
+    FOUNDATION-CARD.map({ canonical-card(.<id>, .<when>, .<always>.list, .<protects>.list) }).join;
+
+#| sha256 of FOUNDATION-CARD-TEXT.  A test pins it to the bytes.
+constant FOUNDATION-CARD-DIGEST is export =
+    '7c704e757f80df39ebca60a386b8aefdd88d0d42af93daccb514562f076e5508';
+
 #| Whether a three-clause block is foundation invariant $id exactly.
 sub foundation-clauses-matches(Str $id, Str $reach, Str $rule, Str $because --> Bool) is export {
     my $f = FOUNDATION-CLAUSES.first({ .<id> eq $id }) // return False;
@@ -576,6 +532,52 @@ constant @BLOCKS is export = 'IS FOR WHAT', 'IS FOR WHO', 'INVARIANT', 'BECAUSE'
 
 #| Text written by this tool is wrapped at this width.
 constant WRAP-WIDTH is export = 80;
+
+#| One field of a card as it is written: the label in its column and the
+#| words beside it, wrapping under them; or, for a list, the label alone and
+#| each item on a dashed line, wrapping under its words.  $col is where the
+#| words begin, counted from the start of the line.
+sub card-field-lines(Str $label, @items, Int :$col = 12 --> List) is export {
+    my @out;
+    if @items.elems <= 1 {
+        my $head = '  ' ~ $label.fmt("%-{$col - 2}s");
+        my @w = wrap-safely(@items[0] // '', WRAP-WIDTH - $head.chars);
+        @w = ('',) unless @w;
+        @out.push: ($head ~ @w[0]).trim-trailing;
+        @out.append: @w[1 .. *].map({ ' ' x $head.chars ~ $_ });
+    }
+    else {
+        @out.push: "  $label";
+        for @items -> $it {
+            my @w = wrap-safely($it, WRAP-WIDTH - 6);
+            @w = ('',) unless @w;
+            @out.push: '    - ' ~ @w[0];
+            @out.append: @w[1 .. *].map({ ' ' x 6 ~ $_ });
+        }
+    }
+    @out;
+}
+
+#| One card as it is written: heading, a blank line, the three fields of
+#| intention, a blank line, the two of governance.  @checks defaults to what
+#| $change decides.
+sub card-lines(Str $kind, Str $name, Str $when, @always, @protects, Str $change, :@checks = checks-for($change) --> List) is export {
+    ("$kind $name", '',
+     |card-field-lines('WHEN', ($when,)), |card-field-lines('ALWAYS', @always), |card-field-lines('PROTECTS', @protects), '',
+     |card-field-lines('CHANGES REQUIRE', ($change,), :col(18)), |card-field-lines('CHECKED WITH', @checks, :col(18))).List;
+}
+
+#| The foundation in the card form, as it is written into every file: a
+#| rule-off, the comment, then the five cards, each ending in a blank line.
+sub card-foundation-block(--> Str) is export {
+    my @out = FOUNDATION-RULE-OFF, |FOUNDATION-COMMENT.lines, '';
+    for FOUNDATION-CARD -> %f {
+        @out.append: card-lines('FOUNDATION', %f<id>, %f<when>, %f<always>.list, %f<protects>.list, CHANGE-FOUNDATION);
+        @out.push: '';
+    }
+    @out.join("\n");
+}
+
 
 #| Where content that is not enduring intent belongs instead.
 constant ELSEWHERE is export =

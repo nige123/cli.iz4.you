@@ -1,7 +1,7 @@
 {
     "name": "IZ4",
     "description": "iz4: IZ4 means Is For - find the few invariants your software must never accidentally lose",
-    "version": "0.27.0",
+    "version": "0.28.0",
     "auth": "zef:nige123",
     "api": "1",
     "authors": [
@@ -12,6 +12,7 @@
     "provides": {
         "IZ4": "lib/IZ4.rakumod",
         "IZ4::Agent": "lib/IZ4/Agent.rakumod",
+        "IZ4::CardGrammar": "lib/IZ4/CardGrammar.rakumod",
         "IZ4::ClausesGrammar": "lib/IZ4/ClausesGrammar.rakumod",
         "IZ4::Assist": "lib/IZ4/Assist.rakumod",
         "IZ4::Coach": "lib/IZ4/Coach.rakumod",

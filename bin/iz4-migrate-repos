@@ -1,0 +1,61 @@
+#!/bin/sh
+# Move every IZ4 under a directory of repositories to promise cards, one
+# repository at a time, with a person at the terminal.
+#
+#   iz4-migrate-repos [--push] [--dry-run] [ROOT]
+#
+# ROOT defaults to the current directory.  For each ROOT/*/IZ4 in a Git
+# repository that is not yet in the card form: 'iz4 migrate' rewrites the
+# file (every word kept; what the mode line and heading words said becomes
+# what each card requires), the IZ4 alone is staged, the gate is run, and
+# where the move waits for a yes 'iz4 approve --staged' asks you and signs
+# with your key.  Then the IZ4 is committed on its own.  --push pushes each
+# repository that was committed.  --dry-run shows each plan and writes
+# nothing.  A repository whose IZ4 has uncommitted changes is migrated with
+# those changes in it, and the script says so.  Nothing is ever forced:
+# where the gate blocks, the repository is left staged for you to look at.
+set -u
+PUSH=0; DRY=0; ROOT=.
+for a in "$@"; do
+  case "$a" in
+    --push) PUSH=1 ;;
+    --dry-run|preview) DRY=1 ;;
+    -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) ROOT=$a ;;
+  esac
+done
+command -v iz4 >/dev/null 2>&1 || { echo "iz4 is not on PATH"; exit 1; }
+echo "iz4 $(iz4 version 2>/dev/null | head -1)"
+echo
+done_n=0; skipped=0; waiting=0; blocked=0
+for repo in "$ROOT"/*/; do
+  repo=${repo%/}
+  [ -f "$repo/IZ4" ] || continue
+  git -C "$repo" rev-parse --git-dir >/dev/null 2>&1 || { echo "-- $repo: not a Git repository, skipped"; skipped=$((skipped+1)); continue; }
+  form=$(cd "$repo" && iz4 discover --json 2>/dev/null | sed -n 's/.*"format":"\([a-z]*\)".*/\1/p')
+  if [ "$form" = "card" ]; then echo "-- $repo: already promise cards"; skipped=$((skipped+1)); continue; fi
+  echo "== $repo ($form)"
+  if [ -n "$(git -C "$repo" status --porcelain -- IZ4)" ]; then
+    echo "   note: IZ4 has uncommitted changes here; the migration goes on top of them, in the same commit"
+  fi
+  if [ "$DRY" = 1 ]; then (cd "$repo" && iz4 migrate preview) | sed 's/^/   /'; echo; continue; fi
+  if ! (cd "$repo" && iz4 migrate) | sed 's/^/   /'; then echo "   migrate failed; nothing committed"; blocked=$((blocked+1)); echo; continue; fi
+  git -C "$repo" add -- IZ4
+  (cd "$repo" && iz4 gate --staged --enforce >/dev/null 2>&1); rc=$?
+  case $rc in
+    0) ;;
+    2) echo "   the move waits for your yes:"
+       if (cd "$repo" && iz4 approve --staged </dev/tty); then :; else echo "   not approved; left staged"; waiting=$((waiting+1)); echo; continue; fi ;;
+    3) echo "   blocked by the gate; left staged for you to look at:"; (cd "$repo" && iz4 gate --staged) | sed 's/^/   /'; blocked=$((blocked+1)); echo; continue ;;
+    *) echo "   the gate could not assess this (exit $rc); left staged"; (cd "$repo" && iz4 gate --staged) | sed 's/^/   /'; blocked=$((blocked+1)); echo; continue ;;
+  esac
+  if git -C "$repo" commit -q -m "IZ4: promise cards" -- IZ4; then
+    echo "   committed"
+    done_n=$((done_n+1))
+    if [ "$PUSH" = 1 ]; then git -C "$repo" push -q && echo "   pushed" || echo "   push failed"; fi
+  else
+    echo "   commit did not go through; left staged"; waiting=$((waiting+1))
+  fi
+  echo
+done
+echo "migrated and committed: $done_n; left for you: $waiting; blocked: $blocked; skipped: $skipped"

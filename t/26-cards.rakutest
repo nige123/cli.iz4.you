@@ -1,0 +1,357 @@
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+use IZ4;
+use IZ4::Document;
+use IZ4::Gate;
+use IZ4::Agent;
+use IZ4::Integrations;
+use IZ4::Coach;
+use IZ4::Machine;
+
+# The promise-card form: a heading with the whole name, then WHEN (the
+# situation it applies in), ALWAYS (what must remain true), PROTECTS (whose
+# what would be lost), and after a blank line CHANGES REQUIRE and CHECKED
+# WITH, each one of the fixed values.  The header names the project's
+# domain, the foundation is written last as FOUNDATION cards, and the
+# earlier forms are still read and migrated.  These are deterministic
+# checks of the file format and its tools; they say nothing about how any
+# model reads a promise.
+
+my $NS = 'jobs.example.com';
+
+sub card-file(Str $body = '' --> IO::Path) {
+    my $d = temp-dir;
+    my $p = init(:dir($d), :for-what('Helping people find work they love to do.'), :for-who('People looking for work.'), :namespace($NS));
+    $p.spurt($p.slurp.subst("# ----", $body ~ "\n# ----")) if $body;
+    $p;
+}
+my $PRIVATE = qq:to/END/;
+PROMISE private-stays-private.$NS
+
+  WHEN      private profiles
+  ALWAYS    The system must never expose a private profile in public search.
+  PROTECTS  Looking for work must not cost someone their current job.
+
+  CHANGES REQUIRE signed human approval for the exact change
+  CHECKED WITH    linked tests; failures block commit
+END
+
+# ---- the form is read ---------------------------------------------------------
+{
+    my $p = card-file($PRIVATE);
+    my $doc = check-doc($p);
+    ok $doc.ok, 'a card file checks' or diag $doc.report.join("\n");
+    is $doc.form, 'card', 'and says which form it is';
+    is $doc.domain, $NS, 'the header names the domain';
+    is $doc.namespace, $NS, 'which is the namespace';
+    my $inv = $doc.invariant("private-stays-private.$NS");
+    ok $inv.defined, 'the heading carries the whole name';
+    is $inv.kind, 'PROMISE', 'and the kind';
+    is $inv.reach, 'private profiles', 'WHEN is the reach';
+    is $inv.text, 'The system must never expose a private profile in public search.', 'ALWAYS is the text';
+    is $inv.because, 'Looking for work must not cost someone their current job.', 'PROTECTS is the reason';
+    is $inv.change, CHANGE-SIGNED, 'CHANGES REQUIRE is read';
+    is $inv.checks, (CHECK-BLOCK,), 'and CHECKED WITH';
+    nok $inv.exploring, 'so it is established';
+    ok $doc.foundation-intact, 'the foundation is there, word for word';
+    is $doc.for-what, 'Helping people find work they love to do.', 'IS FOR WHAT? takes its answer on its line';
+    is $doc.for-who, 'People looking for work.', 'IS FOR WHO? too';
+}
+
+# indentation and alignment are for the eye
+{
+    my $flat = card-file("PROMISE private-stays-private.$NS\nWHEN private profiles\nALWAYS The system must never expose a private profile\nin public search.\nPROTECTS Looking for work must not cost someone their current job.\nCHANGES REQUIRE signed human approval for the exact change\nCHECKED WITH linked tests; failures block commit\n");
+    my $a = check-doc($flat).invariants[0];
+    my $b = check-doc(card-file($PRIVATE)).invariants[0];
+    ok check-doc($flat).ok, 'a file with every line at column 0 and no blank line checks' or diag check-doc($flat).report.join("\n");
+    is $a.canonical, $b.canonical, 'and reads as the same promise, digest and all';
+    is $a.change, $b.change, 'with the same governance';
+}
+
+# comments are anywhere, and do not end a field
+{
+    my $p = card-file("# a note above\nPROMISE private-stays-private.$NS\n  WHEN     private profiles\n  ALWAYS   The system must never expose a private profile\n  # a note in the middle\n           in public search.\n  PROTECTS the owner's job\n  # between the groups\n  CHANGES REQUIRE signed human approval for the exact change\n  CHECKED WITH    linked tests; failures block commit\n");
+    my $doc = check-doc($p);
+    ok $doc.ok, 'comments sit between the lines of a field' or diag $doc.report.join("\n");
+    is $doc.invariants[0].text, 'The system must never expose a private profile in public search.', 'and the field carries on past them';
+}
+
+# the whole name, always; an area label goes under the domain with the name
+{
+    my $p = card-file($PRIVATE.subst("PROMISE private-stays-private.$NS", 'PROMISE private-stays-private'));
+    like check-doc($p).errors.map(*.message).join(' | '), / "is not the whole name" .* $NS /, 'a short name is refused, and the domain named';
+    like check-doc($p).fixes.join(' | '), / "PROMISE private-stays-private.$NS" /, 'with the whole heading as the fix';
+    my $d = temp-dir;
+    my $q = init(:dir($d), :for-what('Helping people find work.'), :for-who('People looking.'), :namespace('love2.do'));
+    $q.spurt($q.slurp.subst("# ----", "PROMISE come-alive.matching.love2.do\n  WHEN every match\n  ALWAYS A match must never degrade into keyword matching.\n  PROTECTS The point is the work they would love.\n  CHANGES REQUIRE no approval; current promise still applies\n  CHECKED WITH linked tests; failures warn, never block\n\n# ----"));
+    my $doc = check-doc($q);
+    ok $doc.ok, 'a name with an area label checks' or diag $doc.report.join("\n");
+    ok $doc.invariant('come-alive.matching.love2.do').defined, 'and is that area under the domain';
+    ok $doc.invariant('come-alive.matching.love2.do').exploring, 'exploring, as its card says';
+    set-reach($q, 'come-alive.matching', 'every match, however it is made');
+    ok check-doc($q).ok && check-doc($q).invariants[0].reach.contains('however'), 'and the commands take it by its short name';
+}
+
+# the examples in the README and the format page are real: each checks
+for <README.md docs/format.md> -> $doc-file {
+    my $root = $?FILE.IO.parent.parent;
+    my $block = $root.add($doc-file).slurp.match(/ '```text' \n ( 'IZ4 ' \S+ \n .*? ) '```' /)[0].Str;
+    my $d = temp-dir;
+    my $f = $d.add('IZ4');
+    $f.spurt($block.subst(/ \n '# ' '-' ** 10 .* $/, "\n"));
+    restore-foundation($f);
+    my $checked = check-doc($f);
+    ok $checked.ok, "the first card example in $doc-file checks" or diag $checked.report.join("\n");
+    is $checked.form, 'card', "and is in the card form";
+}
+
+# ---- mistakes are reported by line -------------------------------------------
+sub problems(Str $body --> Str) { check-doc(card-file($body)).errors.map(*.message).join(' | ') }
+my $GOV = "  CHANGES REQUIRE no approval; current promise still applies\n  CHECKED WITH linked tests; failures warn, never block\n";
+like problems("PROMISE a-rule.$NS\n  WHEN x\n  PROTECTS z\n$GOV"), /"a-rule.$NS has no ALWAYS"/, 'a promise with no ALWAYS is an error';
+like problems("PROMISE a-rule.$NS\n  ALWAYS Y must hold.\n  PROTECTS z\n$GOV"), /"a-rule.$NS has no WHEN"/, 'and so is one with no WHEN';
+like problems("PROMISE a-rule.$NS\n  WHEN x\n  ALWAYS Y must hold.\n$GOV"), /"a-rule.$NS has no PROTECTS"/, 'and one with no PROTECTS: the interest is required, it is what carries intent';
+like problems("PROMISE a-rule.$NS\n  WHEN\n  ALWAYS Y must hold.\n  PROTECTS z\n$GOV"), /"WHEN of a-rule.$NS is empty"/, 'a label with nothing after it and no list is empty';
+like problems("PROMISE a-rule.$NS\n  WHEN x\n  WHEN y\n  ALWAYS Y must hold.\n  PROTECTS z\n$GOV"), /'duplicate WHEN'/, 'a field twice is an error';
+like problems("PROMISE a-rule.$NS\n  ALWAYS Y must hold.\n  WHEN x\n  PROTECTS z\n$GOV"), /'out of order'/, 'the fields keep their order';
+like problems("WHEN x\nALWAYS Y must hold.\n"), /'has no PROMISE heading above it'/, 'a field with no heading above it is an error';
+like problems("PROMISE a-rule.$NS\n  WHEN x\n  ALWAYS Y must hold.\n\nsome stray words\n  PROTECTS z\n$GOV"), /'belongs to a field'/, 'text after a blank line, with no label, is not swallowed into a field';
+like problems("PROMISE Bad_Name.$NS\n  WHEN x\n  ALWAYS Y must hold.\n  PROTECTS z\n$GOV"), /'this text belongs to a field' | 'is not a name'/, 'a heading that is not a lower-case name is not a promise';
+like problems("PROMISE under_score.$NS\n  WHEN x\n  ALWAYS Y must hold.\n  PROTECTS z\n$GOV"), /"'under_score.$NS' is not a name"/, 'an unusable name says why';
+like problems("PROMISE humans.iz4.you\n  WHEN x\n  ALWAYS Y must hold.\n  PROTECTS z\n$GOV"), /'names directly under iz4.you are the foundation'/, "a project cannot take the foundation's namespace";
+like problems("FOUNDATION a-rule.$NS\n  WHEN x\n  ALWAYS Y must hold.\n  PROTECTS z\n  CHANGES REQUIRE verified foundation release only\n  CHECKED WITH exact canonical match required\n"), /'FOUNDATION is the heading of the five foundation promises'/, 'FOUNDATION is not a heading a project may use';
+{
+    my $p = card-file($PRIVATE);
+    $p.spurt($p.slurp.subst("IZ4 $NS", 'IZ4 iz4.you'));
+    $p.spurt($p.slurp.subst("PROMISE private-stays-private.$NS", 'PROMISE one-calculation.cards.iz4.you'));
+    my $site = check-doc($p);
+    ok $site.ok, 'iz4.you itself may be a project\'s domain, as the register\'s is' or diag $site.report.join("\n");
+    ok $site.invariant('one-calculation.cards.iz4.you').defined, 'its own names carry an area label under it';
+    $p.spurt($p.slurp.subst('PROMISE one-calculation.cards.iz4.you', 'PROMISE sneaky.iz4.you'));
+    like check-doc($p).errors.map(*.message).join(' | '), /'names directly under iz4.you are the foundation'/, 'and a name with no area, directly under iz4.you, is refused';
+    $p.spurt($p.slurp.subst('IZ4 iz4.you', 'IZ4 Not A Domain'));
+    ok check-doc($p).errors.first({ .message.contains('cannot be the project') }).defined, 'nor a string that is not a domain';
+}
+
+# ---- the foundation: the version and the words, never mixed ---------------------
+{
+    my $p = card-file;
+    my $doc = check-doc($p);
+    is $doc.foundation-status, "the foundation: in the file word for word (sha256 {FOUNDATION-CARD-DIGEST.substr(0, 12)})", 'a card file reports the card foundation digest';
+    isnt FOUNDATION-CARD-DIGEST, FOUNDATION-CLAUSES-DIGEST, 'which is not the three-clause foundation\'s';
+    is sha256-text(FOUNDATION-CARD-TEXT), FOUNDATION-CARD-DIGEST, 'the digest is the digest of the canonical bytes: a declared version, its content and its digest agree';
+    is FOUNDATION-CARD».<id>, foundation-ids(:card), 'the five, in their order';
+    is FOUNDATION-CARD».<id>, FOUNDATION-CLAUSES».<id>, 'under the same names as the three-clause foundation';
+    is FOUNDATION-CARD».<legacy>, FOUNDATION».<legacy>, 'with the same order 0 to 4';
+    # the same words: every three-clause sentence is a card item, lower case, without its full stop
+    for FOUNDATION-CARD.kv -> $i, %f {
+        my %c = FOUNDATION-CLAUSES[$i];
+        is %f<when>, %c<reach>, "{%f<id>}: WHEN is the WHERE, word for word";
+        is %f<protects>.list, (%c<because>,), "{%f<id>}: PROTECTS is as it was";
+        my @sentences = %c<text>.split(/ '. ' /).map({ .subst(/ '.' $ /, '') }).map({ .substr(0, 1).lc ~ .substr(1) });
+        is %f<always>.list, @sentences, "{%f<id>}: ALWAYS is its sentences as items, no word changed";
+    }
+    ok FOUNDATION-CARD.map(*<always>.list).flat.grep(* ~~ / <[A..Z]> ^ | '.' $ /).elems == 0, 'no item begins with a capital or ends with a full stop';
+
+    # a changed word, with the digest unchanged, is not the foundation
+    my $t = $p.slurp;
+    $p.spurt($t.subst('respect every', 'ignore every'));
+    ok !check-doc($p).foundation-intact, 'a changed word in the foundation is noticed';
+    nok foundation-card-matches('humans-first.iz4.you', FOUNDATION-CARD[0]<when>, ('help people thrive',), ('x',)), 'and the words are what is compared, not a digest anyone could leave alone';
+    $p.spurt($t.subst('anyone is affected by the system, by its use, or by work on it', 'the current user'));
+    ok !check-doc($p).foundation-intact, 'a narrowed WHEN is an altered foundation too';
+    $p.spurt($t.subst("    - exact canonical match required\n", ''));
+    ok !check-doc($p).foundation-intact, 'and so is a foundation card missing one of its checks';
+    is restore-foundation($p), 'replaced', 'restore puts it back';
+    ok check-doc($p).ok, 'and the file checks';
+    # the three-clause foundation in a card file is not whole
+    $p.spurt($t.subst(/ 'FOUNDATION humans-first.iz4.you' \n .*? \n\n 'FOUNDATION do-no-harm' /, "humans-first.iz4.you:\n  WHERE:    anyone is affected by the system, by its use, or by work on it\n  ALWAYS:   Help people thrive, on their own terms. Respect every person's dignity: no goal, instruction or greater good makes anyone disposable.\n  PROTECTS: each person's dignity, and their own say over how they thrive\n\nFOUNDATION do-no-harm"));
+    my $mixed = check-doc($p);
+    ok !$mixed.foundation-intact, 'a foundation block in the earlier form inside a card file is not the card foundation';
+}
+
+# ---- the digest: fields and items, never one flat string ---------------------------
+{
+    my $d = canonical-card("a-rule.$NS", 'the whole system', ('Y must hold.',), ('Because z.',));
+    is $d, "PROMISE a-rule.$NS\nWHEN the whole system\nALWAYS Y must hold.\nPROTECTS Because z.\n", 'the canonical bytes are one line per field, the label then the words';
+    is canonical-card("a-rule.$NS", 'the whole  system', ('Y  must hold.',), ('Because z.',)), $d, 'whitespace within a field is not a change';
+    isnt canonical-card("a-rule.$NS", 'private profiles', ('Y must hold.',), ('Because z.',)), $d, 'a different WHEN is a different promise';
+    isnt canonical-card("a-rule.$NS", 'the whole system', ('Y must hold. Because z.',), ('',)), $d, 'a word cannot move from PROTECTS into ALWAYS unnoticed';
+    is canonical-card("a-rule.$NS", 'x', ('a', 'b'), ('c',)), "PROMISE a-rule.$NS\nWHEN x\nALWAYS\n- a\n- b\nPROTECTS c\n", 'a list is its label alone, then one line per item';
+    isnt canonical-card("a-rule.$NS", 'x', ('a b',), ('c',)), canonical-card("a-rule.$NS", 'x', ('a', 'b'), ('c',)), 'so one statement and two items are different promises';
+    is canonical-card("a-rule.$NS", "caf\x[e9]", ('Y.',), ('Z.',)), canonical-card("a-rule.$NS", "cafe\x[301]", ('Y.',), ('Z.',)), 'one word is one word however a keyboard composed it (Unicode normal form C)';
+    is INVARIANT-DIGEST-RULE-CARD, 'iz4-invariant/5', 'and the rule has its own name; /1 and /4 never change';
+    isnt canonical-card("a-rule.$NS", 'x', ('y',), ('z',)), canonical-clauses("a-rule.$NS", 'x', 'y', 'z'), 'a card is not the three-clause invariant with the same words';
+}
+
+# ---- writing: the tools keep the owner's words -----------------------------------
+{
+    my $p = card-file;
+    is add-invariant($p, 'The system must never expose a private profile in public search.', :name("private-stays-private.$NS"),
+        :because('Looking for work must not cost someone their current job.'), :reach('private profiles')), "private-stays-private.$NS", 'add writes a promise';
+    add-invariant($p, 'Every price shown must be set by the owner.', :name("owner-sets-prices.$NS"), :because('Owners answer to customers.'), :reach('every price shown'), :established);
+    my $t = $p.slurp;
+    like $t, /\n "PROMISE private-stays-private.$NS" \n\n '  WHEN' \h+ 'private profiles' \n '  ALWAYS' \h+ 'The system must never' .* \n '  PROTECTS' \h+ 'Looking' .* \n\n '  CHANGES REQUIRE no approval; current promise still applies' \n '  CHECKED WITH    linked tests; failures warn, never block' \n /,
+        'under its whole name, as a card, exploring by default';
+    like $t, / "PROMISE owner-sets-prices.$NS" .* 'CHANGES REQUIRE signed human approval for the exact change' \n '  CHECKED WITH    linked tests; failures block commit' /, 'or established when asked';
+    ok $t.index("PROMISE owner-sets-prices.$NS") < $t.index('# ----'), 'the project\'s own come before the foundation, which is read last';
+    ok check-doc($p).ok && check-doc($p).invariants.elems == 2, 'and the file checks';
+    throws-like { add-invariant($p, 'X must hold.', :name("no-reach.$NS")) }, X::IZ4, message => /'needs a WHEN'/, 'a promise with no WHEN is refused';
+    throws-like { add-invariant($p, 'X must hold.', :name("no-stake.$NS"), :reach('x')) }, X::IZ4, message => /'needs a PROTECTS' .* 'constraint for the README'/, 'and one with nothing it protects: that is a constraint, not a promise';
+    throws-like { add-invariant($p, 'X must hold.', :name("private-stays-private.$NS"), :reach('x')) }, X::IZ4, message => /'already in'/, 'a name in use is refused';
+    throws-like { add-invariant($p, 'X must hold.', :name("humans-first.iz4.you"), :reach('x')) }, X::IZ4, message => /'foundation'/, "and the foundation's names are";
+
+    set-because($p, 'owner-sets-prices', 'Owners must be able to explain every price.', :replace);
+    revise-invariant($p, 'owner-sets-prices', 'Every price shown must be set by the owner, and the system must not adjust it.');
+    set-reach($p, 'owner-sets-prices', 'every price shown, taxes included');
+    my $doc = check-doc($p);
+    my $o = $doc.invariant("owner-sets-prices.$NS");
+    is ($o.reach, $o.text, $o.because), ('every price shown, taxes included', 'Every price shown must be set by the owner, and the system must not adjust it.', 'Owners must be able to explain every price.'), 'each field is set on its own';
+    is $o.change, CHANGE-SIGNED, 'and the governance is untouched by any of them';
+    ok $doc.ok, 'and the file checks' or diag $doc.report.join("\n");
+    ok $p.slurp.contains("PROMISE private-stays-private.$NS\n\n  WHEN      private profiles\n"), 'the other promise is untouched, down to the line';
+
+    is set-governance($p, "owner-sets-prices.$NS", 'exploring'), 'exploring', 'set-governance writes the lower pair';
+    is check-doc($p).invariant("owner-sets-prices.$NS").checks, (CHECK-WARN,), 'both lines move together';
+    is set-governance($p, "owner-sets-prices.$NS", 'exploring'), 'unchanged', 'and says when there is nothing to do';
+    is set-governance($p, "owner-sets-prices.$NS", 'established'), 'established', 'and back up';
+    is check-doc($p).invariant("owner-sets-prices.$NS").text, 'Every price shown must be set by the owner, and the system must not adjust it.', 'without touching a word of the promise';
+
+    withdraw-invariant($p, 'owner-sets-prices');
+    like $p.slurp, /'# INVARIANT owner-sets-prices.' $NS ' was withdrawn on'/, 'withdrawing leaves a comment where it stood';
+    ok !check-doc($p).invariant("owner-sets-prices.$NS").defined && check-doc($p).ok, 'and the promise is gone';
+    throws-like { add-invariant($p, 'Z must hold.', :name("owner-sets-prices.$NS"), :reach('x')) }, X::IZ4, message => /'used before'|'withdrawn'/, 'the whole name stays retired';
+    set-is-for($p, 'IS FOR WHAT', 'Helping people find work they will love.', :replace);
+    like $p.slurp, /'IS FOR WHAT?' \h+ 'Helping people find work they will love.'/, 'the two questions are set on their own lines';
+}
+
+# ---- a word that could start a line as something else never does -----------------------
+{
+    my $p = card-file;
+    for 1 .. 14 -> $n {
+        my $text = ('word' xx $n).join(' ') ~ ' #f5f1e8 and - #1c1a17 are the colours, ' ~ ('more' xx 12).join(' ') ~ ' #end.';
+        my $name = "colours-$n.$NS";
+        add-invariant($p, $text, :name($name), :because('a reader seeing the whole sentence'), :reach('a page is styled'));
+        is normalised(check-doc($p).invariant($name).text), normalised($text), "a promise with #-words and dashes reads back whole (padding $n)";
+    }
+    for 1 .. 12 -> $n {
+        my $text = ('word' xx $n).join(' ') ~ ' ALWAYS the colours, ' ~ ('more' xx 12).join(' ') ~ ' PROMISE kept.';
+        my $name = "labels-$n.$NS";
+        add-invariant($p, $text, :name($name), :because('a reader'), :reach('a page is styled'));
+        is normalised(check-doc($p).invariant($name).text), normalised($text), "a promise whose words are label words reads back whole (padding $n)";
+    }
+    nok card-field-lines('ALWAYS', (('word' xx 11).join(' ') ~ ' #f5f1e8 rest',)).grep(*.trim.starts-with('#')), 'the writer keeps a #-word on the line before';
+    nok card-field-lines('ALWAYS', (('word' xx 11).join(' ') ~ ' - rest',)).grep(*.trim.starts-with('-')), 'and a dash';
+}
+
+# ---- reading: the tools show the cards ---------------------------------------------
+{
+    my $p = card-file($PRIVATE);
+    like invariant-text($p, 'private-stays-private'), /^ "PROMISE private-stays-private.$NS" \n\n '  WHEN' \h+ 'private profiles' \n '  ALWAYS' \h+ 'The system must never' .* 'CHANGES REQUIRE signed human approval' /, 'show invariant says the card, under the whole name';
+    like invariant-text($p, 'humans-first'), /^ 'FOUNDATION humans-first.iz4.you' \n\n '  WHEN' \h+ 'anyone is affected by the system' .* '- help people thrive, on their own terms' .* 'CHECKED WITH' \n '    - exact canonical match required' \n '    - linked tests; failures block commit' /, 'and so does the foundation';
+    like effective-text(check-doc($p)), /'WHEN' \h+ 'private profiles' .* 'ALWAYS'/, 'the effective set carries WHEN';
+    like effective-text(check-doc($p)), /'FOUNDATION humans-first.iz4.you' .* "PROMISE private-stays-private.$NS"/, 'the foundation first, then the project\'s own';
+}
+
+# ---- moving a three-clause file to cards -----------------------------------------------
+sub clauses-file(Str $body --> IO::Path) {
+    my $d = temp-dir;
+    my $p = $d.add('IZ4');
+    $p.spurt("IZ4 $NS\n\nIS FOR WHAT?  Helping people find work they love to do.\n\nIS FOR WHO?   People looking for work.\n\n$body\n" ~ foundation-block(:clauses) ~ "\n");
+    $p;
+}
+{
+    my $p = clauses-file("# Vibe: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.\n\nprivate-stays-private:\n  WHERE:    private profiles\n  ALWAYS:   The system must never expose a private profile in public search.\n  PROTECTS: Looking for work must not cost someone their current job.\n\nowner-prices: solid\n  WHERE:    every price shown\n  ALWAYS:   Prices are set by owners.\n  PROTECTS: Owners answer to customers.\n");
+    my $old = check-doc($p);
+    ok $old.ok && $old.form eq 'clauses', 'a three-clause file is still read' or diag $old.report.join("\n");
+    ok $old.warnings.first({ .message.contains('earlier three-clause form') }).defined, 'with a warning that says to migrate';
+    is $old.protection-of("private-stays-private.$NS"), 'vibe', 'the file is in vibe mode';
+    is $old.protection-of("owner-prices.$NS"), 'solid', 'but one invariant is marked solid';
+    my %plan = card-migration-plan($p);
+    ok %plan<needed> && %plan<stop> eq '', 'the plan says the move can be made';
+    is %plan<own>.map({ "{.<id>}={.<stage>}" }), ("private-stays-private.$NS=exploring", "owner-prices.$NS=established"), 'and what each promise will require, from what the file said';
+    like %plan<notes>.join(' '), /'the mode line goes'/, 'and that the mode line goes';
+    my @moved = migrate-card($p);
+    my $new = check-doc($p);
+    ok $new.ok && $new.form eq 'card' && $new.foundation-intact, 'the migrated file checks, in the card form, with the card foundation' or diag $new.report.join("\n");
+    is $new.invariants.map(*.text), $old.invariants.map(*.text), 'every ALWAYS is word for word what it was';
+    is $new.invariants.map(*.because), $old.invariants.map(*.because), 'and every PROTECTS';
+    is $new.invariants.map(*.reach), $old.invariants.map(*.reach), 'and every WHERE, now WHEN';
+    is $new.invariants.map(*.id), $old.invariants.map(*.id), 'under the same identities';
+    is $new.invariant("private-stays-private.$NS").change, CHANGE-FREE, 'vibe became exploring';
+    is $new.invariant("owner-prices.$NS").change, CHANGE-SIGNED, 'and the solid one established';
+    unlike $p.slurp, /'# Vibe:'/, 'the mode line is gone';
+    like $p.slurp, /"PROMISE private-stays-private.$NS" .* '# ' '-' ** 10 .* 'FOUNDATION humans-first.iz4.you'/, 'the project\'s own come first, the foundation last';
+    throws-like { migrate-card($p) }, X::IZ4, message => /'already in the card form'/, 'a second migration has nothing to do';
+
+    # the gate shows it as one change, and a person agrees to it
+    my @c = commitment-changes($old, $new);
+    is @c.map(*<kind>).unique.sort, ('format-migrated',), 'the gate sees one change: the move to cards, no promise revised';
+    ok needs-agreement(%( changes => @c, protections => [] )), 'which needs a person\'s agreement';
+    ok !is-blocked(%( changes => @c, protections => [] )), 'and is not blocked';
+    like proposal-lines(%( changes => @c, protections => [] )).join("\n"), /'moves to promise cards'/, 'in words a person reads';
+    my @back = commitment-changes($new, $old);
+    ok @back.first({ .<kind> eq 'format-regressed' }).defined, 'going back to the earlier form is refused';
+}
+
+# a WHEN changing is a revision, and shown with before and after
+{
+    my $a = card-file($PRIVATE);
+    my $b = card-file($PRIVATE);
+    $b.spurt($b.slurp.subst('WHEN      private profiles', 'WHEN      private and hidden profiles'));
+    my @c = commitment-changes(check-doc($a), check-doc($b));
+    is @c.map(*<kind>), ('revised',), 'a changed WHEN is a revision of the promise';
+    is @c[0]<before_reach after_reach>, ('private profiles', 'private and hidden profiles'), 'with the reach before and after';
+    isnt @c[0]<before_digest>, @c[0]<after_digest>, 'and the digests differ';
+    # the governance alone changing is its own kind
+    my $g = card-file($PRIVATE);
+    set-governance($g, "private-stays-private.$NS", 'exploring');
+    my @gc = commitment-changes(check-doc($a), check-doc($g));
+    is @gc.map(*<kind>), (), 'commitment-changes sees no change to the words when only the governance moved: the gate reports that separately';
+}
+
+# ---- init, and the commands -------------------------------------------------------------
+{
+    my $d = temp-dir;
+    my ($rc, $out, $err) = iz4($d, 'init', '--for-what=Taking orders.', '--for-who=People buying things.', '--namespace=shop.example.com', '--/agents');
+    is $rc, 0, 'init writes the card form';
+    like $d.add('IZ4').slurp, /^ 'IZ4 shop.example.com' \n/, 'with the domain in its header';
+    like $d.add('IZ4').slurp, / 'FOUNDATION humans-first.iz4.you' /, 'and the foundation as cards';
+    ($rc, $out, $err) = iz4($d, 'add', 'promise', 'A customer is never charged twice for one order.', '--when=every order', '--name=charged-once', '--protects=It costs people money and trust.');
+    is $rc, 0, 'add takes the situation with --when' or diag $err;
+    like $out, / 'Added PROMISE charged-once.shop.example.com, exploring' /, 'and says the new promise is exploring';
+    ($rc, $out, $err) = iz4($d, 'add', 'promise', 'Orders stay.', '--name=orders-stay', '--protects=x.', '--force');
+    ok $rc == 1 && $err.contains('--when='), 'and without it a script is told what to say';
+    ($rc, $out, $err) = iz4($d, 'when', 'charged-once', 'every order, including refunds');
+    is $rc, 0, 'iz4 when says when a promise applies';
+    ok check-doc($d.add('IZ4')).invariants[0].reach eq 'every order, including refunds', 'and writes it';
+    ($rc, $out, $err) = iz4($d, 'check');
+    is $rc, 0, 'check passes' or diag $out;
+    my $d12 = FOUNDATION-CARD-DIGEST.substr(0, 12);
+    like $out, /'✓ the foundation: in the file word for word (sha256 ' $d12 /, 'and names the card foundation by its digest';
+    ($rc, $out, $err) = iz4($d, 'foundation');
+    like $out, /'FOUNDATION humans-first.iz4.you' .* 'WHEN' \h+ 'anyone is affected by the system' .* 'sha256 of the foundation text: ' $d12/, 'the foundation is shown in the form of the file here';
+    ($rc, $out, $err) = iz4($d, 'show', 'invariant', 'charged-once');
+    like $out, /'PROMISE charged-once.shop.example.com' \n\n '  WHEN' \h+ 'every order, including refunds'/, 'show says it as a card';
+    ($rc, $out, $err) = iz4($d, 'discover', '--json');
+    like $out, /'"format":"card"'/, 'the machine interface names the form';
+    like $out, /'"reach":"every order, including refunds"'/, 'and carries each reach';
+}
+
+# migrate through the command
+{
+    my $p = clauses-file("orders-kept:\n  WHERE:    an order is placed\n  ALWAYS:   Orders are never lost.\n  PROTECTS: People paid.\n");
+    my $d = $p.parent;
+    my ($rc, $out, $err) = iz4($d, 'migrate', 'preview');
+    is $rc, 0, 'migrate preview';
+    like $out, /'Moving IZ4 to promise cards' .* 'established' \h+ 'orders-kept.' $NS .* 'Dry run: nothing was written.'/, 'shows the plan, with what each promise will require, and writes nothing';
+    is check-doc($p).form, 'clauses', 'and wrote nothing';
+    ($rc, $out, $err) = iz4($d, 'migrate');
+    is $rc, 0, 'migrate';
+    like $out, /'Wrote IZ4 as promise cards. Not a word of your own changed.'/, 'and says so';
+    ok check-doc($p).ok && check-doc($p).form eq 'card', 'the file is in the card form' or diag check-doc($p).report.join("\n");
+    like iz4($d, 'migrate')[1], /'already in the card form'/, 'and a second migrate has nothing to do';
+}
+
+done-testing;

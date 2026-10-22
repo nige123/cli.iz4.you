@@ -19,16 +19,21 @@ IZ4 love2.do
 IS FOR WHAT?  Helping people find work they would come alive doing.
 IS FOR WHO?   People looking for that work, and the employers hoping to find them.
 
-come-alive.matching:
-  WHERE:    a person is matched to a role
-  ALWAYS:   A match answers "would they come alive doing this work?" and
-            never degrades into keyword matching.
-  PROTECTS: a person's chance of the work they would love, not merely a
+PROMISE come-alive.matching.love2.do
+
+  WHEN      a person is matched to a role
+  ALWAYS    a match answers "would they come alive doing this work?" and
+            never degrades into keyword matching
+  PROTECTS  a person's chance of the work they would love, not merely a
             job they could do
+
+  CHANGES REQUIRE signed human approval for the exact change
+  CHECKED WITH    linked tests; failures block commit
 ```
 
-Each invariant says where it applies, what must always remain true there, and
-what must not be defeated.
+Each promise is a card. It says when it applies, what must always remain
+true, and whose what it protects; then what a change to it requires, and how
+it is checked. Nothing is hidden elsewhere in the file.
 
 ## Why
 
@@ -36,8 +41,8 @@ what must not be defeated.
   build away what people depend on.
 - **Agents read it first.** Any model, any harness, the same file.
 - **Change by agreement.** A change to a promise waits for a person's yes.
-- **Move fast first.** vibe mode stays out of your way until the invariants
-  are ready to hold.
+- **Move fast first.** A new promise is exploring: its words move freely
+  until you establish it, and the card says which it is.
 - **Humans first, built in.** Every IZ4 carries the same foundation:
 
 | | |
@@ -70,7 +75,7 @@ stands and iz4 says enforcement is inactive.
 [guide](docs/guide.md) ·
 [format](docs/format.md) ·
 [foundation](docs/foundation.md) ·
-[gate and vibe mode](docs/gate.md) ·
+[the gate](docs/gate.md) ·
 [drivers](docs/drivers.md)
 
 ## Licence

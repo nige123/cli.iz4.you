@@ -135,7 +135,7 @@ is show-text($path), $path.slurp, 'show prints the whole file';
     ok $w.slurp.ends-with("# INVARIANT later.$NS was withdrawn on {Date.today}; its name is retired.\n"), 'withdrawing the last one leaves no trailing blank';
     throws-like { withdraw-invariant($w, "nothing-unexplained.$NS") }, X::IZ4, message => /'already withdrawn'/, 'twice is refused';
     for foundation-ids() -> $id {
-        throws-like { withdraw-invariant($w, $id) }, X::IZ4, message => /'cannot be withdrawn' .* 'keystone.iz4.you'/, "the foundation's $id cannot be withdrawn";
+        throws-like { withdraw-invariant($w, $id) }, X::IZ4, message => /'cannot be withdrawn' .* 'binding.iz4.you'/, "the foundation's $id cannot be withdrawn";
     }
     throws-like { withdraw-invariant($w, 'humans-first') }, X::IZ4, message => /'cannot be withdrawn'/, 'nor by its short name';
     throws-like { withdraw-invariant($w, "nonesuch.$NS") }, X::IZ4, message => /"no invariant 'nonesuch.$NS'"/, 'a name the file never held is refused';

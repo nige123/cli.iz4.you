@@ -42,7 +42,7 @@ g($r, 'add', '-A'); g($r, 'commit', '-qm', 'start');
 # ---- a fresh IZ4 -------------------------------------------------------------
 ($rc, $out, $err) = iz4($r, 'status');
 is $rc, 0, 'status';
-like $out, / ^ 'iz4 status: IZ4, solid' \n \n 'foundation    held, word for word' \n \n 'invariants    none of your own yet' \n \n 'this change' /, 'the header, the foundation, no invariants yet, each in its own chunk';
+like $out, / ^ 'iz4 status: IZ4, no promises of its own yet' \n \n 'foundation    held, word for word' \n \n 'invariants    none of your own yet' \n \n 'this change' /, 'the header, the foundation, no promises yet, each in its own chunk';
 like $out, / 'this change   nothing staged' /, 'nothing staged';
 like $out, / 'agents        nothing wired' \h+ '321 is not installed' /, 'no agent wiring in a bare repository, in a table row';
 like $out, / 'checked       0 tests just now' .* \n \n 'file facts and test results, never that the software is safe' \n /, 'what was checked, then the disclaimer on its own line';
@@ -51,8 +51,10 @@ unlike $out, / 'All held' /, 'with no invariants of its own there is nothing to 
 unlike $out, / '◆' | '◇' /, 'no marks without invariants';
 
 # ---- a promise ---------------------------------------------------------------
-($rc, $out, $err) = iz4($r, 'add', 'invariant', 'An order is never charged twice.', '--name=charged-once', '--where=the shop takes an order', '--namespace=shop.example.com', "--protects=a customer's money", '--force');
+($rc, $out, $err) = iz4($r, 'add', 'promise', 'An order is never charged twice.', '--name=charged-once', '--when=the shop takes an order', '--namespace=shop.example.com', "--protects=a customer's money", '--force', '--established');
 is $rc, 0, 'add';
+like $out, / 'Added PROMISE charged-once.shop.example.com, established' /, 'an established promise, so its words wait for a yes';
+like iz4($r, 'status')[1], / ^ 'iz4 status: IZ4, established' /, 'and the header says so';
 ($rc, $out, $err) = iz4($r, 'status');
 like $out, / 'invariants    1 of your own: 1 promised' \n '  ◇ charged-once  no test yet' \n \n /, 'an invariant without a test is a promise: an open diamond';
 like $out, / 'next:  iz4 test' /, 'and the next step is a test';

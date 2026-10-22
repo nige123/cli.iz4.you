@@ -21,13 +21,12 @@
       "verified_pass": false
     },
     "context": {
-      "outcome": "agreement-required",
+      "outcome": "pass",
       "exit": 0,
-      "detected": true,
+      "detected": false,
       "prevented": false,
       "func_pass": "none",
-      "invariant_pass": "pass",
-      "verified_pass": false
+      "invariant_pass": "pass"
     },
     "vibe": {
       "outcome": "pass",
@@ -38,23 +37,13 @@
       "invariant_pass": "pass",
       "verified_pass": true
     },
-    "firm": {
-      "outcome": "agreement-required",
-      "exit": 2,
-      "detected": true,
-      "prevented": true,
-      "func_pass": "none",
-      "invariant_pass": "pass",
-      "verified_pass": false
-    },
     "enforced": {
-      "outcome": "agreement-required",
-      "exit": 2,
-      "detected": true,
-      "prevented": true,
+      "outcome": "pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false,
       "func_pass": "none",
-      "invariant_pass": "pass",
-      "verified_pass": false
+      "invariant_pass": "pass"
     }
   },
   "finding": "Declared before the run as free in every mode but the gate waits in context, firm and enforced: the seed there is solid, and in a solid or firm file raising one invariant's protection is a change to a commitment like any other, one yes. Only in a settling (vibe) file is protecting more free, which is the case the scenario is about: vibe passes, nobody asked."

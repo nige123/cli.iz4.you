@@ -220,13 +220,15 @@ sub ask-required(Str $prompt, Str $what --> Str) {
 sub coach-into(IO::Path $path, Str :$candidate, Str :$suggested-because, Str :$name, Str :$namespace --> Int) {
     my $doc = check-doc($path);
     my %r = coach-invariant(
-        :&ask, :&tell, :$candidate, :$suggested-because, :clauses($doc.form eq 'clauses'),
+        :&ask, :&tell, :$candidate, :$suggested-because, :clauses(so($doc.form eq 'clauses' || $doc.form eq 'card')), :card(so($doc.form eq 'card')),
         for-what => $doc.for-what, for-who => $doc.for-who);
     given %r<outcome> {
         when 'add' {
             my ($id, $ns) = choose-identity($path, $name, :$namespace, :text(%r<text>));
             add-invariant($path, %r<text>, :name($id), :because(%r<because>), :namespace($ns), :reach(%r<reach> // Str));
-            say "Added INVARIANT $id to {display-name($path)}.";
+            say $doc.form eq 'card'
+                ?? "Added PROMISE $id to {display-name($path)}, exploring: anyone may change its words while it settles. 'iz4 establish {$id.split('.')[0]}' when it is agreed."
+                !! "Added INVARIANT $id to {display-name($path)}.";
         }
         when 'skipped' { say 'Nothing added.' }
     }
@@ -386,9 +388,9 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Str :$namespace, Bool :$agent,
         say '';
         calm("What every IZ4 carries",
              'The foundation, word for word, beginning with Invariant Zero: humans first.',
-             'Your own invariants say where they apply (WHERE), what must remain true there (ALWAYS) and what must not be defeated (PROTECTS).',
-             :next(['add' => 'one invariant, one question at a time',
-                    'mode vibe' => 'move fast while the invariants settle',
+             'Your own promises say when they apply (WHEN), what must remain true (ALWAYS), whose what they protect (PROTECTS), what a change to them requires and how they are checked.',
+             :next(['add' => 'one promise, one question at a time',
+                    'establish NAME' => 'when a promise is agreed: a change to it then waits for your yes',
                     'foundation' => 'the words every IZ4 carries']));
         if $talk {
             say '';
@@ -404,21 +406,23 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Str :$namespace, Bool :$agent,
 # ------------------------------------------------------------ add
 
 multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Str :$name, Str :$namespace,
-           Str :$where, Str :$protects, Bool :$replace = False, Bool :$force = False) {
+           Str :$where, Str :$when, Str :$protects, Bool :$replace = False, Bool :$force = False, Bool :$established = False) {
     attempt :intent, {
         my $path = resolve-target($file);
         my $k = ($kind // 'invariant').lc;
         given $k {
-            when 'invariant' | 'invariants' {
-                if interactive() && !$because.defined && !$name.defined && !$where.defined && !$protects.defined {
+            when 'invariant' | 'invariants' | 'promise' | 'promises' {
+                if interactive() && !$because.defined && !$name.defined && !$where.defined && !$when.defined && !$protects.defined {
                     return coach-into($path, :candidate($text), :$namespace);
                 }
                 user-error("iz4 add coaches you on a terminal; in a script use:\n"
-                    ~ (check-doc($path).form eq 'clauses'
+                    ~ (check-doc($path).form eq 'card'
+                        ?? "  iz4 add promise 'what must remain true' --when='the situation it applies in' --protects='whose what it protects' --name=a-few-words [--established]"
+                        !! check-doc($path).form eq 'clauses'
                         ?? "  iz4 add invariant 'what must remain true there' --where='the situation it applies in' --protects='what must not be defeated' --name=a-few-words"
                         !! "  iz4 add invariant 'what must remain true' --name=a-few-words --because='why it must survive'"))
                     without $text;
-                fast-add($path, $text, :because($protects // $because), :$name, :$namespace, :$force, :reach($where));
+                fast-add($path, $text, :because($protects // $because), :$name, :$namespace, :$force, :reach($when // $where), :$established);
             }
             when 'for-what' | 'what' | 'is-for-what' {
                 user-error('iz4 add for-what needs the answer: what is this for?') without $text;
@@ -442,9 +446,13 @@ multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Str :$name,
 
 #| The fast path: no questions, but the same challenges as the coach, as
 #| a refusal the person can overrule with --force.  They decide.
-sub fast-add(IO::Path $path, Str $text, Str :$because, Str :$name, Str :$namespace, Bool :$force, Str :$reach) {
+sub fast-add(IO::Path $path, Str $text, Str :$because, Str :$name, Str :$namespace, Bool :$force, Str :$reach, Bool :$established = False) {
     my $form = check-doc($path).form;
-    if $form eq 'clauses' {
+    if $form eq 'card' {
+        user-error("not added: say when it applies with --when='the situation', as WHEN is the first field of a promise") if ($reach // '').trim eq '';
+        user-error("not added: say whose what it protects with --protects='a customer\'s money', as PROTECTS is the third field. {NOTHING-PROTECTED}") if ($because // '').trim eq '';
+    }
+    elsif $form eq 'clauses' {
         user-error("not added: say where it applies with --where='the situation', as WHERE is the first clause of an invariant here") if ($reach // '').trim eq '';
         user-error("not added: say whose what it protects with --protects='a customer\'s money', as PROTECTS is the third clause here. {NOTHING-PROTECTED}") if ($because // '').trim eq '';
     }
@@ -459,16 +467,20 @@ sub fast-add(IO::Path $path, Str $text, Str :$because, Str :$name, Str :$namespa
         }
         user-error("not added: $why\n(--force adds it anyway, if you have judged that it must remain true)") with $why;
         if ($because // '').trim && assess-because($text, $because) eq 'circular' {
-            user-error($form eq 'clauses'
+            user-error($form eq 'clauses' | 'card'
                 ?? "not added: PROTECTS restates ALWAYS. What must not be defeated: which person, and what of theirs?\n(--force adds it anyway)"
                 !! "not added: the BECAUSE restates the invariant. Who would be harmed, surprised or let down if it stopped being true, and why?\n(--force adds it anyway)");
         }
     }
     my ($id, $ns) = choose-identity($path, $name, :$namespace, :$text);
-    add-invariant($path, $text, :name($id), :$because, :namespace($ns), :$reach);
-    say "Added INVARIANT $id.";
+    add-invariant($path, $text, :name($id), :$because, :namespace($ns), :$reach, :$established);
+    if $form eq 'card' {
+        say "Added PROMISE $id" ~ ($established ?? ', established: a change to its words waits for your yes, and a failing linked test holds the commit.'
+                                                 !! ", exploring: anyone may change its words while it settles, and a failing linked test warns. 'iz4 establish {$id.split('.')[0]}' when it is agreed.");
+    }
+    else { say "Added INVARIANT $id." }
     note "note: no BECAUSE - say why it must survive, so nobody removes it by accident (--because=...)"
-        unless ($because // '').trim || $form eq 'clauses';
+        unless ($because // '').trim || $form eq 'clauses' | 'card';
 }
 
 # ------------------------------------------------------------ because
@@ -558,10 +570,9 @@ multi MAIN('withdraw', Str $which, Str :$file, Bool :$force = False, Bool :$keep
     }
 }
 
-# ------------------------------------------------------------ mode
+# ------------------------------------------------------- establish
 
-#| vibe mode or solid: how much the project's own invariants are meant yet.
-#| One of the project's own invariants, by its full name, its short name
+#| One of the project's own promises, by its full name, its short name
 #| (without the domain) or the start of either where that is unambiguous.
 sub pick-invariant(IZ4::Document $doc, Str $which) {
     my @own = $doc.invariants.grep(*.id.defined);
@@ -571,71 +582,49 @@ sub pick-invariant(IZ4::Document $doc, Str $which) {
     return @exact[0] if @exact == 1;
     my @pre = @own.grep({ .id.starts-with($which) || short(.id).starts-with($which) });
     return @pre[0] if @pre == 1;
-    user-error(@pre > 1 ?? "'$which' could be any of {@pre.map({ short(.id) }).join(', ')}: say more of the name" !! "no invariant of this project is named '$which'");
+    user-error(@pre > 1 ?? "'$which' could be any of {@pre.map({ short(.id) }).join(', ')}: say more of the name" !! "no promise of this project is named '$which'");
 }
 
-multi MAIN('mode', Str $mode?, Str $which?, Str :$file) {
-    attempt :intent, {
-        my $path = resolve-target($file);
-        my $doc  = check-doc($path);
-        my $name = display-name($path);
-        my %say = vibe  => 'Its invariants are still settling: a change to them does not wait for a yes, and a failing test holds nothing.',
-                  firm  => 'Its invariants are agreed: a change to one waits for your yes; a failing test is reported, not held.',
-                  solid => 'Its invariants hold: a change to one waits for your yes, and a failing test holds the commit.';
-        my sub overrides() { $doc.invariants.grep({ .id.defined && .protection }).map({ "{.id}: {.protection}" }) }
-        without $mode {
-            my @o = overrides();
-            calm("$name is " ~ ($doc.mode eq 'solid' ?? 'solid' !! "in {$doc.mode} mode"), %say{$doc.mode},
-                 (@o ?? "Protected more than the file: {@o.join(', ')}." !! ''),
-                 :next(($doc.mode ne 'vibe' ?? ('mode vibe' => 'while they are still settling') !! Empty),
-                       ($doc.mode ne 'firm' ?? ('mode firm' => 'when the words are agreed and the tests are not yet') !! Empty),
-                       ($doc.mode ne 'solid' ?? ('mode solid' => 'when they are ready to hold') !! Empty),
-                       'mode WORD NAME' => 'firm or solid for one invariant, more than the file'));
-            return 0;
-        }
-        my $want = $mode.lc;
-        user-error("iz4 mode takes vibe, firm or solid; not '$mode'") unless $want eq 'vibe' | 'firm' | 'solid';
-        # one invariant: its own protection, stronger than the file's mode
-        with $which {
-            my $inv = pick-invariant($doc, $which);
-            my %rank = vibe => 0, firm => 1, solid => 2;
-            if %rank{$want} <= %rank{$doc.mode} {
-                my $now = set-protection($path, $inv.id, '');
-                calm("{$inv.id} follows the file", "The file is " ~ ($doc.mode eq 'solid' ?? 'solid' !! "in {$doc.mode} mode") ~ ", which protects it at least as much as $want would; its own word is " ~ ($now eq 'unchanged' ?? 'not there' !! 'gone') ~ '.');
-                return 0;
-            }
-            my $now = set-protection($path, $inv.id, $want);
-            if $now eq 'unchanged' { calm("{$inv.id} is already $want"); return 0 }
-            calm("{$inv.id} is $want", "The file stays in {$doc.mode} mode; this one invariant is protected as $want: " ~ %say{$want}.subst('Its invariants', 'it').subst('a change to one', 'a change to it').subst('a change to them', 'a change to it'),
-                 'Lowering it again waits for your yes.', :next(['mode' => 'shows every protection']));
-            return 0;
-        }
-        my $now = set-mode($path, $want);
-        if $now eq 'unchanged' { calm("$name is already " ~ ($want eq 'solid' ?? 'solid' !! "in $want mode")); return 0 }
-        my $agreed = git($path, 'rev-parse', '--git-dir')[0] == 0 && git-tracked($path)
-            ?? 'Changing mode is itself something you agree to: commit it, and you are asked once.' !! '';
-        if $want eq 'vibe' {
-            calm("$name is in vibe mode",
-                 'Changes to its invariants do not wait for a yes, and a failing test of one does not hold a commit. The foundation holds as ever.', $agreed,
-                 :next(['mode firm' => 'when the words are agreed', 'mode solid' => 'when the invariants are ready to mean it']));
-        }
-        elsif $want eq 'firm' {
-            calm("$name is firm",
-                 'From now on a change to one of its invariants waits for your yes. A failing test is reported and holds nothing yet. The foundation holds as ever.', $agreed,
-                 :next(['test' => 'writes the tests that are missing', 'mode solid' => 'when the tests hold']));
-        }
-        else {
-            my %ev    = evidence-for(check-doc($path), $path.parent);
-            my @own   = check-doc($path).invariants.grep(*.id.defined);
-            my $named = @own.grep({ (%ev<state>{.id} // '') eq 'named' }).elems;
-            calm("$name is solid",
-                 'From now on a change to one of its invariants waits for your yes.',
-                 (@own == $named ?? "All {+@own} of its own have a test." !! "$named of {+@own} have a test."), $agreed,
-                 :next(@own == $named ?? () !! ['test' => 'writes the rest, so each one means something']));
-        }
-        0;
+#| What each promise requires of a change, and with it what is checked.
+#| 'iz4 establish NAME' when its words are agreed: from then on a change
+#| waits for a signed yes and a failing linked test holds the commit.
+#| 'iz4 explore NAME' lets its words move again while it settles; lowering
+#| is itself a change the gate asks about at commit time.  With no name,
+#| each says where every promise stands.
+sub governance-command(Str $stage, Str $which, Str $file) {
+    my $path = resolve-target($file);
+    my $doc  = check-doc($path);
+    my $name = display-name($path);
+    user-error("$name is in the earlier form; 'iz4 migrate' moves it to promise cards, which carry what each requires") unless $doc.form eq 'card';
+    my @own = $doc.invariants.grep(*.id.defined);
+    without $which {
+        my @x = @own.grep(*.exploring); my @e = @own.grep({ !.exploring });
+        calm("$name: " ~ (!@own ?? 'no promises of its own yet' !! @e == @own ?? "all {+@own} established" !! @x == @own ?? "all {+@own} exploring" !! "{+@e} established, {+@x} exploring"),
+             |(@x ?? ("Exploring, so a change to its words waits for nobody and a failing linked test warns: {@x.map(*.id).join(', ')}.",) !! ()),
+             |(@e ?? ("Established, so a change waits for your signed yes and a failing linked test holds the commit: {@e.map(*.id).join(', ')}.",) !! ()),
+             :next([|(@x ?? ('establish NAME' => 'when a promise is agreed',) !! ()), |(@e ?? ('explore NAME' => 'to let one move again while it settles',) !! ())]));
+        return 0;
     }
+    my $inv = pick-invariant($doc, $which);
+    my $now = set-governance($path, $inv.id, $stage);
+    if $now eq 'unchanged' { calm("{$inv.id} is already $stage"); return 0 }
+    if $stage eq 'established' {
+        calm("{$inv.id} is established",
+             'From now on a change to its words waits for your signed yes, and a failing linked test holds the commit.',
+             'Its card says so: CHANGES REQUIRE signed human approval for the exact change; CHECKED WITH linked tests; failures block commit.',
+             :next(['test' => 'writes the test that is missing, if any', 'status' => 'where everything stands']));
+    }
+    else {
+        calm("{$inv.id} is exploring",
+             'Its words may change without approval while it settles, and a failing linked test warns rather than holds. The promise as written still applies.',
+             'Asking less of a promise is itself a change: commit it, and the gate asks you once.',
+             :next(['establish ' ~ $which => 'when its words are agreed']));
+    }
+    0;
 }
+
+multi MAIN('establish', Str $which?, Str :$file) { attempt :intent, { governance-command('established', $which, $file) } }
+multi MAIN('explore',   Str $which?, Str :$file) { attempt :intent, { governance-command('exploring',   $which, $file) } }
 
 # ------------------------------------------------------------ words for actions
 #
@@ -675,7 +664,19 @@ multi MAIN('foundation', Str $file?, Bool :$restore = False) {
     attempt {
         unless $restore {
             # the form of the file here, else the newest
-            my $clauses = (try check-doc(resolve-target($file)).form eq 'clauses') // True;
+            my $form = (try check-doc(resolve-target($file)).form) // 'card';
+            if $form eq 'card' {
+                say 'The foundation:';
+                for FOUNDATION-CARD -> %f {
+                    say sprintf('  %d  %-26s%s', %f<legacy>, %f<id>, %f<id> eq INVARIANT-ZERO ?? 'Invariant Zero: the foundation of the foundation' !! '').trim-trailing;
+                }
+                say '';
+                print pretty(foundation-block(:card));
+                say '';
+                say "(sha256 of the foundation text: {FOUNDATION-CARD-DIGEST.substr(0, 12)}; every IZ4 carries it word for word, and no project can change it)";
+                return 0;
+            }
+            my $clauses = $form eq 'clauses';
             say 'The foundation:';
             for ($clauses ?? FOUNDATION-CLAUSES !! FOUNDATION) -> %f {
                 say sprintf('  %d  %-26s%s', %f<legacy>, %f<id>, %f<id> eq INVARIANT-ZERO ?? 'Invariant Zero: the foundation of the foundation' !! '').trim-trailing;
@@ -776,7 +777,7 @@ sub ago(Str $iso --> Str) {
 #| nothing yet shows.  Names are mapped short and long, as the file writes
 #| them.  Returns the map; the checks come from the caller or the record.
 sub mark-states(IZ4::Document $doc, IO::Path $root, :@checks = recorded-checks($root) --> Hash) {
-    my %state = |foundation-ids(:clauses).map(* => 'held'), |foundation-ids().map(* => 'held');
+    my %state = |foundation-ids(:card).map(* => 'held'), |foundation-ids(:clauses).map(* => 'held'), |foundation-ids().map(* => 'held');
     my %by-id;
     for @checks -> %c { %by-id{$_}.push(%c<outcome>) for |(%c<invariants> // ()) }
     my $tail = '.' ~ ($doc.domain // '');
@@ -852,7 +853,7 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
                           elsif (%ev<state>{$inv.id} // 'none') eq 'named' { ($checks ?? 'named by ' !! 'not checked; named by ') ~ (%ev<files>{$inv.id} // ()).join(', ') }
                           elsif (%ev<state>{$inv.id} // 'none') ne 'none' { "a {%ev<state>{$inv.id}} test, not yet real" }
                           else { 'no test yet' };
-            %( id => $inv.id, mark => %state{$inv.id}, evidence => $note ~ ($inv.protection ?? "; {$inv.protection}" !! ''), protection => $doc.protection-of($inv.id), checks => @c.List );
+            %( id => $inv.id, mark => %state{$inv.id}, evidence => $note ~ ($inv.card ?? ($inv.exploring ?? '; exploring' !! '') !! ($inv.protection ?? "; {$inv.protection}" !! '')), protection => $doc.protection-of($inv.id), stage => ($inv.card ?? stage-of($inv.change // CHANGE-SIGNED) !! $doc.protection-of($inv.id)), checks => @c.List );
         });
         # this change: what is staged, and whether it touches a commitment
         my %change;
@@ -880,13 +881,14 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
         @next.push('iz4 status') if !$checks && !$recorded && @own;
         @next.push('iz4 test') if @own.grep({ (%ev<state>{.id} // 'none') eq 'none' });
         @next.push('321 iz4 install') if $driver.defined && $level ne 'guarded' && %enf && so @(%enf<harnesses> // []).grep({ .<detected> });
-        my %s = schema => 'iz4-status/1', iz4 => %( present => True, file => $path.Str, valid => $doc.ok, mode => $doc.mode ),
+        my $standing = !@own ?? 'no promises of its own yet' !! @own.grep(*.exploring) == @own ?? 'exploring' !! !@own.grep(*.exploring) ?? 'established' !! "{+@own.grep({ !.exploring })} of {+@own} established";
+        my %s = schema => 'iz4-status/1', iz4 => %( present => True, file => $path.Str, valid => $doc.ok, form => $doc.form, mode => $doc.mode, standing => $standing ),
                 foundation => %( intact => $doc.foundation-intact, status => $doc.foundation-status ),
                 invariants => @inv.List, counts => %count, change => %change, agents => %agents,
                 checks => %( ran => $ran, recorded => $recorded, at => (%last<at> // Str), count => @checks.elems, seconds => $secs ), next => @next.List;
         if $json { say json-encode(%s); return 0 }
         my $icon = pretty-on() ?? diamond() ~ ' ' !! '';
-        say pretty("{$icon}iz4 status: $name, " ~ ($doc.mode eq 'solid' ?? 'solid' !! "{$doc.mode} mode"));
+        say pretty("{$icon}iz4 status: $name, " ~ ($doc.form eq 'card' ?? $standing !! $doc.mode eq 'solid' ?? 'solid' !! "{$doc.mode} mode"));
         say '';
         my sub row(Str $k, Str $v) { say pretty(sprintf('%-13s %s', $k, $v)) }
         row('foundation', $doc.foundation-intact ?? 'held, word for word' !! "CHANGED: {$doc.foundation-status}; iz4 foundation restore puts it back");
@@ -1009,7 +1011,7 @@ multi MAIN('check', Str $file?, Bool :$strict = False) {
             my %ev    = evidence-for($doc, $path.parent);
             my $named = $doc.invariants.grep({ .id.defined && (%ev<state>{.id} // '') eq 'named' }).elems;
             my $why   = $count - $doc.unexplained-invariants.elems;
-            @rows.push: ('✓', "vibe mode: $count settling, $why with a reason, $named with a test. Nothing waits on you; 'iz4 mode solid' when they are ready to hold.", '');
+            @rows.push: ('✓', "exploring: $count settling, $why with a reason, $named with a test. Nothing waits on you; 'iz4 establish NAME' when a promise is agreed.", '');
         }
         elsif $count {
             my @bare   = $doc.unexplained-invariants;
@@ -1196,7 +1198,7 @@ multi MAIN('name', Int $line, Str $name, Str :$file, Str :$namespace) {
 # ------------------------------------------------------------ where
 
 #| Say where an invariant applies: its WHERE.
-multi MAIN('where', Str $which, Str $text, Str :$file) {
+multi MAIN('when', Str $which, Str $text, Str :$file) {
     attempt :intent, {
         my $path = resolve-target($file);
         say "{set-reach($path, $which, $text)} now applies where: $text";
@@ -1209,8 +1211,14 @@ multi MAIN('where', Str $which, Str $text, Str :$file) {
 multi MAIN('migrate', Str $file?, Str :$namespace, Str :$where, Bool :$dry-run = False) {
     attempt :intent, {
         my $path = resolve-target($file);
-        if check-doc($path).form eq 'clauses' { say "{display-name($path)} is already in the canonical form; there is nothing to migrate."; return 0 }
-        migrate-clauses-command($path, :$namespace, :$where, :$dry-run);
+        my $form = check-doc($path).form;
+        if $form eq 'card' { say "{display-name($path)} is already in the card form; there is nothing to migrate."; return 0 }
+        if $form eq 'named' {
+            my $rc = migrate-clauses-command($path, :$namespace, :$where, :$dry-run);
+            return $rc if $rc != 0 || $dry-run;
+            say '';
+        }
+        migrate-card-command($path, :$dry-run);
     }
 }
 
@@ -1288,6 +1296,27 @@ sub migrate-clauses-command(IO::Path $path, Str :$namespace, Str :$where, Bool :
     say '';
     say "Wrote $name in the three-clause form: header 'IZ4 $ns', your own invariants in three clauses, the foundation last. Not a word of your own changed.";
     say-next(['iz4 check', "iz4 gate --staged   (after 'git add': it shows each WHERE as a change to agree to)", 'iz4 approve'], :then(Str));
+    0;
+}
+
+#| Move an IZ4 from the three-clause form to promise cards.  Every word of
+#| the owner's stays; what each invariant's protection meant is written on
+#| its card as what a change requires and what is checked.  The plan is
+#| shown first, so a person reads what changes in meaning before anything is
+#| written.
+sub migrate-card-command(IO::Path $path, Bool :$dry-run --> Int) {
+    my $name = display-name($path);
+    my %plan = card-migration-plan($path);
+    user-error("cannot migrate $name: %plan<stop>") if %plan<stop>;
+    say "Moving $name to promise cards: each promise says when it applies (WHEN), what must remain true (ALWAYS), whose what it protects (PROTECTS), what a change to it requires (CHANGES REQUIRE) and how it is checked (CHECKED WITH).";
+    say 'Your words become WHEN, ALWAYS and PROTECTS word for word. What each promise requires is written from what the file said:';
+    for %plan<own>.list -> %o { say sprintf('  %-12s %s', %o<stage>, %o<id>) }
+    say "  $_" for %plan<notes>.list;
+    if $dry-run { say ''; say 'Dry run: nothing was written.'; return 0 }
+    migrate-card($path);
+    say '';
+    say "Wrote $name as promise cards. Not a word of your own changed.";
+    say-next(['iz4 check', "iz4 gate --staged   (after 'git add': the move to cards is one change to agree to)", 'iz4 approve'], :then(Str));
     0;
 }
 
@@ -1822,11 +1851,11 @@ sub brief-line(%r --> Str) {
         my @said;
         @said.push: "{%m<changes>} change{%m<changes> == 1 ?? '' !! 's'} to what it promises" if %m<changes>;
         @said.push: "{%m<failing>} invariant test{%m<failing> == 1 ?? '' !! 's'} failing" if %m<failing>;
-        return 'iz4: vibe mode, ' ~ (@said ?? @said.join(', ') ~ ". Nothing waits on you; 'iz4 mode solid' when they are ready to hold." !! 'nothing it promises changed.');
+        return 'iz4: exploring, ' ~ (@said ?? @said.join(', ') ~ ". Nothing waits on you; 'iz4 establish NAME' when a promise is agreed." !! 'nothing it promises changed.');
     }
     with %r<settling> -> %m {   # firm: what was noticed and not held is still said
         my @said;
-        @said.push: "{%m<failing>} protecting test{%m<failing> == 1 ?? '' !! 's'} failing, reported while the file is firm" if %m<failing>;
+        @said.push: "{%m<failing>} protecting test{%m<failing> == 1 ?? '' !! 's'} failing, reported while the promise is exploring" if %m<failing>;
         return 'iz4: ' ~ @said.join(', ') ~ '.' if @said;
     }
     (%r<approval><status> // '') eq 'valid'
@@ -1860,7 +1889,7 @@ sub gate-lines(%r --> List) {
         }
     }
     @l.push: "  note: $_" for |%r<notes>;
-    with %r<vibe> { @l.push: "vibe mode: the invariants are still settling, so nothing here waits for a yes ({.<changes>} changed, {.<failing>} test{.<failing> == 1 ?? '' !! 's'} failing). 'iz4 mode solid' when they are ready to hold." }
+    with %r<vibe> { @l.push: "exploring: every promise of the project's own may still change freely, so nothing here waits for a yes ({.<changes>} changed, {.<failing>} test{.<failing> == 1 ?? '' !! 's'} failing). 'iz4 establish NAME' when one is agreed." }
     my %why =
         pass => 'no commitment or protection changed, and every check that could run passed',
         'agreement-required' => 'this changes what the software promises, so it waits for your yes',
@@ -1904,14 +1933,15 @@ multi MAIN('draft', 'check', Str :$where = '', Str :$always, Str :$holds, Str :$
         with $name {
             my $path = resolve-target($file);
             my $doc = check-doc($path);
-            my $id = $doc.form eq 'clauses' ?? clauses-identity($name, $doc.domain // 'example.com') !! full-identity($name, project-namespace($path));
+            my $id = $doc.form eq 'clauses' | 'card' ?? clauses-identity($name, $doc.domain // 'example.com') !! full-identity($name, project-namespace($path));
             %r<identity> = $id;
             try {
                 check-new-name($path, $doc, $id);
                 CATCH { when X::IZ4 { %r<findings>.push: %( clause => 'NAME', code => 'name', level => 'ask', message => .message ); %r<ok> = False } }
             }
-            %r<digest> = invariant-digest($id, $rule.trim, $protects.trim, |($doc.form eq 'clauses' ?? (:reach($where.trim)) !! ()))
-                if $rule.trim ne '' && ($doc.form ne 'clauses' || $where.trim ne '');
+            %r<digest> = $doc.form eq 'card' ?? sha256-text(canonical-card($id, $where.trim, ($rule.trim,), ($protects.trim,)))
+                       !! invariant-digest($id, $rule.trim, $protects.trim, |($doc.form eq 'clauses' ?? (:reach($where.trim)) !! ()))
+                if $rule.trim ne '' && ($doc.form eq 'named' || $where.trim ne '');
         }
         say json-encode(%r);
         0;

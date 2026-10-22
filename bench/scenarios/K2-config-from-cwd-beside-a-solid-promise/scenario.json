@@ -38,15 +38,6 @@
       "invariant_pass": "fail",
       "verified_pass": false
     },
-    "firm": {
-      "outcome": "pass",
-      "exit": 0,
-      "detected": true,
-      "prevented": false,
-      "func_pass": "pass",
-      "invariant_pass": "fail",
-      "verified_pass": false
-    },
     "enforced": {
       "outcome": "blocked",
       "exit": 3,

@@ -84,7 +84,7 @@ subtest 'actions are words' => {
     like run-iz4('foundation', 'restore')<out>, / 'already there' /, 'iz4 foundation restore';
     # the foundation as an earlier iz4 wrote it, its last invariant under the name it had then: restore brings it up to date
     my $current = $file.slurp;
-    $file.spurt($current.subst('binding.iz4.you:', 'keystone.iz4.you:'));
+    $file.spurt($current.subst('FOUNDATION binding.iz4.you', 'FOUNDATION keystone.iz4.you'));
     isnt $file.slurp, $current, 'a file as iz4 0.18 wrote it';
     run-iz4('foundation', 'restore');
     is $file.slurp, $current, 'restore brings it up to date';
@@ -105,15 +105,16 @@ subtest 'actions are words' => {
 
 # ---- pretty: colour and the green diamond for a person, nothing for a pipe --------------
 subtest 'pretty dresses output for a terminal only' => {
-    my $plain = "private-stays-private:\n  WHERE:    private profiles\n  ALWAYS:   Only its owner may learn it.\n  PROTECTS: the owner's privacy\n# a comment\n✓ structure: valid\n✗ evidence: none\nOK IZ4\n";
+    my $plain = "PROMISE private-stays-private.shop.example.com\n\n  WHEN      private profiles\n  ALWAYS    Only its owner may learn it.\n  PROTECTS  the owner's privacy\n\n  CHANGES REQUIRE signed human approval for the exact change\n  CHECKED WITH    linked tests; failures block commit\n# a comment\n✓ structure: valid\n✗ evidence: none\nOK IZ4\n";
     is pretty($plain, :!on), $plain, 'off, the text is untouched';
     my $on = pretty($plain, :on);
-    like $on, /"\e[" .* '◈' .* "\e[1m" 'private-stays-private' "\e[0m"/, 'on, the heading becomes a green diamond and a bold name';
-    like $on, /"\e[1m" 'WHERE:' "\e[0m" '    private profiles'/, 'the clause labels are bold and the words are left alone';
+    like $on, /"\e[" .* '◈' .* "\e[1m" 'private-stays-private.shop.example.com' "\e[0m"/, 'on, the heading becomes a green diamond and a bold name';
+    like $on, /"\e[1m" 'WHEN' "\e[0m" '      private profiles'/, 'the field labels are bold and the words are left alone';
+    like $on, /"\e[1m" 'CHANGES REQUIRE' "\e[0m" ' signed human approval'/, 'the two-word labels too';
     like $on, /"\e[2m" '# a comment' "\e[0m"/, 'a comment is dimmed';
     like $on, /"\e[31m" '✗' "\e[0m"/, 'a cross is red';
     like $on, /"\e[1m" 'OK IZ4' "\e[0m"/, 'the verdict is bold';
-    is $on.subst(/ "\e[" <[0..9;]>+ 'm' /, '', :g).subst('◈ ', '').subst('private-stays-private', 'private-stays-private:', :x(1)), $plain, 'strip the colour and the diamond and every word is as it was';
+    is $on.subst(/ "\e[" <[0..9;]>+ 'm' /, '', :g).subst('◈ ', 'PROMISE ', :x(1)), $plain, 'strip the colour and the diamond and every word is as it was';
     like pretty("INVARIANT charged-once.shop.example.com added: X\n", :on), /'◈' .* 'charged-once.shop.example.com'/, 'the gate\'s INVARIANT lines get the diamond too';
     my $r = run-iz4('foundation');
     unlike $r<out>, /"\e["/, 'into a pipe, iz4 writes no colour at all';

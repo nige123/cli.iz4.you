@@ -5,7 +5,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.27.0';
+constant VERSION is export = '0.28.0';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -50,6 +50,9 @@ sub invariant-digest(Str $id, Str $text, Str $because?, Str :$reach --> Str) is 
 }
 
 my %FOUNDATION-DIGESTS;
+#| The digest of one invariant as parsed, in the rule of its form.
+sub invariant-digest-of(IZ4::Document::Invariant $inv --> Str) is export { sha256-text($inv.canonical) }
+
 sub foundation-digest-of(Str $id --> Str) is export {
     %FOUNDATION-DIGESTS{$id} //= do {
         my %f = foundation-entry($id);
@@ -176,9 +179,10 @@ my @OLD-HEADERS =
 #| comment and nothing else removed, the opening comment brought up to
 #| date, and the current foundation written where the first block stood:
 #| else after IS FOR WHO?, else after IS FOR WHAT?, else at the end.
-sub with-foundation(IZ4::Document $doc, @source, Bool :$to-clauses = False, Bool :$last = False --> List) {
+sub with-foundation(IZ4::Document $doc, @source, Bool :$to-clauses = False, Bool :$to-card = False, Bool :$last = False --> List) {
     my @lines = @source;
-    my $clauses = $to-clauses || $doc.form eq 'clauses';
+    my $card    = $to-card || (!$to-clauses && $doc.form eq 'card');
+    my $clauses = !$card && ($to-clauses || $doc.form eq 'clauses');
     my %drop;
     for $doc.foundation-spans -> ($from, $to) { %drop{$_} = True for $from .. $to }
     for @OLD-HEADERS -> @old {
@@ -213,7 +217,7 @@ sub with-foundation(IZ4::Document $doc, @source, Bool :$to-clauses = False, Bool
     my $placed = False;
     my sub place() {
         @out.push('') if @out && @out.tail ne '';
-        @out.append(foundation-block(:$clauses).lines);
+        @out.append(foundation-block(:$clauses, :$card).lines);
         @out.push('');
         $placed = True;
     }
@@ -265,46 +269,40 @@ constant EXAMPLES is export = q:to/END/;
     project owner decides what must remain true.
     END
 
-# ---------------------------------------------------------------- mode
+# ---------------------------------------------------------- governance
 
-#| Put a file into vibe mode or make it solid.  Only the one comment line
-#| comes or goes.  Returns 'vibe', 'solid' or 'unchanged'.
-sub set-mode(IO::Path $path, Str $mode where 'vibe' | 'firm' | 'solid' --> Str) is export {
+#| Set what one promise's words require to change, and with it what is
+#| checked: 'exploring' (no approval; linked tests warn) or 'established'
+#| (signed human approval; linked tests block).  Only the two governance
+#| lines of that card are rewritten.  Returns the stage now written, or
+#| 'unchanged'.  Lowering is a change the gate asks a person about at
+#| commit time, like any other; this only writes the words.
+sub set-governance(IO::Path $path, Str $id, Str $stage where 'exploring' | 'established' --> Str) is export {
     my $doc = check-doc($path);
-    return 'unchanged' if $doc.mode eq $mode;
+    user-error("{$path.basename} is not in the card form: 'iz4 migrate' moves it there first") unless $doc.form eq 'card';
+    my $inv = $doc.invariant($id) // user-error("no promise named $id in {$path.basename}");
+    my $change = $stage eq 'exploring' ?? CHANGE-FREE !! CHANGE-SIGNED;
+    return 'unchanged' if ($inv.change // '') eq $change;
     my @lines = $path.lines;
-    # take out whatever mode line is there; solid is the absence of one
-    my @kept;
-    for @lines.kv -> $i, $l {
-        if $l ~~ /^ '#' \s* ['Vibe' | 'Firm'] ':' / {
-            @kept.pop if @kept && @kept[*-1].trim eq '' && ($i + 1 >= @lines.elems || @lines[$i + 1].trim eq '');
-            next;
-        }
-        @kept.push($l);
+    my $ch = $doc.blocks.first({ .kind eq 'CHANGES REQUIRE' && .line > $inv.line && .line <= $inv.last-line }) // user-error("$id has no CHANGES REQUIRE line to rewrite");
+    my $ck = $doc.blocks.first({ .kind eq 'CHECKED WITH' && .line > $inv.line && .line <= $inv.last-line });
+    # the later span first, so line numbers above it stay true
+    my @edits;
+    @edits.push: ($ch.line, $ch.last-line, card-field-lines('CHANGES REQUIRE', ($change,), :col(18)));
+    @edits.push: ($ck.line, $ck.last-line, card-field-lines('CHECKED WITH', checks-for($change), :col(18))) if $ck.defined;
+    for @edits.sort({ -$_[0] }) -> ($from, $to, @new) { @lines.splice($from - 1, $to - $from + 1, @new) }
+    unless $ck.defined {
+        my $at = $ch.line - 1 + card-field-lines('CHANGES REQUIRE', ($change,), :col(18)).elems;
+        @lines.splice($at, 0, card-field-lines('CHECKED WITH', checks-for($change), :col(18)));
     }
-    if $mode ne 'solid' {
-        # after the comments the file opens with, before IS FOR WHAT
-        my $at = @kept.first({ $_ ~~ /^ 'IS FOR' / }, :k) // @kept.elems;
-        $at-- while $at > 0 && @kept[$at - 1].trim eq '';
-        @kept.splice($at, 0, '', ($mode eq 'vibe' ?? VIBE-COMMENT !! FIRM-COMMENT));
-    }
-    $path.spurt(@kept.join("\n") ~ "\n");
-    $mode;
-}
-
-#| One invariant's own protection: the word after its name, 'firm' or
-#| 'solid', or none ('') so the file's mode applies.  Touches that heading
-#| line and nothing else.  Returns the word now written, or 'unchanged'.
-sub set-protection(IO::Path $path, Str $id, Str $word where '' | 'firm' | 'solid' --> Str) is export {
-    my $doc = check-doc($path);
-    my $inv = $doc.invariant($id) // die "no invariant named $id";
-    return 'unchanged' if ($inv.protection // '') eq $word;
-    my @lines = $path.lines;
-    my $l = @lines[$inv.line - 1];
-    $l ~~ / ^ (<[a..z 0..9]> <[\w.\-]>*) ':' / or die "line {$inv.line} is not the heading of $id";
-    @lines[$inv.line - 1] = ~$0 ~ ':' ~ ($word ?? " $word" !! '');
+    my $was = $path.slurp;
     $path.spurt(@lines.join("\n") ~ "\n");
-    $word || 'none';
+    my $got = IZ4::Document.load($path);
+    unless $got.ok && $got.invariant($id).defined && $got.invariant($id).change eq $change {
+        $path.spurt($was);
+        user-error("$id would not read back with its governance as meant, so nothing was written; this is a bug in iz4, please report it");
+    }
+    $stage;
 }
 
 # ---------------------------------------------------------------- init
@@ -316,7 +314,7 @@ sub template(Str :$for-what!, Str :$for-who!, Str :$namespace --> Str) is export
         INHERITANCE-COMMENT, '',
         |purpose-lines('IS FOR WHAT?', $for-what.trim), '',
         |purpose-lines('IS FOR WHO?', $for-who.trim), '',
-        foundation-block(:clauses) with $namespace;
+        foundation-block(:card) with $namespace;
     join "\n",
         ROOT-NAME, '',
         INHERITANCE-COMMENT, '',
@@ -372,7 +370,11 @@ sub show-text(IO::Path $path, Str $part? is copy --> Str) is export {
 }
 
 #| One invariant as a reader sees it: header, text, BECAUSE.
-sub invariant-block(Str $label, Str $text, Str $because?, Str :$reach --> Str) {
+sub invariant-block(Str $label, Str $text, Str $because?, Str :$reach, :@always, :@protects, Str :$change --> Str) {
+    if @always {
+        my $ch = $change // CHANGE-SIGNED;
+        return card-lines((is-foundation-id($label) ?? 'FOUNDATION' !! 'PROMISE'), $label, $reach // '', @always, (@protects || ($because // '',)), $ch).join("\n") ~ "\n";
+    }
     with $reach { return clauses-invariant-lines($label, $reach, $text, $because // '').join("\n") ~ "\n" }
     my @out = ("INVARIANT $label");
     @out.append: wrap($text, WRAP-WIDTH);
@@ -387,13 +389,14 @@ sub project-invariants-text(IZ4::Document $doc --> Str) {
     return "(no project invariants yet: 'iz4 add' helps you find one)\n" unless $doc.invariants;
     $doc.invariants.map({
         .id.defined
-            ?? invariant-block(.id, .text, .because, :reach(.reach))
+            ?? invariant-block(.id, .text, .because, :reach(.reach), :always(.always-items), :protects(.protects-items), :change(.change))
             !! "INVARIANT (unnamed)\n" ~ wrap(.text, WRAP-WIDTH).join("\n") ~ "\n"
     }).join("\n");
 }
 
 #| The foundation as a reader sees it, in the form of the file.
-sub foundation-text(Bool :$clauses = False --> Str) is export {
+sub foundation-text(Bool :$clauses = False, Bool :$card = False --> Str) is export {
+    return FOUNDATION-CARD.map({ invariant-block(.<id>, '', '', :reach(.<when>), :always(.<always>.list), :protects(.<protects>.list), :change(CHANGE-FOUNDATION)) }).join("\n") if $card;
     return FOUNDATION-CLAUSES.map({ invariant-block(.<id>, .<text>, .<because>, :reach(.<reach>)) }).join("\n") if $clauses;
     FOUNDATION.map({ invariant-block(.<id>, .<text>, .<because>) }).join("\n");
 }
@@ -405,7 +408,7 @@ sub effective-text(IZ4::Document $doc, Str :$name = 'IZ4' --> Str) is export {
     my @out;
     @out.push: "IS FOR WHAT?\n" ~ wrap($doc.for-what // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
     @out.push: "IS FOR WHO?\n"  ~ wrap($doc.for-who  // '(not stated)', WRAP-WIDTH).join("\n") ~ "\n";
-    @out.push: foundation-text(:clauses($doc.form eq 'clauses'));
+    @out.push: foundation-text(:clauses($doc.form eq 'clauses'), :card($doc.form eq 'card'));
     @out.push: project-invariants-text($doc);
     @out.join("\n");
 }
@@ -420,11 +423,12 @@ sub resolve-identity(IZ4::Document $doc, Str $ref, :@also --> Str) is export {
     # own: either finds the foundation invariant at that place.  Only the
     # foundation: a project's own invariants have no numbers.
     my $clauses = $doc.form eq 'clauses';
-    return foundation-at(0, :$clauses) if $raw.lc eq 'zero' | 'iz';
-    return foundation-at(+$raw, :$clauses) if $raw ~~ /^ <[0..4]> $/;
+    my $card    = $doc.form eq 'card';
+    return foundation-at(0, :$clauses, :$card) if $raw.lc eq 'zero' | 'iz';
+    return foundation-at(+$raw, :$clauses, :$card) if $raw ~~ /^ <[0..4]> $/;
     # a foundation invariant asked for by a name it used to have answers under the one it has now
-    unless $clauses { with foundation-renamed($raw) // foundation-renamed($raw ~ '.' ~ FOUNDATION-NAMESPACE) { return $_ } }
-    my @all = |foundation-ids(:$clauses), |$doc.invariants.map(*.id).grep(*.defined), |$doc.retired, |@also;
+    unless $clauses || $card { with foundation-renamed($raw) // foundation-renamed($raw ~ '.' ~ FOUNDATION-NAMESPACE) { return $_ } }
+    my @all = |foundation-ids(:$clauses, :$card), |$doc.invariants.map(*.id).grep(*.defined), |$doc.retired, |@also;
     return $raw if @all.first(* eq $raw).defined;
     my @starts = @all.grep(*.starts-with("$raw.")).unique;
     @starts == 1 ?? @starts[0] !! Str;
@@ -441,12 +445,17 @@ sub invariant-text(IO::Path $path, Str $ref --> Str) is export {
     user-error("'$ref' is a number, and only the foundation, 0 to 4, has an order; 'iz4 show invariants' lists the names")
         if $ref.trim ~~ /:i^ ['invariant' \s+]? \d+ ':'? $/ && $ref.trim !~~ /:i^ ['invariant' \s+]? <[0..4]> ':'? $/;
     my $id = resolve-identity($doc, $ref)
-        // user-error("no invariant '$ref' in {$path.basename}; {own-names($doc)}, and the foundation is {foundation-ids(:clauses($doc.form eq 'clauses')).join(', ')}");
+        // user-error("no invariant '$ref' in {$path.basename}; {own-names($doc)}, and the foundation is {foundation-ids(:clauses($doc.form eq 'clauses'), :card($doc.form eq 'card')).join(', ')}");
     my $clauses = $doc.form eq 'clauses';
+    if $doc.form eq 'card' {
+        with FOUNDATION-CARD.first({ .<id> eq $id }) -> %f {
+            return invariant-block($id, '', '', :reach(%f<when>), :always(%f<always>.list), :protects(%f<protects>.list), :change(CHANGE-FOUNDATION));
+        }
+    }
     with ($clauses ?? FOUNDATION-CLAUSES.first({ .<id> eq $id }) !! foundation-entry($id)) -> %f {
         return invariant-block($id, %f<text>, %f<because>, :reach($clauses ?? %f<reach> !! Str));
     }
-    with $doc.invariant($id) { return invariant-block($id, .text, .because, :reach(.reach)) }
+    with $doc.invariant($id) { return invariant-block($id, .text, .because, :reach(.reach), :always(.always-items), :protects(.protects-items), :change(.change)) }
     with withdrawn-in($path, $id) -> $when {
         return "INVARIANT $id was withdrawn in commit $when; its name is retired and never reused. 'iz4 diff {$when.words[0]}~1 {$when.words[0]}' shows what it said.\n";
     }
@@ -466,7 +475,7 @@ sub invariant-text(IO::Path $path, Str $ref --> Str) is export {
 sub withdraw-invariant(IO::Path $path, Str $ref --> IZ4::Document::Invariant) is export {
     my $doc = IZ4::Document.load($path);
     my $id = resolve-identity($doc, $ref) // $ref;
-    user-error("INVARIANT $id is part of the foundation: it binds every project and cannot be withdrawn by one (keystone.iz4.you)")
+    user-error("$id is part of the foundation: it binds every project and cannot be withdrawn by one (binding.iz4.you)")
         if is-foundation-id($id);
     my $inv = $doc.invariant($id);
     without $inv {
@@ -476,7 +485,7 @@ sub withdraw-invariant(IO::Path $path, Str $ref --> IZ4::Document::Invariant) is
     }
     my @lines = $doc.lines;
     my $from  = $inv.line - 1;
-    my $to    = ($doc.form eq 'clauses' ?? $inv.last-line !! $inv.because-line.defined
+    my $to    = ($doc.form eq 'clauses' || $doc.form eq 'card' ?? $inv.last-line !! $inv.because-line.defined
         ?? ($doc.blocks.first({ .kind eq 'BECAUSE' && .line == $inv.because-line }).last-line)
         !! $inv.last-line) - 1;
     # One comment line stands where it was, so every reader sees that the
@@ -582,7 +591,7 @@ sub set-is-for(IO::Path $path, Str $which where 'IS FOR WHAT' | 'IS FOR WHO', St
     user-error("nothing to set: the answer is empty") if $value eq '';
     my $doc   = IZ4::Document.load($path);
     my @lines = $doc.lines;
-    if $doc.form eq 'clauses' {
+    if $doc.form eq 'clauses' || $doc.form eq 'card' {
         my @clauses-new = purpose-lines("$which?", $value);
         with $doc.blocks.first(*.kind eq $which) -> $b {
             user-error("$which is already set; use --replace to replace it") if $b.text ne '' && !$replace;
@@ -684,12 +693,37 @@ sub check-new-name(IO::Path $path, IZ4::Document $doc, Str $id) is export {
 #| given.  The name is the full identity.  The foundation's names, names
 #| in use and names the file has ever used are refused.  Returns the name
 #| written.  Existing text is never touched: the new block is appended.
-sub add-invariant(IO::Path $path, Str $text, Str :$name!, Str :$because, Str :$namespace, Str :$reach --> Str) is export {
+sub add-invariant(IO::Path $path, Str $text, Str :$name!, Str :$because, Str :$namespace, Str :$reach, Bool :$established = False --> Str) is export {
     my $value = $text.trim;
     user-error("nothing to add: the invariant is empty") if $value eq '';
     my $doc = IZ4::Document.load($path);
     check-new-name($path, $doc, $name);
     my $reason = ($because // '').trim;
+    if $doc.form eq 'card' {
+        my $r = ($reach // '').trim;
+        user-error("a promise needs a WHEN: the situation it applies in (--when=\"a private profile can be seen by anyone but its owner\")") if $r eq '';
+        user-error("a promise needs a PROTECTS: whose what would be lost if it stopped holding (--protects=\"a job seeker's current job\"). If nothing a person would lose comes to mind, this is probably a constraint for the README, not a promise") if $reason eq '';
+        my @lines = $doc.lines;
+        my @block = card-lines('PROMISE', $name, $r, ($value,), ($reason,), ($established ?? CHANGE-SIGNED !! CHANGE-FREE));
+        # the project's own come before the foundation, which is read last
+        my $at = @lines.first({ $_ eq FOUNDATION-RULE-OFF }, :k);
+        $at //= do if $doc.foundation-spans {
+            my $i = $doc.foundation-spans.map(*[0]).min - 1;
+            $i-- while $i > 0 && @lines[$i - 1].starts-with('#');
+            $i;
+        }
+        $at //= @lines.elems;
+        $at-- while $at > 0 && @lines[$at - 1].trim eq '';
+        @lines.splice($at, 0, ('', |@block));
+        my $after = $at + 1 + @block.elems;
+        @lines.splice($after, 1) while $after < @lines.elems && @lines[$after].trim eq '';
+        @lines.splice($after, 0, '') if $after < @lines.elems;
+        @lines.pop while @lines && @lines[*-1].trim eq '';
+        my $was = $path.slurp;
+        $path.spurt(@lines.join("\n") ~ "\n");
+        written-as-meant($path, $name, :text($value), :because($reason), :reach($r), :$was);
+        return $name;
+    }
     if $doc.form eq 'clauses' {
         my $r = ($reach // '').trim;
         user-error("an invariant needs a WHERE: the situation it applies in (--where=\"a private profile can be seen by anyone but its owner\")") if $r eq '';
@@ -755,7 +789,7 @@ sub namespace-comment(Str $namespace --> Str) is export { "# This project's inva
 #| is touched.
 sub name-invariant(IO::Path $path, Int $line, Str $name --> Str) is export {
     my $doc = IZ4::Document.load($path);
-    user-error("every invariant in the three-clause form has its name above its clauses; there is nothing to name") if $doc.form eq 'clauses';
+    user-error("every promise carries its name in its heading; there is nothing to name") if $doc.form eq 'clauses' | 'card';
     my $inv = $doc.invariants.first({ .line == $line })
         // user-error("no INVARIANT on line $line of {$path.basename}");
     user-error("the invariant on line $line is already named {$inv.id}; a name is an identity and is not changed (withdraw it and add a new one if it is a different commitment)")
@@ -815,6 +849,23 @@ sub invariant-or-die(IZ4::Document $doc, IO::Path $path, Str $ref) {
 #| text and reason.  Everything outside the block is untouched.
 sub rewrite-invariant(IO::Path $path, IZ4::Document $doc, $inv, Str $claim, Str $reason) {
     my @lines = $doc.lines;
+    if $doc.form eq 'card' {
+        # only ALWAYS and PROTECTS are replaced; the heading, WHEN and the governance stay as written
+        my %part;
+        for $doc.blocks.grep({ .line > $inv.line && .line <= $inv.last-line && .kind eq any(<ALWAYS PROTECTS>) }) { %part{.kind} //= $_ }
+        user-error("{$inv.id} has no ALWAYS line to rewrite") unless %part<ALWAYS>.defined;
+        my @edits;
+        @edits.push: (%part<ALWAYS>.line, %part<ALWAYS>.last-line, card-field-lines('ALWAYS', ($claim,)));
+        if $reason.trim ne '' {
+            @edits.push: %part<PROTECTS>.defined ?? (%part<PROTECTS>.line, %part<PROTECTS>.last-line, card-field-lines('PROTECTS', ($reason,)))
+                                                 !! (%part<ALWAYS>.last-line + 1, %part<ALWAYS>.last-line, card-field-lines('PROTECTS', ($reason,)));
+        }
+        for @edits.sort({ -$_[0] }) -> ($from, $to, @new) { @lines.splice($from - 1, $to - $from + 1, @new) }
+        my $was = $path.slurp;
+        $path.spurt(@lines.join("\n") ~ "\n");
+        written-as-meant($path, $inv.id, :text($claim), :because($reason.trim), :$was);
+        return;
+    }
     if $doc.form eq 'clauses' {
         # only ALWAYS and PROTECTS are replaced; the name and WHERE stay as written
         my %part;
@@ -862,9 +913,18 @@ sub set-reach(IO::Path $path, Str $ref, Str $text --> Str) is export {
     my $reach = $text.trim;
     user-error('nothing to set: the WHERE is empty') if $reach eq '';
     my $doc = IZ4::Document.load($path);
-    user-error("{$path.basename} is not in the three-clause form: only it has a WHERE ('iz4 migrate' moves a named file there)") unless $doc.form eq 'clauses';
+    user-error("{$path.basename} is in the named form, which has no WHEN ('iz4 migrate' moves it to promise cards)") unless $doc.form eq 'clauses' | 'card';
     my $inv = invariant-or-die($doc, $path, $ref);
     my @lines = $doc.lines;
+    if $doc.form eq 'card' {
+        my $part = $doc.blocks.first({ .kind eq 'WHEN' && .line > $inv.line && .line <= $inv.last-line });
+        if $part { @lines.splice($part.line - 1, $part.last-line - $part.line + 1, card-field-lines('WHEN', ($reach,))) }
+        else     { @lines.splice($inv.line + 1, 0, card-field-lines('WHEN', ($reach,))) }
+        my $was = $path.slurp;
+        $path.spurt(@lines.join("\n") ~ "\n");
+        written-as-meant($path, $inv.id, :text($inv.text), :because($inv.because // ''), :$reach, :$was);
+        return $inv.id;
+    }
     my $part = $doc.blocks.first({ .kind eq 'WHERE' && .line > $inv.line && .line <= $inv.last-line });
     if $part { @lines.splice($part.line - 1, $part.last-line - $part.line + 1, clause-lines('WHERE', $reach)) }
     else     { @lines.splice($inv.line, 0, clause-lines('WHERE', $reach)) }
@@ -939,6 +999,71 @@ sub migrate-clauses(IO::Path $path, %reach, Str :$namespace --> List) is export 
         unless $check.ok;
     $path.spurt($new);
     $doc.invariants.map(*.id).List;
+}
+
+#| What moving an IZ4 in the three-clause form to promise cards would do,
+#| without doing it: each of the project's own invariants with the stage
+#| it will carry, read from the file's mode and the word after its name.
+#|   needed   whether there is anything to move
+#|   stop     why it cannot be done as the file stands ('' when it can)
+#|   own      the project's own invariants, each { id, stage, was }
+#|   notes    what changes in meaning, for a person to read first
+sub card-migration-plan(IO::Path $path --> Hash) is export {
+    my $doc = IZ4::Document.load($path);
+    return %( :!needed, stop => '', own => [], notes => [] ) if $doc.form eq 'card';
+    return %( :needed, stop => "{$path.basename} is in the named form: 'iz4 migrate' moves it to the three-clause form first, then to cards", own => [], notes => [] ) if $doc.form eq 'named';
+    my $stop = $doc.errors ?? "the file has problems to settle first: {$doc.errors[0].message} (line {$doc.errors[0].line})" !! '';
+    my @own = $doc.invariants.grep(*.id.defined).map({
+        my $p = $doc.protection-of(.id);
+        %( id => .id, stage => ($p eq 'vibe' ?? 'exploring' !! 'established'), was => ($p eq 'vibe' ?? 'vibe' !! $p) );
+    });
+    my @notes;
+    @notes.push: "the mode line goes: the file's mode is now written on each promise" if $doc.mode ne 'solid';
+    my @firm = @own.grep(*<was> eq 'firm');
+    @notes.push: "{@firm.map(*<id>).join(', ')}: firm becomes established, so a failing linked test now holds the commit where before it was reported; 'iz4 explore NAME' if the tests are not ready" if @firm;
+    @notes.push: "the foundation is written as five FOUNDATION cards: the same words, laid out as cards (sha256 {FOUNDATION-CARD-DIGEST.substr(0, 12)})";
+    %( :needed, :$stop, :@own, :@notes );
+}
+
+#| Move an IZ4 in the three-clause form to promise cards.  Each of the
+#| project's own invariants becomes a PROMISE card with its WHERE as WHEN,
+#| its ALWAYS and PROTECTS word for word, and the governance its protection
+#| gave it: vibe becomes exploring, firm and solid become established.  The
+#| mode line goes, the foundation is written as cards, and nothing else is
+#| touched.  The result is read back before it is written, and a file that
+#| would not check is never written.  Returns the identities moved.
+sub migrate-card(IO::Path $path --> List) is export {
+    my %plan = card-migration-plan($path);
+    user-error("{$path.basename} is already in the card form; there is nothing to migrate") unless %plan<needed>;
+    user-error("cannot migrate {$path.basename}: %plan<stop>") if %plan<stop>;
+    my $doc = IZ4::Document.load($path);
+    my $drop = "\x[0]drop";
+    my @lines = $doc.lines;
+    my sub replace-span(Int $from, Int $to, @new) {
+        @lines[$from - 1] = @new.join("\n");
+        @lines[$_ - 1] = $drop for $from + 1 .. $to;
+    }
+    for @lines.kv -> $i, $l { @lines[$i] = $drop if $l ~~ /^ '#' \s* [ 'Vibe' | 'Firm' ] ':' / }
+    for $doc.invariants.grep(*.id.defined) -> $inv {
+        my $change = $doc.protection-of($inv.id) eq 'vibe' ?? CHANGE-FREE !! CHANGE-SIGNED;
+        replace-span($inv.line, $inv.last-line, card-lines('PROMISE', $inv.id, $inv.reach // '', ($inv.text,), ($inv.because // '',), $change));
+    }
+    my @out = with-foundation($doc, @lines, :to-card).join("\n").lines.grep(* ne $drop);
+    # one blank line between blocks, none doubled
+    my @tidy;
+    for @out -> $l { @tidy.push($l) unless $l eq '' && @tidy && @tidy.tail eq '' }
+    my $new = @tidy.join("\n") ~ "\n";
+    my $check = IZ4::Document.parse($new);
+    for $doc.invariants.grep(*.id.defined) -> $inv {
+        my $got = $check.invariant($inv.id);
+        user-error("the card form of {$path.basename} would not carry {$inv.id} word for word; nothing was written")
+            unless $got.defined && normalised($got.text) eq normalised($inv.text) && normalised($got.because // '') eq normalised($inv.because // '')
+                && normalised($got.reach // '') eq normalised($inv.reach // '');
+    }
+    user-error("the card form of {$path.basename} would not check ({$check.errors[0].message}, line {$check.errors[0].line}); nothing was written")
+        unless $check.ok;
+    $path.spurt($new);
+    $doc.invariants.grep(*.id.defined).map(*.id).List;
 }
 
 # ---------------------------------------------------------------- suggest

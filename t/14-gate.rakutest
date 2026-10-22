@@ -347,7 +347,7 @@ $sp.spurt($sp.slurp.subst('Help people thrive, on their own terms.', 'Help peopl
 g($r, 'add', 'IZ4');
 ($rc, $out, $err) = gate($r, '--staged', '--enforce');
 is $rc, 3, 'altering the foundation is blocked';
-like $out, /'no project approval can change it (keystone.iz4.you)'/, 'and the gate says no approval can lift it';
+like $out, /'no project approval can change it (binding.iz4.you)'/, 'and the gate says no approval can lift it';
 like $out, /"next:\n  1. iz4 foundation restore"/, 'with the restore as the next step';
 g($r, 'checkout', 'HEAD', '--', 'IZ4'); g($r, 'reset', '-q', 'IZ4');
 

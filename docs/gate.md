@@ -34,28 +34,48 @@ Where a test says an invariant no longer holds, approve asks which is right:
 the software, the invariant, or neither yet. Choosing the invariant lets you
 reword it; choosing the software keeps the invariant and the commit stops.
 
-## Three modes, and one word for one invariant
+## What each promise requires, on its card
 
-Software does not become solid all at once. The IZ4 says how far along it
-is, in one line, and the gate reads it:
+Software does not become solid all at once, and not all of it at the same
+pace. Each promise says on its own card what a change to it requires and
+what is checked, and the gate reads the card:
 
-| mode | a change to your own invariants | a failing protecting test | the foundation |
-|---|---|---|---|
-| `vibe` | waits for nobody; the gate says one line | reported, holds nothing | holds, as ever |
-| `firm` | waits for your yes | reported, holds nothing | holds |
-| `solid` (no line) | waits for your yes | holds the commit | holds |
+| the card says | a change to its words | a failing linked test |
+|---|---|---|
+| `CHANGES REQUIRE no approval; current promise still applies` | waits for nobody; the gate says one line | reported, holds nothing |
+| `CHANGES REQUIRE signed human approval for the exact change` | waits for your signed yes | holds the commit |
+| `CHANGES REQUIRE verified foundation release only` (the foundation) | no project approval can make it | holds the commit; the words are matched to the canonical foundation |
 
-`iz4 mode vibe`, `iz4 mode firm` and `iz4 mode solid` write or remove the
-line. Entering or leaving a mode is itself a change you agree to.
+A new promise is born exploring. `iz4 establish NAME` writes the second
+pair on its card, so a payments project can explore everywhere while the one
+promise that matters is established from its first day. `iz4 explore NAME`
+writes the first pair again. Raising what a promise requires is free.
+Lowering it waits for a yes, and so does renaming, removing or replacing an
+established promise, and weakening or unlinking a test that names it: what
+governs a change is what the base declared, so a candidate cannot lower a
+promise's requirement and use the lower one in the same step. A commit that
+raises a requirement is held to what it asks: a failing test on a promise
+the candidate establishes holds the commit.
 
-One invariant can be protected more than the file: `iz4 mode solid NAME`
-writes the word after its name (`charged-once: solid`), so a payments
-project can be in vibe mode while the one promise that matters is solid
-from its first day. Protecting more is free in a settling file. Lowering a
-protection, for the file or for one invariant, waits for a yes at the level
-it had, and so does renaming, removing or replacing a protected invariant:
-what governs a change is what the base declared, so a candidate cannot
-lower a protection and use the lower one in the same step.
+A change to the file as a whole, its purpose or its people, waits for a yes
+unless every promise of the project's own is exploring. Removing the file
+always waits.
+
+Where every promise of the project's own is exploring, the gate says what it
+noticed in one line and asks for nothing. The foundation holds in every case:
+a changed word in it is blocked, and no approval lifts that.
+
+### The runner is a trust boundary
+
+The gate runs the tests that name a promise with the runner for their
+language, or the one `IZ4_CHECK_CMD` or `--check-cmd` names. That command
+comes from the environment, not from the tree: a project cannot weaken it
+from inside a commit, but whoever controls the environment can point it at a
+runner that always succeeds. A local hook runs with the committer's
+authority. Where that matters, enforce at a boundary the committer does not
+control: a required CI check on the protected branch, running the same gate
+with its own runner and allowed signers. A required blocking check that did
+not run is `unassessed`, never a pass.
 
 ## For tools
 

@@ -33,9 +33,11 @@
 my $BENCH = $*PROGRAM.resolve.parent;
 my $IZ4   = %*ENV<IZ4_TEST_BIN> // 'iz4';
 my $RAKU  = %*ENV<BENCH_RAKU> // $*EXECUTABLE.Str;
-my @MODES = <none context vibe firm enforced>;
-my constant FIRM-LINE = "# Firm: this project's invariants are agreed; their tests are still settling. 'iz4 mode solid' when the tests hold.";
-my constant VIBE-LINE = "# Vibe: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.";
+my @MODES = <none context vibe enforced>;
+my constant CHANGE-FREE   = 'no approval; current promise still applies';
+my constant CHANGE-SIGNED = 'signed human approval for the exact change';
+my constant CHECK-WARN    = 'linked tests; failures warn, never block';
+my constant CHECK-BLOCK   = 'linked tests; failures block commit';
 my $HOME  = $*TMPDIR.add("iz4-bench-home-{$*PID}"); $HOME.mkdir; $HOME.add('no-keys').mkdir; $HOME.add('gitconfig').spurt('');
 
 sub json-in(Str $t) { Rakudo::Internals::JSON.from-json($t) }
@@ -60,15 +62,44 @@ sub copy-tree(IO::Path $from, IO::Path $to) {
     }
 }
 
+#| The governance each PROMISE card in a file carries: id => CHANGES REQUIRE value.
+sub governance-of(Str $text --> Hash) {
+    my %g; my $id;
+    for $text.lines -> $l {
+        if $l ~~ / ^ 'PROMISE' \h+ (\S+) / { $id = ~$0 }
+        elsif $l ~~ / ^ 'FOUNDATION' \h+ / { $id = Str }
+        elsif $id.defined && $l ~~ / ^ \h* 'CHANGES REQUIRE' \h+ (.*) $ / { %g{$id} = (~$0).trim }
+    }
+    %g;
+}
+#| The same file with the named promises exploring: their two governance lines rewritten.
+sub exploring(Str $text, @ids --> Str) {
+    my @out; my $id;
+    for $text.lines -> $l {
+        if $l ~~ / ^ 'PROMISE' \h+ (\S+) / { $id = ~$0 }
+        elsif $l ~~ / ^ 'FOUNDATION' \h+ / { $id = Str }
+        if $id.defined && $id eq any(@ids) {
+            if $l ~~ / ^ (\h*) 'CHANGES REQUIRE' \h+ / { @out.push: "{$0}CHANGES REQUIRE {CHANGE-FREE}"; next }
+            if $l ~~ / ^ (\h*) 'CHECKED WITH' \h+ / { @out.push: "{$0}CHECKED WITH    {CHECK-WARN}"; next }
+        }
+        @out.push: $l;
+    }
+    @out.join("\n") ~ "\n";
+}
+#| In vibe mode the seed's promises are exploring, except the ones its vibe-keeps file names
+#| (a payments project exploring everywhere but where the money goes).
+sub vibe-ids(IO::Path $seed --> List) {
+    my %g = governance-of($seed.add('IZ4').slurp);
+    my @keep = $seed.add('vibe-keeps').e ?? $seed.add('vibe-keeps').lines.map(*.trim).grep(* ne '') !! ();
+    %g.keys.grep({ !($_ eq any(@keep)) }).sort.List;
+}
 #| One throwaway repository: the seed, committed as the base.
-sub mode-line(Str $mode --> Str) { $mode eq 'vibe' ?? VIBE-LINE !! $mode eq 'firm' ?? FIRM-LINE !! '' }
 sub fresh-repo(IO::Path $seed, Bool :$iz4 = True, Str :$mode = 'solid' --> IO::Path) {
     my $r = $*TMPDIR.add("iz4-bench-{$*PID}-{(^1_000_000).pick}"); $r.mkdir;
     copy-tree($seed, $r);
     $r.add('IZ4').unlink unless $iz4;
-    if $iz4 && mode-line($mode) {   # the mode line goes under the header, as 'iz4 mode' writes it
-        my @l = $r.add('IZ4').slurp.lines; @l.splice(1, 0, '', mode-line($mode));
-        $r.add('IZ4').spurt(@l.join("\n") ~ "\n");
+    if $iz4 && $mode eq 'vibe' {   # the project's own promises exploring, as 'iz4 explore' writes them
+        $r.add('IZ4').spurt(exploring($r.add('IZ4').slurp, vibe-ids($seed)));
     }
     git($r, 'init', '-q');
     git($r, 'config', 'user.email', 'bench@example.com'); git($r, 'config', 'user.name', 'bench');
@@ -88,15 +119,20 @@ sub owner-keys(--> Hash) {
 }
 
 #| Apply the scripted agent's steps.  Returns the action checks it met.
-sub play(IO::Path $repo, IO::Path $dir, @steps, Str $mode, %keys --> List) {
+sub play(IO::Path $repo, IO::Path $dir, @steps, Str $mode, %keys, IO::Path :$seed --> List) {
     my @actions;
     for @steps -> %s {
         given %s<do> {
             when 'overlay' {
+                my $seed-gov = $seed.defined && $seed.add('IZ4').e ?? governance-of($seed.add('IZ4').slurp) !! %();
                 copy-tree($dir.add(%s<from> // 'files'), $repo);
-                # in vibe or firm mode the agent's copy of the IZ4 keeps the mode line: leaving the mode is a change of its own
-                if mode-line($mode) && $repo.add('IZ4').e && !$repo.add('IZ4').slurp.contains(mode-line($mode)) {
-                    my @l = $repo.add('IZ4').slurp.lines; @l.splice(1, 0, '', mode-line($mode)); $repo.add('IZ4').spurt(@l.join("\n") ~ "\n");
+                # in vibe mode the agent's copy of the IZ4 keeps the base's promises exploring, except where the
+                # scenario itself changes what a promise requires: that change is the scenario's own
+                if $mode eq 'vibe' && $repo.add('IZ4').e && $seed.defined {
+                    my %over = governance-of($repo.add('IZ4').slurp);
+                    # a promise the seed had, left as the seed had it; and a promise new to the file, which an exploring project adds exploring
+                    my @lower = (|vibe-ids($seed).grep({ (%over{$_} // '') eq ($seed-gov{$_} // '') }), |%over.keys.grep({ !($seed-gov{$_}:exists) })).unique;
+                    $repo.add('IZ4').spurt(exploring($repo.add('IZ4').slurp, @lower));
                 }
                 git($repo, 'add', '-A');
             }
@@ -149,7 +185,7 @@ sub boundary(IO::Path $repo, Str $mode, %keys --> Hash) {
                   seconds => (now - $t0).round(0.001) );
     }
     # the same allowed signers either way: only the holding differs
-    my @enforce = ('--approvers=' ~ %keys<signers>), |($mode eq 'enforced' | 'vibe' | 'firm' ?? ('--enforce',) !! ());
+    my @enforce = ('--approvers=' ~ %keys<signers>), |($mode eq 'enforced' | 'vibe' ?? ('--enforce',) !! ());
     my ($rc, $out, $err) = sh($IZ4, 'gate', '--staged', '--json', |@enforce, :cwd($repo));
     my $g = try json-in($out);
     return %( kind => 'gate', outcome => 'error', exit => $rc, seconds => (now - $t0).round(0.001), note => $err.trim.lines.head // $out.trim.lines.head )
@@ -196,7 +232,7 @@ sub classify(%scenario, Str $mode, %b, @actions, Str :$func = 'none', Str :$inva
     # in vibe a change to a project invariant waits for nobody and counts as nothing here: that is the trade vibe mode
     # makes, and the table shows it as missed; a failing protecting test is still reported, and counts as detected
     my $detected  = $outcome ne any(<pass tests-pass no-tests>) || $failing-check;
-    my $prevented = $mode eq 'enforced' | 'vibe' | 'firm' && $outcome ne any(<pass tests-pass no-tests>) && $exit != 0;
+    my $prevented = $mode eq 'enforced' | 'vibe' && $outcome ne any(<pass tests-pass no-tests>) && $exit != 0;
     # VerifiedPass: the boundary of this mode passed, every check it ran came back, and no approval is outstanding
     # a check that failed is evidence against, whether or not the mode held the commit for it
     my $verified  = $mode ne 'none' && !$action-only && $outcome eq 'pass' && !$failing-check
@@ -205,14 +241,14 @@ sub classify(%scenario, Str $mode, %b, @actions, Str :$func = 'none', Str :$inva
     %( attempted => $attempted, outcome => $outcome, exit => $exit,
        detected => $detected, prevented => $prevented,
        missed => ($attempted && !$detected), false_positive => (!$attempted && $detected),
-       unnecessary_approval => (!$attempted && $outcome eq 'agreement-required' && $mode eq 'enforced' | 'vibe' | 'firm'),
+       unnecessary_approval => (!$attempted && $outcome eq 'agreement-required' && $mode eq 'enforced' | 'vibe'),
        func_pass => $func, invariant_pass => $invariant, verified_pass => $verified );
 }
 
 sub run-once(%s, IO::Path $dir, Str $mode, %keys --> Hash) {
     $HOME.add('gitconfig').spurt('');        # nothing remembered from another scenario, such as a signer
-    my $repo = fresh-repo($BENCH.add('seed').add(%s<seed>), :iz4($mode ne 'none'), :mode($mode eq 'vibe' | 'firm' ?? $mode !! 'solid'));
-    my @actions = play($repo, $dir, %s<steps>.list, $mode, %keys);
+    my $repo = fresh-repo($BENCH.add('seed').add(%s<seed>), :iz4($mode ne 'none'), :mode($mode eq 'vibe' ?? 'vibe' !! 'solid'));
+    my @actions = play($repo, $dir, %s<steps>.list, $mode, %keys, :seed($BENCH.add('seed').add(%s<seed>)));
     my %b = boundary($repo, $mode, %keys);
     my $func = func-pass($repo);
     my $inv  = invariant-pass($repo, %s<seed>);
@@ -279,11 +315,11 @@ sub report(@results, %t, Str $iz4-version --> Str) {
         '| Mode | Scenarios | FuncPass | InvariantPass | VerifiedPass | Works but breaks an invariant | Unstable across trials |', '|---|---|---|---|---|---|---|';
     for @MODES -> $m { my %x = %t{$m};
         @l.push: "| $m | {%x<scenarios>} | {%x<func_pass>} | {%x<invariant_pass>} | {%x<verified_pass>} | {%x<func_pass_but_invariant_fail>} | {%x<unstable>} |" }
-    @l.push: '', '| Scenario | Violates | none | context | vibe | firm | enforced |', '|---|---|---|---|---|---|---|';
+    @l.push: '', '| Scenario | Violates | none | context | vibe | enforced |', '|---|---|---|---|---|---|';
     my sub fiv(%c) { my sub m($v) { $v eq 'pass' || $v === True ?? '✓' !! $v eq 'none' ?? '·' !! '✗' }; "F{m(%c<func_pass>)} I{m(%c<invariant_pass>)} V{m(%c<verified_pass>)}" }
     for @results -> %r {
-        my sub cell($m) { my %c = %r<modes>{$m}; my $o = %c<outcome>; $o ~= " (exit {%c<exit>})" if $m eq 'enforced' | 'vibe' | 'firm'; $o ~= " {fiv(%c)}"; $o ~= ' MISMATCH' if %c<mismatch>; $o ~= ' UNSTABLE' if %c<unstable>; $o }
-        @l.push: "| {%r<id>} | {%r<violates> // 'no'} | {cell('none')} | {cell('context')} | {cell('vibe')} | {cell('firm')} | {cell('enforced')} |";
+        my sub cell($m) { my %c = %r<modes>{$m}; my $o = %c<outcome>; $o ~= " (exit {%c<exit>})" if $m eq 'enforced' | 'vibe'; $o ~= " {fiv(%c)}"; $o ~= ' MISMATCH' if %c<mismatch>; $o ~= ' UNSTABLE' if %c<unstable>; $o }
+        @l.push: "| {%r<id>} | {%r<violates> // 'no'} | {cell('none')} | {cell('context')} | {cell('vibe')} | {cell('enforced')} |";
     }
     my @pairs = @results.grep(*<alternative_to>);
     if @pairs {
@@ -294,7 +330,6 @@ sub report(@results, %t, Str $iz4-version --> Str) {
         "- none: the project's own tests are the only check. They catch a change that breaks a tested behaviour, and nothing else.",
         '- context: the gate sees every change to a commitment or a protecting test, and says so; nothing is held.',
         '- vibe: the IZ4 says its own invariants are still settling, and the gate enforces. A change to a project invariant, or a failing protecting test, waits for nobody: F and I still say what happened. The foundation holds as ever, and so does what the gate blocks outright.',
-        '- firm: the words are agreed, the tests are not yet: a change to a project invariant waits for a yes; a failing protecting test is reported and holds nothing.',
         '- enforced: the gate holds the commit (non-zero exit) until a signed approval covers that exact tree, base and proposal. An altered foundation, a reused name or a failing protecting test is held by nothing an approval lifts.',
         '- Missed means the boundary passed a change that violates an invariant. D1 is the honest case: a new route around an invariant whose words and whose test do not change is invisible to the gate unless a test covers that route (D2).';
     @l.join("\n") ~ "\n";
