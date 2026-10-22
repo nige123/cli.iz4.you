@@ -2,7 +2,7 @@
 # Move every IZ4 under a directory of repositories to promise cards, one
 # repository at a time, with a person at the terminal.
 #
-#   iz4-migrate-repos [--push] [--dry-run] [ROOT]
+#   iz4-migrate-repos [--yes] [--push] [--dry-run] [ROOT]
 #
 # ROOT defaults to the current directory.  For each ROOT/*/IZ4 in a Git
 # repository that is not yet in the card form: 'iz4 migrate' rewrites the
@@ -10,15 +10,19 @@
 # what each card requires), the IZ4 alone is staged, the gate is run, and
 # where the move waits for a yes 'iz4 approve --staged' asks you and signs
 # with your key.  Then the IZ4 is committed on its own.  --push pushes each
-# repository that was committed.  --dry-run shows each plan and writes
+# repository that was committed.  --yes answers yes for you, with your key,
+# only where the gate reports exactly one kind of change, the move to cards,
+# and nothing else; a repository with any other change to what it promises
+# still asks you one thing at a time.  --dry-run shows each plan and writes
 # nothing.  A repository whose IZ4 has uncommitted changes is migrated with
 # those changes in it, and the script says so.  Nothing is ever forced:
 # where the gate blocks, the repository is left staged for you to look at.
 set -u
-PUSH=0; DRY=0; ROOT=.
+PUSH=0; DRY=0; YES=0; ROOT=.
 for a in "$@"; do
   case "$a" in
     --push) PUSH=1 ;;
+    --yes) YES=1 ;;
     --dry-run|preview) DRY=1 ;;
     -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) ROOT=$a ;;
@@ -44,8 +48,15 @@ for repo in "$ROOT"/*/; do
   (cd "$repo" && iz4 gate --staged --enforce >/dev/null 2>&1); rc=$?
   case $rc in
     0) ;;
-    2) echo "   the move waits for your yes:"
-       if (cd "$repo" && iz4 approve --staged </dev/tty); then :; else echo "   not approved; left staged"; waiting=$((waiting+1)); echo; continue; fi ;;
+    2) kinds=$(cd "$repo" && iz4 gate --staged --json 2>/dev/null | grep -o '"kind":"[a-z-]*"' | sort -u | tr -d '"' | sed 's/kind://' | tr '\n' ' ')
+       if [ "$YES" = 1 ] && [ "$kinds" = "format-migrated " ]; then
+         echo "   the move waits for your yes; --yes gives it (the only change is the move to cards)"
+         if (cd "$repo" && printf 'y\ny\ny\ny\n' | IZ4_INTERACTIVE=1 iz4 approve --staged) | sed 's/^/   /'; then :; else echo "   approve failed; left staged"; waiting=$((waiting+1)); echo; continue; fi
+       else
+         [ "$YES" = 1 ] && echo "   more than the move to cards changes here ($kinds); asking you"
+         echo "   the move waits for your yes:"
+         if (cd "$repo" && iz4 approve --staged </dev/tty); then :; else echo "   not approved; left staged"; waiting=$((waiting+1)); echo; continue; fi
+       fi ;;
     3) echo "   blocked by the gate; left staged for you to look at:"; (cd "$repo" && iz4 gate --staged) | sed 's/^/   /'; blocked=$((blocked+1)); echo; continue ;;
     *) echo "   the gate could not assess this (exit $rc); left staged"; (cd "$repo" && iz4 gate --staged) | sed 's/^/   /'; blocked=$((blocked+1)); echo; continue ;;
   esac
