@@ -10,7 +10,7 @@ on:
   push:
     branches: [main]
 env:
-  RAKUPP_VERSION: v5.2.1
+  RAKUPP_VERSION: v5.4.1
 jobs:
   gate:
     runs-on: ubuntu-latest
