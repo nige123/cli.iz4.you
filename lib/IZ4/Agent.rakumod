@@ -71,9 +71,8 @@ constant AGENT-PROTOCOL is export = q:to/END/;
     Reading a promise.  A card says WHEN it applies, what must ALWAYS
     remain true there, and what it PROTECTS: whose what must not be
     defeated.  Then CHANGES REQUIRE says what a change to its words needs,
-    and CHECKED WITH what is checked.  In the earlier forms the same three
-    are WHERE, ALWAYS and PROTECTS, or the statement and BECAUSE.  One rule
-    governs the three:
+    and CHECKED WITH what is checked.  One rule governs the three fields
+    of intention:
         All three bind together.  WHEN scopes; ALWAYS binds; PROTECTS
         decides what counts as keeping ALWAYS.  None narrows or excuses
         another, and PROTECTS adds no duty of its own.

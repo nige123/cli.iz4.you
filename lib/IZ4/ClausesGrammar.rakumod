@@ -1,6 +1,8 @@
-#| The three-clause form of an IZ4 file, as a grammar.  This is the
-#| specification of the form: what the parser accepts is exactly what is
-#| written here, and docs/format.md restates it in prose.
+#| The three-clause form, an earlier form of an IZ4 file, as a grammar.
+#| An IZ4 is written as promise cards now (IZ4::CardGrammar, which
+#| docs/format.md restates in prose); this form is read only so that
+#| 'iz4 migrate' can bring a file still in it to cards.  What the parser
+#| accepts is exactly what is written here.
 #|
 #|     IZ4 jobs.example.com
 #|
@@ -17,15 +19,17 @@
 #| two questions and invariants.  An invariant is a name and a colon alone
 #| on a line at column 0, then its clauses: WHERE (the situation it applies
 #| in), ALWAYS (what must remain true there) and PROTECTS (what must not be
-#| defeated).  An clause is its label and a colon, after any indentation, then
+#| defeated).  A clause is its label and a colon, after any indentation, then
 #| text that may wrap onto the lines below it.  Indentation is only for
 #| the eye: a file with every line at column 0 reads the same.
 #|
 #| What is a line's job is decided by its start alone: a lower-case name
 #| and a colon is an invariant, WHERE:, ALWAYS: and PROTECTS: are clauses, a
-#| line of '#' is a comment, a blank line ends the text of an clause, and
-#| anything else continues the clause above it.  A comment between an clause's
-#| lines does not end the clause.
+#| line of '#' is a comment, a blank line ends the text of a clause, and
+#| anything else continues the clause above it.  A comment between a clause's
+#| lines does not end the clause.  Its WHERE is the WHEN of a card, its
+#| ALWAYS and PROTECTS are the card's; the mode word after a name is what
+#| CHANGES REQUIRE now says.
 #|
 #| Like IZ4::Grammar it is forgiving of mistakes on purpose, so that one
 #| parse can report every problem by line: the productions marked 'error'

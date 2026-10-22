@@ -111,9 +111,9 @@ FOUNDATION binding.iz4.you
 obligation per item, and every item holds. Each invariant stands alone and names
 another only where that changes its meaning: `human-agency` names the one
 limit on what it will obey, and `binding` names them all, because it is the
-one that says what the foundation is. The order, 0 to 4, is how the
-foundation is shown and spoken of (`iz4 show invariant 0` finds Invariant
-Zero); nothing is linked or compared by it.
+one that says what the foundation is. The order is how the foundation is
+shown and spoken of; nothing is linked or compared by it, and each is found
+by its name (`iz4 show invariant humans-first` finds Invariant Zero).
 
 ## Reading it
 
@@ -159,9 +159,9 @@ The foundation's digest is the sha256 of its five cards in order, each as
 digest rule `iz4-invariant/5` writes it:
 `7c704e757f80df39ebca60a386b8aefdd88d0d42af93daccb514562f076e5508`. It
 identifies these words and nothing more; writing a rule down does not make
-software obey it. The three-clause form's foundation, which `iz4 migrate`
-still reads, had the digest `c7278fe5414e...`; the words are the same, laid
-out as cards.
+software obey it. The earlier three-clause form's foundation, which
+`iz4 migrate` still reads, had the digest `c7278fe5414e...`; the words are
+the same, laid out as cards.
 
 Why these words, what each defence answers, and how they compare with
 Asimov's laws: [iz4.you/foundation](https://iz4.you/foundation).

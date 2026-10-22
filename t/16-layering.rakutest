@@ -176,7 +176,7 @@ for (%with, %without) -> %env {
     nok driver-was-run(), 'an approval that was not given (no terminal) changes nothing either';
 
     # each intent command, when it does change something
-    for ('because', 'visible-by-choice', 'Privacy is a right.', '--replace'), ('withdraw', 'no-first-contact', '--force') -> @argv {
+    for ('protects', 'visible-by-choice', 'Privacy is a right.', '--replace'), ('withdraw', 'no-first-contact', '--force') -> @argv {
         forget;
         ($rc, $out, $err) = iz4($r, |@argv, :env(%with));
         ok $rc == 0 && $log.e && $log.lines.grep(*.starts-with('iz4 install')).elems == 1, "'iz4 {@argv.head}' is followed by the enforcement step" or diag "$rc $out $err";

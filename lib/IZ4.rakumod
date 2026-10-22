@@ -5,7 +5,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.28.0';
+constant VERSION is export = '0.29.0';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -39,9 +39,12 @@ sub sha256-text(Str $s --> Str) is export {
     sha256-file($tmp);
 }
 
-#| The digest of one invariant (iz4-invariant/1): which version of the
-#| named commitment these exact words are.  The name says which
-#| commitment; this says which wording of it.
+#| The digest of one invariant given as words, in the rules of the earlier
+#| forms: iz4-invariant/4 when :reach says it is a clauses invariant, else
+#| the named form's rule, with the foundation's own digest for its words.
+#| Those forms are read only to migrate; a card's digest, iz4-invariant/5,
+#| comes from invariant-digest-of, the rule for any parsed invariant.  The
+#| name says which commitment; the digest says which wording of it.
 sub invariant-digest(Str $id, Str $text, Str $because?, Str :$reach --> Str) is export {
     return sha256-text(canonical-clauses($id, $reach, $text, $because // '')) with $reach;
     is-foundation-id($id) && foundation-matches($id, $text, $because // '')
@@ -50,9 +53,11 @@ sub invariant-digest(Str $id, Str $text, Str $because?, Str :$reach --> Str) is 
 }
 
 my %FOUNDATION-DIGESTS;
-#| The digest of one invariant as parsed, in the rule of its form.
+#| The digest of one invariant as parsed, in the rule of its form:
+#| iz4-invariant/5 for a card, the older rules for the earlier forms.
 sub invariant-digest-of(IZ4::Document::Invariant $inv --> Str) is export { sha256-text($inv.canonical) }
 
+#| The digest of one foundation invariant in the earlier named form's words.
 sub foundation-digest-of(Str $id --> Str) is export {
     %FOUNDATION-DIGESTS{$id} //= do {
         my %f = foundation-entry($id);
@@ -175,10 +180,11 @@ my @OLD-HEADERS =
      "# It begins with Invariant Zero, humans first: {OLD-FOUNDATION-URL}. It is the same in every IZ4 and not yours to edit.",
      "# Your own invariants are named under your project's domain.");
 
-#| @lines with every foundation block (and its BECAUSE), the foundation
-#| comment and nothing else removed, the opening comment brought up to
-#| date, and the current foundation written where the first block stood:
-#| else after IS FOR WHO?, else after IS FOR WHAT?, else at the end.
+#| @lines with every foundation block (and, in the earlier named form, its
+#| BECAUSE), the foundation comment and nothing else removed, the opening
+#| comment brought up to date, and the foundation written as cards (or in
+#| the earlier form asked for) where the first block stood: else after
+#| IS FOR WHO?, else after IS FOR WHAT?, else at the end.
 sub with-foundation(IZ4::Document $doc, @source, Bool :$to-clauses = False, Bool :$to-card = False, Bool :$last = False --> List) {
     my @lines = @source;
     my $card    = $to-card || (!$to-clauses && $doc.form eq 'card');
@@ -233,12 +239,13 @@ sub with-foundation(IZ4::Document $doc, @source, Bool :$to-clauses = False, Bool
     @tidy;
 }
 
-#| Write the foundation into an IZ4 that lacks it or has an altered one.
-#| Only the foundation's own blocks (with their BECAUSE) and the
-#| foundation comment are touched; every other line stays.  Returns
-#| 'unchanged', 'written', 'replaced', or 'tidied' when the words were
-#| right and only the comments an earlier version wrote came up to date.  Run on request only: this is the
-#| one case where the tool rewrites lines, because the foundation was
+#| Write the foundation into an IZ4 that lacks it or has an altered one,
+#| in the form of the file.  Only the foundation's own cards (blocks, with
+#| their BECAUSE, in the earlier named form) and the foundation comment
+#| are touched; every other line stays.  Returns 'unchanged', 'written',
+#| 'replaced', or 'tidied' when the words were right and only the comments
+#| an earlier version wrote came up to date.  Run on request only: this is
+#| the one case where the tool rewrites lines, because the foundation was
 #| never the owner's words to keep.
 sub restore-foundation(IO::Path $path --> Str) is export {
     my $doc = IZ4::Document.load($path);
@@ -307,7 +314,8 @@ sub set-governance(IO::Path $path, Str $id, Str $stage where 'exploring' | 'esta
 
 # ---------------------------------------------------------------- init
 
-#| A new IZ4: the two answers that are its heart, and nothing else.
+#| A new IZ4: its domain in the header, the two answers that are its
+#| heart, and the foundation as cards.  Nothing else.
 sub template(Str :$for-what!, Str :$for-who!, Str :$namespace --> Str) is export {
     return join "\n",
         "{ROOT-NAME} $namespace", '',
@@ -323,9 +331,8 @@ sub template(Str :$for-what!, Str :$for-who!, Str :$namespace --> Str) is export
         foundation-block();
 }
 
-#| Create a root IZ4 in $dir.  Refuses to overwrite; refuses empty answers.
-#| One of the two questions in the three-clause form: its answer on the same
-#| line, wrapped under it.
+#| One of the two questions as a card file writes it: its answer on the
+#| same line, wrapped under it.
 sub purpose-lines(Str $label, Str $text --> List) is export {
     my $head = $label.fmt('%-14s');
     my @w = wrap-safely($text, WRAP-WIDTH - $head.chars);
@@ -333,6 +340,7 @@ sub purpose-lines(Str $label, Str $text --> List) is export {
     (($head ~ @w[0]), |@w[1 .. *].map({ ' ' x $head.chars ~ $_ })).List;
 }
 
+#| Create a root IZ4 in $dir.  Refuses to overwrite; refuses empty answers.
 #| Without a namespace the earlier named form is written, which the CLI
 #| never asks for: it always has one, because the header names it.
 sub init(IO::Path :$dir = $*CWD, Str :$for-what!, Str :$for-who!, Str :$namespace --> IO::Path) is export {
@@ -369,7 +377,8 @@ sub show-text(IO::Path $path, Str $part? is copy --> Str) is export {
     user-error("unknown part '$part'; use for-what, for-who or invariants");
 }
 
-#| One invariant as a reader sees it: header, text, BECAUSE.
+#| One invariant as a reader sees it: a card when it has ALWAYS items,
+#| else in the earlier clauses or named layout.
 sub invariant-block(Str $label, Str $text, Str $because?, Str :$reach, :@always, :@protects, Str :$change --> Str) {
     if @always {
         my $ch = $change // CHANGE-SIGNED;
@@ -386,7 +395,7 @@ sub invariant-block(Str $label, Str $text, Str $because?, Str :$reach, :@always,
 }
 
 sub project-invariants-text(IZ4::Document $doc --> Str) {
-    return "(no project invariants yet: 'iz4 add' helps you find one)\n" unless $doc.invariants;
+    return "(no promises of its own yet: 'iz4 add' helps you find one)\n" unless $doc.invariants;
     $doc.invariants.map({
         .id.defined
             ?? invariant-block(.id, .text, .because, :reach(.reach), :always(.always-items), :protects(.protects-items), :change(.change))
@@ -415,13 +424,14 @@ sub effective-text(IZ4::Document $doc, Str :$name = 'IZ4' --> Str) is export {
 
 #| Which invariant a person means.  The full name always works.  So does
 #| its first part alone (owner-adjusted) when exactly one invariant in the
-#| file begins with it.  The foundation's order, 0 to 4, finds one of its own.
+#| file begins with it.  A digit 0 to 4, the numbering older files gave
+#| the foundation, still finds the foundation invariant at that place.
 #| Returns the identity, or Str.
 sub resolve-identity(IZ4::Document $doc, Str $ref, :@also --> Str) is export {
     my $raw = $ref.trim.subst(/:i^ 'invariant' \s+ /, '').subst(/ ':' $/, '');
-    # The foundation has an order, 0 to 4, and Invariant Zero a name of its
-    # own: either finds the foundation invariant at that place.  Only the
-    # foundation: a project's own invariants have no numbers.
+    # Older files numbered the foundation 0 to 4, and Invariant Zero has a
+    # by-name of its own: either still finds the foundation invariant at
+    # that place.  Only the foundation: nothing else ever had a number.
     my $clauses = $doc.form eq 'clauses';
     my $card    = $doc.form eq 'card';
     return foundation-at(0, :$clauses, :$card) if $raw.lc eq 'zero' | 'iz';
@@ -457,21 +467,22 @@ sub invariant-text(IO::Path $path, Str $ref --> Str) is export {
     }
     with $doc.invariant($id) { return invariant-block($id, .text, .because, :reach(.reach), :always(.always-items), :protects(.protects-items), :change(.change)) }
     with withdrawn-in($path, $id) -> $when {
-        return "INVARIANT $id was withdrawn in commit $when; its name is retired and never reused. 'iz4 diff {$when.words[0]}~1 {$when.words[0]}' shows what it said.\n";
+        return "PROMISE $id was withdrawn in commit $when; its name is retired and never reused. 'iz4 diff {$when.words[0]}~1 {$when.words[0]}' shows what it said.\n";
     }
-    "INVARIANT $id was withdrawn; its name is retired and never reused. 'iz4 log' shows when, where there is Git history.\n";
+    "PROMISE $id was withdrawn; its name is retired and never reused. 'iz4 log' shows when, where there is Git history.\n";
 }
 
 # ------------------------------------------------------------- withdraw
 
-#| Take a project invariant out of the file: its INVARIANT block, its
-#| BECAUSE and the blank line before them.  Nothing else is touched, Git
-#| keeps the words, and the name is retired: it is never given to a
-#| different invariant.  The tests that exist only for it go with it
-#| (withdrawal-tests, remove-tests): the caller does that, after asking.  The foundation cannot be withdrawn by any
-#| project (keystone.iz4.you).  Returns the invariant as it was.
-#| The caller confirms with a person first: this discards their words
-#| only on their say-so.
+#| Take one of the project's own promises out of the file: its card (in
+#| the earlier named form, its INVARIANT block and its BECAUSE) and the
+#| blank line before it.  Nothing else is touched, Git keeps the words,
+#| and the name is retired: it is never given to a different promise.
+#| The tests that exist only for it go with it (withdrawal-tests,
+#| remove-tests): the caller does that, after asking.  The foundation
+#| cannot be withdrawn by any project (binding.iz4.you).  Returns the
+#| promise as it was.  The caller confirms with a person first: this
+#| discards their words only on their say-so.
 sub withdraw-invariant(IO::Path $path, Str $ref --> IZ4::Document::Invariant) is export {
     my $doc = IZ4::Document.load($path);
     my $id = resolve-identity($doc, $ref) // $ref;
@@ -479,8 +490,8 @@ sub withdraw-invariant(IO::Path $path, Str $ref --> IZ4::Document::Invariant) is
         if is-foundation-id($id);
     my $inv = $doc.invariant($id);
     without $inv {
-        with withdrawn-in($path, $id) -> $when { user-error("INVARIANT $id was already withdrawn in commit $when") }
-        user-error("INVARIANT $id was already withdrawn") if $doc.retired.first(* eq $id).defined;
+        with withdrawn-in($path, $id) -> $when { user-error("PROMISE $id was already withdrawn in commit $when") }
+        user-error("PROMISE $id was already withdrawn") if $doc.retired.first(* eq $id).defined;
         user-error("no invariant '$ref' in {$path.basename}; 'iz4 show invariants' lists its own");
     }
     my @lines = $doc.lines;
@@ -489,15 +500,17 @@ sub withdraw-invariant(IO::Path $path, Str $ref --> IZ4::Document::Invariant) is
         ?? ($doc.blocks.first({ .kind eq 'BECAUSE' && .line == $inv.because-line }).last-line)
         !! $inv.last-line) - 1;
     # One comment line stands where it was, so every reader sees that the
-    # invariant existed, and so the name stays retired even where there
-    # is no Git history to consult.
-    @lines.splice($from, $to - $from + 1, withdrawn-comment($id));
+    # promise existed, and so the name stays retired even where there is
+    # no Git history to consult.
+    @lines.splice($from, $to - $from + 1, withdrawn-comment($id, :heading($doc.form eq 'card' ?? 'PROMISE' !! 'INVARIANT')));
     @lines.pop while @lines && @lines[*-1].trim eq '';
     $path.spurt(@lines.join("\n") ~ "\n");
     $inv;
 }
 
-sub withdrawn-comment(Str $id --> Str) { "# INVARIANT $id was withdrawn on {Date.today}; its name is retired." }
+#| The comment left where a withdrawn promise stood: its heading word as
+#| the file writes it (PROMISE on a card, INVARIANT in the earlier forms).
+sub withdrawn-comment(Str $id, Str :$heading = 'INVARIANT' --> Str) { "# $heading $id was withdrawn on {Date.today}; its name is retired." }
 
 #| The names a file's own comments say were withdrawn.
 sub withdrawn-in-text(IO::Path $path --> List) is export { IZ4::Document.load($path).retired.List }
@@ -509,8 +522,9 @@ sub withdrawn-in(IO::Path $path, Str $id --> Str) is export {
     return Str if $rc != 0;
     for $log.split("\x01").grep(* ne '') -> $commit {
         my ($head, @body) = $commit.lines;
-        my $gone = @body.first({ .trim-trailing eq "-INVARIANT $id" }).defined;
-        my $back = @body.first({ .trim-trailing eq "+INVARIANT $id" }).defined;
+        # the heading as it was written then: PROMISE on a card, INVARIANT in the earlier forms
+        my $gone = @body.first({ .trim-trailing eq "-PROMISE $id" || .trim-trailing eq "-INVARIANT $id" }).defined;
+        my $back = @body.first({ .trim-trailing eq "+PROMISE $id" || .trim-trailing eq "+INVARIANT $id" }).defined;
         return "{$head.words[0]} ({$head.words[1]})" if $gone && !$back;
     }
     Str;
@@ -631,8 +645,10 @@ sub names-ever-used(IO::Path $path --> List) is export {
     my ($rc, $log, $) = git($path, 'log', '-p', '--follow', '--format=', '--', $path.basename);
     if $rc == 0 {
         for $log.lines -> $l {
-            @names.push(~$0) if $l ~~ /^ <[+\-]> 'INVARIANT' \h+ (\S+) \h* $/ && !numbered-label(~$0);
-            # the three-clause form: a name and a colon, made whole under the file's domain
+            # a card's PROMISE heading, or the earlier forms' INVARIANT heading
+            @names.push(~$0) if $l ~~ /^ <[+\-]> [ 'PROMISE' || 'INVARIANT' ] \h+ (\S+) \h* $/ && !numbered-label(~$0);
+            # the earlier clauses form: a name and a colon, made whole under
+            # the file's domain
             if $l ~~ /^ <[+\-]> (<[a..z 0..9]> <[\w.\-]>*) ':' \h* $/ {
                 my $n = ~$0;
                 @names.push($doc.domain.defined ?? clauses-identity($n, $doc.domain) !! $n);
@@ -679,20 +695,24 @@ sub check-new-name(IO::Path $path, IZ4::Document $doc, Str $id) is export {
     with identity-problem($id) -> $why {
         user-error("'$id' is not a name an invariant can have: $why") if $why;
     }
-    user-error("INVARIANT $id is part of the foundation: every IZ4 carries it word for word, and it cannot be redefined")
+    user-error("$id is part of the foundation: every IZ4 carries it word for word, and it cannot be redefined")
         if is-foundation-id($id);
     user-error("'$id': names directly under {FOUNDATION-NAMESPACE} are the foundation's, which is the same in every IZ4; name yours under your project's own domain")
         if reserved-identity($id);
-    user-error("INVARIANT $id is already in {$path.basename}; a name belongs to one invariant")
+    my $h = $doc.form eq 'card' ?? 'PROMISE' !! 'INVARIANT';
+    user-error("$h $id is already in {$path.basename}; a name belongs to one promise")
         if $doc.invariant($id).defined;
-    user-error("INVARIANT $id was used before in {$path.basename} (see 'iz4 log'); a name is never reused for a different invariant, so choose a new one")
+    user-error("$h $id was used before in {$path.basename} (see 'iz4 log'); a name is never reused for a different invariant, so choose a new one")
         if names-ever-used($path).first(* eq $id).defined;
 }
 
-#| Add a project invariant under the name $name, with its BECAUSE when
-#| given.  The name is the full identity.  The foundation's names, names
-#| in use and names the file has ever used are refused.  Returns the name
-#| written.  Existing text is never touched: the new block is appended.
+#| Add one of the project's own promises under the name $name: $text is
+#| its ALWAYS, :reach its WHEN and :because its PROTECTS; :established
+#| says what its changes require.  The name is the full identity.  The
+#| foundation's names, names in use and names the file has ever used are
+#| refused.  Returns the name written.  Existing text is never touched:
+#| the new card goes before the foundation, which is read last.  The
+#| earlier forms, read only to migrate, still take a block of their own.
 sub add-invariant(IO::Path $path, Str $text, Str :$name!, Str :$because, Str :$namespace, Str :$reach, Bool :$established = False --> Str) is export {
     my $value = $text.trim;
     user-error("nothing to add: the invariant is empty") if $value eq '';
@@ -725,6 +745,7 @@ sub add-invariant(IO::Path $path, Str $text, Str :$name!, Str :$because, Str :$n
         return $name;
     }
     if $doc.form eq 'clauses' {
+        # the earlier clauses form, read only to migrate
         my $r = ($reach // '').trim;
         user-error("an invariant needs a WHERE: the situation it applies in (--where=\"a private profile can be seen by anyone but its owner\")") if $r eq '';
         user-error("an invariant needs a PROTECTS: whose what would be lost if it stopped holding (--protects=\"a job seeker's current job\"). If nothing a person would lose comes to mind, this is probably a constraint for the README, not an invariant") if $reason eq '';
@@ -751,6 +772,7 @@ sub add-invariant(IO::Path $path, Str $text, Str :$name!, Str :$because, Str :$n
         return $name;
     }
 
+    # the earlier named form, read only to migrate
     my @lines = $doc.lines;
     @lines.pop while @lines && @lines[*-1].trim eq '';
     # the namespace, said once in the file, the first time one is chosen
@@ -762,7 +784,7 @@ sub add-invariant(IO::Path $path, Str $text, Str :$name!, Str :$because, Str :$n
     $name;
 }
 
-#| How a project's own invariant is written in the three-clause form: its
+#| How a project's own invariant is named in the earlier clauses form: its
 #| name without the file's domain (area labels kept), else whole.
 sub clauses-short-name(IZ4::Document $doc, Str $id --> Str) is export {
     my $d = $doc.domain // return $id;
@@ -781,12 +803,14 @@ sub written-as-meant(IO::Path $path, Str $id, Str :$text!, Str :$because = '', S
     user-error("$id would not read back word for word, so nothing was written; this is a bug in iz4, please report the words");
 }
 
-#| The one line that tells a reader, and the next 'iz4 add', which domain
-#| this project's invariants are named under.
+#| In the earlier named form, the one line that tells a reader, and the
+#| next 'iz4 add', which domain this project's invariants are named
+#| under.  A card file names its domain in the header instead.
 sub namespace-comment(Str $namespace --> Str) is export { "# This project's invariants are named under $namespace." }
 
-#| Name the unnamed INVARIANT block on line $line.  Only its header line
-#| is touched.
+#| In the earlier named form only: name the unnamed INVARIANT block on
+#| line $line.  Only its header line is touched.  A promise card always
+#| carries its name, so there is nothing to name there.
 sub name-invariant(IO::Path $path, Int $line, Str $name --> Str) is export {
     my $doc = IZ4::Document.load($path);
     user-error("every promise carries its name in its heading; there is nothing to name") if $doc.form eq 'clauses' | 'card';
@@ -801,35 +825,36 @@ sub name-invariant(IO::Path $path, Int $line, Str $name --> Str) is export {
     $name;
 }
 
-# ---------------------------------------------------------------- because
+# --------------------------------------------------------------- protects
 
-#| Set the BECAUSE of a project invariant.  An existing one needs
-#| :replace.  Returns its name.
+#| Set the PROTECTS of one of the project's own promises (its BECAUSE in
+#| the earlier forms).  An existing one needs :replace.  Returns its name.
 sub set-because(IO::Path $path, Str $ref, Str $text, Bool :$replace = False --> Str) is export {
     my $reason = $text.trim;
     user-error('nothing to set: the reason is empty') if $reason eq '';
     my $doc = IZ4::Document.load($path);
     my $inv = invariant-or-die($doc, $path, $ref);
-    user-error("INVARIANT {$inv.id} already has a BECAUSE; use --replace to replace it")
+    user-error("PROMISE {$inv.id} already has a PROTECTS; use --replace to replace it")
         if ($inv.because // '').trim && !$replace;
     rewrite-invariant($path, $doc, $inv, $inv.text, $reason);
     $inv.id;
 }
 
-#| Move the reason folded into an invariant's own text under BECAUSE.
-#| Returns the reason moved, or Str when none was found.  The words are
-#| the owner's, only moved; nothing is added.
+#| Move the reason folded into a promise's own words under PROTECTS (its
+#| BECAUSE in the earlier forms).  Returns the reason moved, or Str when
+#| none was found.  The words are the owner's, only moved; nothing is added.
 sub split-because(IO::Path $path, Str $ref --> Str) is export {
     my $doc = IZ4::Document.load($path);
     my $inv = invariant-or-die($doc, $path, $ref);
-    user-error("INVARIANT {$inv.id} already has a BECAUSE") if ($inv.because // '').trim;
+    user-error("PROMISE {$inv.id} already has a PROTECTS") if ($inv.because // '').trim;
     my ($claim, $reason) = split-reason($inv.text);
     return Str without $reason;
     rewrite-invariant($path, $doc, $inv, $claim, $reason);
     $reason;
 }
 
-#| Every invariant without a BECAUSE whose text holds one: split them all.
+#| Every invariant without a PROTECTS whose own words hold one: split
+#| them all.
 #| Returns (name, reason) pairs.
 sub split-all-because(IO::Path $path --> List) is export {
     my @done;
@@ -841,12 +866,13 @@ sub split-all-because(IO::Path $path --> List) is export {
 
 sub invariant-or-die(IZ4::Document $doc, IO::Path $path, Str $ref) {
     my $id = resolve-identity($doc, $ref) // $ref;
-    user-error("INVARIANT $id is part of the foundation; its reasons are the same in every IZ4 and not yours to change") if is-foundation-id($id);
+    user-error("$id is part of the foundation; its words are the same in every IZ4 and not yours to change") if is-foundation-id($id);
     $doc.invariant($id) // user-error("no invariant '$ref' in {$path.basename}; {own-names($doc)}");
 }
 
-#| Replace one INVARIANT block (and its BECAUSE, if any) with new wrapped
-#| text and reason.  Everything outside the block is untouched.
+#| Give one promise new words: its ALWAYS and PROTECTS on a card (the
+#| INVARIANT block and its BECAUSE, if any, in the earlier forms).
+#| Everything outside it is untouched.
 sub rewrite-invariant(IO::Path $path, IZ4::Document $doc, $inv, Str $claim, Str $reason) {
     my @lines = $doc.lines;
     if $doc.form eq 'card' {
@@ -867,7 +893,8 @@ sub rewrite-invariant(IO::Path $path, IZ4::Document $doc, $inv, Str $claim, Str 
         return;
     }
     if $doc.form eq 'clauses' {
-        # only ALWAYS and PROTECTS are replaced; the name and WHERE stay as written
+        # the earlier clauses form: only ALWAYS and PROTECTS are replaced;
+        # the name and WHERE stay as written
         my %part;
         for $doc.blocks.grep({ .line > $inv.line && .line <= $inv.last-line && .kind eq any(<WHERE ALWAYS PROTECTS>) }) { %part{.kind} //= $_ }
         my @edits;
@@ -883,6 +910,7 @@ sub rewrite-invariant(IO::Path $path, IZ4::Document $doc, $inv, Str $claim, Str 
         written-as-meant($path, $inv.id, :text($claim), :because($reason.trim), :$was);
         return;
     }
+    # the earlier named form: the whole block and its BECAUSE are rewritten
     my $from  = $inv.line - 1;
     my $to    = ($inv.because-line.defined
         ?? ($doc.blocks.first({ .kind eq 'BECAUSE' && .line == $inv.because-line }).last-line)
@@ -906,12 +934,13 @@ sub wrap(Str $text, Int $width) is export {
     @lines || ('',);
 }
 
-# ---------------------------------------------------------------- migrate
+# ------------------------------------------------------------------- when
 
-#| Set the WHERE of a project invariant in the three-clause form.  Returns its name.
+#| Set the WHEN of one of the project's own promises (its WHERE in the
+#| earlier clauses form).  Returns its name.
 sub set-reach(IO::Path $path, Str $ref, Str $text --> Str) is export {
     my $reach = $text.trim;
-    user-error('nothing to set: the WHERE is empty') if $reach eq '';
+    user-error('nothing to set: the WHEN is empty') if $reach eq '';
     my $doc = IZ4::Document.load($path);
     user-error("{$path.basename} is in the named form, which has no WHEN ('iz4 migrate' moves it to promise cards)") unless $doc.form eq 'clauses' | 'card';
     my $inv = invariant-or-die($doc, $path, $ref);
@@ -925,6 +954,7 @@ sub set-reach(IO::Path $path, Str $ref, Str $text --> Str) is export {
         written-as-meant($path, $inv.id, :text($inv.text), :because($inv.because // ''), :$reach, :$was);
         return $inv.id;
     }
+    # the earlier clauses form
     my $part = $doc.blocks.first({ .kind eq 'WHERE' && .line > $inv.line && .line <= $inv.last-line });
     if $part { @lines.splice($part.line - 1, $part.last-line - $part.line + 1, clause-lines('WHERE', $reach)) }
     else     { @lines.splice($inv.line, 0, clause-lines('WHERE', $reach)) }
@@ -934,7 +964,10 @@ sub set-reach(IO::Path $path, Str $ref, Str $text --> Str) is export {
     $inv.id;
 }
 
-#| What moving a named IZ4 to the three-clause form would do, without doing it:
+# ---------------------------------------------------------------- migrate
+
+#| What moving an IZ4 in the earlier named form to the earlier clauses
+#| form would do, the first step on its way to cards, without doing it:
 #|   needed  whether there is anything to move
 #|   stop    why it cannot be done as the file stands ('' when it can)
 #|   domain  the namespace the header will name, or Str when nothing says
@@ -947,26 +980,28 @@ sub clauses-migration-plan(IO::Path $path --> Hash) is export {
        own => $doc.invariants.map({ %( id => .id, text => .text, because => .because ) }).Array );
 }
 
-#| Move a named IZ4 to the three-clause form.  %reach gives every project
-#| invariant's FOR by its full identity: a person's to say, never made up
-#| here.  What changes: the header names the domain, the two questions
-#| take their answers on the line, each of the project's own invariants is
-#| laid out in three clauses with its ALWAYS and PROTECTS word for word, and the
-#| foundation is the three-clause foundation, written last.  The result is
-#| read back before it is written, and a file that would not check is
-#| never written.  Returns the identities moved.
+#| Move an IZ4 in the earlier named form to the earlier clauses form, the
+#| step before migrate-card takes it to cards.  %reach gives every project
+#| invariant's WHERE (its WHEN on the card to come) by its full identity:
+#| a person's to say, never made up here.  What changes: the header names
+#| the domain, the two questions take their answers on the line, each of
+#| the project's own invariants is laid out in that form's three clauses
+#| with its ALWAYS and PROTECTS word for word, and the foundation is that
+#| form's foundation, written last.  The result is read back before it is
+#| written, and a file that would not check is never written.  Returns
+#| the identities moved.
 sub migrate-clauses(IO::Path $path, %reach, Str :$namespace --> List) is export {
     my %plan = clauses-migration-plan($path);
-    user-error("{$path.basename} is already in the three-clause form; there is nothing to migrate") unless %plan<needed>;
+    user-error("{$path.basename} is already in the clauses form; there is nothing to migrate") unless %plan<needed>;
     user-error("cannot migrate {$path.basename}: %plan<stop>") if %plan<stop>;
     my $domain = ($namespace // %plan<domain> // '').trim.lc;
-    user-error("the three-clause form names the project's domain in its header: pass --namespace=your.domain") if $domain eq '';
+    user-error("from here on the header names the project's domain, as a card file does: pass --namespace=your.domain") if $domain eq '';
     with namespace-problem($domain) -> $why { user-error("'$domain' cannot be this project's domain: $why") if $why }
     my $doc = IZ4::Document.load($path);
     for $doc.invariants -> $inv {
         my $r = (%reach{$inv.id} // '').trim;
-        user-error("{$inv.id} has no WHERE yet: the situation it applies in. A person says; it is never made up") if $r eq '';
-        user-error("{$inv.id} has no PROTECTS: whose what would be lost if it stopped holding. A person says; it is never made up ('iz4 because {$inv.id} ...' in the named file first)") if ($inv.because // '').trim eq '';
+        user-error("{$inv.id} has no WHEN yet: the situation it applies in. A person says; it is never made up") if $r eq '';
+        user-error("{$inv.id} has no PROTECTS: whose what would be lost if it stopped holding. A person says; it is never made up ('iz4 protects {$inv.id} WHAT' in the named file first)") if ($inv.because // '').trim eq '';
     }
     my $drop = "\x[0]drop";
     my @lines = $doc.lines;
@@ -991,19 +1026,20 @@ sub migrate-clauses(IO::Path $path, %reach, Str :$namespace --> List) is export 
     my $check = IZ4::Document.parse($new);
     for $doc.invariants -> $inv {
         my $got = $check.invariant($inv.id);
-        user-error("the three-clause form of {$path.basename} would not carry {$inv.id} word for word; nothing was written")
+        user-error("the clauses form of {$path.basename} would not carry {$inv.id} word for word; nothing was written")
             unless $got.defined && normalised($got.text) eq normalised($inv.text) && normalised($got.because // '') eq normalised($inv.because // '')
                 && normalised($got.reach // '') eq normalised(%reach{$inv.id});
     }
-    user-error("the three-clause form of {$path.basename} would not check ({$check.errors[0].message}, line {$check.errors[0].line}); nothing was written")
+    user-error("the clauses form of {$path.basename} would not check ({$check.errors[0].message}, line {$check.errors[0].line}); nothing was written")
         unless $check.ok;
     $path.spurt($new);
     $doc.invariants.map(*.id).List;
 }
 
-#| What moving an IZ4 in the three-clause form to promise cards would do,
-#| without doing it: each of the project's own invariants with the stage
-#| it will carry, read from the file's mode and the word after its name.
+#| What moving an IZ4 in the earlier clauses form to promise cards would
+#| do, without doing it: each of the project's own invariants with the
+#| stage it will carry, read from that form's mode line and the word
+#| after its name.
 #|   needed   whether there is anything to move
 #|   stop     why it cannot be done as the file stands ('' when it can)
 #|   own      the project's own invariants, each { id, stage, was }
@@ -1011,27 +1047,28 @@ sub migrate-clauses(IO::Path $path, %reach, Str :$namespace --> List) is export 
 sub card-migration-plan(IO::Path $path --> Hash) is export {
     my $doc = IZ4::Document.load($path);
     return %( :!needed, stop => '', own => [], notes => [] ) if $doc.form eq 'card';
-    return %( :needed, stop => "{$path.basename} is in the named form: 'iz4 migrate' moves it to the three-clause form first, then to cards", own => [], notes => [] ) if $doc.form eq 'named';
+    return %( :needed, stop => "{$path.basename} is in the earlier named form: 'iz4 migrate' moves it through the clauses form first, then to cards", own => [], notes => [] ) if $doc.form eq 'named';
     my $stop = $doc.errors ?? "the file has problems to settle first: {$doc.errors[0].message} (line {$doc.errors[0].line})" !! '';
     my @own = $doc.invariants.grep(*.id.defined).map({
         my $p = $doc.protection-of(.id);
         %( id => .id, stage => ($p eq 'vibe' ?? 'exploring' !! 'established'), was => ($p eq 'vibe' ?? 'vibe' !! $p) );
     });
     my @notes;
-    @notes.push: "the mode line goes: the file's mode is now written on each promise" if $doc.mode ne 'solid';
+    @notes.push: "the mode line goes: what each promise's changes require is now written on its card" if $doc.mode ne 'solid';
     my @firm = @own.grep(*<was> eq 'firm');
     @notes.push: "{@firm.map(*<id>).join(', ')}: firm becomes established, so a failing linked test now holds the commit where before it was reported; 'iz4 explore NAME' if the tests are not ready" if @firm;
     @notes.push: "the foundation is written as five FOUNDATION cards: the same words, laid out as cards (sha256 {FOUNDATION-CARD-DIGEST.substr(0, 12)})";
     %( :needed, :$stop, :@own, :@notes );
 }
 
-#| Move an IZ4 in the three-clause form to promise cards.  Each of the
+#| Move an IZ4 in the earlier clauses form to promise cards.  Each of the
 #| project's own invariants becomes a PROMISE card with its WHERE as WHEN,
-#| its ALWAYS and PROTECTS word for word, and the governance its protection
-#| gave it: vibe becomes exploring, firm and solid become established.  The
-#| mode line goes, the foundation is written as cards, and nothing else is
-#| touched.  The result is read back before it is written, and a file that
-#| would not check is never written.  Returns the identities moved.
+#| its ALWAYS and PROTECTS word for word, and the governance that form's
+#| protection gave it: vibe becomes exploring, firm and solid become
+#| established.  Its mode line goes, the foundation is written as cards,
+#| and nothing else is touched.  The result is read back before it is
+#| written, and a file that would not check is never written.  Returns
+#| the identities moved.
 sub migrate-card(IO::Path $path --> List) is export {
     my %plan = card-migration-plan($path);
     user-error("{$path.basename} is already in the card form; there is nothing to migrate") unless %plan<needed>;
@@ -1171,16 +1208,15 @@ sub reword-prompt(Str :$id!, Str :$text!, Str :$because = '', Str :$failure = ''
     One of them no longer matches the software, and its owner has decided
     the software is right and the words are out of date.
 
-    INVARIANT $id
-    $text
-    BECAUSE
-    {$because || '(no reason given)'}
+    PROMISE $id
+      ALWAYS    $text
+      PROTECTS  {$because || '(nothing said)'}
 
     What its test reported:
     {$failure || '(nothing)'}
 
-    Write the invariant again so that it says what is true of the software
-    now, keeping as much of the original promise as still holds.  One
+    Write the promise again so that it says what is true of the software
+    now, keeping as much of the original as still holds.  One
     plain sentence of at most {DRAFT-WORDS} words, and no longer than the original
     unless it must be.  No implementation detail, lists or exceptions: an
     IZ4 is not a specification.  If you cannot tell what is true now, say
@@ -1224,7 +1260,7 @@ sub suggest-prompt(Str :$current = '', Str :$evidence = '' --> Str) is export {
     Do not try to make IZ4 complete.  Try to make it small.
 
     Every IZ4 carries the foundation word for word: Invariant Zero, humans
-    first, then do no harm, human agency, honesty and the keystone.
+    first, then do no harm, human agency, honesty and the binding.
     Do not restate it; propose only this project's own invariants.
 
     The golden test: if the whole system were rewritten tomorrow,

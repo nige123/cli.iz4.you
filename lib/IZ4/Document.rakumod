@@ -5,19 +5,24 @@ unit class IZ4::Document;
 #| it to keep serving them.  It is deliberately incomplete: enduring
 #| intent, never everything known about the system.
 #|
-#| The format is specified by IZ4::Grammar and restated in docs/format.md.
-#| This class parses a file with that grammar, keeps what it found, and
-#| judges it: which of the grammar's forgiving productions are errors,
-#| which are warnings, and what the blocks must add up to.
+#| The format is promise cards, specified by IZ4::CardGrammar and
+#| restated in docs/format.md.  This class parses a file with that
+#| grammar, keeps what it found, and judges it: which of the grammar's
+#| forgiving productions are errors, which are warnings, and what the
+#| cards must add up to.  Two earlier forms, the named form (IZ4::Grammar)
+#| and the clauses form (IZ4::ClausesGrammar), are still read, only so
+#| that 'iz4 migrate' can bring a straggler across.
 #|
 #| Every invariant has a stable, human-readable, namespaced identity:
 #| humans-first.iz4.you, owner-adjusted.prices.honeywillow.com.  The name
 #| says which commitment it is; a digest of its exact words says which
 #| version.  Order in the file is presentation and nothing else.
 #|
-#| Every IZ4 carries the foundation word for word, the same blocks in
-#| every file, Invariants 0 to 4, checked against the reference copy
-#| below.  A project's own invariants are named under a domain the
+#| Every IZ4 carries the foundation word for word: the same five
+#| FOUNDATION cards in every file, humans-first.iz4.you,
+#| do-no-harm.iz4.you, human-agency.iz4.you, honesty.iz4.you and
+#| binding.iz4.you, checked against the reference copy below.  A
+#| project's own promises are PROMISE cards, named under a domain the
 #| project answers for.
 
 use IZ4::Grammar;
@@ -26,7 +31,9 @@ use IZ4::CardGrammar;
 
 # ------------------------------------------------------------ foundation
 
-#| The foundation, Invariants 0 to 4, by their canonical identities.
+#| The foundation as the earlier named form carries it, read only so
+#| that 'iz4 migrate' can bring a file across: the five invariants by
+#| their canonical identities.  The card form's words are FOUNDATION-CARD.
 #| Invariant Zero, humans-first.iz4.you, comes first: it is the foundation
 #| of the foundation, and the reason IZ4 has the name it has.  Each
 #| stands alone: a name is used inside another's words only where the
@@ -34,9 +41,8 @@ use IZ4::CardGrammar;
 #| person or an AI can take them in at a glance.  Stating a rule, or
 #| hashing it, does not make software obey it.  'legacy' is the number
 #| each carried up to iz4 0.15: history, and a help to migration, never
-#| an identity.  It is also the foundation's order, 0 to 4: how the
-#| foundation is shown and spoken of, and nothing a test, a gate or a
-#| digest ever uses.
+#| an identity.  It is also the foundation's order: how the foundation is
+#| shown and spoken of, and nothing a test, a gate or a digest ever uses.
 constant FOUNDATION is export = (
     %( id => 'humans-first.iz4.you', legacy => 0,
        text => "Help people thrive, on their own terms. Respect every person's "
@@ -77,19 +83,21 @@ constant FOUNDATION is export = (
        because => 'A foundation that bends under pressure is not a foundation.' ),
 );
 
-#| The foundation as the three-clause form carries it.  Each invariant says
+#| The foundation as the earlier clauses form carries it, read only so
+#| that 'iz4 migrate' can bring a file across.  Each invariant says
 #| where it applies (WHERE), what must remain true there (ALWAYS) and what
 #| must not be defeated (PROTECTS).  ALWAYS speaks to whoever acts, agent
 #| included, as the named foundation did: 'Do not harm people', not 'the
 #| system does not harm people'.  Every protection of the named foundation
 #| is kept, and the words that an earlier audit found weak are hardened:
 #| indirect and equivalent routes, delegation, omission, uncertainty, and
-#| reinterpretation are named.  Adopted for the form on 2026-10-12.  They are the same
-#| commitments as the named form's, in the same order; the last is named
-#| binding.iz4.you, for what it does, and lists the others by their names.
-#| A file in the named form carries the FOUNDATION above, and a file in the
-#| three-clause form carries this one; neither is ever accepted in the other's
-#| place.  Candidate wording until its owner adopts it.
+#| reinterpretation are named.  Adopted for that form on 2026-10-12.  They
+#| are the same commitments as the named form's, in the same order; the
+#| last is named binding.iz4.you, for what it does, and lists the others
+#| by their names.  A file in the named form carries the FOUNDATION above,
+#| and a file in the clauses form carries this one; neither is ever
+#| accepted in the other's place.  The card form took these words over
+#| unchanged: FOUNDATION-CARD.
 constant FOUNDATION-CLAUSES is export = (
     %( id => 'humans-first.iz4.you', legacy => 0,
        reach => 'anyone is affected by the system, by its use, or by work on it',
@@ -142,13 +150,13 @@ constant FOUNDATION-CLAUSES is export = (
 
 
 
-#| The foundation as the promise-card form carries it: the same five
-#| commitments, the same words, laid out as cards.  WHEN is the WHERE of
-#| the three-clause form, word for word.  ALWAYS is its sentences as a
+#| The foundation as every IZ4 carries it now: the same five commitments,
+#| the same words, laid out as FOUNDATION cards.  WHEN is the WHERE of
+#| the earlier clauses form, word for word.  ALWAYS is its sentences as a
 #| dashed list, one obligation per item, written lower case without the
 #| full stop, as every list item is; no word is changed, added or dropped.
 #| PROTECTS is as before.  Adopted by the owner on 2026-10-21 as a
-#| foundation-format release.  A file in the three-clause form carries
+#| foundation-format release.  A file in the earlier clauses form carries
 #| FOUNDATION-CLAUSES and a file in the card form carries this; neither is
 #| accepted in the other's place.
 constant FOUNDATION-CARD is export = (
@@ -251,10 +259,10 @@ sub foundation-card-matches(Str $id, Str $when, @always, @protects --> Bool) is 
     normalised(nfc($when // '')) eq normalised(nfc($f<when>)) && same(@always, $f<always>.list) && same(@protects, $f<protects>.list);
 }
 
-#| Wordings the foundation has had since it was named, by invariant, each
-#| with the version that last wrote it.  A file that still carries one is
-#| not altered by its owner: it is out of date, and is told so.  Nothing
-#| writes these.
+#| Wordings the foundation had in the earlier named form, by invariant,
+#| each with the version that last wrote it.  A file that still carries
+#| one is not altered by its owner: it is out of date, and is told so.
+#| Nothing writes these.
 constant FOUNDATION-EARLIER is export = (
     %( id => 'foundation-holds.iz4.you', until => '0.16.2',
        text => 'The foundation is five invariants: humans-first.iz4.you, '
@@ -295,21 +303,6 @@ sub foundation-earlier(Str $id, Str $text, Str $because --> Str) is export {
     $f.defined ?? $f<until> !! Str;
 }
 
-#| The line that says a file's own invariants are still settling: vibe
-#| mode.  While it is there, a change to them does not wait for anyone's
-#| agreement and a failing test of one does not hold a change; the
-#| foundation holds exactly as ever.  It is in the file, not in anyone's
-#| settings, so everyone who has the file can see which mode it is in.
-constant VIBE-COMMENT is export =
-    "# Vibe: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.";
-#| The line for firm mode: the words of the file's own invariants are agreed,
-#| so a change to them waits for a yes, while their evidence is still being
-#| built, so a failing test of one is reported and holds nothing.
-constant FIRM-COMMENT is export =
-    "# Firm: this project's invariants are agreed; their tests are still settling. 'iz4 mode solid' when the tests hold.";
-#| The protection words, weakest first.
-constant @MODES is export = <vibe firm solid>;
-
 #| The namespace the foundation lives in.  Exactly the names above
 #| are valid directly under it; deeper names (x.cli.iz4.you) are ordinary
 #| project identities.
@@ -320,8 +313,8 @@ sub foundation-ids(Bool :$clauses = False, Bool :$card = False --> List) is expo
 #| Invariant Zero: the foundation of the foundation.
 constant INVARIANT-ZERO is export = 'humans-first.iz4.you';
 
-#| A foundation invariant's place in the foundation's order, 0 to 4, or
-#| Int when the name is not the foundation's.
+#| A foundation invariant's place in the foundation's order, counted
+#| from 0, or Int when the name is not the foundation's.
 sub foundation-order(Str $id --> Int) is export {
     my $f = FOUNDATION.first({ .<id> eq $id });
     $f.defined ?? $f<legacy> !! Int;
@@ -333,21 +326,25 @@ sub foundation-at(Int $n, Bool :$clauses = False, Bool :$card = False --> Str) i
     $f.defined ?? $f<id> !! Str;
 }
 sub foundation-entry(Str $id) is export { FOUNDATION.first({ .<id> eq $id }) }
-#| A foundation name of either form: the named foundation's, or the three-clause one's.
+#| A foundation name of any form: the card foundation's, or the earlier
+#| named or clauses one's.
 sub is-foundation-id(Str $id --> Bool) is export {
     so FOUNDATION.first({ .<id> eq $id }) || FOUNDATION-CLAUSES.first({ .<id> eq $id }) || FOUNDATION-CARD.first({ .<id> eq $id });
 }
 
 
-#| The comment written directly above the foundation blocks in a file.
+#| The comment written directly above the foundation in a file.
 constant FOUNDATION-COMMENT is export =
     "# The foundation: the same words in every IZ4.\n"
     ~ "# Invariant Zero, humans-first.iz4.you, is the foundation of the foundation.\n"
     ~ "# If any of it goes missing or changes, 'iz4 check' says so and\n"
     ~ "# 'iz4 foundation restore' puts it back.";
 
-#| The foundation as it is written into every file: the comment, then the
-#| invariants with their BECAUSE, each block ending in a blank line.
+#| The foundation as it is written into a file: the five FOUNDATION cards
+#| with :card; the earlier clauses form with :clauses; else the earlier
+#| named form, the comment, then INVARIANT blocks with their BECAUSE, each
+#| ending in a blank line.  The earlier forms are written only for their
+#| tests and for what 'iz4 migrate' reads.
 sub foundation-block(Bool :$clauses = False, Bool :$card = False --> Str) is export {
     return card-foundation-block() if $card;
     return clauses-foundation-block() if $clauses;
@@ -363,14 +360,15 @@ sub foundation-block(Bool :$clauses = False, Bool :$card = False --> Str) is exp
     @out.join("\n");
 }
 
-#| The line that rules off the foundation in the three-clause form: a
-#| comment, so it is for the eye, and the parser reads past it.
+#| The line that rules off the foundation in the card form, and in the
+#| earlier clauses form: a comment, so it is for the eye, and the parser
+#| reads past it.
 constant FOUNDATION-RULE-OFF is export = '# ' ~ ('-' x 70);
 
-#| One clause as it is written: the label, then its words wrapped under it.
-#| Wrapped so that no line begins with something the grammar would read
-#| as anything but words: a '#' word would make a comment of the line
-#| and a label word a new clause, and the words after it would vanish.
+#| The words of one field as they are wrapped under its label, in any
+#| form.  Wrapped so that no line begins with something a grammar would
+#| read as anything but words: a '#' word would make a comment of the line
+#| and a label word a new field, and the words after it would vanish.
 #| Such a word stays on the line before it, however long that makes it.
 sub wrap-safely(Str $text, Int $width --> List) is export {
     my @out;
@@ -388,14 +386,16 @@ sub clause-lines(Str $label, Str $text --> List) is export {
     (($head ~ @w[0]), |@w[1 .. *].map({ ' ' x $head.chars ~ $_ })).List;
 }
 
-#| One three-clause invariant as it is written, under the name it is shown by.
+#| One invariant of the earlier clauses form as it is written, under the
+#| name it is shown by.
 sub clauses-invariant-lines(Str $name, Str $reach, Str $rule, Str $because --> List) is export {
     ("$name:", |clause-lines('WHERE', $reach), |clause-lines('ALWAYS', $rule),
         |($because.trim ne '' ?? clause-lines('PROTECTS', $because) !! ())).List;
 }
 
-#| The foundation in the three-clause form, as it is written into every file:
-#| a rule-off, the comment, then the invariants, each ending in a blank line.
+#| The foundation in the earlier clauses form, as that form wrote it into
+#| every file: a rule-off, the comment, then the invariants, each ending in
+#| a blank line.
 sub clauses-foundation-block(--> Str) {
     my @out = FOUNDATION-RULE-OFF, |FOUNDATION-COMMENT.lines, '';
     for FOUNDATION-CLAUSES -> %f {
@@ -457,17 +457,18 @@ sub reserved-identity(Str $id --> Bool) is export {
     $id.ends-with('.' ~ FOUNDATION-NAMESPACE) && $id.split('.').elems == 3 && !is-foundation-id($id);
 }
 
-#| The exact words a digest covers for one invariant (iz4-invariant/1):
-#| its identity, its text and its BECAUSE, each with its words joined by
-#| single spaces, so re-wrapping a paragraph changes nothing and changing
-#| a word changes the digest.
+#| The digest rule of the earlier named form, kept only to migrate; the
+#| card form's is iz4-invariant/5 above.  An invariant is its identity,
+#| its text and its BECAUSE, each with its words joined by single spaces,
+#| so re-wrapping a paragraph changes nothing and changing a word changes
+#| the digest.
 constant INVARIANT-DIGEST-RULE is export = 'iz4-invariant/1';
 sub canonical-invariant(Str $id, Str $text, Str $because --> Str) is export {
     "INVARIANT $id\n{normalised($text // '')}\nBECAUSE\n{normalised($because // '')}\n";
 }
 
-#| The canonical bytes the foundation digest covers: the invariants, in their
-#| canonical order, each as canonical-invariant writes it.
+#| The canonical bytes the named foundation's digest covers: the invariants,
+#| in their canonical order, each as canonical-invariant writes it.
 constant FOUNDATION-TEXT is export =
     FOUNDATION.map({ canonical-invariant(.<id>, .<text>, .<because>) }).join;
 
@@ -475,8 +476,9 @@ constant FOUNDATION-TEXT is export =
 constant FOUNDATION-DIGEST is export =
     'a04d8673fc15df2c7a3abb7032a0224614e3a1ae66a5f7fc62d5a48a990b6e79';
 
-#| The digest rule of the three-clause form.  An invariant is its full
-#| identity, its WHERE, its ALWAYS and its PROTECTS, each as one line under
+#| The digest rule of the earlier clauses form, kept only to migrate.  An
+#| invariant is its full identity, its WHERE, its ALWAYS and its PROTECTS,
+#| each as one line under
 #| its label (iz4-invariant/2 and /3, which 0.18 and 0.19 wrote under earlier
 #| labels, were never adopted by any file), with its words joined by single spaces and its characters in
 #| Unicode normal form C, encoded as UTF-8.  A field never holds a line
@@ -493,7 +495,7 @@ sub canonical-clauses(Str $id, Str $reach, Str $rule, Str $because --> Str) is e
     "INVARIANT $id\nWHERE {field($reach)}\nALWAYS {field($rule)}\nPROTECTS {field($because)}\n";
 }
 
-#| The canonical bytes the three-clause foundation's digest covers.
+#| The canonical bytes the clauses foundation's digest covers.
 constant FOUNDATION-CLAUSES-TEXT is export =
     FOUNDATION-CLAUSES.map({ canonical-clauses(.<id>, .<reach>, .<text>, .<because>) }).join;
 
@@ -510,15 +512,16 @@ constant FOUNDATION-CARD-TEXT is export =
 constant FOUNDATION-CARD-DIGEST is export =
     '7c704e757f80df39ebca60a386b8aefdd88d0d42af93daccb514562f076e5508';
 
-#| Whether a three-clause block is foundation invariant $id exactly.
+#| Whether a block of the earlier clauses form is foundation invariant $id
+#| exactly.
 sub foundation-clauses-matches(Str $id, Str $reach, Str $rule, Str $because --> Bool) is export {
     my $f = FOUNDATION-CLAUSES.first({ .<id> eq $id }) // return False;
     normalised(nfc($reach // '')) eq normalised(nfc($f<reach>)) && normalised(nfc($rule // '')) eq normalised(nfc($f<text>))
         && normalised(nfc($because // '')) eq normalised(nfc($f<because>));
 }
 
-#| Whether a named block is foundation invariant $id exactly: its text and
-#| its BECAUSE, word for word.
+#| Whether a block of the earlier named form is foundation invariant $id
+#| exactly: its text and its BECAUSE, word for word.
 sub foundation-matches(Str $id, Str $text, Str $because --> Bool) is export {
     my $f = foundation-entry($id) // return False;
     normalised($text) eq normalised($f<text>) && normalised($because // '') eq normalised($f<because>);
@@ -526,8 +529,9 @@ sub foundation-matches(Str $id, Str $text, Str $because --> Bool) is export {
 
 # --------------------------------------------------------------- format
 
-#| The four blocks of the format, in canonical order.  The first two are
-#| questions and are written with their question mark.
+#| The four blocks of the earlier named form, in canonical order.  The
+#| first two are questions and are written with their question mark, and
+#| are the two every form shares.
 constant @BLOCKS is export = 'IS FOR WHAT', 'IS FOR WHO', 'INVARIANT', 'BECAUSE';
 
 #| Text written by this tool is wrapped at this width.
@@ -592,18 +596,21 @@ class Problem {
     method Str(--> Str) { ($!warning ?? 'warning: ' !! '') ~ $!message }
 }
 
-#| One project invariant.  Its identity is its name; in a file still in
+#| One invariant, a project's own promise or the foundation's, in whatever
+#| form the file is in.  Its identity is its name.  The attribute names
+#| are the earlier forms' words, kept as they are: reach is WHEN, text is
+#| ALWAYS, because is PROTECTS.
 class Invariant {
     has Str $.id;                         # undefined when the block has no name
-    has Str $.reach;                      # WHERE: the situation it applies in; defined only in the three-clause form
+    has Str $.reach;                      # WHEN (WHERE in the earlier clauses form): the situation it applies in; undefined in the earlier named form
     has Int $.reach-line;
     has Int $.rule-line;
-    has Str $.text    is required;        # ALWAYS, in the three-clause form
-    has Str $.because;                    # undefined when none given
-    has Int $.line    is required;        # its INVARIANT line
+    has Str $.text    is required;        # ALWAYS; the card's items joined by '; ' when it is a list
+    has Str $.because;                    # PROTECTS (BECAUSE in the earlier named form); undefined when none given
+    has Int $.line    is required;        # its heading line
     has Int $.because-line;
-    has Str $.protection;                 # card form: 'vibe' (anyone may edit) | 'solid' (a signed yes) | 'foundation'; three-clause form: 'firm' or 'solid' written after the name, else undefined
-    has Int $.last-line is rw;            # last line of the INVARIANT block
+    has Str $.protection;                 # as the gate reads it: 'vibe' (exploring: anyone may edit) | 'solid' (established: a signed yes; the foundation too); earlier clauses form: 'firm' or 'solid' written after the name, else undefined
+    has Int $.last-line is rw;            # last line of the card or block
     has Str $.kind;                       # card form: PROMISE | FOUNDATION
     has Str @.always-items;               # card form: the ALWAYS items (one when it is a statement)
     has Str @.protects-items;             # card form: the PROTECTS items (one when it is a statement)
@@ -625,8 +632,8 @@ class Invariant {
 
 #| A block as written (named Part: Block is a core type).
 class Part {
-    has Str  $.kind is required;          # IS FOR WHAT | IS FOR WHO | INVARIANT | BECAUSE | other caps
-    has Str  $.label;                     # the text after INVARIANT, if any
+    has Str  $.kind is required;          # IS FOR WHAT | IS FOR WHO | INVARIANT (a card heading too) | a field label | BECAUSE | other caps
+    has Str  $.label;                     # the name on the heading, if any
     has Bool $.asked = False;             # written as a question: IS FOR WHAT?
     has Int  $.line is required;
     has Int  $.last-line is rw;
@@ -648,7 +655,7 @@ has Str       @.lines;
 has Int       $.header-line;
 has Bool      $.foundation-intact = False;   # every foundation invariant present, each word for word, none twice
 has Str       $.form = 'named';              # card (the canonical form) | clauses | named (the earlier forms, which iz4 migrate reads)
-has Str       $.domain;                      # the namespace the header names, in the three-clause form
+has Str       $.domain;                      # the namespace the header names, in the card form and the earlier clauses form
 has Str       @.retired;                     # identities the file's own comments say were withdrawn
 has           @.foundation-spans;            # (first line, last line) of every foundation block, in any state
 
@@ -669,15 +676,19 @@ method ok(--> Bool) { !self.errors }
 #| Project invariants with no name, in file order.
 method unnamed-invariants(--> List) { @!invariants.grep({ !.id.defined }).List }
 
-#| Project invariants with no BECAUSE, in file order.
+#| Project invariants with no PROTECTS (BECAUSE in the earlier named form),
+#| in file order.
 method unexplained-invariants(--> List) { @!invariants.grep({ !(.because // '').trim }).List }
 
 #| One project invariant by identity.
 method invariant(Str $id) { @!invariants.first({ (.id // '') eq $id }) }
 
-#| The file's mode, one line it declares: 'vibe' while its own invariants are
-#| still settling, 'firm' once their words are agreed but their evidence is
-#| not yet, 'solid' when nothing is said.  The foundation is the same in all.
+#| The file's standing in the earlier forms' words, which the gate still
+#| speaks: 'vibe' for an exploring file, 'solid' for an established one.
+#| In the earlier forms it is the mode line the file declares: 'vibe'
+#| while its own invariants were still settling, 'firm' once their words
+#| were agreed but their evidence was not yet, 'solid' when nothing is
+#| said.  The foundation is the same in all.
 method mode(--> Str) {
     return self.exploring ?? 'vibe' !! 'solid' if $!form eq 'card';
     return 'vibe' if @!lines.first({ $_ ~~ /^ '#' \s* 'Vibe:' / });
@@ -685,21 +696,24 @@ method mode(--> Str) {
     'solid';
 }
 #| Is this file still exploring: every promise of its own anyone may edit,
-#| or none yet?  In the earlier forms, vibe mode.  What a change to the
-#| file as a whole (its purpose, its people, its form) waits for follows it.
+#| or none yet?  In the earlier forms, the vibe mode line.  What a change
+#| to the file as a whole (its purpose, its people, its form) waits for
+#| follows it.
 method exploring(--> Bool) {
     return self.mode eq 'vibe' unless $!form eq 'card';
     my @own = @!invariants.grep(*.id.defined);
     !@own || !@own.first({ !.exploring }).defined;
 }
-#| Is this file in vibe mode: its own invariants still settling?
+#| Is this file exploring?  The earlier forms' word for it, kept for
+#| callers that still ask by it.
 method vibe(--> Bool) { self.exploring }
-#| How strongly one of the file's own invariants is protected, as the gate
-#| reads it: 'vibe' (a change waits for nobody, a failing test is reported),
-#| or 'solid' (a change waits for a signed yes, a failing test holds).  In
-#| the card form it is what the card says; the foundation is always solid.
-#| In the three-clause form it is the stronger of the file's mode and the
-#| word written after the name.  Unknown names take the file's mode.
+#| How strongly one of the file's own promises is protected, as the gate
+#| reads it: 'vibe' (exploring: a change waits for nobody, a failing test
+#| is reported), or 'solid' (established: a change waits for a signed yes,
+#| a failing test holds).  In the card form it is what the card's CHANGES
+#| REQUIRE says; the foundation is always solid.  In the earlier clauses
+#| form it is the stronger of the file's mode line and the word written
+#| after the name.  Unknown names take the file's standing.
 method protection-of(Str $id --> Str) {
     if $!form eq 'card' {
         return 'solid' if is-foundation-id($id);
@@ -712,12 +726,13 @@ method protection-of(Str $id --> Str) {
     (%rank{$own} // -1) > %rank{self.mode} ?? $own !! self.mode;
 }
 
-#| The namespace this project's invariants live in, as far as the file
-#| shows it.  The file says so in one comment line, written when the
-#| namespace was first chosen ("# This project's invariants are named
-#| under honeywillow.com."); a file without the line is read by what its
-#| own identities have in common after their first label.  Str when
-#| neither says.  Only ever a convenience for naming the next invariant:
+#| The namespace this project's promises live in, as far as the file
+#| shows it.  The card form, and the earlier clauses form, name it in the
+#| header.  The earlier named form says so in one comment line, written
+#| when the namespace was first chosen ("# This project's invariants are
+#| named under honeywillow.com."); a file without the line is read by what
+#| its own identities have in common after their first label.  Str when
+#| neither says.  Only ever a convenience for naming the next promise:
 #| an identity is whole in itself and nothing is derived from this.
 method namespace(--> Str) {
     return $!domain if $!form eq 'clauses' | 'card' && $!domain.defined;
@@ -765,8 +780,9 @@ method fixes(--> List) {
 
 # ----------------------------------------------------------------- parse
 
-#| Parse with IZ4::Grammar, turn every item into a Part or a problem,
-#| then judge what the blocks add up to.
+#| Tell the form from the header and parse with its grammar: the card
+#| form, or one of the two earlier forms read only to migrate.  Turn every
+#| item into a Part or a problem, then judge what the blocks add up to.
 method !parse() {
     @!lines = $!source.lines;
     # What a person reads must be what is stored.  A character that is
@@ -786,9 +802,11 @@ method !parse() {
         }
     }
     my $text = $!source.ends-with("\n") || $!source eq '' ?? $!source !! $!source ~ "\n";
-    # the three-clause form says so in its header: 'IZ4 domain'
+    # the card form, and the earlier clauses form, name the domain in the
+    # header: 'IZ4 domain'
     if $text ~~ / ^ [ \h* [ '#' \N* ]? \n ]* 'IZ4' \h+ \S / {
-        # a card heading anywhere in the file tells the card form from the three-clause form
+        # a card heading anywhere in the file tells the card form from the
+        # earlier clauses form
         if $text ~~ / ^^ [ 'PROMISE' | 'FOUNDATION' ] \h+ <[a..z 0..9 \-]>+ [ '.' <[a..z 0..9 \-]>+ ]+ \h* \n / {
             my $cm = IZ4::CardGrammar.parse($text);
             if $cm { self!parse-card($text, $cm); return }
@@ -828,7 +846,7 @@ method !parse() {
             }
             else {
                 @!blocks.push: Part.new(:$kind, :$line, :last-line($line + @text.elems), :lines(@text));
-                self!problem($line, "unknown block '$kind' kept; IZ4 holds only IS FOR WHAT?, IS FOR WHO?, "
+                self!problem($line, "unknown block '$kind' kept; this earlier named form holds only IS FOR WHAT?, IS FOR WHO?, "
                     ~ "INVARIANT and BECAUSE - {ELSEWHERE}", :warning, :fix("move '$kind' (line $line) out of the IZ4, or rewrite it as an INVARIANT if it must remain true"));
             }
         }
@@ -844,7 +862,7 @@ method !parse() {
     self!validate;
 }
 
-#| The whole identity a heading names, in the three-clause form.  A name goes
+#| The whole identity a heading names, in the earlier clauses form.  A name goes
 #| under the header's domain, area labels and all (come-alive.matching under
 #| love2.do is come-alive.matching.love2.do), unless it is already whole: it
 #| ends with that domain, or it is one of the foundation's.  Written under
@@ -855,15 +873,16 @@ sub clauses-identity(Str $name, Str $domain --> Str) is export {
     $name ~ '.' ~ $domain;
 }
 
-#| The three-clause form: its grammar's matches turned into Parts and
-#| Invariants, then judged.  Every problem has its line.
+#| The earlier clauses form, read only so that 'iz4 migrate' can bring a
+#| file across: its grammar's matches turned into Parts and Invariants,
+#| then judged.  Every problem has its line.
 method !parse-clauses(Str $text, $m) {
     $!form = 'clauses';
     my sub line-of($match) { 1 + $text.substr(0, $match.from).comb("\n").elems }
     my sub last-of($match, $line) { my @c = $match<cont>.list; @c ?? line-of(@c.tail) !! $line }
 
     $!header-line = line-of($m<header>);
-    self!problem($!header-line, "this IZ4 is in the earlier three-clause form; the form is promise cards now ('iz4 migrate' moves it, and shows what changes first)",
+    self!problem($!header-line, "this IZ4 is in the earlier clauses form (WHERE, ALWAYS, PROTECTS); the form is promise cards now ('iz4 migrate' moves it, and shows what changes first)",
         :warning, :fix('iz4 migrate'));
     $!domain = (~$m<header><domain>).trim;
     with identity-problem("x.$!domain") -> $why {
@@ -899,7 +918,7 @@ method !parse-clauses(Str $text, $m) {
                 :fix("put the name of the invariant, like 'private-stays-private:', alone on a line above line {line-of($s)}"));
         }
         orwith $i<stray> -> $s {
-            self!problem(line-of($s), "this text belongs to an clause (WHERE:, ALWAYS: or PROTECTS:) or is a stray line: a blank line ends an clause's text",
+            self!problem(line-of($s), "this text belongs to a clause (WHERE:, ALWAYS: or PROTECTS:) or is a stray line: a blank line ends a clause's text",
                 :fix("join the text on line {line-of($s)} to the clause above it without a blank line, or delete it"));
         }
     }
@@ -912,8 +931,8 @@ method !parse-clauses(Str $text, $m) {
     $!foundation-intact = !@missing && !$foundation-broken;
 }
 
-#| One invariant of the three-clause form: its name made whole, its clauses
-#| gathered, and the foundation's compared word for word.
+#| One invariant of the earlier clauses form: its name made whole, its
+#| clauses gathered, and the foundation's compared word for word.
 method !clauses-invariant($v, %ids, %foundation, $broken is rw, &line-of, &last-of) {
     my $h    = $v<heading>;
     my $line = line-of($h);
@@ -984,7 +1003,7 @@ method !clauses-invariant($v, %ids, %foundation, $broken is rw, &line-of, &last-
 
     for <WHERE ALWAYS PROTECTS> -> $need {
         next if %clause{$need}:exists;
-        self!problem($line, "$name: has no $need: every invariant says where it applies (WHERE:), what must remain true there (ALWAYS:) and what must not be defeated (PROTECTS:)",
+        self!problem($line, "$name: has no $need: in this earlier form every invariant says where it applies (WHERE:), what must remain true there (ALWAYS:) and what must not be defeated (PROTECTS:)",
             :fix("add '$need:' under $name: on line $line"));
     }
     @!invariants.push: Invariant.new(:id($id), :reach($reach), :text($rule // ''), :because($why), :protection($h<protection> ?? ~$h<protection> !! Str),
@@ -1042,9 +1061,10 @@ method !attach-because(Part $b, Invariant $last, Str $fix) {
         :because-line($b.line), :last-line($last.last-line));
 }
 
-#| The current format: every invariant named.  The foundation's names
-#| must each appear once, word for word, anywhere in the file: order is
-#| presentation.
+#| The earlier named form, read only so that 'iz4 migrate' can bring a
+#| file across: every invariant named, its text under INVARIANT and its
+#| reason under BECAUSE.  The foundation's names must each appear once,
+#| word for word, anywhere in the file: order is presentation.
 method !validate-named() {
     my %seen;
     my Invariant $last-invariant;
@@ -1142,7 +1162,7 @@ method !validate-named() {
                 if $foundation-block { $foundation-block = False; $last-was-invariant = False; succeed }
                 if $last-was-invariant && $last-invariant.defined {
                     self!attach-because($b, $last-invariant,
-                        $last-invariant.id.defined ?? "iz4 because {$last-invariant.id} \"why it must survive\"" !! "write under the BECAUSE on line {$b.line} why the invariant must survive");
+                        $last-invariant.id.defined ?? "iz4 protects {$last-invariant.id} \"whose what it protects\"" !! "write under the BECAUSE on line {$b.line} whose what the invariant protects");
                 }
                 else {
                     self!problem($b.line, 'BECAUSE must directly follow the INVARIANT it explains',
@@ -1165,8 +1185,9 @@ method !validate-named() {
 
 # ------------------------------------------------------------- card form
 
-#| The promise-card form: its grammar's matches turned into Parts and
-#| Invariants, then judged.  Every problem has its line.
+#| The card form, the form every IZ4 is written in now: its grammar's
+#| matches turned into Parts and Invariants, then judged.  Every problem
+#| has its line.
 method !parse-card(Str $text, $m) {
     $!form = 'card';
     my sub line-of($match) { 1 + $text.substr(0, $match.from).comb("\n").elems }

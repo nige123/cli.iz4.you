@@ -116,9 +116,9 @@ sub diff-terms(Str $diff --> Hash) is export {
     %where;
 }
 
-#| Which project invariants a change touches, by their own words turning
-#| up in it.  Returns a list of hashes: id, text, because, terms
-#| (the words that matched).  An invariant counts as touched when at
+#| Which of the project's promises a change touches, by their own words
+#| turning up in it.  Returns a list of hashes: id, text, because, terms
+#| (the words that matched).  A promise counts as touched when at
 #| least two of its words appear, or one word that is rare enough to be
 #| specific.  This is a pointer for a person, not a judgement.
 sub touched-invariants(IZ4::Document $doc, Str $diff --> List) is export {
@@ -141,18 +141,20 @@ sub offline-report(IZ4::Document $doc, Str $diff, Str :$what --> List) is export
     my $files = $diff.lines.grep(*.starts-with('+++ ')).elems;
     return ("Nothing to review: no change in $what.",) unless $diff.trim;
     my $own = $doc.invariants.elems;
-    my $against = $own == 1 ?? "the project's one invariant" !! "the project's $own invariants";
+    my $against = $own == 1 ?? "the project's one promise" !! "the project's $own promises";
+    # a card's reason is its PROTECTS; a file still in an earlier form says BECAUSE
+    my $reason = $doc.form eq 'card' ?? 'PROTECTS' !! 'BECAUSE';
     my @out = "Reviewed $what: $files file" ~ ($files == 1 ?? '' !! 's') ~ " changed, against the foundation and $against.";
     if @touched {
         @out.push: "This change touches, by its own words, {@touched.map({ label($doc, .<id>) }).join(', ')}. Look at each before you push:";
         for @touched -> %t {
             @out.push: "  {label($doc, %t<id>)}: {short(%t<text>)}";
-            @out.push: "    BECAUSE {short(%t<because>)}" if %t<because>;
+            @out.push: "    $reason {short(%t<because>)}" if %t<because>;
             @out.push: "    matched: {%t<terms>.join(', ')}";
         }
     }
     else {
-        @out.push: "No project invariant's own words appear in the change. That means little: read the change against 'iz4 invariants' if it is consequential.";
+        @out.push: "No promise's own words appear in the change. That means little: read the change against 'iz4 invariants' if it is consequential.";
     }
     @out.push: "Offline: nothing here says the change keeps or breaks an invariant; only a person or a review can.";
     @out;
@@ -167,7 +169,10 @@ sub short(Str $s --> Str) { $s.chars > 110 ?? $s.substr(0, 107).trim-trailing ~ 
 
 #| The prompt for an agent review.  It asks for honest assessments in the
 #| protocol's vocabulary, and for candidates only where the change
-#| reveals enduring intent - fewer, stronger, none is fine.
+#| reveals enduring intent - fewer, stronger, none is fine.  A candidate
+#| is a promise in the making: what must remain true, and whose what it
+#| protects; the reply form carries the latter after BECAUSE:, which is
+#| what parse-review reads.
 sub review-prompt(Str :$effective!, Str :$diff!, Str :$what = 'this change' --> Str) is export {
     q:to/END/ ~ $effective.trim ~ "\n\n=== the change ($what) ===\n" ~ $diff.trim ~ "\n=== end of change ===\n";
     You are reviewing a change to a system that keeps an IZ4 file.  IZ4
@@ -190,18 +195,18 @@ sub review-prompt(Str :$effective!, Str :$diff!, Str :$what = 'this change' --> 
        state, propose it.  The golden test: if the whole system were
        rewritten tomorrow, would we regret not telling the people rebuilding
        it this?  A new behaviour, a passing test, a refactor or a setting is
-       not an invariant.  Propose at most 2, classed STRONG or POSSIBLE.
+       not a promise.  Propose at most 2, classed STRONG or POSSIBLE.
        For each give a concise, accurate, understandable statement of what
-       must remain true, a one-sentence BECAUSE saying why it matters to who
-       or what the system is for, and the evidence that would show it holds
-       (a test, a check, a review).  None is a fine answer.  Never invent
-       intent: where it depends on the owner, class it POSSIBLE and say the
-       question.
+       must ALWAYS remain true, one sentence saying whose what it PROTECTS
+       (what a person would lose if it stopped holding), and the evidence
+       that would show it holds (a test, a check, a review).
+       None is a fine answer.  Never invent intent: where it depends on
+       the owner, class it POSSIBLE and say the question.
 
     Reply with one item per line and nothing else, in exactly this form:
     INVARIANT its-name | assessment | evidence, citing lines or files
-    (its-name is the invariant's full name exactly as the IZ4 gives it after INVARIANT)
-    CANDIDATE | STRONG or POSSIBLE | what must remain true | BECAUSE: why | EVIDENCE: what would show it holds
+    (its-name is the invariant's full name exactly as the IZ4 gives it after PROMISE or FOUNDATION)
+    CANDIDATE | STRONG or POSSIBLE | what must remain true | BECAUSE: whose what it protects | EVIDENCE: what would show it holds
 
     The IZ4, effective invariants:
     END

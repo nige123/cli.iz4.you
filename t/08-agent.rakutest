@@ -97,7 +97,8 @@ is $outside.add('AGENTS.md').slurp, "elsewhere\n", 'file outside the repository 
 # ---- the portable skill ----------------------------------------------
 like skill-text(), /'name: iz4'/, 'skill has its frontmatter';
 ok skill-text().contains(AGENT-PROTOCOL.trim-trailing), 'skill embeds the canonical protocol';
-ok skill-text().contains(FOUNDATION[4]<text>), 'skill embeds the foundation, so it works without the CLI';
+ok skill-text().contains("FOUNDATION {FOUNDATION-CARD[4]<id>}") && skill-text().contains(FOUNDATION-CARD[4]<protects>[0]), 'skill embeds the foundation cards, so it works without the CLI';
+unlike skill-text(), /'BECAUSE:'/, 'and speaks cards, not the earlier form';
 is install-skill(:root($dir)), 'installed', 'skill installed';
 is install-skill(:root($dir)), 'unchanged', 'skill install idempotent';
 $dir.add(SKILL-PATH).spurt("tampered\n");

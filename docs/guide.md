@@ -18,13 +18,13 @@ answers for, then writes the file and sets up the commit hook and your agents.
 With the agent you already use on the machine, it drafts the two answers from
 the repository and you keep each or type your own. Two answers are a real IZ4.
 
-## Finding an invariant
+## Finding a promise
 
 ```text
 $ iz4 add
-Where does this apply? The situation, not the people.
+When does this apply? The situation, not the people.
 > a profile marked private could reveal anything beyond its owner
-Where ...: what must remain true, whatever is rebuilt?
+When ...: what must remain true, whatever is rebuilt?
 > Only its owner, and the people they choose, may learn what it reveals.
 If the whole system were rewritten tomorrow, would we regret not telling the people rebuilding it this? [y/n] y
 PROTECTS: What must not be defeated? Say whose what.
@@ -38,12 +38,12 @@ Name it: a few lower-case words joined by hyphens.
 Added PROMISE private-stays-private.jobs.example.com to IZ4, exploring: anyone may change its words while it settles. 'iz4 establish private-stays-private' when it is agreed.
 ```
 
-Three questions, one at a time: where it applies, what must always remain
+Three questions, one at a time: when it applies, what must always remain
 true there, what must not be defeated. The coach pushes back on a task, a
 mechanism, a requirement or "the system", and on a reason that only restates
 the rule. If nothing a person would lose comes to mind, that is the sign of a
-constraint for the README, not an invariant, and it says so. Already know the
-words? `iz4 add invariant '...' --where='...' --protects='...' --name=NAME`.
+constraint for the README, not a promise, and it says so. Already know the
+words? `iz4 add promise '...' --when='...' --protects='...' --name=NAME`.
 
 The golden test: if the whole system were rewritten tomorrow, would we regret
 not telling the people and agents rebuilding it this? If not, it is not an
@@ -92,10 +92,10 @@ your README. The core needs none of it.
 
 ```text
 iz4 init                   write the IZ4, hook and agent files
-iz4 add                    find an invariant, one question at a time
-iz4 where NAME WHAT        say where an invariant applies
-iz4 because NAME WHAT      say what an invariant protects
-iz4 withdraw NAME          take an invariant out, with its tests
+iz4 add                    find a promise, one question at a time
+iz4 when NAME WHAT         say when a promise applies
+iz4 protects NAME WHAT     say whose what a promise protects
+iz4 withdraw NAME          take a promise out, with its tests
 iz4 status                 where things stand: each invariant's mark, this change, the next step
 iz4 check                  what is true of the file, and what to do next
 iz4 test [NAME]            a test for each invariant without one

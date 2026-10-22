@@ -94,6 +94,21 @@ for <raku perl go python ruby rust typescript javascript sh> -> $lang {
 }
 my $empty = temp-dir;
 is detect-language($empty), 'sh', 'with nothing to go on, the scaffold is a shell script';
+
+# a card gets its own words: PROMISE and PROTECTS
+{
+    my constant PRIVATE = 'private-stays-private.jobs.example.com';
+    my $c = temp-dir;
+    my $p = init(:dir($c), :for-what('Helping people find work they love to do.'), :for-who('People looking for work.'), :namespace('jobs.example.com'));
+    $p.spurt($p.slurp.subst("# ----", "PROMISE {PRIVATE}\n  WHEN private profiles\n  ALWAYS The system must never expose a private profile in public search.\n  PROTECTS Looking for work must not cost someone their current job.\n  CHANGES REQUIRE signed human approval for the exact change\n  CHECKED WITH linked tests; failures block commit\n\n# ----"));
+    my $cdoc = check-doc($p);
+    my ($rel, $text) = scaffold('perl', $cdoc.invariant(PRIVATE));
+    is $text.lines[0..2], ("# PROMISE {PRIVATE}", '# The system must never expose a private profile in public search.', '# PROTECTS Looking for work must not cost someone their current job.'),
+        "a card's scaffold opens with PROMISE, its ALWAYS and its PROTECTS";
+    my $cp = draft-prompt($cdoc, $cdoc.invariant(PRIVATE), :lang<perl>, :path($rel));
+    like $cp, /'comment line "PROMISE <its full name>"' .* '"PROTECTS <what it protects>"'/, 'and the drafting prompt asks for the same words';
+    like $cp, /"PROMISE {PRIVATE}" \n 'WHEN private profiles' \n 'ALWAYS The system' .* \n 'PROTECTS Looking for work'/, 'and carries the card by its fields';
+}
 $empty.add('go.mod').spurt("module x\n");
 is detect-language($empty), 'go', 'a project file decides when there are no tests';
 

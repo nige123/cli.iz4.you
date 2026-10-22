@@ -46,7 +46,7 @@ my $first = temp-dir;
 ($rc, $out, $err) = iz4-talk($first,
     "Sign-in codes.\nPeople signing in.\ny\nevery sign-in code\nA code works once and only once.\ny\nA code that works twice lets someone else sign in as you.\ny\nsingle-use-codes\n",
     'init', '--namespace=shop.example.com', '--/agents');
-like $out, /'Where does this apply?' .* 'Where every sign-in code: what must remain true' .* 'WHEN      every sign-in code' .* 'ALWAYS    A code works once' .* 'Add it as a promise? [Y/n]' .* 'Name it:' .* 'Added PROMISE single-use-codes.shop.example.com'/,
+like $out, /'When does this apply?' .* 'When every sign-in code: what must remain true' .* 'WHEN      every sign-in code' .* 'ALWAYS    A code works once' .* 'Add it as a promise? [Y/n]' .* 'Name it:' .* 'Added PROMISE single-use-codes.shop.example.com'/,
     'init can go straight on to a coached first invariant: where, holds, protects, then the name' or diag $err;
 like $first.add('IZ4').slurp, /\n 'PROMISE single-use-codes.shop.example.com' \n\n '  WHEN' \h+ 'every sign-in code' \n '  ALWAYS' \h+ 'A code works once and only once.' \n '  PROTECTS' \h+ 'A code that works twice' .* '  CHANGES REQUIRE no approval; current promise still applies' \n '  CHECKED WITH    linked tests; failures warn, never block'/,
     'and it is written as a card, under its whole name, exploring' or diag $first.add('IZ4').slurp;
@@ -133,7 +133,7 @@ is $dir.add('IZ4').slurp.comb("This project's invariants are named under").elems
 ($rc, $out, $err) = iz4($dir, 'check');
 like $out, /'✗ BECAUSE: missing for no-first-contact.shop.example.com - write under each why it must survive'/, 'a missing BECAUSE is a cross with a remedy';
 ok $out.ends-with("OK IZ4 (2 to remedy above)\n"), 'crosses are counted, and never fail the check';
-like $out, /"next:\n  1. iz4 because no-first-contact.shop.example.com \"why it must survive\"\n  2. iz4 test no-first-contact.shop.example.com private-stay-private.shop.example.com\n  then: iz4 check again\n"/,
+like $out, /"next:\n  1. iz4 protects no-first-contact.shop.example.com \"whose what it protects\"\n  2. iz4 test no-first-contact.shop.example.com private-stay-private.shop.example.com\n  then: iz4 check again\n"/,
     'and the next steps are listed in order, one command each, ending with a check';
 ($rc, $out, $err) = iz4($dir, 'check', '--strict');
 is $rc, 1, '--strict, for a gate, fails the check on any cross';
@@ -146,7 +146,7 @@ like $out, /"  then: iz4 check --strict again\nNOT YET IZ4: 2 to remedy above (-
     my ($rc, $out, $err) = iz4($broken, 'check');
     is $rc, 1, 'structural errors fail the check';
     like $out, /'✗ IS FOR WHAT: missing'/, 'an empty answer is a cross, not a tick';
-    like $out, /"next:\n  1. iz4 add for-what \"what it is for\"\n  2. iz4 add for-who \"who it is for\"\n  3. iz4 foundation restore\n  4. iz4 because something.shop.example.com \"why it must survive\"\n"/,
+    like $out, /"next:\n  1. iz4 add for-what \"what it is for\"\n  2. iz4 add for-who \"who it is for\"\n  3. iz4 foundation restore\n  4. iz4 protects something.shop.example.com \"whose what it protects\"\n"/,
         'the structural fixes come first, in line order, then the crosses';
     like $out, /'  then: iz4 check again' \n 'NOT YET IZ4: 3 errors - do the next steps above'/, 'the verdict is last, after the steps';
     ok !$out.contains("\n  1. iz4 add for-what \"what it is for\"\n  2. iz4 add for-what"), 'a step is listed once even when two lines call for it';
@@ -158,17 +158,17 @@ like $out, /"  then: iz4 check --strict again\nNOT YET IZ4: 2 to remedy above (-
 like $out, /'✗ BECAUSE: no-unexplained-price.shop.example.com carries the reason inside the invariant' .* "'iz4 split'"/,
     'check says when the reason is folded into the invariant';
 like $out, /'✗ BECAUSE: missing for no-first-contact.shop.example.com'/, 'and separately which have none';
-($rc, $out, $err) = iz4($dir, 'because', '--split');
-like $out, /'INVARIANT no-unexplained-price.shop.example.com: moved under BECAUSE - A confidently wrong price sells work at a loss.'/, 'because --split moves it';
-($rc, $out, $err) = iz4($dir, 'because', 'no-first-contact', 'Employers cannot contact first.');
+($rc, $out, $err) = iz4($dir, 'protects', '--split');
+like $out, /'INVARIANT no-unexplained-price.shop.example.com: moved under BECAUSE - A confidently wrong price sells work at a loss.'/, 'protects --split moves it';
+($rc, $out, $err) = iz4($dir, 'protects', 'no-first-contact', 'Employers cannot contact first.');
 is $rc, 1, 'a circular reason is challenged';
-($rc, $out, $err) = iz4($dir, 'because', 'no-first-contact', 'Job seekers should not acquire another unsolicited inbox.');
-is ($rc, $out), (0, "Set BECAUSE for INVARIANT no-first-contact.$NS.\n"), 'because NAME WHY sets a reason, and the first label is name enough';
+($rc, $out, $err) = iz4($dir, 'protects', 'no-first-contact', 'Job seekers should not acquire another unsolicited inbox.');
+is ($rc, $out), (0, "Set BECAUSE for INVARIANT no-first-contact.$NS.\n"), 'protects NAME WHAT sets a reason, and the first label is name enough';
 ($rc, $out, $err) = iz4($dir, 'check');
 like $out, /'✓ BECAUSE: every invariant says why it must survive'/, 'and the checklist is clean';
-($rc, $out, $err) = iz4($dir, 'because', 'human-agency.iz4.you', 'Mine.');
-ok $rc == 1 && $err.contains('INVARIANT human-agency.iz4.you is part of the foundation'), 'the foundation reasons are canonical';
-($rc, $out, $err) = iz4($dir, 'because', 'nonesuch', 'A good enough reason for anyone.');
+($rc, $out, $err) = iz4($dir, 'protects', 'human-agency.iz4.you', 'Mine.');
+ok $rc == 1 && $err.contains('human-agency.iz4.you is part of the foundation'), 'the foundation reasons are canonical';
+($rc, $out, $err) = iz4($dir, 'protects', 'nonesuch', 'A good enough reason for anyone.');
 ok $rc == 1 && $err.contains("no invariant 'nonesuch'"), 'and a name the file does not hold is refused';
 
 # ---- the effective invariant set -------------------------------------------------
@@ -288,7 +288,7 @@ ok $rc == 1 && $err.contains('nothing was added'), 'a failing agent adds nothing
     unlike $wd.add('IZ4').slurp, /^^ "INVARIANT $id" $$/, 'the invariant is gone';
     like $wd.add('IZ4').slurp, /^^ "# INVARIANT $id was withdrawn on {Date.today}; its name is retired." $$/, 'and a comment says so where it stood';
     ($rc, $out, $err) = iz4($wd, 'show', 'invariant', $id);
-    like $out, /"INVARIANT $id was withdrawn" .* 'never reused'/, 'show invariant says it was withdrawn';
+    like $out, /"PROMISE $id was withdrawn" .* 'never reused'/, 'show invariant says it was withdrawn';
     ($rc, $out, $err) = iz4($wd, 'withdraw', $id, '--force');
     is $rc, 1, 'withdrawing it again is refused';
     like $err, /'already withdrawn'/, 'because it already was';

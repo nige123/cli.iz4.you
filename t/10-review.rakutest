@@ -42,7 +42,7 @@ is touched-invariants($doc, "--- a/t/x.t\n+++ b/t/parcel-receipt.t\n@@ -0,0 +1 @
 ok invariant-terms('Prices are printed and reprinted.') ⊇ <price print>, 'terms are stemmed so prices meets price';
 my @report = offline-report($doc, $price-diff, :what('the change'));
 like @report.join("\n"), /'touches, by its own words, price-by-decision.shop.example.com.' .* 'price-by-decision.shop.example.com: A live shop price' .* 'BECAUSE A quiet price cut'/, 'the report shows the invariant, by its whole name, and its reason';
-like @report[0], /"against the foundation and the project's 2 invariants"/, 'the opening line says what the change was read against, with no numbers';
+like @report[0], /"against the foundation and the project's 2 promises"/, 'the opening line says what the change was read against, with no numbers';
 unlike @report.join("\n"), /'Invariant ' \d/, 'nothing in the report numbers an invariant';
 like @report[*-1], /'nothing here says the change keeps or breaks'/, 'and claims nothing more';
 is offline-report($doc, '', :what('nothing'))[0], 'Nothing to review: no change in nothing.', 'an empty diff is said plainly';

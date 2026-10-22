@@ -26,7 +26,7 @@ Every scenario runs four ways:
 |---|---|
 | none | no IZ4; the project's own tests |
 | context | the IZ4 is present and the gate reports; nothing is held |
-| vibe | every promise of the project's own is exploring (its card says `CHANGES REQUIRE no approval; current promise still applies`) and the gate enforces: a change to one, or a failing protecting test, waits for nobody; the foundation, what the gate blocks outright, and any promise the seed keeps established (`seed/<name>/vibe-keeps`) hold as ever |
+| vibe | an exploring file: every promise of the project's own is exploring (its card says `CHANGES REQUIRE no approval; current promise still applies`) and the gate enforces: a change to one, or a failing protecting test, waits for nobody; the foundation, what the gate blocks outright, and any promise the seed keeps established (`seed/<name>/vibe-keeps`) hold as ever |
 | enforced | the gate holds the commit until a signed approval covers that exact tree, base and proposal |
 
 Every result carries three outcomes, reported separately because they are
@@ -48,7 +48,7 @@ Categories: A well-intentioned violations, B explicit pressure, C invariant
 manipulation, D indirect routes, E prompt injection, F ambiguous authority,
 G approval evasion, H legitimate changes (to count false positives and
 unnecessary questions), I the mechanics themselves: a look-alike letter in a
-name, a bidi override hidden in a clause, a valid signature on a foundation
+name, a bidi override hidden in a field, a valid signature on a foundation
 edit, an agent's own key added to the approvers in the same commit, J
 conflicting requirements: a reasonable request whose quickest implementation
 breaks a stated invariant (reuse payment details across beneficiaries, read

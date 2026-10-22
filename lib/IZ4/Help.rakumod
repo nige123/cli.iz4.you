@@ -36,12 +36,12 @@ sub topics(--> List) is export {
     (
     t('init', EVERY-DAY, 'start an IZ4 here',
       ['iz4 init'],
-      'Drafts what this is for and who it is for with the agent you already use, and you keep each answer or type your own. It then sets up the commit hook and your agents, and offers to find a first invariant. A script gives both answers, and the domain it names invariants under: --for-what=... --for-who=... --namespace=your.domain',
+      'Drafts what this is for and who it is for with the agent you already use, and you keep each answer or type your own. It then sets up the commit hook and your agents, and offers to find a first promise. A script gives both answers, and the domain it names promises under: --for-what=... --for-who=... --namespace=your.domain',
       'iz4 init'),
     t('add', EVERY-DAY, 'find a promise, one question at a time',
       ['iz4 add', 'iz4 add promise ALWAYS --when=... --protects=... --name=NAME [--established]', 'iz4 add for-what TEXT', 'iz4 add for-who TEXT'],
       'Alone, it coaches you to one promise in three questions: when it applies (WHEN), what must remain true (ALWAYS), whose what it protects (PROTECTS), then its name. New promises are exploring unless --established. With the words, it adds at once.',
-      "iz4 add invariant 'Charged once.' --where='an order is paid' --protects='the money paid' --name=charged-once"),
+      "iz4 add promise 'Charged once.' --when='an order is paid' --protects=\"a buyer's money\" --name=charged-once"),
     t('status', EVERY-DAY, 'where things stand: the foundation, each invariant, this change',
       ['iz4 status', 'iz4 status --recheck', 'iz4 status --no-checks', 'iz4 status --json'],
       'One screen: the foundation, each invariant with its mark (held, promised, broken, not checked), what is staged, your agents, the next command. The protecting tests run when the tree changed since the last run; --recheck always, --no-checks never. Never says the software is safe.',
@@ -52,7 +52,7 @@ sub topics(--> List) is export {
       'iz4 check'),
     t('show', EVERY-DAY, 'read the IZ4, or one part of it',
       ['iz4 show', 'iz4 show for-what | for-who | invariants', 'iz4 show invariant NAME'],
-      'The first part of a name will do where only one invariant begins with it. 0 to 4, or zero, finds the foundation by its order. The mark before a name: a closed green diamond when its test passed at the last iz4 status, an open one for a promise nothing yet shows, a red cross when the test fails, ? when it could not be checked.',
+      'The first part of a name will do where only one invariant begins with it. The foundation\'s five are found by name the same way. The mark before a name: a closed green diamond when its test passed at the last iz4 status, an open one for a promise nothing yet shows, a red cross when the test fails, ? when it could not be checked.',
       'iz4 show invariant charged-once'),
     t('test', 'Shaping an invariant', 'a test for each invariant that has none',
       ['iz4 test', 'iz4 test NAME', 'iz4 test list'],
@@ -80,22 +80,14 @@ sub topics(--> List) is export {
       'Shows the invariant and the tests that exist only for it, asks once, and removes them. Git keeps all of it. The name is retired for good. --keep-tests leaves the tests.',
       'iz4 withdraw charged-once'),
 
-    t('because', 'Shaping an invariant', 'say what an invariant protects: its PROTECTS',
-      ['iz4 because NAME WHAT'],
+    t('protects', 'Shaping an invariant', 'say whose what a promise protects: its PROTECTS',
+      ['iz4 protects NAME WHAT'],
       'What must not be defeated, as whose what: a noun phrase, never a sentence. --replace changes one already given.',
-      "iz4 because charged-once 'It costs people money and trust.'"),
+      'iz4 protects charged-once "a customer\'s money"'),
     t('when', 'Shaping an invariant', 'say when a promise applies: its WHEN',
       ['iz4 when NAME SITUATION'],
-      'The situation the invariant applies in, not who benefits. ALWAYS binds throughout it, and a boundary only counts if ALWAYS says it. Say it in the words you would use out loud.',
+      'The situation the promise applies in, not who benefits. ALWAYS binds throughout it, and a boundary only counts if ALWAYS says it. Say it in the words you would use out loud.',
       "iz4 when private-stays-private 'a private profile can be seen by anyone but its owner'"),
-    t('split', 'Shaping an invariant', 'move a reason out of an invariant and under BECAUSE',
-      ['iz4 split', 'iz4 split NAME'],
-      'For an invariant whose own sentence says why. The words are yours, only moved. Alone, it does every one.',
-      'iz4 split charged-once'),
-    t('name', 'Shaping an invariant', 'name an INVARIANT that has no name',
-      ['iz4 name LINE NAME'],
-      'LINE is the line the INVARIANT is on; iz4 check tells you. A name already given is never changed.',
-      'iz4 name 42 charged-once'),
     t('suggest', 'Shaping an invariant', 'ask an agent for a few candidates',
       ['iz4 suggest'],
       'It reads the repository and proposes a few. You decide; nothing is added without your yes.',
@@ -114,9 +106,9 @@ sub topics(--> List) is export {
     t('log', 'Reading', 'the history of the IZ4', ['iz4 log'], 'Git history of the file.', 'iz4 log'),
     t('diff', 'Reading', 'what changed in the IZ4', ['iz4 diff', 'iz4 diff REV', 'iz4 diff REV REV'], 'Git diff of the file.', 'iz4 diff HEAD~1'),
 
-    t('migrate', 'Moving forward', 'bring an IZ4 written by an earlier iz4 to the canonical form',
+    t('migrate', 'Moving forward', 'bring an IZ4 written by an earlier iz4 to promise cards',
       ['iz4 migrate', 'iz4 migrate preview', 'iz4 migrate --where=NAME=SITUATION|...'],
-      'Your words are never touched. Where an invariant has no WHERE yet, you are asked; in a script, --where gives it. preview shows what would change.',
+      'Your words are never touched: each of your own becomes a PROMISE card, the foundation FOUNDATION cards. preview shows what would change. A file still in the earliest named form has no WHEN yet: you are asked for each; in a script, --where gives them.',
       'iz4 migrate preview'),
 
     t('agent', 'Working with agents', 'what an agent must read before it works here',
@@ -141,8 +133,8 @@ sub topics(--> List) is export {
       ['iz4 help', 'iz4 help COMMAND', 'iz4 help more', 'iz4 help machine'], '', 'iz4 help add'),
 
     t('discover', 'For tools', 'does an IZ4 govern this directory?', ['iz4 discover --json'], '', 'iz4 discover --json'),
-    t('draft', 'For tools', 'the three questions for writing an invariant, and a check of an answer',
-      ['iz4 draft questions', 'iz4 draft check --where=SITUATION --holds=STATE --protects=WHOSE-WHAT'],
+    t('draft', 'For tools', 'the three questions for writing a promise, and a check of an answer',
+      ['iz4 draft questions', 'iz4 draft check --when=SITUATION --always=STATE --protects=WHOSE-WHAT'],
       'JSON for a page that is not a terminal. It asks questions and never refuses: a person decides. With --name and a file it also says whether the name can be used and what the digest would be.',
       'iz4 draft questions'),
     t('context', 'For tools', 'what to tell an agent before it works', ['iz4 context --json'], '', 'iz4 context --json'),
@@ -312,14 +304,15 @@ sub marks-legend(--> Str) is export {
     "{%GLYPH<held>[$i]} held  {%GLYPH<promised>[$i]} promised, nothing shows it yet  {%GLYPH<broken>[$i]} broken  {%GLYPH<unknown>[$i]} not checked";
 }
 
-#| Text as a person sees it on a terminal: an invariant's name under a
-#| green diamond, the clause labels and the two questions in bold,
+#| Text as a person sees it on a terminal: a promise's name under a
+#| green diamond, the field labels and the two questions in bold,
 #| comments dimmed, ticks green and crosses red.  Nothing is added or
-#| removed but colour, and the diamond that stands in for INVARIANT or
-#| the heading's colon.  With :!on the text comes back untouched.
-#| Within a line: an invariant's name (a dotted name with a letter first
-#| and two dots or more, so a version or a file is not one) and the
-#| format's keywords, in bold.
+#| removed but colour, and the diamond that stands in for PROMISE or
+#| FOUNDATION (and, in the earlier forms and the gate's proposal lines,
+#| for INVARIANT or the heading's colon).  With :!on the text comes back
+#| untouched.  Within a line: a promise's name (a dotted name with a
+#| letter first and two dots or more, so a version or a file is not one)
+#| and the keywords of every form, in bold.
 my sub emphasise(Str $s --> Str) {
     $s.subst(/ <!after <[\w / : . \-]>> (<[a..z]> <[a..z 0..9 \-]>* ['.' <[a..z 0..9 \-]>+] ** 2..*) <!before <[\w /]>> /, { "{BOLD}{$0}{OFF}" }, :g)
       .subst(/ <!after \w> ('IS FOR WHAT' '?'? | 'IS FOR WHO' '?'? | 'INVARIANT' | 'PROMISE' | 'FOUNDATION' | 'WHEN' | 'WHERE' | 'ALWAYS' | 'PROTECTS' | 'CHANGES REQUIRE' | 'CHECKED WITH' | 'BECAUSE') <!before \w> /, { "{BOLD}{$0}{OFF}" }, :g)
@@ -334,12 +327,13 @@ sub pretty(Str $text, Bool :$on = pretty-on() --> Str) is export {
         my $l = $line.chomp;
         # the lines that open a section, before a heading could be taken for one
         if $l ~~ / ^ ('outcome' | 'next' | 'gate' | 'commitments and protections' | 'checks' | 'touches' | 'approval' | 'checked' | 'All held') ':' (.*) $ / { $l = "{BOLD}{$0}:{OFF}{emphasise(~$1)}" }
-        # an invariant's heading, or INVARIANT name (in the gate and the named form)
+        # the earlier forms' headings: a name with a colon (clauses), INVARIANT name (named); and the gate's proposal
+        # lines, which lead with PROMISE or INVARIANT and go on in the same line
         elsif $l ~~ / ^ (<[a..z 0..9]> <[\w.\-]>*) ':' (\h*) $ / { $l = "{mark-shown(~$0, :on)} {BOLD}{$0}{OFF}{$1}" }
-        elsif $l ~~ / ^ (\h*) 'INVARIANT ' (\S+) (.*) $ / { $l = "{$0}{mark-shown(~$1, :on)} {BOLD}{$1}{OFF}{emphasise(~$2)}" }
+        elsif $l ~~ / ^ (\h*) ('INVARIANT' | 'PROMISE') ' ' (\S+) (.*) $ / { $l = "{$0}{mark-shown(~$2, :on)} {BOLD}{$2}{OFF}{emphasise(~$3)}" }
         # a card's heading: the mark stands in for PROMISE or FOUNDATION
         elsif $l ~~ / ^ ('PROMISE' | 'FOUNDATION') ' ' (\S+) (\h*) $ / { $l = "{mark-shown(~$1, :on)} {BOLD}{$1}{OFF}{$2}" }
-        # the field labels, wherever they lead a line, and the two questions
+        # the field labels (WHERE is the earlier clauses form's), wherever they lead a line, and the two questions
         elsif $l ~~ / ^ (\h*) ('CHANGES REQUIRE' | 'CHECKED WITH' | 'WHEN' | 'WHERE' | 'ALWAYS' | 'PROTECTS') (':' | ' before:' | ' after:' | \h | $) (.*) $ / { $l = "{$0}{BOLD}{$1}{OFF}{$2}{$3}" }
         elsif $l ~~ / ^ ('IS FOR WHAT?' | 'IS FOR WHO?') (.*) $ / { $l = "{BOLD}{$0}{OFF}{$1}" }
         # comments, dimmed; the rule-off too
@@ -367,8 +361,11 @@ sub help-for(@words --> List) is export {
     return (help-index(), True) if $asked eq '';
     return (help-more(), True) if $asked eq 'more' | 'all';
     return (help-machine(), True) if $asked eq 'machine' | 'tools';
-    # a command that has gone: say what took its place
-    $asked = 'migrate' if $asked eq 'number';
+    # a command that has gone, or one kept only for the earlier named form
+    # (split, name; iz4 check on such a file still points at them): say
+    # what took its place
+    $asked = 'migrate' if $asked eq 'number' | 'split' | 'name';
+    $asked = 'protects' if $asked eq 'because';
     with topic($asked) { return (help-topic($_), True) }
     # 'iz4 help gate install': the action is part of the command it belongs to
     my @w = $asked.words;

@@ -73,7 +73,7 @@ Does an IZ4 govern this directory? Never an error: no IZ4 is an answer.
 
 ```json
 {"schema":"iz4-discover/2","present":true,"file":"/repo/IZ4","sha256":"b083...",
- "valid":true,"errors":[],"format":"clauses","namespace":"honeywillow.com",
+ "valid":true,"errors":[],"format":"card","namespace":"honeywillow.com",
  "invariants":[{"id":"humans-first.iz4.you","foundation":true,"summary":"Help people thrive, on their own terms.","digest":"c2a8..."},
    {"id":"owner-adjusted.prices.honeywillow.com","foundation":false,"summary":"A live shop price changes only by human decision.","digest":"3d8c..."}],
  "tool":"iz4/0.21.0"}
@@ -85,9 +85,10 @@ exactly which IZ4 applied; record them with any evidence you keep.
 An invariant is identified by `id`, its full name, and a driver treats it
 as an opaque string and compares it whole. The foundation's five come
 first, then the project's own in file order. `digest` says which wording
-of the invariant this is (rule `iz4-invariant/4`, in
-[format.md](format.md#for-tools)); each entry carries `reach`, its `WHERE`. `namespace` is the domain
-the project's own names share. `format` is `clauses`.
+of the invariant this is (rule `iz4-invariant/5`, in
+[format.md](format.md#for-tools)); each entry carries `reach`, its `WHEN`.
+`namespace` is the domain the project's own names share. `format` is `card`;
+the earlier forms, read only to migrate, say `clauses` or `named`.
 
 ### `iz4 context`
 
@@ -105,30 +106,31 @@ was not asked.
 ### `iz4 draft questions` and `iz4 draft check`
 
 For a page that is not a terminal, such as a product owner's: the questions
-that help a person write an invariant, and questions about an answer.
+that help a person write a promise, and questions about an answer.
 Always JSON, schema `iz4-draft/1`, exit 0.
 
-`iz4 draft questions` gives the three questions in order, Where, Always,
-Protects (`id` `where`, `always`, `protects`; each with its `clause`, `prompt`,
-`help`, `required` and `max_words`), and the golden test.
+`iz4 draft questions` gives the three questions in order, When, Always,
+Protects (`id` `where`, `always`, `protects`; each with its `clause`, the
+field of the card it fills, `prompt`, `help`, `required` and `max_words`), and
+the golden test.
 
-`iz4 draft check --where=SITUATION --always=STATE --protects=WHAT` gives
-`clauses` as it read them, `findings`, `ok`, and, once WHERE and ALWAYS are there,
-`reads` (the invariant read aloud, "Where ..., always: ... This protects
-...") and `lines`
-(the clauses as they would be written). A finding is `clause`, `code`, `level` and
-a `message` in plain words. Level `ask` is worth an answer before accepting
-the draft (an empty or too wide WHERE, a ALWAYS that reads as a task or a
-mechanism, a PROTECTS that is missing, restates ALWAYS or opens with a
-condition); `note` is worth a second look (a long clause, an "even when" in
-ALWAYS, a PROTECTS written as a sentence). A PROTECTS nobody can fill is the
-surest sign of a constraint for the README rather than an invariant, and the
-message says so. `ok` is true when nothing is left to ask, which is not the same
-as the invariant being right. It never refuses and never rewrites a word:
-the person decides what must remain true. With `--name=NAME` and a file it
-also gives the whole `identity` the name would have, a finding if the name
-cannot be used there, and the `digest` the invariant would have. Nothing is
-written.
+`iz4 draft check --when=SITUATION --always=STATE --protects=WHAT` gives
+`clauses` (the three fields as it read them), `findings`, `ok`, and, once
+WHEN and ALWAYS are there, `reads` (the promise read aloud, "When ...,
+always: ... This protects ...") and `lines` (the fields as they would be
+written on the card). A finding is `clause` (the field it is about), `code`,
+`level` and a `message` in plain words. Level `ask` is worth an answer before
+accepting the draft (an empty or too wide WHEN, an ALWAYS that reads as a
+task or a mechanism, a PROTECTS that is missing, restates ALWAYS or opens
+with a condition); `note` is worth a second look (a long field, an "even
+when" in ALWAYS, a PROTECTS written as a sentence). A PROTECTS nobody can
+fill is the surest sign of a constraint for the README rather than a promise,
+and the message says so. `ok` is true when nothing is left to ask, which is
+not the same as the promise being right. It never refuses and never rewrites
+a word: the person decides what must remain true. With `--name=NAME` and a
+file it also gives the whole `identity` the name would have, a finding if the
+name cannot be used there, and the `digest` the promise would have. Nothing
+is written.
 
 ### `iz4 check action`
 

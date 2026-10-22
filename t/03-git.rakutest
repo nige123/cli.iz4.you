@@ -45,7 +45,7 @@ withdraw-invariant($file, "also-true.$NS");
 g('commit', '-q', '-am', 'Withdraw also-true: no longer needed');
 like withdrawn-in($file, "also-true.$NS"), /^ <xdigit>+ ' (' \d**4 '-' \d\d '-' \d\d ')' $/, 'withdrawn-in names the commit and its date';
 nok withdrawn-in($file, "always-true.$NS").defined, 'an invariant still in the file was not withdrawn';
-like invariant-text($file, "also-true.$NS"), /"INVARIANT also-true.$NS was withdrawn in commit" .* 'never reused' .* 'iz4 diff'/, 'show invariant says so';
+like invariant-text($file, "also-true.$NS"), /"PROMISE also-true.$NS was withdrawn in commit" .* 'never reused' .* 'iz4 diff'/, 'show invariant says so';
 is add-invariant($file, 'New.', :name("new-one.$NS"), :because('Why.')), "new-one.$NS", 'the next invariant takes a new name';
 throws-like { add-invariant($file, 'Again.', :name("also-true.$NS")) }, X::IZ4, message => /'used before'/, 'and the retired one cannot be chosen';
 

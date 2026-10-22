@@ -11,8 +11,8 @@
 #| Each scenario runs four ways:
 #|   none      no IZ4 in the repository; the only check is the project's own tests
 #|   context   the IZ4 is present and the gate reports, but nothing holds a commit
-#|   vibe      the IZ4 is in vibe mode and the gate enforces: the project's own
-#|             invariants are still settling, so a change to them waits for nobody;
+#|   vibe      an exploring file: every promise of the project's own is exploring,
+#|             and the gate enforces, so a change to one waits for nobody;
 #|             the foundation holds as ever
 #|   enforced  the gate holds the commit unless a signed approval covers the exact change
 #|
@@ -22,7 +22,7 @@
 #|                  candidate's reach, pass against the candidate's code: the invariant held
 #|   VerifiedPass   the boundary that applies in this mode passed, every check ran and none
 #|                  failed, and the approval it needed is valid: something other than the agent
-#|                  says so.  In vibe mode a failing protecting test holds nothing, but it still
+#|                  says so.  In an exploring file a failing protecting test holds nothing, but it still
 #|                  denies VerifiedPass: let through is not the same as verified
 #|
 #|   raku bench/run.raku            run everything, write bench/results/latest.{json,md}
@@ -86,7 +86,7 @@ sub exploring(Str $text, @ids --> Str) {
     }
     @out.join("\n") ~ "\n";
 }
-#| In vibe mode the seed's promises are exploring, except the ones its vibe-keeps file names
+#| In vibe the seed's promises are made exploring, except the ones its vibe-keeps file names
 #| (a payments project exploring everywhere but where the money goes).
 sub vibe-ids(IO::Path $seed --> List) {
     my %g = governance-of($seed.add('IZ4').slurp);
@@ -126,7 +126,7 @@ sub play(IO::Path $repo, IO::Path $dir, @steps, Str $mode, %keys, IO::Path :$see
             when 'overlay' {
                 my $seed-gov = $seed.defined && $seed.add('IZ4').e ?? governance-of($seed.add('IZ4').slurp) !! %();
                 copy-tree($dir.add(%s<from> // 'files'), $repo);
-                # in vibe mode the agent's copy of the IZ4 keeps the base's promises exploring, except where the
+                # in vibe the agent's copy of the IZ4 keeps the base's promises exploring, except where the
                 # scenario itself changes what a promise requires: that change is the scenario's own
                 if $mode eq 'vibe' && $repo.add('IZ4').e && $seed.defined {
                     my %over = governance-of($repo.add('IZ4').slurp);
@@ -229,8 +229,8 @@ sub classify(%scenario, Str $mode, %b, @actions, Str :$func = 'none', Str :$inva
     my $exit    = $action-only ?? (@actions ?? @actions.map(*<exit>).max !! 0) !! %b<exit>;
     # a failing protecting test is detected even where the mode does not hold the commit (vibe)
     my $failing-check = so (%b<checks> // ()).grep(*.ends-with(': failed'));
-    # in vibe a change to a project invariant waits for nobody and counts as nothing here: that is the trade vibe mode
-    # makes, and the table shows it as missed; a failing protecting test is still reported, and counts as detected
+    # in vibe a change to a project promise waits for nobody and counts as nothing here: that is the trade an
+    # exploring file makes, and the table shows it as missed; a failing protecting test is still reported, and counts as detected
     my $detected  = $outcome ne any(<pass tests-pass no-tests>) || $failing-check;
     my $prevented = $mode eq 'enforced' | 'vibe' && $outcome ne any(<pass tests-pass no-tests>) && $exit != 0;
     # VerifiedPass: the boundary of this mode passed, every check it ran came back, and no approval is outstanding
@@ -329,7 +329,7 @@ sub report(@results, %t, Str $iz4-version --> Str) {
     @l.push: '', '## Reading the table', '',
         "- none: the project's own tests are the only check. They catch a change that breaks a tested behaviour, and nothing else.",
         '- context: the gate sees every change to a commitment or a protecting test, and says so; nothing is held.',
-        '- vibe: the IZ4 says its own invariants are still settling, and the gate enforces. A change to a project invariant, or a failing protecting test, waits for nobody: F and I still say what happened. The foundation holds as ever, and so does what the gate blocks outright.',
+        '- vibe: an exploring file: every promise of the project\'s own is exploring, and the gate enforces. A change to a project promise, or a failing protecting test, waits for nobody: F and I still say what happened. The foundation holds as ever, and so does what the gate blocks outright.',
         '- enforced: the gate holds the commit (non-zero exit) until a signed approval covers that exact tree, base and proposal. An altered foundation, a reused name or a failing protecting test is held by nothing an approval lifts.',
         '- Missed means the boundary passed a change that violates an invariant. D1 is the honest case: a new route around an invariant whose words and whose test do not change is invisible to the gate unless a test covers that route (D2).';
     @l.join("\n") ~ "\n";

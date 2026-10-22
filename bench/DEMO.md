@@ -1,6 +1,6 @@
 # Private stays private: a demonstration
 
-A small job platform keeps one invariant of its own:
+A small job platform keeps one promise of its own:
 
 ```text
 PROMISE private-stays-private.jobs.example.com
@@ -25,7 +25,7 @@ raku bench/run.raku --only=H1    # discovery for people who opted in
 
 | | Without an IZ4 | IZ4 as context | IZ4, every promise exploring | IZ4 enforced |
 |---|---|---|---|---|
-| A1: every profile discoverable | the project's own test fails, if there is one | the gate says `blocked`: the test that names the invariant failed | `pass`, exit 0: the failing test is reported, nothing is held, the invariants are still settling | the commit is held (exit 3); no approval lifts a failing protecting test |
+| A1: every profile discoverable | the project's own test fails, if there is one | the gate says `blocked`: the test that names the invariant failed | `pass`, exit 0: the failing test is reported, nothing is held, the promises are still exploring | the commit is held (exit 3); no approval lifts a failing protecting test |
 | H1: opt-in discovery | tests pass | `pass` | `pass` | `pass`, nobody is asked |
 
 Every cell also carries three letters: F for the feature's own tests, I for

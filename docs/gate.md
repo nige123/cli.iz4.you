@@ -1,14 +1,14 @@
 # The gate: a promise changes only by agreement
 
 `iz4 gate` compares two states of a repository, the IZ4 and the tests that
-name its invariants, and says in a word what a change does to what the
+name its promises, and says in a word what a change does to what the
 software promises. Nothing in it is a judgement about the code; it is about
 commitments, and whether a person has agreed to them.
 
 | Outcome | Meaning |
 |---|---|
 | `pass` | no commitment or protection changed, and every check that could run passed |
-| `agreement-required` | a commitment changed: an invariant added, revised, withdrawn, `IS FOR` changed, or a test that protects an invariant removed or rewritten; a person says yes |
+| `agreement-required` | a commitment changed: a promise added, revised, withdrawn, `IS FOR` changed, or a test that protects a promise removed or rewritten; a person says yes |
 | `blocked` | something no approval lifts: a failing linked test, an invalid IZ4, an altered foundation, a reused name |
 | `unassessed` | a check could not run; nothing is claimed |
 
@@ -19,8 +19,8 @@ that changes a promise stops and asks you there and then.
 
 ```text
 $ git commit -m "..."
-INVARIANT charged-once.orders.honeywillow.com added: A customer is charged once for an order.
-  WHERE every order
+PROMISE charged-once.orders.honeywillow.com added: A customer is charged once for an order.
+  WHEN every order
   PROTECTS a customer's money
 Is that right? [y/n]
 ```
@@ -30,13 +30,13 @@ rest, `n` stops. It finds your key, signs the approval for that exact tree,
 and offers to push it. An approval covers only what was shown: a changed
 file is a new proposal. It is a person's act; an agent never supplies it.
 
-Where a test says an invariant no longer holds, approve asks which is right:
-the software, the invariant, or neither yet. Choosing the invariant lets you
-reword it; choosing the software keeps the invariant and the commit stops.
+Where a test says a promise no longer holds, approve asks which is right:
+the software, the promise, or neither yet. Choosing the promise lets you
+reword it; choosing the software keeps the promise and the commit stops.
 
 ## What each promise requires, on its card
 
-Software does not become solid all at once, and not all of it at the same
+Software does not settle all at once, and not all of it at the same
 pace. Each promise says on its own card what a change to it requires and
 what is checked, and the gate reads the card:
 

@@ -127,16 +127,18 @@ sub section-status(IO::Path $target --> Str) is export {
 constant SKILL-PATH is export = '.claude/skills/iz4/SKILL.md';
 
 #| The official portable skill, generated whole from the canonical
-#| protocol.  Unlike the thin sections it embeds the protocol itself, so
-#| the core workflow works by reading the IZ4 directly; the CLI adds
-#| validation, inherited-binding resolution and structured output.
+#| protocol.  Unlike the thin sections it embeds the protocol itself and
+#| the five FOUNDATION cards as an IZ4 file writes them, so the core
+#| workflow works by reading the IZ4 directly; the CLI adds validation,
+#| inherited-binding resolution and structured output.
 sub skill-text(--> Str) is export {
-    my $foundation = "\n\n## The inherited foundation\n\n"
-        ~ FOUNDATION.map({ "- {.<id>}: {.<text>}\n  BECAUSE: {.<because>}" }).join("\n") ~ "\n";
+    my $foundation = "\n\n## The inherited foundation\n\n```\n"
+        ~ FOUNDATION-CARD.map({ card-lines('FOUNDATION', .<id>, .<when>, .<always>.list, .<protects>.list, CHANGE-FOUNDATION).join("\n") }).join("\n\n")
+        ~ "\n```\n";
     q:to/HEAD/ ~ AGENT-PROTOCOL.trim-trailing ~ $foundation ~ q:to/TAIL/;
     ---
     name: iz4
-    description: Use when working in a repository that keeps an IZ4 file - before planning or changing code, when deciding whether a behaviour must be preserved, when asked to change what the software is for or what must remain true, or when finishing work that touches its invariants. Triggers - IZ4, .iz4, invariant, is for, supposed to, must remain true, BECAUSE.
+    description: Use when working in a repository that keeps an IZ4 file - before planning or changing code, when deciding whether a behaviour must be preserved, when asked to change what the software is for or what must remain true, or when finishing work that touches its invariants. Triggers - IZ4, .iz4, invariant, promise, is for, supposed to, must remain true, PROTECTS.
     ---
 
     # IZ4 adherence
@@ -150,8 +152,7 @@ sub skill-text(--> Str) is export {
     the inherited foundation below, and say in your final report that CLI
     validation was not performed.
 
-    Project invariants live in the project's IZ4 file, never in this
-    skill.
+    A project's own promises live in its IZ4 file, never in this skill.
 
     HEAD
 

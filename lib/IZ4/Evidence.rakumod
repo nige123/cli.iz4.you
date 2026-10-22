@@ -11,10 +11,11 @@ unit module IZ4::Evidence;
 #| words.  'iz4 check' reports which invariants have such a test, which
 #| have only a scaffold, and which have nothing.
 #|
-#| 'iz4 test' writes the scaffold: one test file per invariant without
+#| 'iz4 test' writes the scaffold: one test file per promise without
 #| evidence, in the repository's own test language, carrying the
-#| invariant's text and BECAUSE, and failing until a person replaces the
-#| placeholder with an assertion that would fail if the invariant stopped
+#| promise's ALWAYS and PROTECTS (for a file still in an earlier form,
+#| its text and BECAUSE), and failing until a person replaces the
+#| placeholder with an assertion that would fail if the promise stopped
 #| being true.  A scaffold is born red on purpose: a test that cannot fail
 #| is not evidence, and a scaffold is not counted as evidence until its
 #| placeholder is gone.  The name counts only as a whole: a longer name
@@ -148,9 +149,10 @@ sub detect-language(IO::Path $root --> Str) is export {
     'sh';
 }
 
-#| Where a scaffold for one invariant goes, per language: (relative path,
-#| file text).  Every scaffold names its invariant, carries the text and
-#| the BECAUSE, and fails on PLACEHOLDER until written.
+#| Where a scaffold for one promise goes, per language: (relative path,
+#| file text).  Every scaffold names its promise, carries its ALWAYS and
+#| its PROTECTS, and fails on PLACEHOLDER until written.  A file still in
+#| an earlier form gets the words of that form: INVARIANT and BECAUSE.
 constant LANGUAGES is export = <raku perl go python ruby rust typescript javascript sh>;
 
 #| An identity as a word a programming language accepts in a name.
@@ -161,10 +163,14 @@ sub scaffold(Str $lang, $inv --> List) is export {
     my $id   = $inv.id;
     my $slug = identity-slug($id);
     my $text = $inv.text;
-    my $why  = $inv.because // '(no BECAUSE yet)';
+    # a card's own words: PROMISE and PROTECTS; the earlier forms keep INVARIANT and BECAUSE
+    my $card = ($inv.?kind).defined;
+    my $heading = $card ?? "{$inv.kind} $id" !! "INVARIANT $id";
+    my $label   = $card ?? 'PROTECTS' !! 'BECAUSE';
+    my $why  = $inv.because // "(no $label yet)";
     my $mark = $lang eq any(<go rust typescript javascript>) ?? '//' !! '#';
-    # the invariant's name on a line of its own, then its words and its reason
-    my $head = "$mark INVARIANT $id\n" ~ comment-lines($mark, $text) ~ "\n" ~ comment-lines($mark, "BECAUSE $why");
+    # the promise's name on a line of its own, then its words and what it protects
+    my $head = "$mark $heading\n" ~ comment-lines($mark, $text) ~ "\n" ~ comment-lines($mark, "$label $why");
     given $lang {
         when 'raku' {
             "t/$id.rakutest", qq:to/END/;
@@ -256,7 +262,7 @@ sub comment-lines(Str $mark, Str $text --> Str) {
     @lines.map({ "$mark $_" }).join("\n");
 }
 
-#| Write scaffolds for the invariants that have no evidence (or for @only).
+#| Write scaffolds for the promises that have no evidence (or for @only).
 #| Never overwrites.  Returns (path, identity) pairs written.
 sub write-scaffolds(IZ4::Document $doc, IO::Path $root, Str :$lang = detect-language($root), :@only --> List) is export {
     my %e = evidence-for($doc, $root);
@@ -278,33 +284,44 @@ sub write-scaffolds(IZ4::Document $doc, IO::Path $root, Str :$lang = detect-lang
 
 # ------------------------------------------------------------ agent drafts
 
-#| The prompt that asks an agent for a real test.  It gets the invariant,
-#| its reason, what the system is for, the language and file the test
-#| must be, an existing test to match, and the file layout.  It must
-#| refuse rather than fake: a test that cannot fail is worse than none.
+#| The prompt that asks an agent for a real test.  It gets the promise
+#| (WHEN, ALWAYS, PROTECTS), what the system is for, the language and
+#| file the test must be, an existing test to match, and the file layout.
+#| It must refuse rather than fake: a test that cannot fail is worse than
+#| none.  A file still in an earlier form is given its own words,
+#| INVARIANT and BECAUSE, so the test it asks for is still found.
 sub draft-prompt($doc, $inv, Str :$lang!, Str :$path!, Str :$example = '', Str :$layout = '' --> Str) is export {
-    my $because = $inv.because // '(the owner has not said why yet)';
+    my $card = ($inv.?kind).defined;
+    my ($heading, $label) = $card ?? ($inv.kind, 'PROTECTS') !! ('INVARIANT', 'BECAUSE');
+    my $because = $inv.because // ($card ?? '(the owner has not said what it protects yet)' !! '(the owner has not said why yet)');
+    my $promise = $card
+        ?? "$heading {$inv.id}\nWHEN {$inv.reach // ''}\nALWAYS {$inv.text}\nPROTECTS $because\n\n"
+        !! "$heading {$inv.id}\n{$inv.text}\n\n$label\n$because\n\n";
     q:to/END/
     Write one test file for the software in this repository, pinning the
-    invariant below.  The invariant is enduring intent from the project's
-    IZ4 file; the test is evidence that the software keeps it.
+    promise below.  A promise is enduring intent from the project's IZ4
+    file: WHEN it applies, what must ALWAYS remain true there, and whose
+    what it PROTECTS; the test is evidence that the software keeps it.
 
     Rules:
-    - The test must contain an assertion that would FAIL if the invariant
-      stopped being true.  A test that passes whatever the code does is
-      worse than no test: never write one.  Prefer the smallest real check
-      over a broad fake one.
+    - The test must contain an assertion that would FAIL if ALWAYS
+      stopped being true within WHEN.  A test that passes whatever the
+      code does is worse than no test: never write one.  Prefer the
+      smallest real check over a broad fake one.  PROTECTS says what
+      counts as keeping ALWAYS; it adds no duty of its own to test.
     - It must exercise this repository's actual code, in the style of the
       example test given, using the same framework and helpers.  Do not
       invent modules, functions, routes or fixtures that the layout does not
       show; if you must assume one, name the assumption in a comment.
     - Do not create, modify or delete any file: a person decides whether
       this test is written, after reading it.
-    - Begin the file with a comment line "INVARIANT <its full name>",
-      exactly as the name is given below, then comments quoting its text and
-      "BECAUSE <reason>", in the comment style of the language.  The name is
-      how the test is found: write it whole, never shortened.
-    - If the invariant cannot be tested from what you can see - it depends on
+    END
+    ~ qq:to/END/
+    - Begin the file with a comment line "$heading <its full name>",
+      exactly as the name is given below, then comments quoting its words
+      and "$label <what it protects>", in the comment style of the language.
+      The name is how the test is found: write it whole, never shortened.
+    - If the promise cannot be tested from what you can see - it depends on
       product intent, an external system, or code that is not here - reply
       with exactly one line: CANNOT: <one sentence saying why and what would
       be needed>.
@@ -314,7 +331,7 @@ sub draft-prompt($doc, $inv, Str :$lang!, Str :$path!, Str :$example = '', Str :
     END
     ~ "Language and framework: $lang\nFile to write: $path\n\n"
     ~ "IS FOR WHAT? {$doc.for-what // ''}\nIS FOR WHO? {$doc.for-who // ''}\n\n"
-    ~ "INVARIANT {$inv.id}\n{$inv.text}\n\nBECAUSE\n$because\n\n"
+    ~ $promise
     ~ ($example ?? "An existing test in this repository, to match in style:\n=== example begin ===\n$example\n=== example end ===\n\n" !! '')
     ~ ($layout  ?? "File layout:\n$layout\n" !! '');
 }

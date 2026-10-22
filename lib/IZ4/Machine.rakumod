@@ -75,11 +75,12 @@ sub discover(IO::Path $dir = $*CWD --> Hash) is export {
     %r;
 }
 
-#| The effective invariants by identity: the foundation in its order (0
-#| to 4, as foundation_order; the first is Invariant Zero), then the
-#| project's own, each with the digest of its exact words.  The identity
-#| is an opaque string to whoever reads this: nothing may be inferred
-#| from its shape.
+#| The effective invariants by identity: the foundation in its order
+#| (foundation_order; the first is Invariant Zero, humans-first.iz4.you),
+#| then the project's own promises, each with the digest of its exact
+#| words in the rule of the file's form (iz4-invariant/5 for cards).  The
+#| identity is an opaque string to whoever reads this: nothing may be
+#| inferred from its shape.
 sub effective-list(IZ4::Document $doc --> Array) {
     my @out;
     if $doc.form eq 'card' {
@@ -88,6 +89,7 @@ sub effective-list(IZ4::Document $doc --> Array) {
                           digest => sha256-text(canonical-card(%f<id>, %f<when>, %f<always>.list, %f<protects>.list)), foundation_order => %f<legacy> );
         }
     }
+    # the earlier forms, read only to migrate: clauses, then named
     elsif $doc.form eq 'clauses' {
         for FOUNDATION-CLAUSES -> %f {
             @out.push: %( id => %f<id>, foundation => True, summary => first-sentence(%f<text>), reach => %f<reach>,
@@ -105,7 +107,7 @@ sub effective-list(IZ4::Document $doc --> Array) {
         next if %seen{$inv.id}++;
         @out.push: %( id => $inv.id, foundation => False, summary => first-sentence($inv.text),
                       |($inv.reach.defined ?? (reach => $inv.reach) !! ()),
-                      digest => invariant-digest($inv.id, $inv.text, $inv.because, :reach($inv.reach)) );
+                      digest => invariant-digest-of($inv) );
     }
     @out;
 }
@@ -470,10 +472,13 @@ sub check-lines(%r --> List) is export {
 
 
 # ------------------------------------------------------------ drafting
-# What a page that is not a terminal needs to help a person write an
-# invariant: the three questions, and a stateless check of an answer.  The
-# check only raises questions.  It never refuses, never rewrites a word,
-# and a person decides what goes into the file.
+# What a page that is not a terminal needs to help a person write a
+# promise: the three questions (WHEN, ALWAYS, PROTECTS), and a stateless
+# check of an answer.  The check only raises questions.  It never refuses,
+# never rewrites a word, and a person decides what goes into the file.
+# In the iz4-draft/1 documents the first question keeps the id 'where'
+# and the label WHERE it had under the earlier clauses form: a page
+# shows it as the card's WHEN.
 
 #| The three questions, in order, with what each is for.
 sub draft-questions(--> Hash) is export {
@@ -492,10 +497,11 @@ sub draft-questions(--> Hash) is export {
     );
 }
 
-#| Questions about a draft, never a verdict.  Each finding has an clause, a
-#| code, a level ('ask': worth an answer before accepting it; 'note': worth
-#| a second look) and a message in plain words.  ok is True when nothing is
-#| left to ask, which is not the same as the invariant being right.
+#| Questions about a draft, never a verdict.  Each finding names its field
+#| ('clause', in the document's word), a code, a level ('ask': worth an
+#| answer before accepting it; 'note': worth a second look) and a message
+#| in plain words.  ok is True when nothing is left to ask, which is not
+#| the same as the invariant being right.
 sub draft-check(Str :$reach = '', Str :$rule = '', Str :$because = '' --> Hash) is export {
     my @f;
     my sub finding(Str $clause, Str $code, Str $level, Str $message) { @f.push: %( :$clause, :$code, :$level, :$message ) }
@@ -503,7 +509,7 @@ sub draft-check(Str :$reach = '', Str :$rule = '', Str :$because = '' --> Hash) 
 
     if $r eq '' { finding 'WHERE', 'empty', 'ask', REACH-QUESTION }
     elsif vague-reach($r) { finding 'WHERE', 'vague', 'ask', 'That covers a lot, and an invariant is only as clear as where it applies. Which situations exactly: which data, actions or moments?' }
-    elsif too-long($r, DRAFT-REACH-WORDS) { finding 'WHERE', 'long', 'note', "That is {draft-words($r)} words; a WHERE is easier to read in {DRAFT-REACH-WORDS} or fewer." }
+    elsif too-long($r, DRAFT-REACH-WORDS) { finding 'WHERE', 'long', 'note', "That is {draft-words($r)} words; a WHEN is easier to read in {DRAFT-REACH-WORDS} or fewer." }
 
     if $u eq '' { finding 'ALWAYS', 'empty', 'ask', 'What must remain true there, whatever is rebuilt?' }
     else {
@@ -538,7 +544,8 @@ sub draft-check(Str :$reach = '', Str :$rule = '', Str :$because = '' --> Hash) 
         ok => !@f.first({ .<level> eq 'ask' }),
         note => 'these are questions, not a verdict: a person decides what must remain true';
     if $r ne '' && $u ne '' {
-        %r<reads> = "Where $r, always: $u" ~ ($b ne '' ?? " This protects {$b.subst(/ <[.!]> $/, '')}." !! '');
+        %r<reads> = "When $r, always: $u" ~ ($b ne '' ?? " This protects {$b.subst(/ <[.!]> $/, '')}." !! '');
+        # 'lines' are laid out as the earlier clauses form wrote them
         %r<lines> = clauses-invariant-lines('name', $r, $u, $b).Array;
     }
     %r;

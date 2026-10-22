@@ -219,7 +219,7 @@ like problems("FOUNDATION a-rule.$NS\n  WHEN x\n  ALWAYS Y must hold.\n  PROTECT
     is check-doc($p).invariant("owner-sets-prices.$NS").text, 'Every price shown must be set by the owner, and the system must not adjust it.', 'without touching a word of the promise';
 
     withdraw-invariant($p, 'owner-sets-prices');
-    like $p.slurp, /'# INVARIANT owner-sets-prices.' $NS ' was withdrawn on'/, 'withdrawing leaves a comment where it stood';
+    like $p.slurp, /'# PROMISE owner-sets-prices.' $NS ' was withdrawn on'/, 'withdrawing leaves a comment where it stood';
     ok !check-doc($p).invariant("owner-sets-prices.$NS").defined && check-doc($p).ok, 'and the promise is gone';
     throws-like { add-invariant($p, 'Z must hold.', :name("owner-sets-prices.$NS"), :reach('x')) }, X::IZ4, message => /'used before'|'withdrawn'/, 'the whole name stays retired';
     set-is-for($p, 'IS FOR WHAT', 'Helping people find work they will love.', :replace);
@@ -265,7 +265,7 @@ sub clauses-file(Str $body --> IO::Path) {
     my $p = clauses-file("# Vibe: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.\n\nprivate-stays-private:\n  WHERE:    private profiles\n  ALWAYS:   The system must never expose a private profile in public search.\n  PROTECTS: Looking for work must not cost someone their current job.\n\nowner-prices: solid\n  WHERE:    every price shown\n  ALWAYS:   Prices are set by owners.\n  PROTECTS: Owners answer to customers.\n");
     my $old = check-doc($p);
     ok $old.ok && $old.form eq 'clauses', 'a three-clause file is still read' or diag $old.report.join("\n");
-    ok $old.warnings.first({ .message.contains('earlier three-clause form') }).defined, 'with a warning that says to migrate';
+    ok $old.warnings.first({ .message.contains('earlier clauses form') }).defined, 'with a warning that says to migrate';
     is $old.protection-of("private-stays-private.$NS"), 'vibe', 'the file is in vibe mode';
     is $old.protection-of("owner-prices.$NS"), 'solid', 'but one invariant is marked solid';
     my %plan = card-migration-plan($p);
@@ -337,6 +337,15 @@ sub clauses-file(Str $body --> IO::Path) {
     ($rc, $out, $err) = iz4($d, 'discover', '--json');
     like $out, /'"format":"card"'/, 'the machine interface names the form';
     like $out, /'"reach":"every order, including refunds"'/, 'and carries each reach';
+    my %disc = Rakudo::Internals::JSON.from-json($out);
+    my $own  = %disc<invariants>.first({ .<id> eq 'charged-once.shop.example.com' });
+    is $own<digest>, sha256-text(check-doc($d.add('IZ4')).invariant('charged-once.shop.example.com').canonical),
+        'and digests a promise by its card, iz4-invariant/5: the sha256 of its canonical card text';
+    is $own<digest>, sha256-text("PROMISE charged-once.shop.example.com\nWHEN every order, including refunds\nALWAYS A customer is never charged twice for one order.\nPROTECTS {check-doc($d.add('IZ4')).invariant('charged-once.shop.example.com').because}\n"),
+        'which is the heading and the three fields of intention, one per line, as the register computes it';
+    my %hf = FOUNDATION-CARD.first({ .<id> eq 'humans-first.iz4.you' });
+    is %disc<invariants>.first({ .<id> eq 'humans-first.iz4.you' })<digest>, sha256-text(canonical-card(%hf<id>, %hf<when>, %hf<always>.list, %hf<protects>.list)),
+        'and the foundation by its card';
 }
 
 # migrate through the command

@@ -1,6 +1,8 @@
-#| The IZ4 file format, as a grammar.  This is the specification: what
-#| the parser accepts is exactly what is written here, and docs/format.md
-#| restates it in prose.
+#| The earlier named form of an IZ4 file (INVARIANT name, its text, then
+#| BECAUSE), as a grammar.  An IZ4 is written as promise cards now
+#| (IZ4::CardGrammar, which docs/format.md restates in prose); this form
+#| is read only so that 'iz4 migrate' can bring a file still in it to
+#| cards.  What the parser accepts is exactly what is written here.
 #|
 #|     IZ4
 #|
@@ -20,9 +22,10 @@
 #| lines and blocks.  A block is a keyword line at column 0 followed by
 #| its text lines; the text runs until a blank line, a comment or the
 #| next keyword.  There are four keywords: IS FOR WHAT?, IS FOR WHO?,
-#| INVARIANT name and BECAUSE.  What follows INVARIANT on its line is the
-#| invariant's label; that a label is a well-formed, unreserved name is
-#| judged in IZ4::Document, so every problem with one is reported by line.
+#| INVARIANT name and BECAUSE (the WHEN of a card has no place in this
+#| form).  What follows INVARIANT on its line is the invariant's label;
+#| that a label is a well-formed, unreserved name is judged in
+#| IZ4::Document, so every problem with one is reported by line.
 #|
 #| The grammar is deliberately forgiving: the productions marked 'error'
 #| and 'warning' below accept what a person might write by mistake, so

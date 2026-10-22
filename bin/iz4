@@ -215,7 +215,7 @@ sub ask-required(Str $prompt, Str $what --> Str) {
     user-error("$what: no answer");
 }
 
-#| Coach one invariant into $path.  Always exit 0: deciding not to add
+#| Coach one promise into $path.  Always exit 0: deciding not to add
 #| something is a good outcome, not an error.
 sub coach-into(IO::Path $path, Str :$candidate, Str :$suggested-because, Str :$name, Str :$namespace --> Int) {
     my $doc = check-doc($path);
@@ -409,7 +409,7 @@ multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Str :$name,
            Str :$where, Str :$when, Str :$protects, Bool :$replace = False, Bool :$force = False, Bool :$established = False) {
     attempt :intent, {
         my $path = resolve-target($file);
-        my $k = ($kind // 'invariant').lc;
+        my $k = ($kind // 'promise').lc;
         given $k {
             when 'invariant' | 'invariants' | 'promise' | 'promises' {
                 if interactive() && !$because.defined && !$name.defined && !$where.defined && !$when.defined && !$protects.defined {
@@ -437,7 +437,7 @@ multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Str :$name,
             default {
                 my $singular = $k.subst(/ 's' $/, '');
                 with %ELSEWHERE-FOR{$singular} { user-error($_) }
-                user-error("unknown kind '$kind'; IZ4 holds invariant, for-what and for-who");
+                user-error("unknown kind '$kind'; IZ4 holds promise, for-what and for-who");
             }
         }
         0;
@@ -453,6 +453,7 @@ sub fast-add(IO::Path $path, Str $text, Str :$because, Str :$name, Str :$namespa
         user-error("not added: say whose what it protects with --protects='a customer\'s money', as PROTECTS is the third field. {NOTHING-PROTECTED}") if ($because // '').trim eq '';
     }
     elsif $form eq 'clauses' {
+        # the earlier three-clause form, read only to migrate
         user-error("not added: say where it applies with --where='the situation', as WHERE is the first clause of an invariant here") if ($reach // '').trim eq '';
         user-error("not added: say whose what it protects with --protects='a customer\'s money', as PROTECTS is the third clause here. {NOTHING-PROTECTED}") if ($because // '').trim eq '';
     }
@@ -483,12 +484,17 @@ sub fast-add(IO::Path $path, Str $text, Str :$because, Str :$name, Str :$namespa
         unless ($because // '').trim || $form eq 'clauses' | 'card';
 }
 
-# ------------------------------------------------------------ because
+# ------------------------------------------------------------ protects
 
-multi MAIN('because', Str $which?, Str $text?, Str :$file, Bool :$replace = False, Bool :$split = False) {
+#| Say whose what a promise protects: its PROTECTS.  In a file still in the
+#| earlier named form that is its BECAUSE, and --split ('iz4 split') moves a
+#| reason out of an invariant's own words and under it; a card always
+#| carries its PROTECTS, so there is nothing to split.
+multi MAIN('protects', Str $which?, Str $text?, Str :$file, Bool :$replace = False, Bool :$split = False) {
     attempt :intent, {
         my $path = resolve-target($file);
         my $name = display-name($path);
+        my $card = check-doc($path).form eq 'card';
         if $split {
             my @done = $which.defined ?? (split-because($path, $which) andthen ((which-invariant($path, $which), $_),)) // () !! split-all-because($path);
             if @done {
@@ -497,22 +503,28 @@ multi MAIN('because', Str $which?, Str $text?, Str :$file, Bool :$replace = Fals
             }
             else {
                 say $which.defined
-                    ?? "INVARIANT {which-invariant($path, $which)}: no reason found in its text; say it with 'iz4 because {which-invariant($path, $which)} WHY'"
+                    ?? "{$card ?? 'PROMISE' !! 'INVARIANT'} {which-invariant($path, $which)}: no reason found in its text; say it with 'iz4 protects {which-invariant($path, $which)} WHAT'"
                     !! "$name: no invariant carries a reason in its own text";
             }
             return 0;
         }
-        user-error("iz4 because needs an invariant's name and the reason: iz4 because owner-adjusted 'why it must survive'")
+        user-error("iz4 protects needs a promise's name and whose what it protects: iz4 protects owner-adjusted 'a customer\'s money'")
             unless $which.defined && $text.defined;
         my $id = which-invariant($path, $which);
         if assess-because(check-doc($path).invariant($id).?text // '', $text) eq 'circular' && !$replace {
-            user-error("that restates the invariant. Who would be harmed, surprised or let down if it stopped being true, and why?\n(--replace sets it anyway)");
+            user-error($card
+                ?? "that restates ALWAYS. What must not be defeated: which person, and what of theirs?\n(--replace sets it anyway)"
+                !! "that restates the invariant. Who would be harmed, surprised or let down if it stopped being true, and why?\n(--replace sets it anyway)");
         }
         set-because($path, $id, $text, :$replace);
-        say "Set BECAUSE for INVARIANT $id.";
+        say $card ?? "PROMISE $id now protects: $text" !! "Set BECAUSE for INVARIANT $id.";
         0;
     }
 }
+
+#| The heading a project's own invariant has in this file: PROMISE on a
+#| card, INVARIANT in the earlier forms.
+sub heading-of(IZ4::Document $doc --> Str) { $doc.form eq 'card' ?? 'PROMISE' !! 'INVARIANT' }
 
 #| The identity a person means, or what they typed when nothing matches:
 #| the command that uses it says what is wrong.
@@ -530,6 +542,7 @@ multi MAIN('withdraw', Str $which, Str :$file, Bool :$force = False, Bool :$keep
         my $path = resolve-target($file);
         my $name = display-name($path);
         my $id   = which-invariant($path, $which);
+        my $h    = heading-of(check-doc($path));
         print pretty(invariant-text($path, $id)) unless is-foundation-id($id);   # the refusal below says why for the foundation
         # What goes with it is worked out, and shown, before anyone is asked.
         my $present = !is-foundation-id($id) && check-doc($path).invariant($id).defined;
@@ -544,11 +557,11 @@ multi MAIN('withdraw', Str $which, Str :$file, Bool :$force = False, Bool :$keep
                 say "Its tests go with it: a test for an invariant that is gone protects nothing. Git keeps these too:";
                 say "  $_" for @remove;
             }
-            my $answer = yes-no(ask("Withdraw INVARIANT $id" ~ (@remove ?? " and remove {+@remove == 1 ?? 'that test' !! "those {+@remove} tests"}" !! '') ~ "? [y/N] ") // '', :default(False));
-            unless $answer { say "INVARIANT $id stays" ~ (@remove ?? ', and so do its tests.' !! '.'); return 0 }
+            my $answer = yes-no(ask("Withdraw $h $id" ~ (@remove ?? " and remove {+@remove == 1 ?? 'that test' !! "those {+@remove} tests"}" !! '') ~ "? [y/N] ") // '', :default(False));
+            unless $answer { say "$h $id stays" ~ (@remove ?? ', and so do its tests.' !! '.'); return 0 }
         }
         my $inv = withdraw-invariant($path, $id);
-        say "Withdrew INVARIANT $id from $name: {$inv.text}";
+        say "Withdrew $h $id from $name: {$inv.text}";
         my @gone = remove-tests($path.parent, @remove);
         if @gone {
             say "Removed {+@gone == 1 ?? 'the test' !! "the {+@gone} tests"} that existed only for it:";
@@ -632,7 +645,7 @@ multi MAIN('explore',   Str $which?, Str :$file) { attempt :intent, { governance
 # beside it, which still works: hooks and scripts written before call it.
 
 multi MAIN('foundation', 'restore', Str $file?) { MAIN('foundation', |($file // Empty), :restore) }
-multi MAIN('split', Str $which?, Str :$file) { MAIN('because', |($which // Empty), :split, |(:$file if $file.defined)) }
+multi MAIN('split', Str $which?, Str :$file) { MAIN('protects', |($which // Empty), :split, |(:$file if $file.defined)) }
 multi MAIN('test', 'list', Str :$file) { MAIN('test', :list, |(:$file if $file.defined)) }
 multi MAIN('update', 'check') { MAIN('update', :check) }
 multi MAIN('migrate', 'preview', Str $file?, Str :$namespace, Str :$where) {
@@ -1010,19 +1023,19 @@ multi MAIN('check', Str $file?, Bool :$strict = False) {
             # still settling: say where things stand in a line, and ask for nothing
             my %ev    = evidence-for($doc, $path.parent);
             my $named = $doc.invariants.grep({ .id.defined && (%ev<state>{.id} // '') eq 'named' }).elems;
-            my $why   = $count - $doc.unexplained-invariants.elems;
-            @rows.push: ('✓', "exploring: $count settling, $why with a reason, $named with a test. Nothing waits on you; 'iz4 establish NAME' when a promise is agreed.", '');
+            @rows.push: ('✓', "exploring: $count settling, $named with a test. Nothing waits on you; 'iz4 establish NAME' when a promise is agreed.", '');
         }
         elsif $count {
-            my @bare   = $doc.unexplained-invariants;
+            # a card always carries its PROTECTS; in the earlier forms a reason was optional, and these rows chase it
+            my @bare   = $doc.form eq 'card' ?? () !! $doc.unexplained-invariants;
             my @folded = @bare.grep({ split-reason(.text)[1].defined }).map({ .id // 'unnamed' });
             my @plain  = @bare.grep({ !split-reason(.text)[1].defined }).map({ .id // 'unnamed' });
             @rows.push: ('✗', "BECAUSE: {lbls(@folded)} carr{@folded == 1 ?? 'ies' !! 'y'} the reason inside the invariant - 'iz4 split' moves it under BECAUSE", 'iz4 split')
                 if @folded;
-            @rows.push: ('✗', "BECAUSE: missing for {lbls(@plain)} - write under each why it must survive ('iz4 because NAME WHY')",
-                @plain.map({ "iz4 because $_ \"why it must survive\"" }).join("\n"))
+            @rows.push: ('✗', "BECAUSE: missing for {lbls(@plain)} - write under each why it must survive ('iz4 protects NAME WHAT')",
+                @plain.map({ "iz4 protects $_ \"whose what it protects\"" }).join("\n"))
                 if @plain;
-            @rows.push: ('✓', 'BECAUSE: every invariant says why it must survive', '') unless @bare;
+            @rows.push: ('✓', 'BECAUSE: every invariant says why it must survive', '') unless @bare || $doc.form eq 'card';
 
             # evidence: a test that names the invariant.  Named is a test;
             # scaffolded is the born-red placeholder; none is none.
@@ -1144,7 +1157,7 @@ multi MAIN('test', *@which, Str :$file, Str :$lang, Bool :$list = False, Bool :$
                 my ($rel, $) = scaffold($language, $inv);
                 next if $root.add($rel).e;
                 say '';
-                say "INVARIANT $n: {$inv.text}";
+                say "{heading-of($doc)} $n: {$inv.text}";
                 say "asking agent ({agent-label()}) for a test ($language, $rel) ...";
                 my $d = try agent-draft($doc, $inv, $root, :lang($language), :path($rel), :$layout);
                 without $d { say "  no draft: {$!.message.lines.head}; a scaffold will be written instead"; next }
@@ -1184,7 +1197,8 @@ multi MAIN('test', *@which, Str :$file, Str :$lang, Bool :$list = False, Bool :$
     }
 }
 
-#| Name the unnamed INVARIANT on a line.  A name already given is an
+#| Name the unnamed INVARIANT on a line of a file still in the earlier
+#| named form; every card carries its name.  A name already given is an
 #| identity and is not changed here.
 multi MAIN('name', Int $line, Str $name, Str :$file, Str :$namespace) {
     attempt :intent, {
@@ -1195,13 +1209,13 @@ multi MAIN('name', Int $line, Str $name, Str :$file, Str :$namespace) {
     }
 }
 
-# ------------------------------------------------------------ where
+# ------------------------------------------------------------ when
 
-#| Say where an invariant applies: its WHERE.
+#| Say when a promise applies: its WHEN.
 multi MAIN('when', Str $which, Str $text, Str :$file) {
     attempt :intent, {
         my $path = resolve-target($file);
-        say "{set-reach($path, $which, $text)} now applies where: $text";
+        say "{set-reach($path, $which, $text)} now applies when: $text";
         0;
     }
 }
@@ -1222,8 +1236,9 @@ multi MAIN('migrate', Str $file?, Str :$namespace, Str :$where, Bool :$dry-run =
     }
 }
 
-#| Move an IZ4 from named invariants to the three-clause form.  The new thing
-#| is FOR: who or what each invariant covers.  It is the owner's to say:
+#| Move an IZ4 from the earliest named form to the three-clause form, the
+#| first step on its way to cards.  The new thing is where each invariant
+#| applies (its WHERE, which becomes WHEN).  It is the owner's to say:
 #| asked for on a terminal, given with --where=NAME=SITUATION in a script,
 #| never made up.  The words of each stay word for word.  Nothing is
 #| written until every invariant has its WHERE; with one missing and nobody
@@ -1251,7 +1266,7 @@ sub migrate-clauses-command(IO::Path $path, Str :$namespace, Str :$where, Bool :
     if @unexplained {
         say '';
         say "These have no BECAUSE, and PROTECTS is required in the three-clause form: whose what would be lost if it stopped holding?";
-        say "  iz4 because {.<id>.split('.')[0]} 'whose what'" for @unexplained;
+        say "  iz4 protects {.<id>.split('.')[0]} 'whose what'" for @unexplained;
         say 'Nothing was written.';
         return 2;
     }
@@ -1350,7 +1365,7 @@ multi MAIN('review', *@range, Str :$file, Bool :$staged = False, Bool :$for-push
             for $review<candidates>.list -> %c {
                 say '';
                 say "Candidate invariant ({%c<class>.lc}): {%c<text>}";
-                say "  BECAUSE {%c<because>}" if %c<because>;
+                say "  PROTECTS {%c<because>}" if %c<because>;
                 say "  Evidence that would show it holds: {%c<evidence>}" if %c<evidence>;
                 if interactive() {
                     my $answer = (ask('Consider it? [Y/n/q] ') // 'q').trim.lc;
@@ -1419,7 +1434,7 @@ sub show-suggestions(%s, $path) {
             for %s<strong>.list -> %c {
                 say "\nStrong candidate: {%c<text>}";
                 say "  {long-note(%c<text>)}" if too-long(%c<text>);
-                say "  BECAUSE: {%c<because>}" if %c<because>;
+                say "  PROTECTS: {%c<because>}" if %c<because>;
             }
             for %s<possible>.list -> %c {
                 say "\nPossible, needs your intent: {%c<text>}";
@@ -1853,7 +1868,7 @@ sub brief-line(%r --> Str) {
         @said.push: "{%m<failing>} invariant test{%m<failing> == 1 ?? '' !! 's'} failing" if %m<failing>;
         return 'iz4: exploring, ' ~ (@said ?? @said.join(', ') ~ ". Nothing waits on you; 'iz4 establish NAME' when a promise is agreed." !! 'nothing it promises changed.');
     }
-    with %r<settling> -> %m {   # firm: what was noticed and not held is still said
+    with %r<settling> -> %m {   # a mix of exploring and established: what was noticed and not held is still said
         my @said;
         @said.push: "{%m<failing>} protecting test{%m<failing> == 1 ?? '' !! 's'} failing, reported while the promise is exploring" if %m<failing>;
         return 'iz4: ' ~ @said.join(', ') ~ '.' if @said;
@@ -1868,7 +1883,7 @@ sub gate-lines(%r --> List) {
     my $b = %r<base> eq 'none' ?? 'no base (initial)' !! "base {%r<base>.substr(0, 12)} ({%r<base_ref>})";
     @l.push: "gate: candidate tree {%r<candidate>.substr(0, 12)} ({%r<candidate_ref>}) against $b, {%r<mode>}";
     if %r<iz4><candidate_present> || %r<iz4><base_present> {
-        my %p = changes => %r<changes>, protections => %r<protections>.grep({ .<kind> ne 'protection-changed' }).List;
+        my %p = changes => %r<changes>, protections => %r<protections>.grep({ .<kind> ne 'protection-changed' }).List, heading => heading-for(%r);
         my @pl = proposal-lines(%p);
         @l.push: 'commitments and protections:' ~ (@pl ?? '' !! ' unchanged');
         @l.push: "  $_" for @pl;
@@ -1925,11 +1940,11 @@ multi MAIN('draft', 'questions') {
 }
 
 #| Questions about a draft, as data.  With a name and a file, also whether
-#| the name can be used there, and the digest the invariant would have.
-multi MAIN('draft', 'check', Str :$where = '', Str :$always, Str :$holds, Str :$protects = '', Str :$name, Str :$file) {
+#| the name can be used there, and the digest the promise would have.
+multi MAIN('draft', 'check', Str :$when = '', Str :$always = '', Str :$protects = '', Str :$name, Str :$file) {
     attempt {
-        my $rule = $always // $holds // '';
-        my %r = draft-check(:reach($where), :$rule, :because($protects));
+        my $rule = $always;
+        my %r = draft-check(:reach($when), :$rule, :because($protects));
         with $name {
             my $path = resolve-target($file);
             my $doc = check-doc($path);
@@ -1939,9 +1954,9 @@ multi MAIN('draft', 'check', Str :$where = '', Str :$always, Str :$holds, Str :$
                 check-new-name($path, $doc, $id);
                 CATCH { when X::IZ4 { %r<findings>.push: %( clause => 'NAME', code => 'name', level => 'ask', message => .message ); %r<ok> = False } }
             }
-            %r<digest> = $doc.form eq 'card' ?? sha256-text(canonical-card($id, $where.trim, ($rule.trim,), ($protects.trim,)))
-                       !! invariant-digest($id, $rule.trim, $protects.trim, |($doc.form eq 'clauses' ?? (:reach($where.trim)) !! ()))
-                if $rule.trim ne '' && ($doc.form eq 'named' || $where.trim ne '');
+            %r<digest> = $doc.form eq 'card' ?? sha256-text(canonical-card($id, $when.trim, ($rule.trim,), ($protects.trim,)))
+                       !! invariant-digest($id, $rule.trim, $protects.trim, |($doc.form eq 'clauses' ?? (:reach($when.trim)) !! ()))
+                if $rule.trim ne '' && ($doc.form eq 'named' || $when.trim ne '');
         }
         say json-encode(%r);
         0;
@@ -2071,7 +2086,7 @@ sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out
             $rc == 0 && $o.trim ne '' ?? $o.trim !! Str;
         };
         my %r = run-gate($root, :staged(!$candidate.defined), :$base, :$candidate, :check-cmd($cmd));
-        my %p = changes => %r<changes>, protections => %r<protections>;
+        my %p = changes => %r<changes>, protections => %r<protections>, heading => heading-for(%r);
         if %r<outcome> eq 'blocked' {
             # An invariant whose test fails is not a wall: it is a question for the
             # person, and they can answer it here.  Anything else blocked is shown.
@@ -2093,8 +2108,8 @@ sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out
             return 0;
         }
         # one thing at a time: each change is its own small question
-        my @items = |%r<changes>.map({ %( changes => ($_,), protections => () ) }),
-                    |%r<protections>.map({ %( changes => (), protections => ($_,) ) });
+        my @items = |%r<changes>.map({ %( changes => ($_,), protections => (), heading => heading-for(%r) ) }),
+                    |%r<protections>.map({ %( changes => (), protections => ($_,), heading => heading-for(%r) ) });
         unless interactive() {
             say "This change alters what the software promises:";
             say pretty("  $_") for proposal-lines(%p);
