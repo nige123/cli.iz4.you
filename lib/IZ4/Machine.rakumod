@@ -82,7 +82,13 @@ sub discover(IO::Path $dir = $*CWD --> Hash) is export {
 #| from its shape.
 sub effective-list(IZ4::Document $doc --> Array) {
     my @out;
-    if $doc.form eq 'clauses' {
+    if $doc.form eq 'card' {
+        for FOUNDATION-CARD -> %f {
+            @out.push: %( id => %f<id>, foundation => True, summary => %f<always>.list[0], reach => %f<when>,
+                          digest => sha256-text(canonical-card(%f<id>, %f<when>, %f<always>.list, %f<protects>.list)), foundation_order => %f<legacy> );
+        }
+    }
+    elsif $doc.form eq 'clauses' {
         for FOUNDATION-CLAUSES -> %f {
             @out.push: %( id => %f<id>, foundation => True, summary => first-sentence(%f<text>), reach => %f<reach>,
                           digest => sha256-text(canonical-clauses(%f<id>, %f<reach>, %f<text>, %f<because>)), foundation_order => %f<legacy> );

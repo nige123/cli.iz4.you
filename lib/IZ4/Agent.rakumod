@@ -68,14 +68,20 @@ constant AGENT-PROTOCOL is export = q:to/END/;
         lost it: re-run 'iz4 agent' before touching anything, even to
         continue work already in flight.
 
-    Reading an invariant.  In the three-clause form it says WHERE it applies,
-    what must ALWAYS remain true there, and what it PROTECTS: what must
-    not be defeated.  In the named form the statement carries the first
-    two and BECAUSE the third.  One rule governs the clauses:
-        All three clauses bind together.  WHERE scopes; ALWAYS binds;
-        PROTECTS decides what counts as keeping ALWAYS.  None narrows or
-        excuses another, and PROTECTS adds no duty of its own.
-    So: ALWAYS binds throughout WHERE with no moment or pressure excepted,
+    Reading a promise.  A card says WHEN it applies, what must ALWAYS
+    remain true there, and what it PROTECTS: whose what must not be
+    defeated.  Then CHANGES REQUIRE says what a change to its words needs,
+    and CHECKED WITH what is checked.  In the earlier forms the same three
+    are WHERE, ALWAYS and PROTECTS, or the statement and BECAUSE.  One rule
+    governs the three:
+        All three bind together.  WHEN scopes; ALWAYS binds; PROTECTS
+        decides what counts as keeping ALWAYS.  None narrows or excuses
+        another, and PROTECTS adds no duty of its own.
+    A promise anyone may change ('no approval; current promise still
+    applies') still binds as written: that line is about who may edit its
+    words, never a licence to break it.  Where ALWAYS or PROTECTS is a list,
+    every item holds.
+    So: ALWAYS binds throughout WHEN with no moment or pressure excepted,
     whether or not what it protects seems at stake in the case in front
     of you.  Keeping the words of ALWAYS while defeating what it protects
     is a breach; so is reaching a forbidden outcome by another route, or
@@ -84,7 +90,7 @@ constant AGENT-PROTOCOL is export = q:to/END/;
     obligation, a boundary or an exception from it.  A boundary counts
     only when ALWAYS states it, and a condition inside ALWAYS ("only
     while the approval stands") is necessary, never sufficient.  A
-    project's own WHERE cannot narrow the foundation.  Where you are not
+    project's own WHEN cannot narrow the foundation.  Where you are not
     sure an invariant is kept, follow step 3: say so, pause what is
     affected and every equivalent route, and return the decision to the
     people entitled to decide; do not invent an exemption, and do not
@@ -117,9 +123,9 @@ sub agent-packet(IO::Path $iz4 --> Hash) is export {
         file          => $iz4.Str,
         sha256        => sha256-file($iz4),
         foundation    => %(
-            text   => ($doc.form eq 'clauses' ?? FOUNDATION-CLAUSES-TEXT !! FOUNDATION-TEXT),
-            sha256 => ($doc.form eq 'clauses' ?? FOUNDATION-CLAUSES-DIGEST !! FOUNDATION-DIGEST),
-            ids    => foundation-ids(:clauses($doc.form eq 'clauses')).Array,
+            text   => ($doc.form eq 'card' ?? FOUNDATION-CARD-TEXT !! $doc.form eq 'clauses' ?? FOUNDATION-CLAUSES-TEXT !! FOUNDATION-TEXT),
+            sha256 => ($doc.form eq 'card' ?? FOUNDATION-CARD-DIGEST !! $doc.form eq 'clauses' ?? FOUNDATION-CLAUSES-DIGEST !! FOUNDATION-DIGEST),
+            ids    => foundation-ids(:clauses($doc.form eq 'clauses'), :card($doc.form eq 'card')).Array,
             status => $doc.foundation-status,
         ),
         effective     => effective-text($doc, :name($iz4.basename)),

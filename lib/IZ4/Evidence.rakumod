@@ -38,7 +38,7 @@ constant DRAFT-MARK is export = 'iz4 draft: an agent wrote this test; review it,
 #| languages.  Only these are searched, so prose elsewhere that happens to
 #| names an invariant is never mistaken for a test.
 my @TEST-DIRS  = <t test tests spec specs __tests__ features>;
-my regex test-file-name { [ '_test' | '.test' | '.spec' | '_spec' | 'Test' ] '.' \w+ $ | '.t' $ | '.rakutest' $ }
+my regex test-file-name { [ '_test' | '.test' | '.spec' | '_spec' | 'Test' ] '.' \w+ $ | ^ 'test_' \w+ '.' \w+ $ | '.t' $ | '.rakutest' $ }
 my @SKIP-DIRS  = <.git node_modules local vendor dist target .precomp build .venv venv>;
 
 #| Would test-files count this repository-relative path as a test file?
