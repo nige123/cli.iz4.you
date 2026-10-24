@@ -31,10 +31,10 @@ PROMISE come-alive.matching.love2.do
   CHECKED WITH    linked tests; failures block commit
 ```
 
-Each invariant is a card: a promise, how it is checked, and what a change
-to it requires. The promise is the first three lines: when it applies, what
-must always remain true, and whose what it protects. Nothing is hidden
-elsewhere in the file.
+An invariant is an expression that includes a promise, how it is checked,
+and what a change to it requires; each is written as a card. The promise is
+the first three lines: when it applies, what must always remain true, and
+whose what it protects. Nothing is hidden elsewhere in the file.
 
 ## Why
 

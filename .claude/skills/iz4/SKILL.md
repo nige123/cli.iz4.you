@@ -68,9 +68,10 @@ As a coding agent working in a repository that keeps one:
     lost it: re-run 'iz4 agent' before touching anything, even to
     continue work already in flight.
 
-Reading an invariant.  An invariant is a card: a promise, how it is
-checked, and what a change to it requires.  The promise is the first
-three fields: WHEN it applies, what must ALWAYS remain true there, and
+Reading an invariant.  An invariant is an expression that includes a
+promise, how it is checked, and what a change to it requires; the IZ4
+writes each as a card.  The promise is the first three fields: WHEN it
+applies, what must ALWAYS remain true there, and
 what it PROTECTS: whose what must not be defeated.  Below them,
 CHANGES REQUIRE says what a change to the promise needs, and CHECKED
 WITH how it is checked.  One rule governs the three fields of the

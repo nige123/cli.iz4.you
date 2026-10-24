@@ -1,9 +1,10 @@
 # The IZ4 file
 
 One plain-text file, `IZ4`, at the root of your project. It holds what the
-software is for, who it is for, and a few invariants. An invariant is a
-card: a promise, how it is checked, and what a change to it requires. This
-is a whole one, with the foundation shortened:
+software is for, who it is for, and a few invariants. An invariant is an
+expression that includes a promise, how it is checked, and what a change to
+it requires; an IZ4 writes each one as a card. This is a whole one, with
+the foundation shortened:
 
 ```text
 IZ4 jobs.example.com
@@ -60,7 +61,7 @@ FOUNDATION humans-first.iz4.you
   fields. The first three are the promise: what the people who own the
   software intend. After a blank line, the last two protect it: how the
   promise is checked, and what a change to it requires. Words alone are a
-  promise; with its check and its change rule, a promise is an invariant.
+  promise; expressed with its check and its change rule, it is an invariant.
 
   | Field | Says | Write |
   |---|---|---|
