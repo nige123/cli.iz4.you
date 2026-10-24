@@ -31,9 +31,10 @@ PROMISE come-alive.matching.love2.do
   CHECKED WITH    linked tests; failures block commit
 ```
 
-Each promise is a card. It says when it applies, what must always remain
-true, and whose what it protects; then what a change to it requires, and how
-it is checked. Nothing is hidden elsewhere in the file.
+Each invariant is a card: a promise, how it is checked, and what a change
+to it requires. The promise is the first three lines: when it applies, what
+must always remain true, and whose what it protects. Nothing is hidden
+elsewhere in the file.
 
 ## Why
 
@@ -41,7 +42,7 @@ it is checked. Nothing is hidden elsewhere in the file.
   build away what people depend on.
 - **Agents read it first.** Any model, any harness, the same file.
 - **Change by agreement.** A change to a promise waits for a person's yes.
-- **Move fast first.** A new promise is exploring: its words move freely
+- **Move fast first.** A new invariant is exploring: its promise moves freely
   until you establish it, and the card says which it is.
 - **Humans first, built in.** Every IZ4 carries the same foundation:
 

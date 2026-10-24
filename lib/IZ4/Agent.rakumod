@@ -68,17 +68,19 @@ constant AGENT-PROTOCOL is export = q:to/END/;
         lost it: re-run 'iz4 agent' before touching anything, even to
         continue work already in flight.
 
-    Reading a promise.  A card says WHEN it applies, what must ALWAYS
-    remain true there, and what it PROTECTS: whose what must not be
-    defeated.  Then CHANGES REQUIRE says what a change to its words needs,
-    and CHECKED WITH what is checked.  One rule governs the three fields
-    of intention:
+    Reading an invariant.  An invariant is a card: a promise, how it is
+    checked, and what a change to it requires.  The promise is the first
+    three fields: WHEN it applies, what must ALWAYS remain true there, and
+    what it PROTECTS: whose what must not be defeated.  Below them,
+    CHANGES REQUIRE says what a change to the promise needs, and CHECKED
+    WITH how it is checked.  One rule governs the three fields of the
+    promise:
         All three bind together.  WHEN scopes; ALWAYS binds; PROTECTS
         decides what counts as keeping ALWAYS.  None narrows or excuses
         another, and PROTECTS adds no duty of its own.
-    A promise anyone may change ('no approval; current promise still
-    applies') still binds as written: that line is about who may edit its
-    words, never a licence to break it.  Where ALWAYS or PROTECTS is a list,
+    An exploring invariant, whose promise anyone may change ('no approval;
+    current promise still applies'), still binds as written: that line is
+    about who may edit the words, never a licence to break them.  Where ALWAYS or PROTECTS is a list,
     every item holds.
     So: ALWAYS binds throughout WHEN with no moment or pressure excepted,
     whether or not what it protects seems at stake in the case in front

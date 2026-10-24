@@ -1,9 +1,9 @@
 # The IZ4 file
 
 One plain-text file, `IZ4`, at the root of your project. It holds what the
-software is for, who it is for, and a few promises: what must remain true,
-each on a card that also says what a change to it requires and how it is
-checked. This is a whole one, with the foundation shortened:
+software is for, who it is for, and a few invariants. An invariant is a
+card: a promise, how it is checked, and what a change to it requires. This
+is a whole one, with the foundation shortened:
 
 ```text
 IZ4 jobs.example.com
@@ -57,8 +57,10 @@ FOUNDATION humans-first.iz4.you
 - **The header**: `IZ4` and the domain your project answers for.
 - **Two questions**, `IS FOR WHAT?` and `IS FOR WHO?`, each answered once.
 - **Your promises.** Each is a card: `PROMISE` and its whole name, then five
-  fields. The first three say what the people who own the software intend;
-  after a blank line, the last two say how the promise is governed.
+  fields. The first three are the promise: what the people who own the
+  software intend. After a blank line, the last two protect it: how the
+  promise is checked, and what a change to it requires. Words alone are a
+  promise; with its check and its change rule, a promise is an invariant.
 
   | Field | Says | Write |
   |---|---|---|
@@ -70,8 +72,9 @@ FOUNDATION humans-first.iz4.you
 
   All five are required. There is no colon after a label. `iz4 add` asks
   the questions in that order and writes the card.
-- **The two governance values.** A promise is either still exploring or
-  established, and its card says which:
+- **The two governance values.** An invariant is either still exploring or
+  established, and its card says which. This is about its protection, never
+  about its promise, which binds as written either way:
 
   | | `CHANGES REQUIRE` | `CHECKED WITH` |
   |---|---|---|
@@ -80,9 +83,9 @@ FOUNDATION humans-first.iz4.you
 
   Nothing else parses: a value off by a word is an error, and so is pairing
   free wording with blocking tests (a test cannot hold what the words are
-  free to redefine). A new promise is born exploring; `iz4 establish NAME`
+  free to redefine). A new invariant is born exploring; `iz4 establish NAME`
   makes it established, and `iz4 explore NAME` lets it move again. Lowering
-  what a promise requires is itself a change the gate asks you about. No
+  what an invariant requires is itself a change the gate asks you about. No
   file-wide mode, nothing inherited, nothing defaulted: each card says all of
   it. A promise anyone may edit still binds as written; the line is about who
   may change the words, never a licence to break them.

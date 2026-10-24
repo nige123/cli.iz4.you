@@ -69,7 +69,7 @@ g($r, 'add', '-A');
 is $rc, 0, 'a reworded exploring promise with a failing test passes the gate';
 like $out, / 'revised' /, 'the rewording is reported';
 like $out, / '✗ t/charged-once.t' /, 'and so is the failing test';
-like $out, / 'exploring: every promise' .* 'nothing here waits for a yes' /, 'with the reason nothing held';
+like $out, / 'exploring: every invariant' .* 'nothing here waits for a yes' /, 'with the reason nothing held';
 g($r, 'commit', '-qm', 'still exploring');
 
 # ---- establish: the words wait, the tests hold ------------------------------------

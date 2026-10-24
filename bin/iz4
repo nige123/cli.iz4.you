@@ -603,7 +603,7 @@ sub pick-invariant(IZ4::Document $doc, Str $which) {
 #| waits for a signed yes and a failing linked test holds the commit.
 #| 'iz4 explore NAME' lets its words move again while it settles; lowering
 #| is itself a change the gate asks about at commit time.  With no name,
-#| each says where every promise stands.
+#| each says where every invariant stands.
 sub governance-command(Str $stage, Str $which, Str $file) {
     my $path = resolve-target($file);
     my $doc  = check-doc($path);
@@ -630,7 +630,7 @@ sub governance-command(Str $stage, Str $which, Str $file) {
     else {
         calm("{$inv.id} is exploring",
              'Its words may change without approval while it settles, and a failing linked test warns rather than holds. The promise as written still applies.',
-             'Asking less of a promise is itself a change: commit it, and the gate asks you once.',
+             'Asking less of an invariant is itself a change: commit it, and the gate asks you once.',
              :next(['establish ' ~ $which => 'when its words are agreed']));
     }
     0;
@@ -1899,7 +1899,7 @@ sub brief-line(%r --> Str) {
     }
     with %r<settling> -> %m {   # a mix of exploring and established: what was noticed and not held is still said
         my @said;
-        @said.push: "{%m<failing>} protecting test{%m<failing> == 1 ?? '' !! 's'} failing, reported while the promise is exploring" if %m<failing>;
+        @said.push: "{%m<failing>} protecting test{%m<failing> == 1 ?? '' !! 's'} failing, reported while the invariant is exploring" if %m<failing>;
         return 'iz4: ' ~ @said.join(', ') ~ '.' if @said;
     }
     (%r<approval><status> // '') eq 'valid'
@@ -1933,7 +1933,7 @@ sub gate-lines(%r --> List) {
         }
     }
     @l.push: "  note: $_" for |%r<notes>;
-    with %r<vibe> { @l.push: "exploring: every promise of the project's own may still change freely, so nothing here waits for a yes ({.<changes>} changed, {.<failing>} test{.<failing> == 1 ?? '' !! 's'} failing). 'iz4 establish NAME' when one is agreed." }
+    with %r<vibe> { @l.push: "exploring: every invariant of the project's own may still change freely, so nothing here waits for a yes ({.<changes>} changed, {.<failing>} test{.<failing> == 1 ?? '' !! 's'} failing). 'iz4 establish NAME' when one is agreed." }
     my %why =
         pass => 'no commitment or protection changed, and every check that could run passed',
         'agreement-required' => 'this changes what the software promises, so it waits for your yes',

@@ -695,7 +695,7 @@ method mode(--> Str) {
     return 'firm' if @!lines.first({ $_ ~~ /^ '#' \s* 'Firm:' / });
     'solid';
 }
-#| Is this file still exploring: every promise of its own anyone may edit,
+#| Is this file still exploring: every invariant of its own exploring,
 #| or none yet?  In the earlier forms, the vibe mode line.  What a change
 #| to the file as a whole (its purpose, its people, its form) waits for
 #| follows it.

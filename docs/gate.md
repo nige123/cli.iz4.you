@@ -46,10 +46,10 @@ what is checked, and the gate reads the card:
 | `CHANGES REQUIRE signed human approval for the exact change` | waits for your signed yes | holds the commit |
 | `CHANGES REQUIRE verified foundation release only` (the foundation) | no project approval can make it | holds the commit; the words are matched to the canonical foundation |
 
-A new promise is born exploring. `iz4 establish NAME` writes the second
+A new invariant is born exploring. `iz4 establish NAME` writes the second
 pair on its card, so a payments project can explore everywhere while the one
 promise that matters is established from its first day. `iz4 explore NAME`
-writes the first pair again. Raising what a promise requires is free.
+writes the first pair again. Raising what an invariant requires is free.
 Lowering it waits for a yes, and so does renaming, removing or replacing an
 established promise, and weakening or unlinking a test that names it: what
 governs a change is what the base declared, so a candidate cannot lower a
@@ -58,10 +58,10 @@ raises a requirement is held to what it asks: a failing test on a promise
 the candidate establishes holds the commit.
 
 A change to the file as a whole, its purpose or its people, waits for a yes
-unless every promise of the project's own is exploring. Removing the file
+unless every invariant of the project's own is exploring. Removing the file
 always waits.
 
-Where every promise of the project's own is exploring, the gate says what it
+Where every invariant of the project's own is exploring, the gate says what it
 noticed in one line and asks for nothing. The foundation holds in every case:
 a changed word in it is blocked, and no approval lifts that.
 

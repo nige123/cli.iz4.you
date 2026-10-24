@@ -883,7 +883,7 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
     my @changes = commitment-changes($base-doc, $cand-doc, :base-source($base-src // ''));
     # What governs a change is what the base declared: each promise says on
     # its card what a change to it requires, and the candidate cannot lower
-    # that and use the lower one in the same step.  Changing what a promise
+    # that and use the lower one in the same step.  Changing what an invariant
     # requires is a change a person agrees to like any other, except that
     # requiring more of a promise anyone may edit is free: only lowering
     # costs a yes.  In the earlier forms the file's mode and the word after
@@ -894,7 +894,7 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
         return $base-doc.protection-of($id) if $base-doc.defined && $base-doc.ok;
         $cand-doc.defined && $cand-doc.ok ?? $cand-doc.protection-of($id) !! 'solid';
     }
-    # the file as a whole: exploring while every promise of its own is, else established
+    # the file as a whole: exploring while every invariant of its own is, else established
     my $file-level = $base-doc.defined && $base-doc.ok ?? ($base-doc.exploring ?? 'vibe' !! 'solid')
                    !! $cand-doc.defined && $cand-doc.ok ?? ($cand-doc.exploring ?? 'vibe' !! 'solid') !! 'solid';
     my %rank = vibe => 0, firm => 1, solid => 2;
@@ -978,8 +978,8 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
     # Each change waits, or not, by what governs the promise it touches: a
     # promise anyone may edit waits for nobody; one whose words need a signed
     # yes waits for it.  A change to the whole file (its purpose, its people,
-    # its form) follows the file: free while every promise of its own is
-    # exploring, else it waits.  Lowering what a promise requires waits where
+    # its form) follows the file: free while every invariant of its own is
+    # exploring, else it waits.  Lowering what an invariant requires waits where
     # it required a yes; requiring more is free.  Removing the file always
     # waits.  A failing protecting test holds the commit only where the
     # promise's words need a signed yes; elsewhere it is reported.
@@ -1002,7 +1002,7 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
     my @settled = @asking.grep({ !waits($_) });
     my @failing = @checks.grep({ .<outcome> eq 'failed' });
     # a failing test holds where the promise requires a signed yes in the base or in the candidate:
-    # a commit that asks more of a promise is held to what it asks
+    # a commit that asks more of an invariant is held to what it asks
     my sub holds(Str $id --> Bool) {
         governing($id) eq 'solid' || ($cand-doc.defined && $cand-doc.ok && $cand-doc.protection-of($id) eq 'solid');
     }

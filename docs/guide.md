@@ -66,7 +66,7 @@ the tests that exist only for it; the name is retired for good.
   test is linked to an invariant by naming it in full.
 - The commit hook runs `iz4 gate`: a change to a promise stops and asks you,
   one thing at a time, through `iz4 approve`. See [the gate](gate.md).
-- A new promise is exploring: its card says `CHANGES REQUIRE no approval;
+- A new invariant is exploring: its card says `CHANGES REQUIRE no approval;
   current promise still applies`, so its words move without a yes and a
   failing test warns. `iz4 establish NAME` when it is agreed: from then on a
   change waits for your signed yes and a failing linked test holds the
@@ -95,14 +95,14 @@ iz4 init                   write the IZ4, hook and agent files
 iz4 add                    find a promise, one question at a time
 iz4 when NAME WHAT         say when a promise applies
 iz4 protects NAME WHAT     say whose what a promise protects
-iz4 withdraw NAME          take a promise out, with its tests
+iz4 withdraw NAME          take an invariant out, with its tests
 iz4 status                 where things stand: each invariant's mark, this change, the next step
 iz4 check                  what is true of the file, and what to do next
 iz4 test [NAME]            a test for each invariant without one
 iz4 gate --staged          does this change alter a promise?
 iz4 approve                a person's yes, one change at a time
-iz4 establish NAME         a promise is agreed: changes wait for your yes, failing tests hold
-iz4 explore NAME           let a promise move again while it settles
+iz4 establish NAME         the promise is agreed: changes to it wait for your yes, failing tests hold
+iz4 explore NAME           let the invariant move again: its promise may change while it settles
 iz4 show invariant NAME    one invariant; iz4 invariants shows them all
 iz4 foundation             the foundation every IZ4 carries
 iz4 agent                  what an agent reads first
