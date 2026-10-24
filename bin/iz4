@@ -850,7 +850,7 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
         elsif $checks && $doc.ok {
             # status is interactive and advisory: the tests run eight at a time unless IZ4_JOBS says otherwise;
             # the gate, which holds commits, keeps the runtime's safe default
-            @checks = run-checks($doc, $root, :$timeout, :$cmd, :jobs((%*ENV<IZ4_JOBS> // '') ne '' ?? check-jobs() !! 8));
+            @checks = run-checks($doc, $root, :$timeout, :$cmd, :jobs((%*ENV<IZ4_JOBS> // '') ne '' ?? check-jobs() !! 8), :progress($json ?? Callable !! check-progress()));
             $ran = True;
         }
         my $secs = (now - $t0).round(0.1);
@@ -1109,6 +1109,35 @@ sub say-next(@steps, Str :$then) {
 }
 
 sub short(Str $s --> Str) { $s.chars > 60 ?? $s.substr(0, 57).trim-trailing ~ '...' !! $s }
+
+#| What a person sees while the protecting tests run, so a slow test is
+#| movement and not silence: one line as the run begins, the file under
+#| test while it runs (overwritten by its result where tests run one at
+#| a time), and each result as it lands with its time.  Only on a
+#| terminal (or with IZ4_PROGRESS=1); into a pipe, nothing: what a tool
+#| reads is byte for byte what it always was.  Callable when there is
+#| nobody to tell.
+sub check-progress(--> Callable) {
+    return Callable unless $*OUT.t || (%*ENV<IZ4_PROGRESS> // '') eq '1';
+    my $one = True;                                   # tests run one at a time: a start line can be overwritten
+    my $live = $*OUT.t && !(%*ENV<IZ4_PROGRESS> // '');
+    sub (%e) {
+        given %e<kind> {
+            when 'begin' {
+                $one = %e<jobs> == 1;
+                say '';
+                say pretty("checking {%e<files>} protecting test{%e<files> == 1 ?? '' !! 's'} from the candidate tree ...");
+            }
+            when 'start' { print "  ... {%e<file>}  ({%e<invariants>.join(', ')})" ~ ($live && $one ?? '' !! "\n") if $one }
+            when 'done'  {
+                my $glyph = %e<outcome> eq 'passed' ?? '✓' !! %e<outcome> eq 'failed' ?? '✗' !! '?';
+                my $line  = "  $glyph {%e<file>}  ({%e<invariants>.join(', ')})  {%e<outcome>}, {sprintf('%.1f', %e<seconds>)}s";
+                print "\r\e[2K" if $live && $one;
+                say pretty($line);
+            }
+        }
+    }
+}
 
 #| One plain glyph: green tick, red cross, yellow question; coloured only
 #| on a terminal that has not asked for no colour.
@@ -2047,7 +2076,8 @@ sub gate-command(Str :$base, Str :$candidate, Bool :$enforce, Bool :$json, Bool 
         try {
             %r = run-gate($root, :staged(!$candidate.defined), :$base, :$candidate, :$enforce, :$checks, :$timeout,
                           :check-cmd($cmd), :approval-file($approval.defined ?? $approval.IO !! IO::Path),
-                          :approvers($approvers.defined ?? $approvers.IO !! IO::Path));
+                          :approvers($approvers.defined ?? $approvers.IO !! IO::Path),
+                          :progress($json || $brief ?? Callable !! check-progress()));
             CATCH { default { $failure = $_ } }
         }
         with $failure {
@@ -2085,7 +2115,7 @@ sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out
             my ($rc, $o, $) = git($root.add(ROOT-NAME), 'config', '--get', 'iz4.checkCmd');
             $rc == 0 && $o.trim ne '' ?? $o.trim !! Str;
         };
-        my %r = run-gate($root, :staged(!$candidate.defined), :$base, :$candidate, :check-cmd($cmd));
+        my %r = run-gate($root, :staged(!$candidate.defined), :$base, :$candidate, :check-cmd($cmd), :progress($resolved ?? Callable !! check-progress()));
         my %p = changes => %r<changes>, protections => %r<protections>, heading => heading-for(%r);
         if %r<outcome> eq 'blocked' {
             # An invariant whose test fails is not a wall: it is a question for the
@@ -2190,14 +2220,28 @@ sub settle-failed(IO::Path $root, @failed --> Bool) {
         for @own -> $id {
             my $inv = $doc.invariant($id);
             say '';
-            say "The software and the IZ4 disagree about $id.";
-            say "  It says: {$inv.text}";
-            say "  Its test, {%c<file>}, fails" ~ (%c<detail> ?? ": {%c<detail>}" !! '.');
+            say pretty("The software and the IZ4 disagree about $id.");
+            say '';
+            # the promise as its card says it: the heading and the three fields of intention
+            my @card = invariant-text($path, $id).lines;
+            my $cut  = @card.elems;                   # up to the blank line after PROTECTS: what it requires is not the question here
+            my $seen-protects = False;
+            for @card.kv -> $i, $l {
+                $seen-protects = True if $l ~~ / ^ \h* 'PROTECTS' /;
+                if $seen-protects && $l.trim eq '' { $cut = $i; last }
+            }
+            print pretty(@card[0 ..^ $cut].join("\n") ~ "\n");
+            say '';
+            say pretty("✗ {%c<file>} fails");
+            # what the test said, one line each; its 'not ok' lines first
+            my @said = (%c<detail> // '').split(' | ').map(*.trim).grep(* ne '');
+            my @loud = @said.grep({ .starts-with('not ok') || .contains('Failed test') });
+            say "    $_" for (@loud || @said).head(4);
             say '';
             say 'Which is right?';
-            say '  s  the invariant: the software should keep it, and I will fix the software';
-            say '  i  the software: bring the invariant up to date';
-            say '  w  neither needs it any more: withdraw the invariant';
+            say '  s  the promise: the software should keep it, and I will fix the software';
+            say '  i  the software: bring the promise up to date';
+            say '  w  neither needs it any more: withdraw the promise';
             my $a = '';
             for ^3 {
                 my $said = ask('[s/i/w] ');
@@ -2219,7 +2263,8 @@ sub settle-failed(IO::Path $root, @failed --> Bool) {
                     if $words eq '' { say 'No words, so nothing changed.'; return False }
                     revise-invariant($path, $id, $words);
                     git($path, 'add', '--', ROOT-NAME);
-                    say "$id now says: $words";
+                    say '';
+                    say pretty("✓ $id now says: $words");
                     # its test checked the old words
                     my $only-this = !$doc.invariants.grep({ .id.defined && .id ne $id && names-identity(($root.add(%c<file>).slurp), .id) });
                     if $only-this && yes-no(ask("{%c<file>} checks the old words. Take it out, so a new one can be written ('iz4 test')? [Y/n] "), :default) {
@@ -2233,11 +2278,15 @@ sub settle-failed(IO::Path $root, @failed --> Bool) {
                     withdraw-invariant($path, $id);
                     git($path, 'add', '--', ROOT-NAME);
                     for remove-tests($root, %t<remove>) { git($path, 'add', '-A', '--', $_); say "Removed $_." }
-                    say "$id is withdrawn; its name is retired, and Git keeps its words.";
+                    say '';
+                    say pretty("✓ $id is withdrawn; its name is retired, and Git keeps its words.");
                     $changed = True;
                 }
                 when 's' {
-                    say "Then the invariant stays as it is. Fix the software and commit again; {%c<file>} will tell you when it holds.";
+                    # the one answer that keeps a promise: say so, and say plainly that the software has not caught up yet
+                    say '';
+                    say pretty("✓ You kept $id. The promise stands; the software has to catch up.");
+                    say "  Fix it and commit again: {%c<file>} will say when it holds.";
                     return False;
                 }
                 default { say 'No answer, so nothing changed.'; return False }

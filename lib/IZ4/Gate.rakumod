@@ -461,9 +461,15 @@ sub have-timeout(--> Bool) {
 
 #| Run the tests naming invariants from the candidate tree, each file
 #| once, with a timeout where the system has one.  A test that cannot be
-#| run is unassessed, never passed.
-sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str :$cmd, Int :$jobs = check-jobs() --> List) is export {
+#| run is unassessed, never passed.  &progress, when given, is told what
+#| is happening as it happens, so a person waiting on a slow test sees
+#| movement: once with kind 'begin' and the number of files, then for
+#| each file 'start' and 'done' (with the check's outcome and seconds).
+#| It is for the eye only: the results come back the same with or without it.
+sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str :$cmd, Int :$jobs = check-jobs(), :&progress --> List) is export {
     return () without $cand;
+    my $lock = Lock.new;
+    my sub tell(*%what) { with &progress { $lock.protect: { progress(%what) } } }
     my %ec = evidence-for($cand, $cand-dir);
     my %by-file;
     for %ec<state>.keys -> $n {
@@ -478,10 +484,17 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
     my %clean = %*ENV.grep({ .key ne any(<GIT_INDEX_FILE GIT_DIR GIT_WORK_TREE GIT_PREFIX GIT_COMMON_DIR
                                            GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE>) });
     my sub check-one(Str $f --> Hash) {
+        my $t0 = now;
+        my %r = checked-one($f);
+        tell(kind => 'done', |%r, seconds => (now - $t0).round(0.1));
+        %r;
+    }
+    my sub checked-one(Str $f --> Hash) {
         my @argv = $cmd.defined
             ?? $cmd.subst('{file}', $f, :g).words
             !! runner-for($lang, $f, $cand-dir);
         my %r = file => $f, invariants => by-identity(%by-file{$f}), timeout_applied => $has-timeout;
+        tell(kind => 'start', file => $f, invariants => %r<invariants>);
         if !@argv {
             %r<outcome> = 'unassessed';
             %r<detail>  = "no runner known for $lang tests; set IZ4_CHECK_CMD, e.g. 'npm test -- \{file\}'";
@@ -527,6 +540,7 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
     # The tests are independent of one another, so they run a few at a
     # time; the results come back in file order whatever finished first.
     my @files = %by-file.keys.sort;
+    tell(kind => 'begin', files => @files.elems, jobs => ($jobs max 1)) if @files;
     my @out;
     for @files.batch($jobs max 1) -> @batch {
         @out.append: await @batch.map(-> $f { start { check-one($f) } });
@@ -834,8 +848,8 @@ sub validate-approval(%approval, %snap, Str $digest, IO::Path :$approvers, Bool 
 #| the outcome.  Returns the iz4-gate/1 result as a hash; an operational
 #| error is an exception the caller turns into that outcome.
 sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate, Bool :$enforce = False,
-             Bool :$checks = True, Int :$timeout = 300, Str :$check-cmd, IO::Path :$approval-file, IO::Path :$approvers
-             --> Hash) is export {
+             Bool :$checks = True, Int :$timeout = 300, Str :$check-cmd, IO::Path :$approval-file, IO::Path :$approvers,
+             :&progress --> Hash) is export {
     my %snap = snapshots($root, :$staged, :$base, :$candidate);
     my $base-src = %snap<base>.defined ?? tree-file($root, %snap<base>, ROOT-NAME) !! Str;
     my $cand-src = tree-file($root, %snap<candidate>, ROOT-NAME);
@@ -938,7 +952,7 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
             rm-tree($cand-dir);
             $cand-dir = export-tree($root, %snap<candidate>);
             $linked = link-environment($root, $cand-dir);
-            @checks = run-checks($cand-doc, $cand-dir, :$timeout, :cmd($check-cmd));
+            @checks = run-checks($cand-doc, $cand-dir, :$timeout, :cmd($check-cmd), :&progress);
         }
         elsif !$checks {
             # --no-checks: how many linked tests went unrun, so that skipping

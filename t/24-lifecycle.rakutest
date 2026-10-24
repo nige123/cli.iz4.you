@@ -105,8 +105,11 @@ my %sh = IZ4_CHECK_CMD => 'sh {file}';
     # s: the invariant is right
     ($rc, $out, $err) = iz4-talk($r, "s\n", 'approve', :env(%sh));
     is $rc, 3, 'choosing to fix the software changes nothing';
-    like $out, / "The software and the IZ4 disagree about $ID." .* 'It says: An order is never charged twice.' .* 'Which is right?' /, 'the question is asked in plain words';
-    like $out, / 'Then the invariant stays as it is. Fix the software and commit again' /, 'and the answer is taken as given';
+    like $out, / "The software and the IZ4 disagree about $ID." .* 'An order is never charged twice.' .* 't/charged-once.t fails' .* 'Which is right?' /, 'the question is asked in plain words: the promise, then its failing test';
+    like $out, / "✓ You kept $ID." .* 'commit again' /, 'keeping the promise is recognised as the choice it is, and the software is said to lag';
+    unlike $out, / 'checking' .* 'protecting test' /, 'into a pipe, no progress lines: what a tool reads is unchanged';
+    ($rc, $out, $err) = iz4-talk($r, "s\n", 'approve', :env(%( |%sh, IZ4_PROGRESS => '1' )));
+    like $out, / 'checking 1 protecting test from the candidate tree' .* '✗ t/charged-once.t  (' $ID ')  failed, ' \d+ ['.' \d+]? 's' /, 'for a person, each protecting test is reported as it finishes, with its time';
     like $r.add('IZ4').slurp, / 'An order is never charged twice.' /, 'the IZ4 is untouched';
     unlike $out, / 'BLOCKED' | 'violat' | 'refus' /, 'nobody is told off';
 }
