@@ -331,6 +331,12 @@ multi MAIN(Bool :$version!) { MAIN('version') }
 multi MAIN('init', Str :$for-what, Str :$for-who, Str :$namespace, Bool :$agent, Bool :$agents) {
     attempt :intent, {
         user-error("IZ4 already exists here; not overwriting") if $*CWD.add('IZ4').e;
+        # the title first, then one breath on what is about to happen, so the
+        # questions that follow arrive with their reason
+        say pretty((pretty-on() ?? diamond() ~ ' ' !! '') ~ "iz4 init: starting the IZ4 for {$*CWD.basename}");
+        say '';
+        say "  $_" for wrap('An IZ4 says what this software is for, who it is for, and the few promises that must stay true as it changes. Two answers start it, in your own words; the file is plain text, kept beside the code, and yours to edit.', 72);
+        say '';
         note "init no longer drafts a specification from the repository; after init, 'iz4 suggest' proposes a few candidate invariants"
             if $agent === True;
         my $talk = interactive();
