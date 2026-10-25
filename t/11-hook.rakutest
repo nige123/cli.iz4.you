@@ -53,8 +53,9 @@ if have-git() {
     $repo.add('lib').mkdir; $repo.add('lib/X.pm').spurt("1\n"); g('add', '-A'); $iz4.spurt($iz4.slurp ~ "\n# touched\n");
     ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd1', transcript_path => $plain.Str ));
     is $exit, REFUSE, 'files changed and no report: the turn is refused';
-    like $err, /'Invariant:' .* 'Assessment:' .* 'Remaining gap:'/, 'with the report format';
-    like $err, /'Invariant:' \s+ 'its name and wording'/, 'which asks for each invariant by name';
+    like $err, /'Invariant NAME:' .* 'mechanically verified' .* 'Remaining gap:'/, 'with the report format';
+    like $err, /'one line per invariant' .* 'Invariant NAME:'/, 'which asks for each invariant by name, one line each';
+    unlike $err, / \n .+ \n /, 'in one line';
     ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd1', transcript_path => $plain.Str ));
     is $exit, ALLOW, 'but only once, so a session cannot be trapped';
     ($exit, $out, $err) = on-stop($iz4, %( session_id => 'd2', transcript_path => $plain.Str, stop_hook_active => True ));

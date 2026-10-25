@@ -44,7 +44,7 @@ sub topics(--> List) is export {
       "iz4 add promise 'Charged once.' --when='an order is paid' --protects=\"a buyer's money\" --name=charged-once"),
     t('status', EVERY-DAY, 'where things stand: the foundation, each invariant, this change',
       ['iz4 status', 'iz4 status --recheck', 'iz4 status --no-checks', 'iz4 status --json'],
-      'One screen: the foundation, each invariant with its mark (held, promised, broken, not checked), what is staged, your agents, the next command. The protecting tests run when the tree changed since the last run; --recheck always, --no-checks never. Never says the software is safe.',
+      'One screen: the foundation, each invariant with its mark (held, promised, broken, not checked) and the share held, what is staged, your agents, the next command. The protecting tests run when the tree changed since the last run; --recheck always, --no-checks never. Never says the software is safe.',
       'iz4 status'),
     t('check', EVERY-DAY, 'what is true of the file, and what to do next',
       ['iz4 check', 'iz4 check --strict'],

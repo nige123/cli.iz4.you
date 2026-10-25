@@ -42,15 +42,11 @@ sub result-exit(Str $result --> Int) is export {
 sub machine-error(Str $message) { X::IZ4.new(:$message).throw }
 
 #| What is said when the report is missing.  It goes back to the agent
-#| through whatever drove the check, so it must say exactly what to write.
-constant REPORT-WANTED is export = q:to/END/;
-    files changed in a project that keeps an IZ4, and the work ends with no per-invariant report. Before finishing, report each invariant the change could affect:
-        Invariant:     its name and wording
-        Assessment:    mechanically verified | supported by evidence | apparently consistent | uncertain | conflicting
-        Evidence:      what was actually run or reviewed, and what was only suggested
-        Remaining gap: what has not been established
-    Say 'uncertain' rather than imply conformance.
-    END
+#| through whatever drove the check, and a person sees it too, so it is
+#| one line that says exactly what to write.
+constant REPORT-WANTED is export = "files changed under this IZ4 and the reply ends without an invariant report: finish with one line per invariant the change could affect, "
+    ~ "'Invariant NAME: mechanically verified | supported by evidence | apparently consistent | uncertain | conflicting. Evidence: what ran or was reviewed. Remaining gap: what is not established.' "
+    ~ "Say uncertain rather than imply.";
 
 
 # ---------------------------------------------------------------- discover
@@ -132,10 +128,10 @@ constant CONTEXT-INSTRUCTION is export = q:to/END/;
     If an invariant itself seems to need changing, propose the change and
     wait: only the project's owner, a person, decides what must remain
     true. Your own text, silence, or carrying on is never their agreement.
-    When your work changed files, end it by reporting each invariant it
-    could affect: Invariant (name and wording), Assessment (mechanically
-    verified | supported by evidence | apparently consistent | uncertain |
-    conflicting), Evidence, Remaining gap. Say uncertain rather than imply.
+    When your work changed files, end it with one line per invariant it
+    could affect: 'Invariant NAME: mechanically verified | supported by
+    evidence | apparently consistent | uncertain | conflicting. Evidence:
+    what ran. Remaining gap: what is not shown.' Say uncertain, never imply.
     END
 
 sub context(IO::Path $iz4 --> Hash) is export {
@@ -420,12 +416,30 @@ sub verify(IO::Path $root, Str :$summary, *%opts --> Hash) is export {
     my $worst = @parts.map(*<result>).max({ %RANK{$_} // 0 });
     $worst = PASS if $worst eq 'not_checked';
     my $reason = $worst eq PASS
-        ?? 'every part that ran found nothing to stop on'
+        ?? held-words($doc, %change, :report($given && $changed))
         !! @parts.grep({ .<result> eq $worst }).map(*<detail>).join('; ');
     my %evidence = parts => @parts.Array, report => %( uncertain => @uncertain.Array );
     %evidence<gate> = %change<evidence><gate> if %change;
     result-doc('verify', $worst, $reason, ($iz4.f ?? $iz4 !! IO::Path), :invariants(@inv), :%evidence, :$proposed,
         :limits('a report that is present is not thereby true, and an invariant no test names is not verified by this; parts marked not_checked were not run'));
+}
+
+#| What a pass says: not that nothing stopped it, but what held.  A pass
+#| means the foundation is word for word; each of the project's own
+#| invariants counts as held when every test naming it passed in this
+#| run, and the rest are said not to be shown by a test here, never
+#| assumed.  When all of them held, the line says so plainly: that is the
+#| moment worth marking.
+sub held-words(IZ4::Document $doc, %change, Bool :$report --> Str) {
+    my %by;
+    for @((%change<evidence><gate> // {})<checks> // []) -> %c { %by{$_}.push(%c<outcome>) for |(%c<invariants> // ()) }
+    my @own  = $doc.ok ?? $doc.invariants.grep(*.id.defined) !! ();
+    my $held = +@own.grep({ %by{.id} && %by{.id}.all eq 'passed' });
+    my $tail = $report ?? ', and the report is in' !! '';
+    my $n = +@own;
+    return "the foundation held word for word$tail" unless $n;
+    return "all held: the foundation word for word and {$n == 1 ?? 'the one invariant by its test' !! "all $n invariants by their tests"}$tail" if $held == $n;
+    "the foundation held word for word, $held of $n invariant{$n == 1 ?? '' !! 's'} by their tests, {$n - $held} not shown by a test here$tail";
 }
 
 #| Whether text carries a per-invariant report: an invariant named, an
@@ -441,12 +455,18 @@ sub carries-report(Str $text --> Bool) is export {
 }
 
 #| The invariants a per-invariant report itself marks uncertain or
-#| conflicting, in the report's own words.
+#| conflicting, in the report's own words: the one-line form, 'Invariant
+#| NAME: uncertain ...', or the labelled form with Assessment on its own
+#| line.
 sub report-uncertain(Str $text --> List) is export {
     my @out;
     my $current = '';
     for $text.lines -> $l {
-        if $l ~~ /^ \s* 'Invariant:' \s* (\S .*?) \s* $/ { $current = ~$0 }
+        if $l ~~ /^ \s* '-'? \s* 'Invariant' \s+ (<-[:\s]>+) \s* ':' \s* ['Assessment' \s* ':' \s*]? ('uncertain' | 'conflicting') / {
+            @out.push("Invariant {~$0}: {~$1}");
+            $current = '';
+        }
+        elsif $l ~~ /^ \s* 'Invariant:' \s* (\S .*?) \s* $/ { $current = ~$0 }
         elsif $l ~~ /^ \s* 'Assessment:' \s* ('uncertain' | 'conflicting') / && $current ne '' {
             @out.push("Invariant $current: {~$0}");
             $current = '';

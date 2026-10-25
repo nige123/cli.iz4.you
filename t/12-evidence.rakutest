@@ -48,6 +48,10 @@ is evidence-for($doc, $repo)<state>{$EXPIRE}, 'none', 'prose outside the test di
 $repo.add('t/.codes.t.swp').spurt(Blob.new(0xff, 0xfe, 0x00, 0x49));
 $repo.add('t/binary.t').spurt(Blob.new(0xff, 0xfe, 0x00, 0x49, 0x6e));
 is evidence-for($doc, $repo)<state>{$ONCE}, 'named', 'a swap file or an unreadable file in t/ is skipped, not fatal';
+$repo.add('.claude/worktrees/trial/t').mkdir;
+$repo.add('.claude/worktrees/trial/t/expiry.t').spurt("# {$EXPIRE}\nok 1;\n");
+is evidence-for($doc, $repo)<state>{$EXPIRE}, 'none', "a test under a hidden directory (a tool's worktree, a venv) is not the project's";
+ok !evidence-for($doc, $repo)<files>{$ONCE}.grep(*.contains('.claude')), 'and nothing from under it is listed';
 
 ok  names-identity("# INVARIANT {$ONCE}\n", ONCE), 'names-identity: the name alone on a line';
 ok  names-identity("({$ONCE})", ONCE), 'names-identity: in brackets';

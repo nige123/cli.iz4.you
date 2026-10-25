@@ -96,7 +96,7 @@ my %sh = IZ4_CHECK_CMD => 'sh {file}';
     my $r = shop;
     my ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', :env(%sh));
     is $rc, 3, 'a failing invariant test stops the change';
-    like $out, / 'next:' \n '  1. iz4 approve' \s+ '(t/charged-once.t fails: it asks which is right, the software or the invariant' /,
+    like $out, / 'next:' \n '  1. make t/charged-once.t pass' \s+ '(' $ID ' is broken; the promise stands as written)' /,
         'and the next step is the one command, which helps';
     ($rc, $out, $err) = iz4($r, 'approve', :env(%sh));
     is $rc, 3, 'with nobody at a terminal nothing is decided';

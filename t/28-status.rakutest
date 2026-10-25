@@ -56,7 +56,7 @@ is $rc, 0, 'add';
 like $out, / 'Added PROMISE charged-once.shop.example.com, established' /, 'an established promise, so its words wait for a yes';
 like iz4($r, 'status')[1], / ^ 'iz4 status: IZ4, established' /, 'and the header says so';
 ($rc, $out, $err) = iz4($r, 'status');
-like $out, / 'invariants    1 of your own: 1 promised' \n '  ◇ charged-once  no test yet' \n \n /, 'an invariant without a test is a promise: an open diamond';
+like $out, / 'invariants    1 of your own: 0% held (0), 1 promised' \n '  ◇ charged-once  no test yet' \n \n /, 'an invariant without a test is a promise: an open diamond, and the share held is said';
 like $out, / 'next:  iz4 test' /, 'and the next step is a test';
 like $out, / 'this change   nothing staged' /, 'the IZ4 changed in the worktree but nothing is staged';
 g($r, 'add', 'IZ4');
@@ -71,7 +71,7 @@ my $test = $r.add('t/charged-once.t');
 $test.spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
 ($rc, $out, $err) = iz4($r, 'status');
 is $rc, 0, 'status with a passing test';
-like $out, / 'invariants    1 of your own: 1 held' \n '  ◆ charged-once  t/charged-once.t passed' \n \n /, 'a test names it and passed: a closed diamond';
+like $out, / 'invariants    1 of your own: 100% held (1)' \n '  ◆ charged-once  t/charged-once.t passed' \n \n /, 'a test names it and passed: a closed diamond, and the share held is said';
 like $out, / 'checked       1 test just now, ' \d+ ['.' \d+]? 's' \n /, 'it says it ran the test';
 like $out, / 'next:  nothing waits on you' \n \n 'All held: 1 of 1 invariants by their tests just now, and the foundation word for word.' \n /, 'nothing to do, and it says plainly that everything held';
 my %j = Rakudo::Internals::JSON.from-json(iz4($r, 'status', '--json')[1]);
@@ -98,13 +98,14 @@ like $out, / 'next:  iz4 status' /, 'the next step is to run them';
 # ---- broken ------------------------------------------------------------------
 ($rc, $out, $err) = iz4($r, 'status');
 is $rc, 0, 'status exits 0 even when a test fails: it reports, it does not hold';
-like $out, / 'invariants    1 of your own: 1 broken' \n '  ✕ charged-once  t/charged-once.t FAILED' \n \n /, 'its test fails: a cross';
-like $out, / 'next:  iz4 approve   (t/charged-once.t fails: which is right, the software or the invariant?)' /, 'the next step asks which is right';
+like $out, / 'invariants    1 of your own: 0% held (0), 1 broken' \n '  ✕ charged-once  t/charged-once.t FAILED' \n \n /, 'its test fails: a cross';
+like $out, / 'next:  make t/charged-once.t pass   (charged-once.shop.example.com is broken; the promise stands as written)' /, 'the next step is to make the test pass, never to approve a failure';
+unlike $out, / 'next:  iz4 approve' /, 'a failing test sends nobody to approve';
 
 # ---- not checked -------------------------------------------------------------
 ($rc, $out, $err) = iz4($r, 'status', :env(IZ4_CHECK_CMD => 'no-such-runner-anywhere {file}'));   # another runner is another run: nothing is reused
 like $out, / '  ? charged-once  t/charged-once.t not run (unassessed)' /, 'a runner that is not there: a question mark';
-like $out, / 'invariants    1 of your own: 1 unknown' /, 'counted as unknown';
+like $out, / 'invariants    1 of your own: 0% held (0), 1 unknown' /, 'counted as unknown';
 
 # ---- plain terminals ---------------------------------------------------------
 ($rc, $out, $err) = iz4($r, 'status', :env(LC_ALL => 'C', LANG => 'C'));

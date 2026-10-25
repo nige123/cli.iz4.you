@@ -87,4 +87,9 @@ unassessed, 1 error). Approvals are `refs/iz4/approvals/<tree>` in Git.
 
 More: [iz4.you](https://iz4.you).
 
-The protecting tests run one at a time; `IZ4_JOBS=8` runs them in parallel where the runtime is known to be safe for it.
+The gate runs the protecting tests one at a time. `iz4 status` runs eight
+at once and runs any failure again alone before calling an invariant
+broken: a test that fails beside the others and passes alone is reported
+as exactly that. Tests that share a database or a port collide when run
+together; `git config iz4.jobs 1` says so once for the repository, and
+every command honours it. `IZ4_JOBS` sets the number for one run.

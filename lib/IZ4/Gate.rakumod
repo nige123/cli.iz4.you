@@ -468,6 +468,7 @@ sub have-timeout(--> Bool) {
 #| It is for the eye only: the results come back the same with or without it.
 sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str :$cmd, Int :$jobs = check-jobs(), :&progress --> List) is export {
     return () without $cand;
+    my $at-once = $jobs max 1;
     my $lock = Lock.new;
     my sub tell(*%what) { with &progress { $lock.protect: { progress(%what) } } }
     my %ec = evidence-for($cand, $cand-dir);
@@ -537,26 +538,50 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
         }
         %r;
     }
-    # The tests are independent of one another, so they run a few at a
-    # time; the results come back in file order whatever finished first.
+    # The tests run a few at a time; the results come back in file order
+    # whatever finished first.
     my @files = %by-file.keys.sort;
-    tell(kind => 'begin', files => @files.elems, jobs => ($jobs max 1)) if @files;
+    tell(kind => 'begin', files => @files.elems, jobs => $at-once) if @files;
     my @out;
-    for @files.batch($jobs max 1) -> @batch {
+    for @files.batch($at-once) -> @batch {
         @out.append: await @batch.map(-> $f { start { check-one($f) } });
+    }
+    # Tests that share a database or a port collide when run together.  A
+    # test that failed beside the others is run again alone before anything
+    # is called broken: if it passes then, the promise held and the tests
+    # collided, and the result says both.  A test that fails alone has failed.
+    if $at-once > 1 {
+        my @again = @out.grep({ .<outcome> eq 'failed' });
+        if @again {
+            tell(kind => 'retry', files => @again.elems);
+            for @again -> %first {
+                my %alone = check-one(%first<file>);
+                next unless %alone<outcome> eq 'passed';
+                %alone<alongside> = 'failed';
+                %alone<detail>    = "failed beside the other tests, passed alone: the tests collide when run together; 'git config iz4.jobs 1' runs them one at a time";
+                for @out.kv -> $i, %c { @out[$i] = %alone if %c<file> eq %first<file> }
+            }
+        }
     }
     @out;
 }
 
-#| How many protecting tests run at once: IZ4_JOBS, else one.  Running
-#| them in parallel under Raku++ produced an intermittent 'error' outcome
-#| from the gate in the benchmark (one run in about a hundred), and a gate
-#| that sometimes errs is worse than one that is sometimes slow; 'iz4
-#| status' reuses a run while the tree is unchanged, so the cost is paid
-#| once per change.  IZ4_JOBS=8 opts in.
-sub check-jobs(--> Int) is export {
+#| How many protecting tests run at once: IZ4_JOBS for this run, else the
+#| repository's own 'git config iz4.jobs' (in .git/config, outside every
+#| tree, like iz4.checkCmd), else :default.  The gate, which holds
+#| commits, defaults to one: running tests in parallel under Raku++ once
+#| produced an intermittent error in the benchmark, and a gate that
+#| sometimes errs is worse than one that is sometimes slow.  'iz4 status',
+#| which advises and reuses a run while the tree is unchanged, defaults to
+#| eight and runs any failure again alone.  A repository whose tests
+#| collide says 'git config iz4.jobs 1' once, and every command honours it.
+sub check-jobs(IO::Path :$root, Int :$default = 1 --> Int) is export {
     my $j = %*ENV<IZ4_JOBS> // '';
-    $j ~~ /^ \d+ $/ && $j > 0 ?? $j.Int !! 1;
+    if $root.defined && !($j ~~ /^ \d+ $/ && $j > 0) {
+        my ($rc, $out, $) = git($root.add(ROOT-NAME), 'config', '--get', 'iz4.jobs');
+        $j = $rc == 0 ?? $out.trim !! '';
+    }
+    $j ~~ /^ \d+ $/ && $j > 0 ?? $j.Int !! $default;
 }
 
 # -------------------------------------------------------------- proposal
@@ -952,7 +977,7 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
             rm-tree($cand-dir);
             $cand-dir = export-tree($root, %snap<candidate>);
             $linked = link-environment($root, $cand-dir);
-            @checks = run-checks($cand-doc, $cand-dir, :$timeout, :cmd($check-cmd), :&progress);
+            @checks = run-checks($cand-doc, $cand-dir, :$timeout, :cmd($check-cmd), :jobs(check-jobs(:$root)), :&progress);
         }
         elsif !$checks {
             # --no-checks: how many linked tests went unrun, so that skipping
@@ -1057,7 +1082,8 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
             @next.push: 'iz4 check' if @changes.grep({ .<kind> eq 'invalid' });
             @next.push: 'give the invariant a name the file has never used' if @changes.grep({ .<kind> eq 'reused-name' });
             @next.push: "keep the IZ4 in the card form" if @changes.grep({ .<kind> eq 'format-regressed' });
-            @next.push: "iz4 approve   ({.<file>} fails: it asks which is right, the software or the invariant, and helps with either)" for @checks.grep({ .<outcome> eq 'failed' }).head(1);
+            # a failing test is never a reason to send anyone to approve: the promise stands as written until a person changes it
+            @next.push: "make {.<file>} pass   ({.<invariants>.join(', ')} is broken; the promise stands as written)" for @checks.grep({ .<outcome> eq 'failed' }).head(1);
         }
         when 'agreement-required' {
             # one command, and nothing to look up: approve finds the change, the key and where to send it

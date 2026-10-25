@@ -831,6 +831,14 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
         my $doc  = check-doc($path);
         my $name = display-name($path);
         my $t0   = now;
+        my @own = $doc.ok ?? $doc.invariants.grep(*.id.defined) !! ();
+        my $standing = !@own ?? 'no promises of its own yet' !! @own.grep(*.exploring) == @own ?? 'exploring' !! !@own.grep(*.exploring) ?? 'established' !! "{+@own.grep({ !.exploring })} of {+@own} established";
+        # the title first, so the screen begins with it; the tests report under it while they run and clear the line when done
+        my $icon = pretty-on() ?? diamond() ~ ' ' !! '';
+        unless $json {
+            say pretty("{$icon}iz4 status: $name, " ~ ($doc.form eq 'card' ?? $standing !! $doc.mode eq 'solid' ?? 'solid' !! "{$doc.mode} mode"));
+            say '';
+        }
         # agents: the level a driver reports, asked for now and read later, so it overlaps the tests
         my $driver = driver-binary();
         my $bin    = launcher-binary();
@@ -848,9 +856,10 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
                  !! $driver.defined ?? start { (try driver($driver, 'status', :$root)) // %() } !! Promise.kept(%());
         if %last && !$recheck { @checks = %last<checks>.list; $recorded = True; $when = ago(%last<at> // '') }
         elsif $checks && $doc.ok {
-            # status is interactive and advisory: the tests run eight at a time unless IZ4_JOBS says otherwise;
-            # the gate, which holds commits, keeps the runtime's safe default
-            @checks = run-checks($doc, $root, :$timeout, :$cmd, :jobs((%*ENV<IZ4_JOBS> // '') ne '' ?? check-jobs() !! 8), :progress($json ?? Callable !! check-progress()));
+            # status is interactive and advisory: the tests run eight at a time unless IZ4_JOBS or the
+            # repository's 'git config iz4.jobs' says otherwise, and a failure is run again alone before
+            # it is called broken; the gate, which holds commits, keeps the runtime's safe default of one
+            @checks = run-checks($doc, $root, :$timeout, :$cmd, :jobs(check-jobs(:$root, :default(8))), :progress($json ?? Callable !! check-progress()));
             $ran = True;
         }
         my $secs = (now - $t0).round(0.1);
@@ -858,11 +867,10 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
         mark-solid(%state);
         my %ev = $doc.ok ?? evidence-for($doc, $root) !! %();
         my %by-id; for @checks -> %c { %by-id{$_}.push(%c) for |(%c<invariants> // ()) }
-        my @own = $doc.ok ?? $doc.invariants.grep(*.id.defined) !! ();
         my %count; %count{%state{.id}}++ for @own;
         my @inv = @own.map(-> $inv {
             my @c = |(%by-id{$inv.id} // ());
-            my $note = do if @c { @c.map({ "{.<file>} " ~ (.<outcome> eq 'passed' ?? 'passed' !! .<outcome> eq 'failed' ?? 'FAILED' !! "not run ({.<outcome>})") }).join(', ') }
+            my $note = do if @c { @c.map({ "{.<file>} " ~ (.<outcome> eq 'passed' ?? ((.<alongside> // '') eq 'failed' ?? 'passed alone, failed beside the others' !! 'passed') !! .<outcome> eq 'failed' ?? 'FAILED' !! "not run ({.<outcome>})") }).join(', ') }
                           elsif (%ev<state>{$inv.id} // 'none') eq 'named' { ($checks ?? 'named by ' !! 'not checked; named by ') ~ (%ev<files>{$inv.id} // ()).join(', ') }
                           elsif (%ev<state>{$inv.id} // 'none') ne 'none' { "a {%ev<state>{$inv.id}} test, not yet real" }
                           else { 'no test yet' };
@@ -889,20 +897,20 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
         # the one next step, in the order that clears the most
         my @next;
         @next.push('iz4 check') unless $doc.ok;
-        @next.push("iz4 approve   ({.<file>} fails: which is right, the software or the invariant?)") for @checks.grep({ .<outcome> eq 'failed' }).head(1);
+        # a failing test is never a reason to send anyone to approve: the promise stands as written until a person changes it
+        @next.push("make {.<file>} pass   ({.<invariants>.join(', ')} is broken; the promise stands as written)") for @checks.grep({ .<outcome> eq 'failed' }).head(1);
+        my @collided = @checks.grep({ (.<alongside> // '') eq 'failed' });
+        @next.push("git config iz4.jobs 1   ({+@collided} test{+@collided == 1 ?? '' !! 's'} failed beside the others and passed alone: run them one at a time)") if @collided;
         @next.push('iz4 approve --staged') if (%change<outcome> // '') eq 'agreement-required';
         @next.push('iz4 status') if !$checks && !$recorded && @own;
         @next.push('iz4 test') if @own.grep({ (%ev<state>{.id} // 'none') eq 'none' });
         @next.push('321 iz4 install') if $driver.defined && $level ne 'guarded' && %enf && so @(%enf<harnesses> // []).grep({ .<detected> });
-        my $standing = !@own ?? 'no promises of its own yet' !! @own.grep(*.exploring) == @own ?? 'exploring' !! !@own.grep(*.exploring) ?? 'established' !! "{+@own.grep({ !.exploring })} of {+@own} established";
+        my $held-pct = @own ?? (100 * (%count<held> // 0) / @own).round !! 0;
         my %s = schema => 'iz4-status/1', iz4 => %( present => True, file => $path.Str, valid => $doc.ok, form => $doc.form, mode => $doc.mode, standing => $standing ),
                 foundation => %( intact => $doc.foundation-intact, status => $doc.foundation-status ),
-                invariants => @inv.List, counts => %count, change => %change, agents => %agents,
+                invariants => @inv.List, counts => %count, held_percent => $held-pct, change => %change, agents => %agents,
                 checks => %( ran => $ran, recorded => $recorded, at => (%last<at> // Str), count => @checks.elems, seconds => $secs ), next => @next.List;
         if $json { say json-encode(%s); return 0 }
-        my $icon = pretty-on() ?? diamond() ~ ' ' !! '';
-        say pretty("{$icon}iz4 status: $name, " ~ ($doc.form eq 'card' ?? $standing !! $doc.mode eq 'solid' ?? 'solid' !! "{$doc.mode} mode"));
-        say '';
         my sub row(Str $k, Str $v) { say pretty(sprintf('%-13s %s', $k, $v)) }
         row('foundation', $doc.foundation-intact ?? 'held, word for word' !! "CHANGED: {$doc.foundation-status}; iz4 foundation restore puts it back");
         say '';
@@ -910,7 +918,7 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
         elsif !@own { row('invariants', 'none of your own yet') }
         else {
             my $w = @own.map({ .id.subst('.' ~ ($doc.domain // ''), '') }).map(*.chars).max;
-            row('invariants', "{+@own} of your own: " ~ <held promised broken unknown>.grep({ %count{$_} }).map({ "{%count{$_}} $_" }).join(', '));
+            row('invariants', "{+@own} of your own: $held-pct% held ({%count<held> // 0})" ~ <promised broken unknown>.grep({ %count{$_} }).map({ ", {%count{$_}} $_" }).join);
             for @inv -> %i {
                 my $short = %i<id>.subst('.' ~ ($doc.domain // ''), '');
                 say sprintf('  %s %-*s  %s', mark-shown(%i<id>), $w, $short, %i<evidence>);
@@ -1117,23 +1125,39 @@ sub short(Str $s --> Str) { $s.chars > 60 ?? $s.substr(0, 57).trim-trailing ~ '.
 #| terminal (or with IZ4_PROGRESS=1); into a pipe, nothing: what a tool
 #| reads is byte for byte what it always was.  Callable when there is
 #| nobody to tell.
+#| What a person waiting on the protecting tests sees.  On a terminal,
+#| one line, rewritten as the run moves and wiped when it ends, so the
+#| screen that follows starts clean and nothing reads like a log.
+#| IZ4_PROGRESS=1 asks instead for one line per test, left where it is,
+#| for a pipe that wants the record.  Into a pipe with nothing asked,
+#| nothing: what a tool reads is unchanged.
 sub check-progress(--> Callable) {
-    return Callable unless $*OUT.t || (%*ENV<IZ4_PROGRESS> // '') eq '1';
-    my $one = True;                                   # tests run one at a time: a start line can be overwritten
-    my $live = $*OUT.t && !(%*ENV<IZ4_PROGRESS> // '');
+    my $lines = (%*ENV<IZ4_PROGRESS> // '') eq '1';
+    return Callable unless $lines || $*OUT.t;
+    my ($total, $done) = 0, 0;
+    my sub live(Str $s) { print "\r\e[2K" ~ $s; $*OUT.flush }
+    my sub tests(Int $n) { "$n protecting test" ~ ($n == 1 ?? '' !! 's') }
     sub (%e) {
         given %e<kind> {
             when 'begin' {
-                $one = %e<jobs> == 1;
-                say '';
-                say pretty("checking {%e<files>} protecting test{%e<files> == 1 ?? '' !! 's'} from the candidate tree ...");
+                $total = %e<files>; $done = 0;
+                if $lines { say ''; say pretty("checking {tests($total)} from the candidate tree ...") }
+                else { live(pretty("checking {tests($total)} ...")) }
             }
-            when 'start' { print "  ... {%e<file>}  ({%e<invariants>.join(', ')})" ~ ($live && $one ?? '' !! "\n") if $one }
-            when 'done'  {
-                my $glyph = %e<outcome> eq 'passed' ?? '✓' !! %e<outcome> eq 'failed' ?? '✗' !! '?';
-                my $line  = "  $glyph {%e<file>}  ({%e<invariants>.join(', ')})  {%e<outcome>}, {sprintf('%.1f', %e<seconds>)}s";
-                print "\r\e[2K" if $live && $one;
-                say pretty($line);
+            when 'start' { live(pretty("checking {tests($total)}: $done done, {%e<file>} running ...")) unless $lines }
+            when 'retry' {
+                $total += %e<files>;
+                my $what = "{%e<files>} failed beside the others: running {%e<files> == 1 ?? 'it' !! 'them'} alone ...";
+                if $lines { say pretty("  $what") } else { live(pretty($what)) }
+            }
+            when 'done' {
+                $done++;
+                if $lines {
+                    my $glyph = %e<outcome> eq 'passed' ?? '✓' !! %e<outcome> eq 'failed' ?? '✗' !! '?';
+                    say pretty("  $glyph {%e<file>}  ({%e<invariants>.join(', ')})  {%e<outcome>}, {sprintf('%.1f', %e<seconds>)}s");
+                }
+                elsif $done >= $total { print "\r\e[2K"; $*OUT.flush }
+                else { live(pretty("checking {tests($total)}: $done done ...")) }
             }
         }
     }

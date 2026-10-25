@@ -24,6 +24,7 @@ use IZ4::Document;
 use IZ4::Agent;
 use IZ4::Git;
 use IZ4::Register;
+use IZ4::Machine;      # REPORT-WANTED: the one line that asks for the report
 
 #| Exit codes the harness contract uses: 0 allow, 2 refuse with the
 #| reason on standard error.
@@ -103,19 +104,13 @@ sub on-stop(IO::Path $iz4, %input --> List) is export {
     return (ALLOW, '', '') if marked(%input, 'reported');
     return (ALLOW, '', '') unless changed-since-start($iz4, %input);
     my $last = last-assistant-text(%input<transcript_path>);
-    if $last ~~ /:i 'invariant' .* 'assessment' .* [ 'evidence' | 'remaining gap' ] / {
+    if $last ~~ /:i 'invariant' .* [ 'assessment' | 'mechanically verified' | 'supported by evidence' | 'apparently consistent' | 'uncertain' | 'conflicting' ] .* [ 'evidence' | 'remaining gap' ] / {
         mark(%input, 'reported');
         return (ALLOW, '', '');
     }
     mark(%input, 'reported');
     (REFUSE, '',
-     "iz4: files changed in a repository that keeps an IZ4, and the reply gives no per-invariant report. "
-     ~ "Before finishing, report each invariant the change could affect:\n"
-     ~ "    Invariant:     its name and wording\n"
-     ~ "    Assessment:    mechanically verified | supported by evidence | apparently consistent | uncertain | conflicting\n"
-     ~ "    Evidence:      what was actually run or reviewed, and what was only suggested\n"
-     ~ "    Remaining gap: what has not been established\n"
-     ~ "Say 'uncertain' rather than imply conformance. 'iz4 invariants' lists them.\n");
+     "iz4: " ~ REPORT-WANTED ~ " 'iz4 invariants' lists them.\n");
 }
 
 #| Whether the repository's tracked files differ from the last commit, or

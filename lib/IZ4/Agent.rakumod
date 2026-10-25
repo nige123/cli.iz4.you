@@ -54,13 +54,12 @@ constant AGENT-PROTOCOL is export = q:to/END/;
         intent you cannot see, ask the owner; never invent it.
     6.  Choose proportionate evidence for each affected invariant: an
         existing test, a new behavioural test, inspection or human review.
-    7.  Before finishing, report each affected invariant honestly:
-            Invariant:     its name and wording
-            Assessment:    mechanically verified | supported by evidence |
-                           apparently consistent | uncertain | conflicting
-            Evidence:      what was actually run or reviewed, and what was
-                           only suggested
-            Remaining gap: what has not been established
+    7.  Before finishing, report each affected invariant honestly, one
+        line each:
+            Invariant NAME: mechanically verified | supported by evidence
+            | apparently consistent | uncertain | conflicting.  Evidence:
+            what was actually run or reviewed.  Remaining gap: what has
+            not been established.
         A checker cannot prove a natural-language invariant.  Say
         'uncertain' rather than implying conformance.
     8.  If the IZ4 changes during the task, re-read it.  When delegating

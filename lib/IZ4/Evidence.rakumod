@@ -47,7 +47,7 @@ my @SKIP-DIRS  = <.git node_modules local vendor dist target .precomp build .ven
 sub is-test-path(Str $rel --> Bool) is export {
     my @parts = $rel.split('/');
     return False if @parts > 8;
-    return False if so @parts.head(*-1).first({ $_ eq any(@SKIP-DIRS) });
+    return False if so @parts.head(*-1).first({ $_ eq any(@SKIP-DIRS) || $_.starts-with('.') });
     return False if @parts.tail.starts-with('.');
     so @parts.head(*-1).first({ $_ eq any(@TEST-DIRS) }) || so(@parts.tail ~~ &test-file-name);
 }
@@ -59,6 +59,8 @@ sub test-files(IO::Path $root --> List) is export {
         return if $depth > 6;
         for (try $dir.dir.sort) // () -> $e {
             next if so $e.basename eq any(@SKIP-DIRS);
+            # a hidden directory is a tool's, not the project's: .git, an agent's worktrees, .venv
+            next if $e.d && $e.basename.starts-with('.');
             if $e.d {
                 # so(): a junction argument would autothread the call, walking the tree once per name
                 walk($e, $depth + 1, so($in-tests || $e.basename eq any(@TEST-DIRS)));

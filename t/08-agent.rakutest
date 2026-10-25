@@ -40,7 +40,7 @@ like $protocol, /'mechanically verified | supported by evidence | apparently con
 like $protocol, /'cannot prove a natural-language invariant'/, 'no checker proves prose';
 like $protocol, /'No project-level approval can waive the foundation'/, 'the foundation cannot be waived';
 like $protocol, /"An invariant's name is its identity: cite it whole, exactly as written"/, 'agents are told to cite an invariant by its whole name';
-like $protocol, /'Invariant: its name and wording'/, 'and the closing report names each invariant';
+like $protocol, /'one line each: Invariant NAME: mechanically verified'/, 'and the closing report names each invariant, one line each';
 unlike $protocol, /'Invariants 0-4' | 'its number'/, 'nothing in the protocol speaks of numbered invariants';
 unlike $protocol, /"'direction' entries"/, 'no trace of the old specification sections';
 
