@@ -50,7 +50,11 @@ class Screen is export {
     method brief(--> Str) { @!records.map({ .join("\t") ~ "\n" }).join }
     method json(--> Str) { json-encode(%!doc) ~ "\n" }
     method render(Str $form, Bool :$title = True --> Str) {
-        given $form { when 'json' { self.json } when 'brief' { self.brief } default { self.screen(:$title) } }
+        given $form {
+            when 'json'  { self.json }
+            when 'brief' { self.brief }
+            default      { self.screen(:$title) }
+        }
     }
 }
 

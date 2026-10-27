@@ -121,4 +121,16 @@ for <zsh fish> -> $sh {
     else { skip "no $sh here", 1 }
 }
 
+# ---- both runtimes ----------------------------------------------------------------
+# The suite usually runs the Raku++ binary, but a hook runs the protecting tests
+# under whatever 'raku' is, and Raku++ accepts forms Rakudo does not: one
+# 'given' with three 'when' blocks on a line broke every hook in 0.32.0.
+if run('sh', '-c', 'command -v raku', :out, :err).exitcode == 0 {
+    my $here = $?FILE.IO.resolve.parent(2);
+    my $p = run 'raku', '-I', $here.add('lib').Str, '-c', $here.add('bin/iz4').Str, :out, :err;
+    my $said = $p.err.slurp(:close) ~ $p.out.slurp(:close);
+    is $p.exitcode, 0, 'iz4 and every module it uses compile under Rakudo too' or diag $said;
+}
+else { skip 'no Rakudo here', 1 }
+
 done-testing;

@@ -2156,8 +2156,15 @@ multi MAIN('check', 'action', Bool :$json = False, Str :$action, Str :$dir) {
 sub change-options(Bool :$staged, Bool :$worktree, Str :$base, Str :$candidate, Bool :$checks, Int :$timeout, Str :$check-cmd,
                    Str :$approval, Str :$approvers --> Hash) {
     user-error('choose one of --worktree, --staged or --candidate=REV') if ($worktree, $staged, $candidate.defined).grep(?*).elems > 1;
+    # the command that runs one linked test: the flag or IZ4_CHECK_CMD, else this
+    # repository's own 'git config iz4.checkCmd', exactly as the gate reads it
+    my $cmd = $check-cmd // do {
+        my $root = try gate-root(Str);
+        my ($rc, $out, $) = $root.defined ?? git($root.add(ROOT-NAME), 'config', '--get', 'iz4.checkCmd') !! (1, '', '');
+        $rc == 0 && $out.trim ne '' ?? $out.trim !! Str;
+    };
     %( staged => $staged, worktree => $worktree, base => $base, candidate => $candidate, checks => $checks, timeout => $timeout,
-       check-cmd => $check-cmd, approval-file => ($approval.defined ?? $approval.IO !! IO::Path),
+       check-cmd => $cmd, approval-file => ($approval.defined ?? $approval.IO !! IO::Path),
        approvers => ($approvers.defined ?? $approvers.IO !! IO::Path) );
 }
 
