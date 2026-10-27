@@ -154,6 +154,27 @@ sub skill-text(--> Str) is export {
 
     A project's own promises live in its IZ4 file, never in this skill.
 
+    ## Telling a person what iz4 said
+
+    When a commit hook, the gate or a hook reports iz4's result to you,
+    tell the person in one line: the mark, what happened in iz4's words,
+    and the one next step, or the win when nothing waits.  Keep the full
+    output for yourself and show it only when they ask.
+
+        ◆ IZ4: all 7 promises held by their tests, and the foundation word for word.
+        ✕ IZ4 kept the commit back: t/charged-once.t failed (charged-once.shop.example.com). Next: make it pass.
+        ◇ IZ4 waits for your yes: this commit changes stays-small.shop.example.com. Next: iz4 approve --staged
+        ? IZ4 could not check refunds.shop.example.com: no test names it. Next: iz4 test
+
+    - The marks are iz4's own: ◆ held, ◇ promised or waiting for a
+      person, ✕ broken, ? not checked.
+    - Next is a command the person can run.  A failing test is never a
+      reason to suggest `iz4 approve`: the step is to make it pass.
+    - The win names what held and claims no more than iz4 said.  When
+      nothing ran, nothing is celebrated.
+    - Programs get the long form: `--json` carries the whole document,
+      for a tool to read, never for a person.
+
     HEAD
 
     This skill can only encourage adherence in tools that load it.  It is
