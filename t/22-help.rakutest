@@ -62,7 +62,7 @@ subtest 'a slip gets one line back, not a wall' => {
     my $r = run-iz4('chek');
     isnt $r<code>, 0, 'an unknown command fails';
     ok $r<err>.lines.elems <= 3, 'in a few lines';
-    like $r<err>, / 'iz4 help check' /, 'and suggests the command meant';
+    like $r<err>, / 'Did you mean: iz4 check' /, 'and suggests the command meant, as a command to run';
     my $h = run-iz4('help', 'nonsense');
     is $h<code>, 1, 'help for a command that is not there fails';
     like $h<err>, / "'iz4 help' lists the commands" /, 'and says where to look';

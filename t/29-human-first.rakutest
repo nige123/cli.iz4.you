@@ -1,0 +1,75 @@
+use lib $?FILE.IO.parent.add('lib').Str;
+use Test;
+use IZ4Test;
+
+# The three levels of one CLI: a slip is answered with what was not
+# understood; a script gets the pipeline form and JSON on failure; a shell
+# gets completion made from the help, so it cannot drift.
+
+unless have-git() { skip-rest 'no git available'; exit }
+my $config = temp-dir.add('gitconfig');
+$config.spurt('');
+%*ENV<GIT_CONFIG_GLOBAL> = $config.Str;
+%*ENV<IZ4_INTERACTIVE> = '0';
+%*ENV<IZ4_NO_321> = '1';
+%*ENV<IZ4_CHECK_CMD> = 'sh {file}';
+%*ENV<IZ4_AGENT_CMD> = '';
+%*ENV<LC_ALL> = 'C.UTF-8';
+sub g(IO::Path $r, *@a) { my $p = run 'git', '-C', $r.Str, |@a, :out, :err; my $o = $p.out.slurp(:close); $p.err.slurp(:close); $o.trim }
+sub from-json(Str $s) { Rakudo::Internals::JSON.from-json($s) }
+
+# ---- discovering: a slip names what was not understood ------------------------
+my ($rc, $out, $err) = iz4(temp-dir, 'status', '--bogus');
+is $rc, 2, 'a flag status does not take is a usage error';
+like $err, / ^ 'iz4 status did not understand --bogus. Here is how it is called:' \n \n /, 'it names the flag, then one blank row, not two';
+like $err, / 'iz4 status --recheck' /, 'and shows how status is called';
+($rc, $out, $err) = iz4(temp-dir, 'status', '--bogus', '--json');
+is $rc, 2, 'the same, asked for in JSON';
+my %e = from-json($out);
+is %e<schema>, 'iz4-error/1', 'a program that asked for JSON gets JSON, failure included';
+is %e<error><message>, 'iz4 status did not understand --bogus', 'saying what was not understood';
+is %e<error><next>, 'iz4 help status', 'and where to look';
+($rc, $out, $err) = iz4(temp-dir, 'stauts');
+like $err, / 'Did you mean: iz4 status' /, 'a mistyped command is offered the command';
+
+# ---- automating: the pipeline form --------------------------------------------
+my $r = temp-dir;
+g($r, 'init', '-q'); g($r, 'config', 'user.email', 't@test'); g($r, 'config', 'user.name', 'Test');
+iz4($r, 'init', '--namespace=shop.example.com', '--for-what=Taking orders.', '--for-who=People buying things.', '--/agents');
+iz4($r, 'add', 'promise', 'An order is never charged twice.', '--name=charged-once', '--when=the shop takes an order', '--namespace=shop.example.com', "--protects=a customer's money", '--force', '--established');
+($rc, $out, $err) = iz4($r, 'status', '--brief');
+is $rc, 0, 'status --brief';
+is $out, "foundation\theld\ninvariant\tcharged-once.shop.example.com\tpromised\tno test yet\nnext\tiz4 test\n", 'records alone: the foundation, each invariant, the next step';
+$r.add('t').mkdir;
+$r.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
+($rc, $out, $err) = iz4($r, 'status', :env(%( IZ4_BRIEF => '1' )));
+is $out.lines[1], "invariant\tcharged-once.shop.example.com\theld\tt/charged-once.t passed", 'IZ4_BRIEF=1 is the same switch, and a passing test is held';
+nok $out.contains('iz4 status:'), 'no title in the pipeline form';
+($rc, $out, $err) = iz4($r, 'status', '--brief', '--json');
+is $rc, 2, '--json and --brief together are a usage error';
+like $err, / 'two machine forms' /, 'saying why';
+($rc, $out, $err) = iz4(temp-dir, 'status', '--brief');
+is $out, '', 'no IZ4: nothing on stdout';
+like $err, / ^ "iz4 status: no IZ4 here; 'iz4 init' starts one" \n $ /, 'and one line on stderr';
+($rc, $out, $err) = iz4(temp-dir, 'version', '--brief');
+like $out, / ^ \d+ '.' \d+ '.' \d+ \n $ /, 'version --brief is the version alone';
+
+# ---- working: completion made from the help ----------------------------------
+for <bash zsh fish> -> $sh {
+    ($rc, $out, $err) = iz4(temp-dir, 'completion', $sh);
+    is $rc, 0, "completion $sh";
+    ok $out.contains('status') && $out.contains('approve') && $out.contains('completion'), "it names the commands ($sh)";
+}
+($rc, $out, $err) = iz4(temp-dir, 'completion', 'bash');
+like $out, / 'status) COMPREPLY=' .* '--recheck' /, 'bash completes the flags a command shows in its help';
+like $out, / 'agent) COMPREPLY=' .* 'install' /, 'and the words that follow a command';
+my $script = temp-dir.add('iz4.bash');
+$script.spurt($out);
+if run('sh', '-c', 'command -v bash', :out, :err).exitcode == 0 {
+    is run('bash', '-n', $script.Str, :out, :err).exitcode, 0, 'the bash script parses';
+}
+else { skip 'no bash here', 1 }
+($rc, $out, $err) = iz4(temp-dir, 'completion', 'tcsh');
+is $rc, 1, 'a shell it does not know is said plainly';
+
+done-testing;

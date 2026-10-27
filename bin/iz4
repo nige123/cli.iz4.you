@@ -66,16 +66,36 @@ sub USAGE() {
     my $t;
     for (2, 1) -> $n { last if $t.defined; $t = topic(@words.head($n).join(' ')) if @words >= $n }
     if $wanted { print $t.defined ?? help-topic($t) !! help-index(); return }
+    my $json = so @*ARGS.grep('--json');
+    # a program that asked for JSON gets JSON, failure included
+    my sub machine(Str $message, Str $next) {
+        say json-encode(%( schema => 'iz4-error/1', outcome => 'usage',
+                           error => %( code => 'usage', message => $message, next => $next ) ));
+    }
     if $t.defined {
-        note "iz4 {$t.name} was not given what it needs. Here is how it is called:";
-        note '';
-        note help-topic($t);
+        # the flags its help never mentions: name them, since they are what it did not understand
+        my $usage = $t.usage.join(' ');
+        my @odd = @*ARGS.grep(*.starts-with('-')).map({ .subst(/ '=' .* /, '') })
+                        .grep({ $_ ne '--json' && !$usage.contains(.subst(/ ^ '--' ['/' | 'no-'] /, '--')) });
+        my $what = @odd ?? "iz4 {$t.name} did not understand {@odd.join(', ')}"
+                        !! "iz4 {$t.name} was not given what it needs";
+        return machine($what, "iz4 help {$t.name}") if $json;
+        note "$what. Here is how it is called:";
+        note help-topic($t).trim-trailing;
     }
     elsif @words {
-        note help-for([@words[0]])[0];
+        my $text = help-for([@words[0]], :command)[0];
+        return machine($text.lines.head, 'iz4 help') if $json;
+        note $text;
     }
     else { print help-index() }
 }
+
+#| The pipeline form: --brief on the command line, or IZ4_BRIEF=1.  Stdout
+#| is the result alone, one tab-separated record per line, no title,
+#| colour or next; a failure is one line on stderr and the exit code.
+sub brief-wanted(Bool $flag --> Bool) { $flag || (%*ENV<IZ4_BRIEF> // '') eq '1' }
+sub two-machine-forms() { note 'iz4: --json and --brief are two machine forms: choose one'; exit 2 }
 
 # Run a command body; user errors become one-line messages and exit 1.
 constant INACTIVE-NOTE = 'The IZ4 intent is recorded, but harness enforcement is currently inactive.';
@@ -824,11 +844,14 @@ sub mark-held(IO::Path $path) {
 #| says what it checked, which is file facts and test results, never that
 #| the software is safe.
 multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$no-checks = False, Bool :$recheck = False, Int :$timeout = 300,
-           Str :$check-cmd = %*ENV<IZ4_CHECK_CMD> // Str, Str :$file) {
+           Str :$check-cmd = %*ENV<IZ4_CHECK_CMD> // Str, Str :$file, Bool :brief($brief-flag) = False) {
     attempt {
+        my $brief = brief-wanted($brief-flag) && !$json;
+        two-machine-forms() if $json && $brief-flag;
         $checks = False if $no-checks;   # --no-checks reads as a person writes it; --/checks is Raku's spelling
         my IO::Path $path = (try resolve-target($file)) // IO::Path;
         without $path {
+            if $brief { note "iz4 status: no IZ4 here; 'iz4 init' starts one"; return 0 }
             if $json { say json-encode(%( schema => 'iz4-status/1', iz4 => %( present => False ), next => ('iz4 init',).List )) }
             else { calm('No IZ4 here', 'Nothing in this directory or its parents says what the software is for.', :next(['init' => 'start one'])) }
             return 0;
@@ -841,7 +864,7 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
         my $standing = !@own ?? 'no promises of its own yet' !! @own.grep(*.exploring) == @own ?? 'exploring' !! !@own.grep(*.exploring) ?? 'established' !! "{+@own.grep({ !.exploring })} of {+@own} established";
         # the title first, so the screen begins with it; the tests report under it while they run and clear the line when done
         my $icon = pretty-on() ?? diamond() ~ ' ' !! '';
-        unless $json {
+        unless $json || $brief {
             say pretty("{$icon}iz4 status: $name, " ~ ($doc.form eq 'card' ?? $standing !! $doc.mode eq 'solid' ?? 'solid' !! "{$doc.mode} mode"));
             say '';
         }
@@ -865,7 +888,7 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
             # status is interactive and advisory: the tests run eight at a time unless IZ4_JOBS or the
             # repository's 'git config iz4.jobs' says otherwise, and a failure is run again alone before
             # it is called broken; the gate, which holds commits, keeps the runtime's safe default of one
-            @checks = run-checks($doc, $root, :$timeout, :$cmd, :jobs(check-jobs(:$root, :default(8))), :progress($json ?? Callable !! check-progress()));
+            @checks = run-checks($doc, $root, :$timeout, :$cmd, :jobs(check-jobs(:$root, :default(8))), :progress($json || $brief ?? Callable !! check-progress()));
             $ran = True;
         }
         my $secs = (now - $t0).round(0.1);
@@ -917,6 +940,13 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
                 invariants => @inv.List, counts => %count, held_percent => $held-pct, change => %change, agents => %agents,
                 checks => %( ran => $ran, recorded => $recorded, at => (%last<at> // Str), count => @checks.elems, seconds => $secs ), next => @next.List;
         if $json { say json-encode(%s); return 0 }
+        if $brief {
+            # one record per line, pinned by t/29: the foundation, each invariant of your own, the next step if any
+            say "foundation\t{$doc.foundation-intact ?? 'held' !! 'changed'}";
+            say "invariant\t{.<id>}\t{.<mark> // 'unknown'}\t{.<evidence>}" for @inv;
+            say "next\t{@next[0]}" if @next;
+            return 0;
+        }
         my sub row(Str $k, Str $v) { say pretty(sprintf('%-13s %s', $k, $v)) }
         row('foundation', $doc.foundation-intact ?? 'held, word for word' !! "CHANGED: {$doc.foundation-status}; iz4 foundation restore puts it back");
         say '';
@@ -1542,8 +1572,19 @@ multi MAIN('diff', *@args) {
     }
 }
 
-multi MAIN('version') {
+multi MAIN('version', Bool :brief($brief-flag) = False) {
+    return say VERSION if brief-wanted($brief-flag);
     say "iz4 {VERSION}" ~ (own-revision() andthen " ($_)" orelse '');
+}
+
+# ------------------------------------------------------------ completion
+
+multi MAIN('completion', Str $shell) {
+    attempt {
+        user-error("iz4 completion knows bash, zsh and fish, not '$shell'") unless $shell eq any(<bash zsh fish>);
+        print completion-script($shell);
+        0;
+    }
 }
 
 multi MAIN('update', Bool :$check = False) {

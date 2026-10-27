@@ -43,8 +43,8 @@ sub topics(--> List) is export {
       'Alone, it coaches you to one promise in three questions: when it applies (WHEN), what must remain true (ALWAYS), whose what it protects (PROTECTS), then its name. A new invariant is exploring unless --established. With the words, it adds at once.',
       "iz4 add promise 'Charged once.' --when='an order is paid' --protects=\"a buyer's money\" --name=charged-once"),
     t('status', EVERY-DAY, 'where things stand: the foundation, each invariant, this change',
-      ['iz4 status', 'iz4 status --recheck', 'iz4 status --no-checks', 'iz4 status --json'],
-      'One screen: the foundation, each invariant with its mark (held, promised, broken, not checked) and the share held, what is staged, your agents, the next command. The protecting tests run when the tree changed since the last run; --recheck always, --no-checks never. Never says the software is safe.',
+      ['iz4 status', 'iz4 status --recheck', 'iz4 status --no-checks', 'iz4 status --json', 'iz4 status --brief'],
+      'One screen: the foundation, each invariant with its mark and the share held, what is staged, your agents, the next command. Tests run when the tree changed; --recheck always, --no-checks never. Never claims safety.',
       'iz4 status'),
     t('check', EVERY-DAY, 'what is true of the file, and what to do next',
       ['iz4 check', 'iz4 check --strict'],
@@ -126,7 +126,11 @@ sub topics(--> List) is export {
       ['iz4 report', 'iz4 report preview'], 'preview shows what would be sent and sends nothing.', 'iz4 report preview'),
     t('badge', 'The register', 'the card link and badge for your README', ['iz4 badge'], '', 'iz4 badge'),
 
-    t('version', 'The tool', 'which iz4 this is', ['iz4 version'], '', 'iz4 version'),
+    t('version', 'The tool', 'which iz4 this is', ['iz4 version', 'iz4 version --brief'], '--brief prints the version alone, for a script.', 'iz4 version'),
+    t('completion', 'The tool', 'tab completion for your shell',
+      ['iz4 completion bash', 'iz4 completion zsh', 'iz4 completion fish'],
+      'Prints a completion script made from this help, so it always matches the commands. Bash: add  source <(iz4 completion bash)  to ~/.bashrc. Zsh: save it as _iz4 in a directory on your fpath. Fish: save it as ~/.config/fish/completions/iz4.fish.',
+      'source <(iz4 completion bash)'),
     t('update', 'The tool', 'bring iz4 up to date',
       ['iz4 update', 'iz4 update check'], 'check only says whether a newer one exists.', 'iz4 update check'),
     t('help', 'The tool', 'this help',
@@ -149,6 +153,56 @@ sub topics(--> List) is export {
       'EVENT is session-start, pre-edit or stop. Reads the harness event as JSON, prints text for the model, and refuses with exit 2 and a reason. Kept so earlier wiring keeps working; the driver (321) wires harnesses now.',
       'iz4 hook EVENT < event.json'),
     )
+}
+
+#| A shell completion script, made from the help topics so it always
+#| matches the commands: the first word, the words that follow it, and the
+#| flags its help shows.  It only prints; nothing is installed or run.
+sub completion-script(Str $shell --> Str) is export {
+    my @first = topics().map(*.name.words[0]).unique;
+    my %summary = topics().grep({ .name.words == 1 }).map({ .name => .summary });
+    my %after;
+    for topics() -> $t {
+        my $w = $t.name.words[0];
+        %after{$w}.push: $t.name.words[1] if $t.name.words > 1;
+        %after{$w}.append: $t.usage.join(' ').comb(/ '--' <[a..z]> <[a..z\-]>* /);
+    }
+    %after{$_} = (%after{$_} // ()).unique.List for @first;
+    my sub zq(Str $s) { $s.subst(':', '\:', :g).subst("'", "'\\''", :g) }
+    my sub fq(Str $s) { $s.subst("'", "\\'", :g) }
+    given $shell {
+        when 'bash' {
+            my @l = '# iz4 completion for bash: source <(iz4 completion bash)', '_iz4() {',
+                    '    local cur=${COMP_WORDS[COMP_CWORD]}',
+                    "    if [ \$COMP_CWORD -eq 1 ]; then COMPREPLY=(\$(compgen -W \"{@first.join(' ')}\" -- \"\$cur\")); return; fi",
+                    '    case "${COMP_WORDS[1]}" in';
+            @l.push: "        $_) COMPREPLY=(\$(compgen -W \"{%after{$_}.join(' ')}\" -- \"\$cur\"));;" for @first.grep({ %after{$_} });
+            @l.append: '    esac', '}', 'complete -F _iz4 iz4';
+            @l.join("\n") ~ "\n";
+        }
+        when 'zsh' {
+            my @l = '#compdef iz4', '# iz4 completion for zsh: save as _iz4 on your fpath', '_iz4() {',
+                    '    local -a commands', '    commands=(';
+            @l.push: "        '{zq($_)}:{zq(%summary{$_} // '')}'" for @first;
+            @l.append: '    )', '    if (( CURRENT == 2 )); then _describe -t commands "iz4 command" commands; return; fi',
+                       '    case $words[2] in';
+            @l.push: "        $_) compadd -- {%after{$_}.join(' ')};;" for @first.grep({ %after{$_} });
+            @l.append: '    esac', '}', 'compdef _iz4 iz4';
+            @l.join("\n") ~ "\n";
+        }
+        when 'fish' {
+            my @l = '# iz4 completion for fish: save as ~/.config/fish/completions/iz4.fish', 'complete -c iz4 -f';
+            @l.push: "complete -c iz4 -n __fish_use_subcommand -a $_ -d '{fq(%summary{$_} // '')}'" for @first;
+            for @first.grep({ %after{$_} }) -> $w {
+                for %after{$w}.list -> $a {
+                    @l.push: $a.starts-with('--')
+                        ?? "complete -c iz4 -n '__fish_seen_subcommand_from $w' -l {$a.substr(2)}"
+                        !! "complete -c iz4 -n '__fish_seen_subcommand_from $w' -a $a";
+                }
+            }
+            @l.join("\n") ~ "\n";
+        }
+    }
 }
 
 sub topic(Str $name --> Topic) is export { topics().first({ .name eq $name }) // Topic }
@@ -201,6 +255,13 @@ sub help-machine(--> Str) is export {
     @l.push: 'Each answers with a document (--json) and an exit code: 0 pass or warn,';
     @l.push: '2 a person must decide, 3 blocked, 1 the check could not run.';
     @l.push: 'docs/drivers.md has the contract.';
+    @l.push: '';
+    @l.push: 'Pipeline form: --brief, or IZ4_BRIEF=1. One tab-separated record a line,';
+    @l.push: 'no title or colour; a failure is one stderr line and the exit code.';
+    @l.push: '  iz4 status --brief     foundation STATE / invariant NAME MARK EVIDENCE / next COMMAND';
+    @l.push: '  iz4 version --brief    the version alone';
+    @l.push: '  iz4 gate --brief       one line when the change passes';
+    @l.push: 'A usage error asked for with --json answers with schema iz4-error/1.';
     @l.join("\n") ~ "\n";
 }
 
@@ -356,7 +417,7 @@ sub pretty(Str $text, Bool :$on = pretty-on() --> Str) is export {
     }).join;
 }
 
-sub help-for(@words --> List) is export {
+sub help-for(@words, Bool :$command = False --> List) is export {
     my $asked = @words.join(' ').trim.lc;
     return (help-index(), True) if $asked eq '';
     return (help-more(), True) if $asked eq 'more' | 'all';
@@ -381,7 +442,8 @@ sub help-for(@words --> List) is export {
     }
     my @near = topics().grep({ .name.contains($asked) || $asked.contains(.name.words[0])
                                || distance($asked, .name) <= 2 }).head(3);
-    my $hint = @near ?? " Did you mean: {@near.map({ 'iz4 help ' ~ .name }).join(', ')}?" !! '';
+    # a mistyped command is offered the command; a mistyped 'iz4 help X' the help
+    my $hint = @near ?? " Did you mean: {@near.map({ ($command ?? 'iz4 ' !! 'iz4 help ') ~ .name }).join(', ')}?" !! '';
     # one thing to read, not the whole list again
     ("There is no iz4 command '$asked'.$hint\n'iz4 help' lists the commands.\n", False);
 }
