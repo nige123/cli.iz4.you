@@ -187,6 +187,22 @@ A part that was not run is `not_checked` and is never counted as a pass.
 `evidence.report.uncertain` lists the invariants the report itself calls
 uncertain or conflicting, in its own words.
 
+A driver that verifies at the end of every turn passes the baseline:
+
+```text
+iz4 verify --worktree --base=TREE --summary=FILE --json
+```
+
+`TREE` is the working directory's tree as it stood when the turn began:
+`evidence.gate.candidate` from the previous turn's `verify`, or from
+`iz4 check change --worktree --json --/checks` at the start of a session.
+Without it the change is measured from HEAD, so a file that was dirty
+before the turn, a log the dev server writes or a setting a tool edited,
+counts as the turn's change and a report is asked for that nothing is owed.
+When a report is asked for, the reason names the files that changed, so
+that a person can see which case it is. A turn in which the agent ran no
+tool that writes files changed nothing, and the driver need not ask.
+
 ## One result document
 
 `check action`, `check change` and `verify` all answer with `iz4-check/2`:
@@ -281,7 +297,9 @@ boundary; see [gate.md](gate.md)), and stop when it has none.
    event to an action, call `iz4 check action --json`, and translate the
    result back: let `pass` through, surface `warn`, stop on `block`, and put
    `needs_human` to a person.
-4. **Verify at the end.** `iz4 verify --worktree --summary=FILE --json`.
+4. **Verify at the end.** `iz4 verify --worktree --base=TREE --summary=FILE --json`,
+   with `TREE` the working directory's tree when the turn began, so only
+   the turn's own changes are measured.
 5. **Say what you could not do.** If your environment cannot intercept
    writes, shell commands or network use, report that. Context in a prompt
    is not interception; never present one as the other.

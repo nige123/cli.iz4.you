@@ -360,6 +360,25 @@ sub block-detail(%g --> Str) {
 
 my %RANK = PASS, 0, 'not_checked', 0, WARN, 1, NEEDS-HUMAN, 2, BLOCK, 3;
 
+#| The paths the base and candidate trees differ in.  The one line that asks
+#| for a report names them, so a person sees at once when what "changed" is
+#| a log the server writes or a setting a tool edited before the turn began,
+#| and knows to give the driver a baseline (--base) rather than write a
+#| report that nothing is owed.
+sub changed-paths(IO::Path $root, %g --> List) {
+    return () unless %g<candidate>;
+    my ($rc, $out, $) = (%g<base> // '') ne ''
+        ?? git($root.add(ROOT-NAME), 'diff', '--name-only', %g<base>, %g<candidate>)
+        !! git($root.add(ROOT-NAME), 'ls-tree', '-r', '--name-only', %g<candidate>);
+    $rc == 0 ?? $out.lines.grep(*.chars).List !! ();
+}
+
+sub report-wanted(@files --> Str) {
+    return REPORT-WANTED.trim-trailing unless @files;
+    my $shown = @files.head(3).join(', ') ~ (@files > 3 ?? ", and {@files - 3} more" !! '');
+    REPORT-WANTED.subst('files changed under this IZ4', "files changed under this IZ4 ($shown)").trim-trailing;
+}
+
 #| What can be established about finished work: the IZ4 is well formed,
 #| the change alters no commitment without agreement, and, when the
 #| driver hands over the agent's last words (:summary, a file of plain
@@ -408,7 +427,7 @@ sub verify(IO::Path $root, Str :$summary, *%opts --> Hash) is export {
             @parts.push: %( part => 'report', result => PASS, detail => 'the work ends with a per-invariant report' );
         }
         else {
-            @parts.push: %( part => 'report', result => BLOCK, detail => REPORT-WANTED.trim-trailing );
+            @parts.push: %( part => 'report', result => BLOCK, detail => report-wanted(changed-paths($root, %change<evidence><gate>)) );
         }
     }
     else { @parts.push: %( part => 'report', result => 'not_checked', detail => 'the agent\'s last words were not given, so the report was not looked for' ) }

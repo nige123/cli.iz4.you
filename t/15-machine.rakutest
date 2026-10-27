@@ -275,6 +275,12 @@ is $rc, 3, 'files changed and no report: exit 3';
 %v = doc($out);
 is %v<result>, 'block', 'blocked';
 ok %v<evidence><parts>.grep({ .<part> eq 'report' && .<result> eq 'block' }), 'by the report part';
+like %v<reason>, /^ 'files changed under this IZ4 (README.md) and the reply ends without an invariant report' /, 'the one line names the files that changed, so a person can see whether they are the work';
+# a driver that passes the tree the turn began with: dirt from before the turn is not the turn's change
+my $began = doc(iz4($r, 'check', 'change', '--worktree', '--json', '--/checks')[1])<evidence><gate><candidate>;
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--base=$began", "--summary=$t", '--json');
+is $rc, 0, 'measured from the tree the turn began with, an already-dirty tree owes no report';
+is doc($out)<evidence><parts>.first({ .<part> eq 'report' })<detail>, 'nothing changed, so no report is owed', 'and the report part says why';
 $t.spurt("Invariant: {$VIS}\nAssessment: uncertain\nEvidence: read\nRemaining gap: none tested\n");
 ($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$t", '--json');
 %v = doc($out);

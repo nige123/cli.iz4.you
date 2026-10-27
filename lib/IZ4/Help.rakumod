@@ -143,7 +143,7 @@ sub topics(--> List) is export {
     t('check change', 'For tools', 'does this change alter a commitment?',
       ['iz4 check change --worktree --json', 'iz4 check change --staged --json'], 'The gate, in the vocabulary a tool reads. --worktree looks at uncommitted work and touches no index.', 'iz4 check change --worktree --json'),
     t('verify', 'For tools', 'what can be established about finished work',
-      ['iz4 verify --worktree --json', 'iz4 verify --worktree --summary=FILE --json'], 'Structure, change, and, given the agent\'s last words, its report. Results are pass, warn, block or needs_human. docs/drivers.md', 'iz4 verify --worktree --json'),
+      ['iz4 verify --worktree --json', 'iz4 verify --worktree --summary=FILE --json', 'iz4 verify --worktree --base=TREE --summary=FILE --json'], 'Structure, change, and, given the agent\'s last words, its report. Results are pass, warn, block or needs_human. --base=TREE measures the change from the tree the turn began with (evidence.gate.candidate of the last run), not from HEAD, so files already dirty are not the turn\'s. docs/drivers.md', 'iz4 verify --worktree --json'),
     t('hook', 'For tools', 'what wiring made by an earlier iz4 still calls',
       ['iz4 hook EVENT'],
       'EVENT is session-start, pre-edit or stop. Reads the harness event as JSON, prints text for the model, and refuses with exit 2 and a reason. Kept so earlier wiring keeps working; the driver (321) wires harnesses now.',
