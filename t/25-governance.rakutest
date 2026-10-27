@@ -74,7 +74,7 @@ g($r, 'commit', '-qm', 'still exploring');
 
 # ---- establish: the words wait, the tests hold ------------------------------------
 ($rc, $out, $err) = iz4($r, 'establish');
-like $out, / 'all 1 exploring' /, 'establish alone says where every promise stands';
+like $out, / 'its one promise exploring' /, 'establish alone says where every promise stands';
 ($rc, $out, $err) = iz4($r, 'establish', 'charged-once');
 is $rc, 0, 'iz4 establish NAME';
 like $out, / 'charged-once.shop.example.com is established' .* 'waits for your signed yes' .* 'holds the commit' /, 'and says what that means';
