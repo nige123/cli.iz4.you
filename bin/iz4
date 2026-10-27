@@ -929,6 +929,8 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
                 my $short = %i<id>.subst('.' ~ ($doc.domain // ''), '');
                 say sprintf('  %s %-*s  %s', mark-shown(%i<id>), $w, $short, %i<evidence>);
             }
+            # the key to the marks, right under the rows that use them
+            if pretty-on() { say ''; say pretty('  ' ~ marks-legend()) }
         }
         say '';
         # the standing of the work, as a table: what, where it stands, and the detail
@@ -956,7 +958,6 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
             say '';
             say pretty("All held: {+@own} of {+@own} invariants by their tests" ~ ($ran ?? ' just now' !! ' at the last run') ~ ', and the foundation word for word.');
         }
-        if pretty-on() { say ''; say pretty(marks-legend()) }
         0;
     }
 }
