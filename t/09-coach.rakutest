@@ -157,7 +157,7 @@ is $rc, 0, '--force: the owner decides';
 like $path.slurp, /^^ "# This project's invariants are named under shop.example.com." $$/, 'the first add records the namespace in the file';
 ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Private profiles never appear in public search.',
     '--name=private-profiles', '--because=A hidden search for work can cost someone their job.');
-is ($rc, $out), (0, "Added INVARIANT private-profiles.shop.example.com.\n"),
+ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added INVARIANT private-profiles.shop.example.com."),
     'a genuine invariant goes straight in, under the namespace the file already records';
 ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Employers cannot message a person first.', '--name=no-first-message');
 like $err, /'no BECAUSE'/, 'adding without a BECAUSE is allowed, with a nudge';
@@ -182,7 +182,7 @@ is $nons-path.slurp, $before, 'writing nothing';
 ($rc, $out, $err) = iz4($nons, 'add', 'invariant', 'Private profiles never appear in public search.',
     '--name=private-profiles', '--because=A hidden search for work can cost someone their job.',
     :env(%( IZ4_NAMESPACE => 'shop.example.com' )));
-is ($rc, $out), (0, "Added INVARIANT private-profiles.shop.example.com.\n"), 'IZ4_NAMESPACE answers for a script';
+ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added INVARIANT private-profiles.shop.example.com."), 'IZ4_NAMESPACE answers for a script';
 
 # ---- the CLI conversation ---------------------------------------------------
 my $talk = temp-dir;

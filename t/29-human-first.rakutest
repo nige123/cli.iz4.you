@@ -121,6 +121,14 @@ for <zsh fish> -> $sh {
     else { skip "no $sh here", 1 }
 }
 
+# ---- every command a person runs opens with its title ---------------------------
+for <<'invariants' 'test list' 'establish' 'foundation restore' 'migrate preview' 'agent status' 'report preview'>> -> $c {
+    my ($code, $o, $e) = iz4($r, |$c.words, :env(%( IZ4_COLOR => '1' )));
+    like $o.subst(/ \e \[ <[0..9;]>* m /, '', :g), / ^ \n '◈ iz4 ' /, "iz4 $c opens with its title";
+}
+my ($jc, $jo, $je) = iz4($r, 'report', 'preview', '--json');
+is Rakudo::Internals::JSON.from-json($jo)<schema_version>, 'iz4-report/2', 'report preview --json is the document itself';
+
 # ---- both runtimes ----------------------------------------------------------------
 # The suite usually runs the Raku++ binary, but a hook runs the protecting tests
 # under whatever 'raku' is, and Raku++ accepts forms Rakudo does not: one

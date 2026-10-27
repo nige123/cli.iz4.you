@@ -73,7 +73,7 @@ like $out, /'"kind":"purpose"'/, 'and so is IS FOR WHAT';
 ($rc, $out, $err) = gate($r, '--staged', '--enforce');
 is $rc, 2, 'under --enforce agreement-required is exit 2';
 like $out, /"INVARIANT {$VIS} added: People control whether their profile is visible."/, 'the proposal shows the exact wording';
-like $out, /"✓ {$TEST} ({$VIS}) passed"/, 'the linked test was run from the candidate tree';
+like $out, / <[◆*]> ' ' \S+ \h+ "{$TEST} passed" /, 'the linked test was run from the candidate tree: the invariant first, then its test';
 like $out, /"next:\n  1. iz4 approve" \n/, 'and the next step is a person approving';
 g($r, 'commit', '-qm', 'init');
 
@@ -82,8 +82,9 @@ $r.add('README.md').spurt("hello\n");
 g($r, 'add', 'README.md');
 ($rc, $out, $err) = gate($r, '--staged', '--enforce');
 is $rc, 0, 'a routine change passes under --enforce';
-like $out, /'commitments and protections: unchanged'/, 'nothing committed to changed';
-like $out, /'outcome: pass'/, 'outcome pass';
+like $out, /'commitments' \h+ 'unchanged'/, 'nothing committed to changed';
+like $out, / ^ 'iz4 gate: the staged change' \n \n /, 'the screen begins with its title';
+like $out, /'outcome' \h+ 'pass: '/, 'outcome pass';
 ($rc, $out, $err) = gate($r, '--staged', '--json');
 is json($out, 'outcome'), 'pass', 'and in JSON';
 is json($out, 'exit_code'), '0', 'exit code 0 in the result';
@@ -101,7 +102,7 @@ g($r, 'add', 'IZ4');
 ($rc, $out, $err) = gate($r, '--staged', '--enforce');
 is $rc, 2, 'a new project invariant requires agreement';
 like $out, /"INVARIANT {$CONTACT} added: Employers cannot contact someone first." \n \s+ 'BECAUSE No new inbox.'/, 'with its BECAUSE';
-like $out, /'approval: none for this candidate tree'/, 'and no approval exists yet';
+like $out, /'approval' \h+ 'none for this candidate tree'/, 'and no approval exists yet';
 my $tree6 = json(gate($r, '--staged', '--json')[1], 'candidate');
 
 # approving is a person's act: a script gets a pending state and nothing is recorded
@@ -132,7 +133,7 @@ is json($out, 'outcome'), 'pass', 'advisory: the terminal approval satisfies the
 like $out, /'"level":"terminal"'/, 'and is labelled terminal';
 ($rc, $out, $err) = gate($r, '--staged', '--enforce');
 is $rc, 2, 'enforce: a terminal approval is not accepted at an acceptance boundary';
-like $out, /'approval: invalid - a terminal approval by t@test is not accepted under --enforce'/, 'and says why';
+like $out, /'approval' \h+ 'invalid - a terminal approval by t@test is not accepted under --enforce'/, 'and says why';
 like $out, /"next:\n  1. iz4 approve" \n/, 'and the way to one that is, is the same one command';
 
 # ---- a signed approval, verified against an allowed-signers file ----------
@@ -148,7 +149,7 @@ if $have-ssh {
     like $out, /'Recorded: ssh-signature approval by owner@example.com'/, 'and named as such';
     ($rc, $out, $err) = gate($r, '--staged', '--enforce', "--approvers={$signers}");
     is $rc, 0, 'enforce: a signed approval by an allowed signer passes';
-    like $out, /'approval: valid (signed) by owner@example.com'/, 'and is labelled signed';
+    like $out, /'approval' \h+ 'valid (signed) by owner@example.com'/, 'and is labelled signed';
     ($rc, $out, $err) = gate($r, '--staged', '--enforce');
     is $rc, 2, 'enforce with no allowed-signers file does not accept even a signed approval';
     like $out, /'no allowed-signers file was given'/, 'and says so';
@@ -173,7 +174,7 @@ my $bad = temp-dir.add('bad.json');
 $bad.spurt("approved\n");
 ($rc, $out, $err) = gate($r, '--staged', '--enforce', "--approval={$bad}");
 is $rc, 2, 'a file that merely says approved is not an approval';
-like $out, /'approval: invalid - approval is not an iz4-approval/1 document'/, 'and the gate says what it got';
+like $out, /'approval' \h+ 'invalid - approval is not an iz4-approval/1 document'/, 'and the gate says what it got';
 
 # editing the staged tree after approval invalidates it
 $r.add('README.md').spurt("hello again\n");
@@ -312,7 +313,7 @@ $r.add(TEST).spurt($orig-test); g($r, 'add', 'tests'); g($r, 'commit', '-qm', 't
     g($r, 'add', 'tests'); g($r, 'commit', '-qm', 'a test that cannot start');
     ($rc, $out, $err) = gate($r, '--staged', '--enforce');
     is $rc, 4, 'a missing dependency makes the check unassessed (exit 4), never blocked' or diag $out;
-    like $out, /"? {$TEST} ({$VIS}) unassessed: could not run: Can't locate Some/Module.pm"/, 'and says what could not be found';
+    like $out, / '? ' \S+ \h+ "{$TEST} unassessed: could not run: Can't locate Some/Module.pm" /, 'and says what could not be found';
     like $out, /"install the project's dependencies so {$TEST} can run"/, 'with the next step';
 
     # output that is not UTF-8 never stops the gate
@@ -331,8 +332,8 @@ $r.add('lib/profile.txt').spurt("visible: public\n");
 g($r, 'add', 'lib');
 ($rc, $out, $err) = gate($r, '--staged', '--enforce');
 is $rc, 3, 'a failing linked test blocks, with the IZ4 untouched';
-like $out, /"✗ {$TEST} ({$VIS}) failed"/, 'naming the test and the invariant';
-like $out, /'outcome: blocked'/, 'outcome blocked';
+like $out, / <[✕x]> ' ' \S+ \h+ "{$TEST} failed" /, 'naming the invariant and the test';
+like $out, /'outcome' \h+ 'blocked: '/, 'outcome blocked';
 ($rc, $out, $err) = gate($r, '--staged', '--json');
 is json($out, 'outcome'), 'blocked', 'in advisory mode the outcome is the same';
 is $rc, 0, 'and the exit code is still 0 there';
@@ -360,7 +361,7 @@ if $have-timeout {
     $slow.spurt("#!/bin/sh\nsleep 3\nexit 0\n");
     ($rc, $out, $err) = gate($r, '--staged', '--enforce', '--timeout=1', "--check-cmd=sh {$slow} \{file\}");
     is $rc, 4, 'a check that times out makes the outcome unassessed, exit 4';
-    like $out, /"? {$TEST} ({$VIS}) timeout"/, 'and names the test';
+    like $out, / '? ' \S+ \h+ "{$TEST} timeout" /, 'and names the test';
 }
 else { skip 'no timeout utility', 2 }
 ($rc, $out, $err) = gate($r, '--staged', '--enforce', '--check-cmd=no-such-runner-here {file}');
@@ -373,7 +374,7 @@ is $rc, 4, 'a runner that cannot be found makes the outcome unassessed';
     ($rc, $out, $err) = iz4($r, 'gate', '--staged', '--enforce', :env(IZ4_NO_TIMEOUT => '1'));
     is $rc, 0, 'and a check that passes still passes there' or diag $out;
 }
-like $out, /'outcome: unassessed - a check could not be run, so this is not a pass'/, 'and the outcome says it is not a pass';
+like $out, /'outcome' \h+ 'unassessed: a check could not be run, so this is not a pass'/, 'and the outcome says it is not a pass';
 ($rc, $out, $err) = gate($r, '--staged', '--enforce', '--/checks');
 is $rc, 4, 'skipping the checks when linked tests exist is unassessed, not pass';
 like $out, /'checks were not run (--no-checks): 1 invariant has a test naming it'/, 'and says so, with the count';

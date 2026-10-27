@@ -213,12 +213,34 @@ sub tell(Str $line) { say pretty($line) }
 #| A short block a person can take in at a glance: a title under the icon,
 #| a sentence or two, and the one command that comes next.  The shape every
 #| human-facing command answers in, so nothing is a wall.
-sub calm(Str $title, *@body, :@next) {
-    my $sc = Screen.new(:heading($title));
+sub calm(Str $title, *@body, :@next, Str :$command) {
+    my $sc = $command.defined ?? Screen.new(:$command, :context($title)) !! Screen.new(:heading($title));
     $sc.lines(|wrap(@body.join(' '), 72).map({ "  $_" })) if @body;
     $sc.lines(|@next.map({ pretty(sprintf('  iz4 %-14s %s', .key, .value)) })) if @next;
     print $sc.screen;
 }
+
+#| A command's answer for a person: its title, then each chunk (a list of
+#| lines, or a string of them) with a blank row between, so every command
+#| opens the same way and nothing arrives as a wall.
+sub answer(Str $command, Str $context, **@chunks) {
+    my $sc = Screen.new(:$command, :$context);
+    for @chunks.grep(*.so) -> $c { $sc.lines(|($c ~~ Str ?? $c.lines !! $c.list)) }
+    print $sc.screen;
+}
+
+#| The title alone, for a command whose answer arrives in stages (questions,
+#| a run of tests): the screen still begins with it.
+sub head(Str $command, Str $context = '') {
+    say Screen.new(:$command, :$context).title-line;
+    say '';
+}
+
+#| Body text, wrapped and indented under a title.
+sub para(*@s --> List) { wrap(@s.join(' '), 74).map({ "  $_" }).List }
+
+#| The one next step, with why, as every screen ends.
+sub next-line(Str $cmd, Str $why = '' --> Str) { pretty("next:  $cmd" ~ ($why ne '' ?? "   ($why)" !! '')) }
 
 #| A note to standard error that a person can read past: dimmed on a terminal.
 sub quiet(Str $text) { note pretty-on() && $*ERR.t ?? "\e[2m$text\e[0m" !! $text }
@@ -418,7 +440,7 @@ multi MAIN('init', Str :$for-what, Str :$for-who, Str :$namespace, Bool :$agent,
         my $path = init(:for-what($what), :for-who($who), :namespace($ns));
         try .unlink with $draft;
         # what is now in place, as a checklist, so the person sees each milestone land
-        say '';
+        say '' if $talk;
         say pretty("  ✓ Created {$path.basename} for $ns.");
 
         # Agent entry points install themselves - don't make the user think.
@@ -486,12 +508,12 @@ multi MAIN('add', Str $kind?, Str $text?, Str :$file, Str :$because, Str :$name,
             when 'for-what' | 'what' | 'is-for-what' {
                 user-error('iz4 add for-what needs the answer: what is this for?') without $text;
                 set-is-for($path, 'IS FOR WHAT', $text, :$replace);
-                say 'Set IS FOR WHAT.';
+                answer('add', 'IS FOR WHAT', [pretty('  ✓ Set IS FOR WHAT.')], [next-line('iz4 check')]);
             }
             when 'for-who' | 'who' | 'is-for-who' {
                 user-error('iz4 add for-who needs the answer: who is this for?') without $text;
                 set-is-for($path, 'IS FOR WHO', $text, :$replace);
-                say 'Set IS FOR WHO.';
+                answer('add', 'IS FOR WHO', [pretty('  ✓ Set IS FOR WHO.')], [next-line('iz4 check')]);
             }
             default {
                 my $singular = $k.subst(/ 's' $/, '');
@@ -534,11 +556,16 @@ sub fast-add(IO::Path $path, Str $text, Str :$because, Str :$name, Str :$namespa
     }
     my ($id, $ns) = choose-identity($path, $name, :$namespace, :$text);
     add-invariant($path, $text, :name($id), :$because, :namespace($ns), :$reach, :$established);
+    my $short = $id.split('.')[0];
     if $form eq 'card' {
-        say "Added PROMISE $id" ~ ($established ?? ', established: a change to its words waits for your yes, and a failing linked test holds the commit.'
-                                                 !! ", exploring: anyone may change its words while it settles, and a failing linked test warns. 'iz4 establish {$id.split('.')[0]}' when it is agreed.");
+        answer('add', 'a promise',
+            [pretty("  ✓ Added PROMISE $id, {$established ?? 'established' !! 'exploring'}."),
+             |para($established ?? 'A change to its words waits for your yes, and a failing linked test holds the commit.'
+                                 !! 'Anyone may change its words while it settles, and a failing linked test warns.')],
+            [$established ?? next-line("iz4 test $short", 'a test that would fail if it stopped being true')
+                          !! next-line("iz4 establish $short", 'when its words are agreed')]);
     }
-    else { say "Added INVARIANT $id." }
+    else { answer('add', 'an invariant', [pretty("  ✓ Added INVARIANT $id.")], [next-line("iz4 test $short")]) }
     note "note: no BECAUSE - say why it must survive, so nobody removes it by accident (--because=...)"
         unless ($because // '').trim || $form eq 'clauses' | 'card';
 }
@@ -557,10 +584,11 @@ multi MAIN('protects', Str $which?, Str $text?, Str :$file, Bool :$replace = Fal
         if $split {
             my @done = $which.defined ?? (split-because($path, $which) andthen ((which-invariant($path, $which), $_),)) // () !! split-all-because($path);
             if @done {
-                say "INVARIANT {.[0]}: moved under BECAUSE - {.[1]}" for @done;
-                say "Check each one: the words are yours, only moved.";
+                answer('split', "{+@done} reason{@done == 1 ?? '' !! 's'} moved", [@done.map({ pretty("  ✓ INVARIANT {.[0]}: moved under BECAUSE - {.[1]}") })],
+                       para('Check each one: the words are yours, only moved.'));
             }
             else {
+                head('split', $name);
                 say $which.defined
                     ?? "{$card ?? 'PROMISE' !! 'INVARIANT'} {which-invariant($path, $which)}: no reason found in its text; say it with 'iz4 protects {which-invariant($path, $which)} WHAT'"
                     !! "$name: no invariant carries a reason in its own text";
@@ -576,7 +604,7 @@ multi MAIN('protects', Str $which?, Str $text?, Str :$file, Bool :$replace = Fal
                 !! "that restates the invariant. Who would be harmed, surprised or let down if it stopped being true, and why?\n(--replace sets it anyway)");
         }
         set-because($path, $id, $text, :$replace);
-        say $card ?? "PROMISE $id now protects: $text" !! "Set BECAUSE for INVARIANT $id.";
+        answer('protects', $id, [pretty($card ?? "  ✓ PROMISE $id now protects: $text" !! "  ✓ Set BECAUSE for INVARIANT $id.")], [next-line('iz4 show invariant ' ~ $id.split('.')[0])]);
         0;
     }
 }
@@ -602,6 +630,7 @@ multi MAIN('withdraw', Str $which, Str :$file, Bool :$force = False, Bool :$keep
         my $name = display-name($path);
         my $id   = which-invariant($path, $which);
         my $h    = heading-of(check-doc($path));
+        head('withdraw', $id);
         print pretty(invariant-text($path, $id)) unless is-foundation-id($id);   # the refusal below says why for the foundation
         # What goes with it is worked out, and shown, before anyone is asked.
         my $present = !is-foundation-id($id) && check-doc($path).invariant($id).defined;
@@ -620,23 +649,25 @@ multi MAIN('withdraw', Str $which, Str :$file, Bool :$force = False, Bool :$keep
             unless $answer { say "$h $id stays" ~ (@remove ?? ', and so do its tests.' !! '.'); return 0 }
         }
         my $inv = withdraw-invariant($path, $id);
-        say "Withdrew $h $id from $name: {$inv.text}";
+        say '';
+        say pretty("  ✓ Withdrew $h $id from $name: {$inv.text}");
         my @gone = remove-tests($path.parent, @remove);
         if @gone {
-            say "Removed {+@gone == 1 ?? 'the test' !! "the {+@gone} tests"} that existed only for it:";
-            say "  $_" for @gone;
+            say "  Removed {+@gone == 1 ?? 'the test' !! "the {+@gone} tests"} that existed only for it:";
+            say "    $_" for @gone;
         }
         my @next;
         for @(%tests<shared>) -> ($f, @also) {
-            say "Left $f: it also names {@also.join(', ')}.";
+            say "  Left $f: it also names {@also.join(', ')}.";
             @next.push("take what was about $id out of $f; the rest of it still protects {@also.join(', ')}");
         }
         for @(%tests<unsaved>) -> $f {
-            say "Left $f: Git does not hold it as it is, so removing it would lose it for good.";
+            say "  Left $f: Git does not hold it as it is, so removing it would lose it for good.";
             @next.push("delete $f yourself if it was only for $id, or commit it first");
         }
         @next.push("delete or re-home $_: it was only for $id (kept because of --keep-tests)") for @kept;
         @next.push("git add -A && git commit -m 'Withdraw $id: ...'  (say why, so the history explains it)");
+        say '';
         say-next(@next, :then('iz4 check'));
         0;
     }
@@ -671,7 +702,7 @@ sub governance-command(Str $stage, Str $which, Str $file) {
     my @own = $doc.invariants.grep(*.id.defined);
     without $which {
         my @x = @own.grep(*.exploring); my @e = @own.grep({ !.exploring });
-        calm("$name: " ~ (!@own ?? 'no promises of its own yet' !! @e == @own ?? "all {+@own} established" !! @x == @own ?? "all {+@own} exploring" !! "{+@e} established, {+@x} exploring"),
+        calm(:command($stage eq 'established' ?? 'establish' !! 'explore'), "$name: " ~ (!@own ?? 'no promises of its own yet' !! @e == @own ?? "all {+@own} established" !! @x == @own ?? "all {+@own} exploring" !! "{+@e} established, {+@x} exploring"),
              |(@x ?? ("Exploring, so a change to its words waits for nobody and a failing linked test warns: {@x.map(*.id).join(', ')}.",) !! ()),
              |(@e ?? ("Established, so a change waits for your signed yes and a failing linked test holds the commit: {@e.map(*.id).join(', ')}.",) !! ()),
              :next([|(@x ?? ('establish NAME' => 'when a promise is agreed',) !! ()), |(@e ?? ('explore NAME' => 'to let one move again while it settles',) !! ())]));
@@ -679,15 +710,16 @@ sub governance-command(Str $stage, Str $which, Str $file) {
     }
     my $inv = pick-invariant($doc, $which);
     my $now = set-governance($path, $inv.id, $stage);
-    if $now eq 'unchanged' { calm("{$inv.id} is already $stage"); return 0 }
+    my $cmd = $stage eq 'established' ?? 'establish' !! 'explore';
+    if $now eq 'unchanged' { calm("{$inv.id} is already $stage", :command($cmd)); return 0 }
     if $stage eq 'established' {
-        calm("{$inv.id} is established",
+        calm("{$inv.id} is established", :command<establish>,
              'From now on a change to its words waits for your signed yes, and a failing linked test holds the commit.',
              'Its card says so: CHANGES REQUIRE signed human approval for the exact change; CHECKED WITH linked tests; failures block commit.',
              :next(['test' => 'writes the test that is missing, if any', 'status' => 'where everything stands']));
     }
     else {
-        calm("{$inv.id} is exploring",
+        calm("{$inv.id} is exploring", :command<explore>,
              'Its words may change without approval while it settles, and a failing linked test warns rather than holds. The promise as written still applies.',
              'Asking less of an invariant is itself a change: commit it, and the gate asks you once.',
              :next(['establish ' ~ $which => 'when its words are agreed']));
@@ -710,8 +742,8 @@ multi MAIN('update', 'check') { MAIN('update', :check) }
 multi MAIN('migrate', 'preview', Str $file?, Str :$namespace, Str :$where) {
     MAIN('migrate', |($file // Empty), :dry-run, |(:$namespace if $namespace.defined), |(:$where if $where.defined));
 }
-multi MAIN('report', 'preview', Str :$file, Str :$release, Str :$run-id) {
-    MAIN('report', :dry-run, |(:$file if $file.defined), |(:$release if $release.defined), |(:$run-id if $run-id.defined));
+multi MAIN('report', 'preview', Str :$file, Str :$release, Str :$run-id, Bool :$json = False) {
+    MAIN('report', :dry-run, :$json, |(:$file if $file.defined), |(:$release if $release.defined), |(:$run-id if $run-id.defined));
 }
 multi MAIN('gate', 'install', Bool :$enforce = False, Bool :$force = False, Str :$file) {
     MAIN('gate', :install-hook, :$enforce, :$force, |(:$file if $file.defined));
@@ -723,7 +755,7 @@ multi MAIN('review', 'install', Bool :$force = False, Str :$file) {
 multi MAIN('agent', 'install', *@what where { .elems > 0 }, Bool :$strict = False, Str :$file) {
     my @known = <claude skill hooks>;
     my @bad = @what.grep({ $_ ne any(@known) });
-    if @bad { note "iz4 agent install takes {@known.join(', ')}; not '{@bad[0]}'.\n"; note help-topic(topic('agent install')); exit 1 }
+    if @bad { note "iz4 agent install takes {@known.join(', ')}; not '{@bad[0]}'."; note help-topic(topic('agent install')).trim-trailing; exit 1 }
     MAIN('agent', 'install', :claude(so @what.grep('claude')), :skill(so @what.grep('skill')),
          |(:hooks if @what.grep('hooks')), :$strict, |(:$file if $file.defined));
 }
@@ -737,6 +769,7 @@ multi MAIN('foundation', Str $file?, Bool :$restore = False) {
         unless $restore {
             # the form of the file here, else the newest
             my $form = (try check-doc(resolve-target($file)).form) // 'card';
+            head('foundation', 'the words every IZ4 carries') if pretty-on();
             if $form eq 'card' {
                 say 'The foundation:';
                 for FOUNDATION-CARD -> %f {
@@ -760,15 +793,15 @@ multi MAIN('foundation', Str $file?, Bool :$restore = False) {
             return 0;
         }
         my $path = resolve-target($file);
-        given restore-foundation($path) {
-            when 'unchanged' { say "{display-name($path)}: the foundation is already there, word for word" }
-            when 'written'   { say "{display-name($path)}: wrote the foundation after IS FOR WHO?" }
-            when 'replaced'  { say "{display-name($path)}: replaced the foundation with its current words" }
-            when 'tidied'    { say "{display-name($path)}: the foundation was right; the comments around it are brought up to date" }
-        }
+        my $what = do given restore-foundation($path) {
+            when 'unchanged' { "  · {display-name($path)}: the foundation is already there, word for word" }
+            when 'written'   { "  ✓ {display-name($path)}: wrote the foundation after IS FOR WHO?" }
+            when 'replaced'  { "  ✓ {display-name($path)}: replaced the foundation with its current words" }
+            when 'tidied'    { "  ✓ {display-name($path)}: the foundation was right; the comments around it are brought up to date" }
+        };
         my $doc = check-doc($path);
-        say "  now: {$doc.foundation-status}";
-        say-next(['iz4 check'], :then('iz4 foundation restore')) unless $doc.foundation-intact;
+        answer('foundation restore', display-name($path), [pretty($what), "    now: {$doc.foundation-status}"],
+               [$doc.foundation-intact ?? pretty('The foundation holds, word for word.') !! next-line('iz4 check')]);
         $doc.foundation-intact ?? 0 !! 1;
     }
 }
@@ -1026,6 +1059,7 @@ multi MAIN('invariants', Str $file?, Bool :brief($brief-flag) = False) {
             return 0;
         }
         mark-held($path);
+        head('invariants', display-name($path)) if pretty-on();
         print pretty(effective-text(check-doc($path), :name(display-name($path))));
         0;
     }
@@ -1046,6 +1080,7 @@ multi MAIN('show', 'invariant', Str $which, Str :$file, Bool :brief($brief-flag)
             return 0;
         }
         mark-held(resolve-target($file));
+        head('show', $which) if pretty-on();
         print pretty(invariant-text(resolve-target($file), $which));
         0;
     }
@@ -1058,6 +1093,7 @@ multi MAIN('show', Str $a?, Str $b?, Bool :brief($brief-flag) = False) {
         # the pipeline form is the text itself, never dressed
         return print(show-text(resolve-target($file), $part)) && 0 if brief-wanted($brief-flag);
         mark-held(resolve-target($file));
+        head('show', $part // display-name(resolve-target($file))) if pretty-on();
         print pretty(show-text(resolve-target($file), $part));
         0;
     }
@@ -1282,13 +1318,14 @@ multi MAIN('test', *@which, Str :$file, Str :$lang, Bool :$list = False, Bool :$
         user-error("fix the errors 'iz4 check' reports first") if $doc.errors;
         my %ev = evidence-for($doc, $root);
         if $list || !$doc.invariants {
-            say "No project invariants yet; 'iz4 add' finds one." unless $doc.invariants;
-            for $doc.invariants.grep(*.id.defined) -> $inv {
-                my $n = $inv.id;
-                say sprintf('  %-10s %s  %s', %ev<state>{$n}, $n, (%ev<files>{$n} // ()).join(', '));
-            }
-            say "named: a reviewed test names it; drafted: an agent's draft awaiting review; scaffolded: the born-red placeholder; none: nothing.";
-            say "Evidence that an invariant holds is a test that would fail if it stopped being true; a name alone is not that.";
+            my @own = $doc.invariants.grep(*.id.defined);
+            my $w = (@own.map(*.id.chars).max // 0);
+            answer('test list', display-name($path),
+                @own ?? [@own.map({ sprintf('  %-10s %-*s  %s', %ev<state>{.id}, $w, .id, (%ev<files>{.id} // ()).join(', ')).trim-trailing })]
+                     !! ["  No project invariants yet; 'iz4 add' finds one."],
+                [|para("named: a reviewed test names it; drafted: an agent's draft awaiting review; scaffolded: the born-red placeholder; none: nothing."),
+                 |para("Evidence that an invariant holds is a test that would fail if it stopped being true; a name alone is not that.")],
+                [@own.grep({ %ev<state>{.id} eq 'none' }) ?? next-line('iz4 test', 'a test for each invariant that has none') !! next-line('nothing waits on you')]);
             return 0;
         }
         my @only = @which.map({ resolve-identity($doc, $_) // user-error("no invariant '$_' in {display-name($path)}; 'iz4 test list' shows the names") });
@@ -1296,12 +1333,14 @@ multi MAIN('test', *@which, Str :$file, Str :$lang, Bool :$list = False, Bool :$
         my $language = $lang // detect-language($root);
         user-error("no scaffold for language '$language'; --lang takes one of {LANGUAGES.join(', ')}")
             unless so $language eq any(LANGUAGES);
+        head('test', display-name($path));
+        my $said = False;
+        my sub gap() { say '' if $said; $said = True }
 
         # With an agent and a person present, draft the real test and ask;
         # a draft is written only on a yes, and is marked for review.
         my @drafted;
-        say "No agent to draft with (321, or your own IZ4_AGENT_CMD): writing scaffolds for you to fill in."
-            if $draft && interactive() && !agent-reachable();
+        if $draft && interactive() && !agent-reachable() { gap(); say "  No agent to draft with (321, or your own IZ4_AGENT_CMD): writing scaffolds for you to fill in." }
         if $draft && interactive() && agent-reachable() {
             my $layout = gather-context($root);
             for $doc.invariants.grep(*.id.defined) -> $inv {
@@ -1310,7 +1349,7 @@ multi MAIN('test', *@which, Str :$file, Str :$lang, Bool :$list = False, Bool :$
                 next if %ev<state>{$n} ne 'none';
                 my ($rel, $) = scaffold($language, $inv);
                 next if $root.add($rel).e;
-                say '';
+                gap();
                 say "{heading-of($doc)} $n: {$inv.text}";
                 say "asking agent ({agent-label()}) for a test ($language, $rel) ...";
                 my $d = try agent-draft($doc, $inv, $root, :lang($language), :path($rel), :$layout);
@@ -1330,23 +1369,29 @@ multi MAIN('test', *@which, Str :$file, Str :$lang, Bool :$list = False, Bool :$
         }
         my @done = write-scaffolds($doc, $root, :lang($language), :@only);
         if @drafted {
-            say '';
-            say "Drafted {+@drafted} test{+@drafted == 1 ?? '' !! 's'} ($language), each marked for review on its first line:";
-            say "  $_[0]  ($_[1])" for @drafted;
-            say "A draft is not evidence until you have read it, run it, seen that it can fail, and deleted that line.";
+            gap();
+            say "  Drafted {+@drafted} test{+@drafted == 1 ?? '' !! 's'} ($language), each marked for review on its first line:";
+            say "    $_[0]  ($_[1])" for @drafted;
+            say "  A draft is not evidence until you have read it, run it, seen that it can fail, and deleted that line.";
         }
         if @done {
-            say '';
-            say "Scaffolded {+@done} test{+@done == 1 ?? '' !! 's'} ($language), each failing until you write the assertion:";
-            say "  $_[0]  ($_[1])" for @done;
-            say "A scaffold is not evidence: 'iz4 check' counts it only once its placeholder is gone.";
-            say "On a terminal with an agent (IZ4_AGENT_CMD), 'iz4 test' drafts the real test for you to approve." unless $draft && interactive();
+            gap();
+            say "  Scaffolded {+@done} test{+@done == 1 ?? '' !! 's'} ($language), each failing until you write the assertion:";
+            say "    $_[0]  ($_[1])" for @done;
+            say "  A scaffold is not evidence: 'iz4 check' counts it only once its placeholder is gone.";
+            say "  On a terminal with an agent (IZ4_AGENT_CMD), 'iz4 test' drafts the real test for you to approve." unless $draft && interactive();
         }
         unless @drafted || @done {
-            say @only
+            gap();
+            say '  ' ~ @only
                 ?? "Nothing to write: {@only.join(', ')} already ha{@only == 1 ?? 's' !! 've'} a test naming it (or its file exists)."
                 !! "Nothing to write: every invariant already has a test naming it, or its file exists ('iz4 test list').";
         }
+        # the one next step: the first file that still needs its assertion, or a draft to read
+        say '';
+        say @drafted ?? next-line("read {@drafted[0][0]}", 'run it, see that it can fail, then delete its first line')
+                     !! @done ?? next-line("write the assertion in {@done[0][0]}", 'until then it fails, on purpose')
+                     !! next-line('iz4 status');
         0;
     }
 }
@@ -1369,7 +1414,8 @@ multi MAIN('name', Int $line, Str $name, Str :$file, Str :$namespace) {
 multi MAIN('when', Str $which, Str $text, Str :$file) {
     attempt :intent, {
         my $path = resolve-target($file);
-        say "{set-reach($path, $which, $text)} now applies when: $text";
+        my $id = set-reach($path, $which, $text);
+        answer('when', $id, [pretty("  ✓ $id now applies when: $text")], [next-line('iz4 show invariant ' ~ $id.split('.')[0])]);
         0;
     }
 }
@@ -1380,7 +1426,8 @@ multi MAIN('migrate', Str $file?, Str :$namespace, Str :$where, Bool :$dry-run =
     attempt :intent, {
         my $path = resolve-target($file);
         my $form = check-doc($path).form;
-        if $form eq 'card' { say "{display-name($path)} is already in the card form; there is nothing to migrate."; return 0 }
+        if $form eq 'card' { answer('migrate', display-name($path), ["  · {display-name($path)} is already in the card form; there is nothing to migrate."]); return 0 }
+        head('migrate', display-name($path));
         if $form eq 'named' {
             my $rc = migrate-clauses-command($path, :$namespace, :$where, :$dry-run);
             return $rc if $rc != 0 || $dry-run;
@@ -1502,12 +1549,14 @@ multi MAIN('review', *@range, Str :$file, Bool :$staged = False, Bool :$for-push
         my $doc = check-doc($path);
         user-error("fix the errors 'iz4 check' reports before reviewing") if $doc.errors;
         my ($diff, $what) = change-diff($path, |($for-push ?? (push-range($path),) !! @range), :$staged);
-        .say for offline-report($doc, $diff, :$what);
+        head('review', $what);
+        say "  $_" for offline-report($doc, $diff, :$what);
         return 0 unless $diff.trim;
         return 0 if $offline;
 
         my $review = try agent-review($path, :$diff, :$what);
         without $review {
+            say '';
             say "No agent review: {$!.message.lines.head} (IZ4_AGENT_CMD names your agent; --offline skips this).";
             return 0;
         }
@@ -1621,6 +1670,7 @@ multi MAIN('log', Str $file?, Bool :brief($brief-flag) = False) {
     attempt {
         # the pipeline form: date, revision, subject, tab-separated
         return print(log-text(resolve-target($file)).lines.map({ .split('  ', 3).join("\t") ~ "\n" }).join) && 0 if brief-wanted($brief-flag);
+        head('log', 'the history of the IZ4') if pretty-on();
         print log-text(resolve-target($file));
         0;
     }
@@ -1632,6 +1682,7 @@ multi MAIN('diff', *@args) {
         user-error("diff takes at most two revisions") if @args > 2;
         my ($rc, $out, $err) = diff-result(resolve-target($file), |@args);
         if $rc == 127 { say $err.trim; return 0 }      # no Git: informational, like log
+        head('diff', 'what changed in the IZ4') if pretty-on();
         print $out;
         note $err.trim if $err.trim ne '';
         $rc;
@@ -1640,7 +1691,9 @@ multi MAIN('diff', *@args) {
 
 multi MAIN('version', Bool :brief($brief-flag) = False) {
     return say VERSION if brief-wanted($brief-flag);
-    say "iz4 {VERSION}" ~ (own-revision() andthen " ($_)" orelse '');
+    # a script reads 'iz4 X.Y.Z (rev)' from a pipe; a person gets the title's dress
+    my $v = "iz4 {VERSION}" ~ (own-revision() andthen " ($_)" orelse '');
+    say pretty-on() ?? Screen.new(:heading($v)).title-line !! $v;
 }
 
 # ------------------------------------------------------------ completion
@@ -1655,12 +1708,13 @@ multi MAIN('completion', Str $shell) {
 
 multi MAIN('update', Bool :$check = False) {
     attempt {
+        head('update', $check ?? 'is there a newer iz4?' !! 'bring iz4 up to date');
         my %u = self-update(:$check);
-        my sub commits() { say "  $_" for %u<commits>.head(8); say "  ..." if %u<commits> > 8 }
+        my sub commits() { say "    $_" for %u<commits>.head(8); say "    ..." if %u<commits> > 8 }
         my $rc = do given %u<state> {
-            when 'current'  { say "iz4 is up to date ({VERSION}, {%u<from>})."; 0 }
-            when 'behind'   { say "iz4 is {%u<n>} commit{%u<n> == 1 ?? '' !! 's'} behind; 'iz4 update' fetches:"; commits(); 0 }
-            when 'updated'  { say "Updated iz4 from {%u<from>} to {%u<to>} ({%u<n>} commit{%u<n> == 1 ?? '' !! 's'}):"; commits(); 0 }
+            when 'current'  { say pretty("  ✓ iz4 is up to date ({VERSION}, {%u<from>})."); 0 }
+            when 'behind'   { say "  iz4 is {%u<n>} commit{%u<n> == 1 ?? '' !! 's'} behind; 'iz4 update' fetches:"; commits(); say ''; say next-line('iz4 update'); 0 }
+            when 'updated'  { say pretty("  ✓ Updated iz4 from {%u<from>} to {%u<to>} ({%u<n>} commit{%u<n> == 1 ?? '' !! 's'}):"); commits(); 0 }
             when 'managed'  { say %u<note>; 0 }
             default         { note %u<note>; 1 }
         };
@@ -1812,17 +1866,20 @@ multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$
         %s<enforcement> = %enf if %enf;
         if $json { say json-encode(%s) }
         else {
+            head('agent status', %s<iz4><present> ?? display-name($path) !! 'no IZ4 here');
             if %s<iz4><present> {
-                say "IZ4: {display-name($path)} - " ~ (%s<iz4><valid>
+                say "  IZ4: {display-name($path)} - " ~ (%s<iz4><valid>
                     ?? 'valid'
                     !! "INVALID ({%s<iz4><errors>} errors - run 'iz4 check')");
-                say %s<iz4><binding>;
+                say "  {%s<iz4><binding>}";
             }
-            else { say 'IZ4: none found in this directory or its parents' }
+            else { say '  IZ4: none found in this directory or its parents' }
+            say '';
             for 'AGENTS.md', 'CLAUDE.md', SKILL-PATH -> $i {
                 my $status = %s<integrations>{$i};
-                say integration-line($i, $status, :reason($status eq 'stale' ?? stale-reason($root.add($i)) !! ''));
+                say pretty("  {$status eq 'current' ?? '✓' !! '✗'} " ~ integration-line($i, $status, :reason($status eq 'stale' ?? stale-reason($root.add($i)) !! '')));
             }
+            say '';
             if %enf {
                 say "321 {%s<launcher><version>}, an agent launcher, is installed: agent runs, suggest, review and test drafting go through it,";
                 say "and it drives iz4 in every harness it knows and says how strongly it is enforced:";
@@ -1840,6 +1897,7 @@ multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$
                   ~ (@legacy ?? '' !! ", and iz4 finds no hooks of its own here (iz4 leaves agent environments to a driver: docs/drivers.md)");
             }
             if @legacy { .say for legacy-hooks-lines(@legacy, :migration(legacy-migration())) }
+            say '';
             say %s<note>;
             # the next steps for whatever is not in place, in the order that
             # clears the most first: a file to work on, then the hooks, which
@@ -1858,7 +1916,8 @@ multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$
                 @next.push(integration-next($i, %s<integrations>{$i})) unless %s<integrations>{$i} eq 'current';
             }
             @next.push('321 iz4 install') if $want-hooks && !%s<iz4><present>;
-            say-next(@next, :then('iz4 agent status')) if @next;
+            say '';
+            if @next { say-next(@next, :then('iz4 agent status')) } else { say next-line('nothing waits on you') }
         }
         my $fail = !%s<iz4><present> || !%s<iz4><valid>
                 || ?%s<integrations>.values.grep(* eq 'stale' | 'malformed');
@@ -2045,40 +2104,66 @@ sub brief-line(%r --> Str) {
         !! 'iz4: nothing this software promises has changed.';
 }
 
-sub gate-lines(%r --> List) {
-    my @l;
-    my $b = %r<base> eq 'none' ?? 'no base (initial)' !! "base {%r<base>.substr(0, 12)} ({%r<base_ref>})";
-    @l.push: "gate: candidate tree {%r<candidate>.substr(0, 12)} ({%r<candidate_ref>}) against $b, {%r<mode>}";
-    if %r<iz4><candidate_present> || %r<iz4><base_present> {
-        my %p = changes => %r<changes>, protections => %r<protections>.grep({ .<kind> ne 'protection-changed' }).List, heading => heading-for(%r);
-        my @pl = proposal-lines(%p);
-        @l.push: 'commitments and protections:' ~ (@pl ?? '' !! ' unchanged');
-        @l.push: "  $_" for @pl;
-        for |%r<protections>.grep({ .<kind> eq 'protection-changed' }) { @l.push: "  ({.<id>}: {.<detail>})" }
-        if %r<checks> {
-            @l.push: 'checks, run from the candidate tree:';
-            for |%r<checks> -> %c {
-                my $mark = %c<outcome> eq 'passed' ?? '✓' !! %c<outcome> eq 'failed' ?? '✗' !! '?';
-                @l.push: "  $mark {%c<file>} ({%c<invariants>.join(', ')}) {%c<outcome>}" ~ (%c<detail> ?? ": {%c<detail>}" !! '');
-            }
-        }
-        else { @l.push: 'checks: no test names an invariant, so nothing was run' }
-        @l.push: "touches, by their own words (for a person to look at, not a finding): {%r<touches>.map(*.<id>).join(', ')}" if %r<touches>;
-        given %r<approval><status> {
-            when 'valid'   { @l.push: "approval: valid ({%r<approval><level>}) by {%r<approval><approved_by>} at {%r<approval><approved_at>}" ~ (%r<approval><reasons> ?? "; {%r<approval><reasons>.join('; ')}" !! '') }
-            when 'invalid' { @l.push: "approval: invalid - {%r<approval><reasons>.join('; ')}" }
-            when 'missing' { @l.push: 'approval: none for this candidate tree' }
-        }
-    }
-    @l.push: "  note: $_" for |%r<notes>;
-    with %r<vibe> { @l.push: "exploring: every invariant of the project's own may still change freely, so nothing here waits for a yes ({.<changes>} changed, {.<failing>} test{.<failing> == 1 ?? '' !! 's'} failing). 'iz4 establish NAME' when one is agreed." }
+#| The gate's answer for a person, on the screen layer: the outcome in the
+#| title; each protected invariant by name with its mark, then the test
+#| that showed it; what changed, the approval and the mode as a table;
+#| the next steps; and, when everything held, a line that says so.
+sub gate-screen(%r, Str :$again, Str :$domain = '', :@order, Str :$what = 'the staged change' --> Screen) {
     my %why =
         pass => 'no commitment or protection changed, and every check that could run passed',
         'agreement-required' => 'this changes what the software promises, so it waits for your yes',
         blocked => 'something here needs putting right first; a yes cannot stand in for it',
         unassessed => 'a check could not be run, so this is not a pass';
-    @l.push: "outcome: {%r<outcome>} - {%why{%r<outcome>} // ''}";
-    @l;
+    my $sc = Screen.new(:command<gate>, :context($what));
+    my $present = %r<iz4><candidate_present> || %r<iz4><base_present>;
+    if $present && %r<checks> {
+        # one row per invariant, the name first, then the test that showed it
+        # in the order the IZ4 writes them, as status shows them
+        my %at = @order.antipairs;
+        my @rows = %r<checks>.map(-> %c { |(%c<invariants> || ['(no invariant named)']).map({ %( id => $_, check => %c ) }) })
+                             .sort({ %at{.<id>} // Inf });
+        my %state = @rows.map({ .<id> => (.<check><outcome> eq 'passed' ?? 'held' !! .<check><outcome> eq 'failed' ?? 'broken' !! 'unknown') });
+        mark-solid(%state);
+        my sub short(Str $id) { $domain ne '' && $id.ends-with(".$domain") ?? $id.substr(0, * - $domain.chars - 1) !! $id }
+        my $w = @rows.map({ short(.<id>).chars }).max;
+        $sc.lines(|@rows.map(-> %row {
+            my %c = %row<check>;
+            sprintf('  %s %-*s  %s', mark-shown(%row<id>), $w, short(%row<id>), "{%c<file>} {%c<outcome>}" ~ (%c<detail> ?? ": {%c<detail>}" !! ''))
+        }));
+        $sc.lines(pretty('  ' ~ marks-legend())) if pretty-on();
+    }
+    elsif $present { $sc.note('no test names an invariant, so no check was run') }
+    my @table;
+    @table.push: ['outcome', "{%r<outcome>}: {%why{%r<outcome>} // ''}"];
+    if $present {
+        my %p = changes => %r<changes>, protections => %r<protections>.grep({ .<kind> ne 'protection-changed' }).List, heading => heading-for(%r);
+        my @pl = proposal-lines(%p);
+        @table.push: ['commitments', @pl ?? "{+@pl} change{@pl == 1 ?? '' !! 's'} to what it promises or protects" !! 'unchanged'];
+        given %r<approval><status> {
+            when 'valid'   { @table.push: ['approval', "valid ({%r<approval><level>}) by {%r<approval><approved_by>} at {%r<approval><approved_at>}" ~ (%r<approval><reasons> ?? "; {%r<approval><reasons>.join('; ')}" !! '')] }
+            when 'invalid' { @table.push: ['approval', "invalid - {%r<approval><reasons>.join('; ')}"] }
+            when 'missing' { @table.push: ['approval', 'none for this candidate tree'] }
+        }
+        @table.push: ['touches', "{%r<touches>.map(*.<id>).join(', ')} (by their own words, for a person to look at, not a finding)"] if %r<touches>;
+        my $b = %r<base> eq 'none' ?? 'no base (initial)' !! "{%r<base_ref>} {%r<base>.substr(0, 12)}";
+        @table.push: ['compared', "{%r<candidate_ref>} {%r<candidate>.substr(0, 12)} against $b"];
+        @table.push: ['mode', %r<mode> eq 'enforce' ?? "enforce: exit {%r<exit_code>}" !! 'advisory: refuses nothing; --enforce makes the outcome the exit code'];
+        $sc.rows(@table.map({ .[0] => .[1] }));
+        # what each change is, under the table that counts them
+        $sc.lines(|@pl.map({ "  $_" }), |%r<protections>.grep({ .<kind> eq 'protection-changed' }).map({ "  ({.<id>}: {.<detail>})" }));
+    }
+    else { $sc.rows(@table.map({ .[0] => .[1] })) }
+    my @notes = |%r<notes>.map({ "note: $_" });
+    with %r<vibe> { @notes.push: "exploring: every invariant of the project's own may still change freely, so nothing here waits for a yes ({.<changes>} changed, {.<failing>} test{.<failing> == 1 ?? '' !! 's'} failing). 'iz4 establish NAME' when one is agreed." }
+    $sc.lines(|@notes.map({ pretty($_) })) if @notes;
+    $sc.steps(%r<next>, :then($again)) if %r<next>;
+    # when every check held and nothing it promises changed, say so plainly, last
+    my @c = |(%r<checks> // ());
+    if %r<outcome> eq 'pass' && @c && @c.all<outcome> eq 'passed' && !%r<vibe> {
+        $sc.note("All held: {+@c} of {+@c} protecting test{@c == 1 ?? '' !! 's'} passed, and no commitment changed.");
+    }
+    $sc.doc = %r;
+    $sc;
 }
 
 # ------------------------------------------------- the machine interface
@@ -2218,6 +2303,10 @@ sub gate-command(Str :$base, Str :$candidate, Bool :$enforce, Bool :$json, Bool 
         };
         my %r;
         my $failure = Nil;
+        # the title first, so the screen begins with it and the tests' bar runs under it
+        my $titled = !$json && !$brief && pretty-on();
+        my $what = $candidate.defined ?? "candidate $candidate" !! 'the staged change';
+        if $titled { say Screen.new(:command<gate>, :context($what)).title-line; say '' }
         try {
             %r = run-gate($root, :staged(!$candidate.defined), :$base, :$candidate, :$enforce, :$checks, :$timeout,
                           :check-cmd($cmd), :approval-file($approval.defined ?? $approval.IO !! IO::Path),
@@ -2237,10 +2326,11 @@ sub gate-command(Str :$base, Str :$candidate, Bool :$enforce, Bool :$json, Bool 
             say brief-line(%r);
         }
         else {
-            say pretty($_) for gate-lines(%r);
             my $again = 'iz4 gate' ~ ($candidate.defined ?? " --candidate=$candidate" !! ' --staged') ~ ($enforce ?? ' --enforce' !! '');
-            say-next(%r<next>, :then($again)) if %r<next>;
-            say $enforce ?? "exit {%r<exit_code>}" !! 'advisory: this run refuses nothing; --enforce makes the outcome the exit code';
+            my $doc = try check-doc($root.add(ROOT-NAME));
+            # on a terminal the title went first, so the outcome opens the body; in a pipe the title carries it
+            my $sc = gate-screen(%r, :$again, :$what, :domain(($doc andthen .domain) // ''), :order(($doc andthen .invariants.map(*.id).grep(*.defined)) // ()));
+            print $sc.screen(:title(!$titled));
         }
         %r<exit_code>;
     }
@@ -2260,6 +2350,7 @@ sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out
             my ($rc, $o, $) = git($root.add(ROOT-NAME), 'config', '--get', 'iz4.checkCmd');
             $rc == 0 && $o.trim ne '' ?? $o.trim !! Str;
         };
+        head('approve', $candidate.defined ?? "candidate $candidate" !! 'the staged change') unless $resolved;
         my %r = run-gate($root, :staged(!$candidate.defined), :$base, :$candidate, :check-cmd($cmd), :progress($resolved ?? Callable !! check-progress()));
         my %p = changes => %r<changes>, protections => %r<protections>, heading => heading-for(%r);
         if %r<outcome> eq 'blocked' {
@@ -2463,6 +2554,7 @@ sub send-approval(IO::Path $root, Str $ref) {
 multi MAIN('badge', Str :$file) {
     attempt {
         my %b = badge-info(resolve-target($file));
+        head('badge', 'the card link and badge for your README');
         say "card:  {%b<card>}";
         say "badge: {%b<badge>}";
         say '';
@@ -2479,12 +2571,23 @@ multi MAIN('badge', Str :$file) {
 }
 
 multi MAIN('report', Str :$file, Str :$release, Str :$run-id,
-           Bool :$dry-run = False, Bool :$strict = False) {
+           Bool :$dry-run = False, Bool :$strict = False, Bool :$json = False) {
     attempt {
         my $path   = resolve-target($file);
         my %report = collect-report($path, :$release, :$run-id);
         my $body   = json-encode(%report);
-        if $dry-run { say $body; return 0 }
+        # the preview for a person names what goes; the document itself is what a program reads (--json)
+        if $dry-run {
+            return say($body) && 0 if $json || !pretty-on();
+            answer('report preview', display-name($path),
+                   [pretty(sprintf('%-13s %s', 'revision', %report<revision>.substr(0, 12))),
+                    pretty(sprintf('%-13s %s', 'invariants', %report<declaration><invariant_count> // 0)),
+                    pretty(sprintf('%-13s %s', 'checks', %report<checks>.pairs.sort.map({ "{.key} {.value<outcome>}" }).join(', '))),
+                    pretty(sprintf('%-13s %s', 'digest', (%report<declaration><digest> // '').substr(0, 12)))],
+                   para('Evidence only: digests, counts and check outcomes. The text of the IZ4 is never sent.'),
+                   [next-line('iz4 report', 'sends it, once registered'), "  iz4 report preview --json   the document itself"]);
+            return 0;
+        }
 
         my $url = register-url($path)
             // user-error("not connected to a register; run 'iz4 register' for the steps");

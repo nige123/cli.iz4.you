@@ -68,7 +68,7 @@ g($r, 'add', '-A');
 ($rc, $out, $err) = gate($r);
 is $rc, 0, 'a reworded exploring promise with a failing test passes the gate';
 like $out, / 'revised' /, 'the rewording is reported';
-like $out, / '✗ t/charged-once.t' /, 'and so is the failing test';
+like $out, / <[✕x]> ' charged-once' \h+ 't/charged-once.t failed' /, 'and so is the failing test: the invariant first, then its test';
 like $out, / 'exploring: every invariant' .* 'nothing here waits for a yes' /, 'with the reason nothing held';
 g($r, 'commit', '-qm', 'still exploring');
 
@@ -86,7 +86,7 @@ like iz4($r, 'establish', 'charged-once')[1], / 'already established' /, 'asking
 g($r, 'add', '-A');
 ($rc, $out, $err) = gate($r);
 is $rc, 3, 'the test still fails, and now that holds the commit';
-like $out, / 'outcome: blocked' /, 'blocked';
+like $out, / 'outcome' \h+ 'blocked: ' /, 'blocked';
 $r.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
 g($r, 'add', '-A');
 ($rc, $out, $err) = gate($r);
@@ -99,7 +99,7 @@ $iz4.spurt($iz4.slurp.subst('An order is charged at most twice.', 'An order is n
 g($r, 'add', '-A');
 ($rc, $out, $err) = gate($r);
 is $rc, 2, 'rewording an established promise waits for a yes';
-like $out, / 'outcome: agreement-required' /, 'agreement required';
+like $out, / 'outcome' \h+ 'agreement-required: ' /, 'agreement required';
 g($r, 'checkout', 'HEAD', '--', 'IZ4'); g($r, 'reset', '-q');
 
 # ---- lowering waits, and nothing is escaped by lowering first ---------------------

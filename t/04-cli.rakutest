@@ -107,7 +107,7 @@ is $dir.add('IZ4').slurp, $untouched, 'neither refusal wrote anything';
 
 # ---- check: ticks, crosses with remedies, and honest uncertainty -----------------
 ($rc, $out, $err) = iz4($dir, |@private, '--name=private-stay-private', "--namespace=$NS");
-is ($rc, $out), (0, "Added INVARIANT private-stay-private.$NS.\n"), 'fast path add';
+ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added INVARIANT private-stay-private.$NS."), 'fast path add';
 ok $dir.add('IZ4').slurp.contains("# This project's invariants are named under $NS.\n\nINVARIANT private-stay-private.$NS\n"),
     'the first add records the namespace in the file';
 ($rc, $out, $err) = iz4($dir, 'check');
@@ -128,7 +128,7 @@ like $out, /"✗ evidence: private-stay-private.shop.example.com has no test nam
 ok $out.ends-with("OK IZ4 (1 to remedy above)\n"), 'and the summary counts it';
 
 ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Employers cannot contact someone first.', '--name=no-first-contact');
-is ($rc, $out), (0, "Added INVARIANT no-first-contact.$NS.\n"), 'a later add takes the namespace from the file';
+ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added INVARIANT no-first-contact.$NS."), 'a later add takes the namespace from the file';
 is $dir.add('IZ4').slurp.comb("This project's invariants are named under").elems, 1, 'which records it once';
 ($rc, $out, $err) = iz4($dir, 'check');
 like $out, /'✗ BECAUSE: missing for no-first-contact.shop.example.com - write under each why it must survive'/, 'a missing BECAUSE is a cross with a remedy';
@@ -164,7 +164,7 @@ like $out, /'INVARIANT no-unexplained-price.shop.example.com: moved under BECAUS
 ($rc, $out, $err) = iz4($dir, 'protects', 'no-first-contact', 'Employers cannot contact first.');
 is $rc, 1, 'a circular reason is challenged';
 ($rc, $out, $err) = iz4($dir, 'protects', 'no-first-contact', 'Job seekers should not acquire another unsolicited inbox.');
-is ($rc, $out), (0, "Set BECAUSE for INVARIANT no-first-contact.$NS.\n"), 'protects NAME WHAT sets a reason, and the first label is name enough';
+ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Set BECAUSE for INVARIANT no-first-contact.$NS."), 'protects NAME WHAT sets a reason, and the first label is name enough';
 ($rc, $out, $err) = iz4($dir, 'check');
 like $out, /'✓ BECAUSE: every invariant says why it must survive'/, 'and the checklist is clean';
 ($rc, $out, $err) = iz4($dir, 'protects', 'human-agency.iz4.you', 'Mine.');
@@ -206,14 +206,14 @@ for 'Bad_Name', 'Shouting', 'trailing-', 'has space' -> $bad {
 ok $rc == 1 && $err.contains("INVARIANT no-first-contact.$NS is already in IZ4"), 'a name in use is refused';
 is $dir.add('IZ4').slurp, $untouched, 'and none of those wrote anything';
 ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Prices are never changed without the owner.', '--name=owner-adjusted.prices', '--force');
-is ($rc, $out), (0, "Added INVARIANT owner-adjusted.prices.$NS.\n"), 'a short name may carry an area, and still goes under the namespace';
+ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added INVARIANT owner-adjusted.prices.$NS."), 'a short name may carry an area, and still goes under the namespace';
 ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'A whole name is taken as it is.', "--name=whole-name.$NS", '--force');
-is ($rc, $out), (0, "Added INVARIANT whole-name.$NS.\n"), 'a whole name under the namespace is taken as it is';
+ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added INVARIANT whole-name.$NS."), 'a whole name under the namespace is taken as it is';
 {
     my $envd = temp-dir;
     init(:dir($envd), :for-what('x'), :for-who('y'));
     my ($rc, $out, $err) = iz4($envd, 'add', 'invariant', 'Something stays true.', '--name=stays-true', '--force', :env(%( IZ4_NAMESPACE => $NS )));
-    is ($rc, $out), (0, "Added INVARIANT stays-true.$NS.\n"), 'IZ4_NAMESPACE gives a script the namespace';
+    ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added INVARIANT stays-true.$NS."), 'IZ4_NAMESPACE gives a script the namespace';
 }
 
 # ---- explicit .iz4 documents: an unnamed INVARIANT is an error, 'iz4 name' names it ----
@@ -340,7 +340,7 @@ if have-git() {
     ($rc, $out, $err) = iz4-talk($wd, "y\n", 'withdraw', 'goes-away');
     is $rc, 0, 'a yes withdraws' or diag $err;
     nok $wd.add('t/only-one.t').e || $wd.add('t/only-two.t').e, 'and the tests that existed only for it are removed';
-    like $out, /'Removed the 2 tests that existed only for it:' \n '  t/only-one.t' \n '  t/only-two.t'/, 'which the output lists';
+    like $out, /'Removed the 2 tests that existed only for it:' \n '    t/only-one.t' \n '    t/only-two.t'/, 'which the output lists, under the line that says so';
     ok $wd.add('t/shared.t').e, 'a test that also names another invariant is left: it still protects something';
     like $out, /"Left t/shared.t: it also names $stays."/, 'and the output says why';
     like $out, /"take what was about $gone out of t/shared.t; the rest of it still protects $stays"/, 'with the next step for it';

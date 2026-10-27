@@ -120,7 +120,7 @@ unlike $out, / "\e[" /, 'and into a pipe, no colour';
 like $out, / ^ \n /, 'dressed for a terminal, iz4 opens with a row of air';
 like $out, / \n \n $ /, 'and closes with one';
 ($rc, $out, $err) = iz4($r, 'version', :env(IZ4_COLOR => '1'));
-like $out, / ^ \n 'iz4 ' \d .* \n \n $ /, 'every command, the shortest too';
+like $out, / ^ \n .* 'iz4 ' \d .* \n \n $ /, 'every command, the shortest too, under its title';
 ($rc, $out, $err) = iz4($r, 'version');
 like $out, / ^ 'iz4 ' /, 'into a pipe, the words alone';
 unlike $out, / \n \n $ /, 'and no air after them';
