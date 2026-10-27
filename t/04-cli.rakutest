@@ -137,7 +137,8 @@ like $out, /"next:\n  1. iz4 protects no-first-contact.shop.example.com \"whose 
     'and the next steps are listed in order, one command each, ending with a check';
 ($rc, $out, $err) = iz4($dir, 'check', '--strict');
 is $rc, 1, '--strict, for a gate, fails the check on any cross';
-like $out, /"  then: iz4 check --strict again\nNOT YET IZ4: 2 to remedy above (--strict) - do the next steps above"/, 'and the verdict says so last, after the steps';
+like $out, /"  then: iz4 check --strict again\n\nNOT YET IZ4: 2 to remedy above (--strict) - do the next steps above"/, 'and the verdict says so last, after the steps, in a chunk of its own';
+like $out, / ^ 'iz4 check: IZ4' \n \n /, 'check begins with its title, like every screen';
 
 # ---- a failing check says what to do next, then that it is not OK ----------------
 {
@@ -148,7 +149,7 @@ like $out, /"  then: iz4 check --strict again\nNOT YET IZ4: 2 to remedy above (-
     like $out, /'✗ IS FOR WHAT: missing'/, 'an empty answer is a cross, not a tick';
     like $out, /"next:\n  1. iz4 add for-what \"what it is for\"\n  2. iz4 add for-who \"who it is for\"\n  3. iz4 foundation restore\n  4. iz4 protects something.shop.example.com \"whose what it protects\"\n"/,
         'the structural fixes come first, in line order, then the crosses';
-    like $out, /'  then: iz4 check again' \n 'NOT YET IZ4: 3 errors - do the next steps above'/, 'the verdict is last, after the steps';
+    like $out, /'  then: iz4 check again' \n \n 'NOT YET IZ4: 3 errors - do the next steps above'/, 'the verdict is last, after the steps';
     ok !$out.contains("\n  1. iz4 add for-what \"what it is for\"\n  2. iz4 add for-what"), 'a step is listed once even when two lines call for it';
 }
 

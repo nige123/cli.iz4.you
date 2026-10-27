@@ -72,4 +72,53 @@ else { skip 'no bash here', 1 }
 ($rc, $out, $err) = iz4(temp-dir, 'completion', 'tcsh');
 is $rc, 1, 'a shell it does not know is said plainly';
 
+# ---- automating: the other brief forms ----------------------------------------
+($rc, $out, $err) = iz4($r, 'check', '--brief');
+is $rc, 0, 'check --brief keeps the exit code';
+like $out, / ^ "pass\tstructure\tvalid\n" /, 'check records: pass, what, the detail';
+like $out, / "\nuncertain\tthe system keeps its invariants (the foundation and its own 1)\t" /, 'the uncertain row is uncertain, never a pass';
+nok $out.contains('iz4 check:'), 'no title in the records';
+($rc, $out, $err) = iz4($r, 'invariants', '--brief');
+like $out, / ^ "foundation\thumans-first.iz4.you\n" /, 'invariants --brief: the foundation first';
+like $out, / "\npromise\tcharged-once.shop.example.com\testablished\n" $ /, 'then each promise with its standing';
+($rc, $out, $err) = iz4($r, 'show', 'invariant', 'charged-once', '--brief');
+is $out, "charged-once.shop.example.com\tthe shop takes an order\tAn order is never charged twice.\ta customer's money\n", 'show invariant --brief: one record, NAME WHEN ALWAYS PROTECTS';
+g($r, 'add', '-A'); g($r, 'commit', '-qm', 'the first promise');
+($rc, $out, $err) = iz4($r, 'log', '--brief');
+like $out, / ^ \d**4 '-' \d\d '-' \d\d "\t" <[0..9a..f]>+ "\t" 'the first promise' \n /, 'log --brief: date, revision, subject, tab-separated';
+
+# ---- errors say what did not happen ------------------------------------------
+($rc, $out, $err) = iz4($r, 'add', 'promise', 'Something.', '--name=charged-once', '--when=always', '--namespace=shop.example.com', '--protects=x', '--force');
+isnt $rc, 0, 'adding a name already given fails';
+like $err, / "\nThe IZ4 is unchanged.\n" $ /, 'and says, as the file shows, that the IZ4 is unchanged';
+($rc, $out, $err) = iz4($r, 'add', 'promise', 'Something.', '--name=charged-once', '--when=always', '--namespace=shop.example.com', '--protects=x', '--force', :env(%( IZ4_BRIEF => '1' )));
+is $err.lines.elems, 1, 'in the pipeline form a failure is one line';
+
+# ---- discovering: init in steps, and it picks up where it stopped -------------
+my $fresh = temp-dir;
+g($fresh, 'init', '-q');
+($rc, $out, $err) = iz4-talk($fresh, "Taking orders.\n", 'init', '--namespace=shop.example.com', '--/agents', :env(%( IZ4_ENFORCE => '0' )));
+isnt $rc, 0, 'init stopped before the second answer';
+like $out, / 'Step 1 of 3. What is this for?' .* 'Step 2 of 3. Who is it for?' /, 'each question says which step it is';
+like $err, / 'No IZ4 was written.' /, 'and the stop says nothing was written';
+nok $fresh.add('IZ4').e, 'which is true';
+nok g($fresh, 'status', '--porcelain'), 'the answer kept is not in the tree';
+($rc, $out, $err) = iz4-talk($fresh, "\nPeople buying things.\nn\n", 'init', '--namespace=shop.example.com', '--/agents', :env(%( IZ4_ENFORCE => '0' )));
+is $rc, 0, 'init again';
+like $out, / 'Picking up where you stopped' .* 'Step 1 of 3. This is for:' \n '  Taking orders.' /, 'it offers the answer already given';
+like $fresh.add('IZ4').slurp, / 'Taking orders.' .* 'People buying things.' /, 'Enter kept it, and the second answer joined it';
+like $out, / '  ✓ Created IZ4 for shop.example.com.' /, 'what landed is a checklist';
+($rc, $out, $err) = iz4(temp-dir, 'version');
+nok g($fresh, 'rev-parse', '--absolute-git-dir').IO.add('iz4-init.json').e, 'and the kept answers are gone once the IZ4 is written';
+
+# ---- the completion scripts in their own shells, where they are installed -----
+for <zsh fish> -> $sh {
+    if run('sh', '-c', "command -v $sh", :out, :err).exitcode == 0 {
+        my $f = temp-dir.add("iz4.$sh");
+        $f.spurt(iz4(temp-dir, 'completion', $sh)[1]);
+        is run($sh, '-n', $f.Str, :out, :err).exitcode, 0, "the $sh script parses in $sh";
+    }
+    else { skip "no $sh here", 1 }
+}
+
 done-testing;

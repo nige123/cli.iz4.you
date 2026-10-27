@@ -259,6 +259,10 @@ sub help-machine(--> Str) is export {
     @l.push: 'Pipeline form: --brief, or IZ4_BRIEF=1. One tab-separated record a line,';
     @l.push: 'no title or colour; a failure is one stderr line and the exit code.';
     @l.push: '  iz4 status --brief     foundation STATE / invariant NAME MARK EVIDENCE / next COMMAND';
+    @l.push: '  iz4 check --brief      pass|fail|uncertain WHAT DETAIL / next STEP';
+    @l.push: '  iz4 invariants --brief foundation NAME / promise NAME STANDING';
+    @l.push: '  iz4 show invariant NAME --brief   NAME WHEN ALWAYS PROTECTS';
+    @l.push: '  iz4 log --brief        DATE REVISION SUBJECT';
     @l.push: '  iz4 version --brief    the version alone';
     @l.push: '  iz4 gate --brief       one line when the change passes';
     @l.push: 'A usage error asked for with --json answers with schema iz4-error/1.';
