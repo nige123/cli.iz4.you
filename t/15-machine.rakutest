@@ -396,4 +396,22 @@ is $out.lines.elems, 1, 'a JSON result is one line';
     nok $out.contains('"result":"pass"'), 'and never prints a pass';
 }
 
+# a pass leads with what held, and never counts what no test names as a shortfall
+{
+    my $q = repo;
+    my $qf = minimal-iz4(:dir($q));
+    add-invariant($qf, 'People control whether their profile is visible.', :name(VIS), :because('Privacy.'));
+    add-invariant($qf, 'Prices are shown before payment.', :name('prices-first.shop.example.com'), :because('Trust.'));
+    $q.add('tests').mkdir;
+    $q.add(TEST).spurt("#!/bin/sh\n# INVARIANT {$VIS}\ntrue\n");
+    g($q, 'add', '-A'); g($q, 'commit', '-qm', 'init');
+    my %p = doc(iz4($q, 'verify', '--worktree', '--json')[1]);
+    is %p<result>, 'pass', 'one of two invariants named by a passing test: a pass';
+    is %p<reason>, 'the foundation held word for word and 1 of 2 invariants by their tests', 'it says what held, and nothing about the one no test names';
+    $q.add(TEST).unlink; g($q, 'add', '-A'); g($q, 'commit', '-qm', 'no tests');
+    %p = doc(iz4($q, 'verify', '--worktree', '--json')[1]);
+    is %p<reason>, 'the foundation held word for word', 'with no test naming any invariant, it says what held and gives no count';
+    like %p<limits>, / 'an invariant no test names is not verified' /, 'the gap stays stated in the limits, where a program reads it';
+}
+
 done-testing;

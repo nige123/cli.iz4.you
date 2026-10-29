@@ -446,9 +446,10 @@ sub verify(IO::Path $root, Str :$summary, *%opts --> Hash) is export {
 #| What a pass says: not that nothing stopped it, but what held.  A pass
 #| means the foundation is word for word; each of the project's own
 #| invariants counts as held when every test naming it passed in this
-#| run, and the rest are said not to be shown by a test here, never
-#| assumed.  When all of them held, the line says so plainly: that is the
-#| moment worth marking.
+#| run.  The line names only what held, never a gap the person cannot act
+#| on right then: an invariant no test names is left to the limits field
+#| and to status, never claimed.  When all of them held, the line says so
+#| plainly: that is the moment worth marking.
 sub held-words(IZ4::Document $doc, %change, Bool :$report --> Str) {
     my %by;
     for @((%change<evidence><gate> // {})<checks> // []) -> %c { %by{$_}.push(%c<outcome>) for |(%c<invariants> // ()) }
@@ -458,7 +459,8 @@ sub held-words(IZ4::Document $doc, %change, Bool :$report --> Str) {
     my $n = +@own;
     return "the foundation held word for word$tail" unless $n;
     return "all held: the foundation word for word and {$n == 1 ?? 'the one invariant by its test' !! "all $n invariants by their tests"}$tail" if $held == $n;
-    "the foundation held word for word, $held of $n invariant{$n == 1 ?? '' !! 's'} by their tests, {$n - $held} not shown by a test here$tail";
+    return "the foundation held word for word$tail" unless $held;
+    "the foundation held word for word and $held of $n invariants by their tests$tail";
 }
 
 #| Whether text carries a per-invariant report: an invariant named, an
