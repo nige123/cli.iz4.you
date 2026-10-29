@@ -412,6 +412,12 @@ is $out.lines.elems, 1, 'a JSON result is one line';
     %p = doc(iz4($q, 'verify', '--worktree', '--json')[1]);
     is %p<reason>, 'the foundation held word for word', 'with no test naming any invariant, it says what held and gives no count';
     like %p<limits>, / 'an invariant no test names is not verified' /, 'the gap stays stated in the limits, where a program reads it';
+    my $last = $q.add('.git/iz4/last.json');
+    ok $last.f, 'verify leaves its result in the Git directory, for a status line or mission control to show';
+    my %l = doc($last.slurp);
+    is-deeply (%l<schema>, %l<result>, %l<reason>), ('iz4-last/1', 'pass', 'the foundation held word for word'), 'in iz4\'s own words';
+    is %l<line>, '◈ IZ4: the foundation held word for word', 'with one line ready to show as it stands';
+    is g($q, 'status', '--porcelain'), '', 'and nothing in the tree changes';
 }
 
 done-testing;

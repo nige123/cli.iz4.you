@@ -2295,7 +2295,26 @@ multi MAIN('verify', Bool :$staged = False, Bool :$worktree = False, Str :$base,
            Str :$approval, Str :$approvers = %*ENV<IZ4_APPROVERS> // Str, Str :$file) {
     attempt {
         my %o = change-options(:$staged, :$worktree, :$base, :$candidate, :$checks, :$timeout, :$check-cmd, :$approval, :$approvers);
-        say-check(verify(gate-root($file), :$summary, |%o), $json);
+        my $root = gate-root($file);
+        my %v = verify($root, :$summary, |%o);
+        record-last($root, %v);
+        say-check(%v, $json);
+    }
+}
+
+#| Keep what the last verify said, beside the checks record, for any reader
+#| that shows it between turns (a status line, a mission control screen):
+#| iz4's own words, so no driver rewrites them.  A record that cannot be
+#| written never changes the result.
+sub record-last(IO::Path $root, %v) {
+    my $f = (checks-record($root) // return).parent.add('last.json');
+    my $mark = %( pass => '◈', warn => '!', block => '✗', needs_human => '?' ){%v<result>} // '?';
+    try {
+        $f.parent.mkdir;
+        $f.spurt(json-encode(%( schema => 'iz4-last/1', at => DateTime.now.utc.truncated-to('second').Str, tool => %v<tool>,
+                                 check => 'verify', result => %v<result>, reason => %v<reason>, mark => $mark,
+                                 line => "$mark IZ4: %v<reason>",
+                                 tree => ((%v<evidence><gate> // {})<candidate> // '') )) ~ "\n");
     }
 }
 

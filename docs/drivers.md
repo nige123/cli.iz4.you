@@ -203,6 +203,23 @@ When a report is asked for, the reason names the files that changed, so
 that a person can see which case it is. A turn in which the agent ran no
 tool that writes files changed nothing, and the driver need not ask.
 
+### The last result, for every harness alike
+
+Each `verify` leaves its result in the Git directory, outside every
+tree, so that every harness can show the same words between turns, in a
+status line or a mission control screen:
+
+```json
+{"schema":"iz4-last/1","at":"2026-10-29T10:00:00Z","tool":"iz4/0.34.0",
+ "check":"verify","result":"pass","mark":"◈",
+ "reason":"all held: the foundation word for word and all 7 invariants by their tests",
+ "line":"◈ IZ4: all held: the foundation word for word and all 7 invariants by their tests",
+ "tree":"…"}
+```
+
+It is at `$(git rev-parse --git-dir)/iz4/last.json`, one per worktree.
+Show `line` as it stands; never reword it per harness.
+
 ## One result document
 
 `check action`, `check change` and `verify` all answer with `iz4-check/2`:
