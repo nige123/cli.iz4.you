@@ -141,4 +141,19 @@ if run('sh', '-c', 'command -v raku', :out, :err).exitcode == 0 {
 }
 else { skip 'no Rakudo here', 1 }
 
+# a starter pack only suggests
+{
+    my $d = temp-dir;
+    my ($rc, $out, $) = iz4($d, 'suggest', 'saas');
+    is $rc, 0, 'suggest saas needs no IZ4 and no agent';
+    like $out, / 'SaaS Essentials' .* 'Clear terms' .* 'Deleted means deleted' /, 'it reads out all seven';
+    ok $out.contains('None is added'), 'and says that none is added';
+    like $out, / 'next:  iz4 init' /, 'and ends on the next step';
+    nok $d.add('IZ4').e, 'it writes nothing';
+    my %j = Rakudo::Internals::JSON.from-json(iz4($d, 'suggest', 'saas', '--json')[1]);
+    is %j<schema>, 'iz4-pack/1', 'in JSON too';
+    is +%j<suggestions>, 7, 'with all seven';
+    is +iz4($d, 'suggest', 'saas', '--brief')[1].lines, 7, 'and one record each under --brief';
+}
+
 done-testing;

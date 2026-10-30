@@ -20,7 +20,7 @@ my $lib  = $root.add('lib');
 
 # ---- every module is in exactly one layer --------------------------------
 my @CORE        = <IZ4 IZ4::Grammar IZ4::ClausesGrammar IZ4::CardGrammar IZ4::Document IZ4::Git IZ4::Evidence IZ4::Review IZ4::Gate
-                   IZ4::Machine IZ4::Agent IZ4::Register IZ4::Coach>;
+                   IZ4::Machine IZ4::Agent IZ4::Register IZ4::Coach IZ4::Pack>;
 my @CONVENIENCE = <IZ4::Launcher IZ4::Assist IZ4::Integrations IZ4::Help IZ4::Screen>;
 my @LEGACY      = <IZ4::LegacyHook>;
 

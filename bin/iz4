@@ -14,6 +14,7 @@ use IZ4::Gate;
 use IZ4::Agent;
 use IZ4::Coach;
 use IZ4::Help;
+use IZ4::Pack;
 use IZ4::Screen;
 use IZ4::Review;
 use IZ4::Evidence;
@@ -1612,7 +1613,36 @@ multi MAIN('suggest', Str :$file) {
         my $dir  = $path.defined ?? $path.parent !! $*CWD;
         my $reply = try agent-suggest($dir, current => ($path.defined ?? $path.slurp !! ''));
         user-error("agent suggestion failed: {$!.message.lines.head}; nothing was added") without $reply;
+        head('suggest', 'a few candidates, for you to decide') if pretty-on();
         show-suggestions(%$reply, $path);
+        0;
+    }
+}
+
+#| A starter pack, read aloud: ideas to think with.  It only suggests, so it
+#| writes nothing, and it needs no IZ4 and no agent.
+multi MAIN('suggest', 'saas', Bool :$json = False, Bool :$brief = False, Str :$file) {
+    attempt {
+        two-machine-forms() if $json && brief-wanted($brief);
+        my @pack = SAAS-ESSENTIALS.list;
+        if $json {
+            say json-encode(%( schema => 'iz4-pack/1', pack => 'saas-essentials', adds_nothing => True,
+                               suggestions => @pack.map({ %$_ }).Array ));
+            return 0;
+        }
+        if brief-wanted($brief) {
+            say (.<title>, .<when>, .<always>, .<protects>).join("\t") for @pack;
+            return 0;
+        }
+        my $path = try resolve-target($file);
+        my @chunks = para('Seven promises most software people pay for should keep. None is added for you.'),
+                     |@pack.map({ ("  {.<title>}", |para("When {.<when>}, {.<always>}."), |para("It protects {.<protects>}."), |para(.<ask>)).List }),
+                     para('A promise you keep is worth more than seven you copied.'),
+                     ($path.defined ?? next-line('iz4 add', 'say the ones that fit, in your own words')
+                                    !! next-line('iz4 init', 'start an IZ4, then add the ones that fit'));
+        my $sc = Screen.new(:command('suggest saas'), :context('SaaS Essentials, ideas to think with'));
+        for @chunks -> $c { $sc.lines(|($c ~~ Str ?? $c.lines !! $c.list)) }
+        print $sc.screen;
         0;
     }
 }
@@ -1671,6 +1701,8 @@ sub show-suggestions(%s, $path) {
         say "Let's review the strongest one first.";
         my @queue = |%s<strong>.map({ %( |$_, kind => 'strong' ) }),
                     |%s<possible>.map({ %( |$_, kind => 'possible' ) });
+        my $before = +check-doc($path).invariants;
+        my $seen = 0;
         for @queue -> %c {
             say '';
             say %c<kind> eq 'strong' ?? "Candidate: {%c<text>}" !! "Possible: {%c<text>}";
@@ -1678,9 +1710,14 @@ sub show-suggestions(%s, $path) {
             say "Only you can say: {%c<question>}" if %c<question>;
             my $answer = (ask('Consider it? [Y/n/q] ') // 'q').trim.lc;
             last if $answer.starts-with('q');
+            $seen++;
             next if $answer.starts-with('n');
             coach-into($path, :candidate(%c<text>), :suggested-because(%c<because>));
         }
+        my $added = +check-doc($path).invariants - $before;
+        say '';
+        say "Added $added, left out {$seen - $added}, not reached {+@queue - $seen}. What went in is in your words.";
+        say next-line('iz4 test', 'give what you added its test') if $added > 0;
 }
 
 multi MAIN('log', Str $file?, Bool :brief($brief-flag) = False) {
