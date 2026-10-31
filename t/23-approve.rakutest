@@ -134,10 +134,51 @@ unlike gate-hook-text(), / 'approve' /, 'an advisory hook asks nothing';
     my ($rc, $out, $err) = iz4-talk($r, "y\ny\nn\n", 'approve', "--sign={$key}", '--by=owner@example.com', :env(%known));
     is $rc, 0, 'a person approves the staged change' or diag "$out $err";
     g($r, 'commit', '-qm', 'approved');
-    ($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--base=$began", '--/checks', '--json', :env(%known));
+    ($rc, $out, $err) = iz4($r, 'check', 'change', '--worktree', "--base=$began", '--/checks', '--json', :env(%known));
     my %v = Rakudo::Internals::JSON.from-json($out);
     is %v<evidence><gate><repository>, g($r, 'rev-list', '--max-parents=0', 'HEAD'), 'the bare tree is judged as this repository';
     is %v<evidence><gate><approval><status>, 'valid', 'so the approval holds, and no one is asked twice' or diag $out;
+}
+
+# what a turn answers for runs from where it began; what is protected follows the history
+{
+    my sub verify-from(Str $base, *@more) {
+        my ($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--base=$base", '--/checks', '--json', |@more, :env(%known));
+        Rakudo::Internals::JSON.from-json($out);
+    }
+    my $began = g($r, 'rev-parse', 'HEAD^{tree}');
+    change($r);
+    iz4-talk($r, "y\nn\n", 'approve', "--sign={$key}", '--by=owner@example.com', :env(%known));
+    g($r, 'commit', '-qm', 'approved and committed');
+    $r.add('notes.txt').spurt("nothing promised\n");
+    g($r, 'add', '-A'); g($r, 'commit', '-qm', 'an ordinary commit after it');
+
+    my %v = verify-from($began);
+    is %v<result>, 'pass', 'a commit that carries its agreement is not asked about again, nor one that needed none' or diag %v<reason>;
+    is %v<evidence><gate><settled>.map(*<approval>).join(' '), 'valid not-needed', 'and evidence says which were settled, and how';
+    is %v<evidence><gate><turn_base>, $began, 'the baseline is kept as given';
+    my $words = temp-dir.add('last.txt');
+    $words.spurt("Done.\n");
+    %v = verify-from($began, "--summary=$words");
+    is %v<result>, 'block', 'the turn still answers for what it changed, settled or not';
+    like %v<reason>, / 'notes.txt' /, 'and is told which files';
+
+    $r.add('notes.txt').spurt("still nothing promised\n");
+    is verify-from($began)<result>, 'pass', 'an ordinary uncommitted change needs no agreement';
+    change($r);
+    %v = verify-from($began);
+    is %v<result>, 'needs_human', 'an uncommitted promise is measured, whatever is settled before it';
+    is +%v<evidence><gate><changes>, 1, 'and only it';
+    g($r, 'commit', '-qm', 'not agreed');                     # no hook here: a commit that skipped the gate
+    my $unagreed = g($r, 'rev-parse', 'HEAD');
+    $r.add('notes.txt').spurt("after it\n");
+    g($r, 'add', '-A'); g($r, 'commit', '-qm', 'an ordinary commit on top');
+    %v = verify-from($began);
+    is %v<result>, 'needs_human', 'a commit with no agreement is never walked past';
+    is +%v<evidence><gate><settled>, 2, 'the walk stops at it';
+    is %v<evidence><gate><base>, g($r, 'rev-parse', $unagreed ~ '~1^{tree}'), 'and measures from just before it';
+    is verify-from($began)<result>, 'needs_human', 'and it does not go away by itself';
+    is verify-from(g($r, 'rev-parse', 'HEAD^{tree}'))<result>, 'pass', 'a baseline after it is only asked about what follows';
 }
 
 done-testing;

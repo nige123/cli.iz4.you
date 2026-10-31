@@ -206,6 +206,14 @@ iz4 verify --worktree --base=TREE --summary=FILE --json
 Without it the change is measured from HEAD, so a file that was dirty
 before the turn, a log the dev server writes or a setting a tool edited,
 counts as the turn's change and a report is asked for that nothing is owed.
+The baseline says what the turn answers for; it does not decide what is
+protected. From a baseline that is a commit's tree, `verify` walks the commits
+since: each that needed no agreement or carries a valid one is settled, and it
+stops at the first that does not. So an agreed commit is not asked about
+again, an unagreed one is never walked past, and everything uncommitted is
+always measured. `evidence.gate.settled` lists the commits and
+`evidence.gate.turn_base` keeps the baseline as given. A driver keeps passing
+`--base` and need not run the gate itself.
 When a report is asked for, the reason names the files that changed, so
 that a person can see which case it is. A turn in which the agent ran no
 tool that writes files changed nothing, and the driver need not ask.

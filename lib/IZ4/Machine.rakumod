@@ -293,14 +293,51 @@ sub worktree-tree(IO::Path $root --> Str) is export {
     $out.trim;
 }
 
+#| A driver's baseline says where a turn began, which is what the turn
+#| answers for.  What is protected follows the history instead.  From a
+#| baseline that is a commit's tree, each later commit is settled when it
+#| needed no agreement or carries a valid one, and the walk stops at the
+#| first that does not, so an unagreed change is never walked past.  Returns
+#| the tree to measure from and what was settled.  A baseline that is no
+#| commit's tree is measured as given.
+constant SETTLE-LIMIT = 200;
+sub settled-base(IO::Path $root, Str $base, IO::Path :$approval-file, IO::Path :$approvers --> List) {
+    my $anchor = $root.add(ROOT-NAME);
+    my ($rc, $out, $) = git($anchor, 'rev-parse', '--verify', '--quiet', $base ~ '^{tree}');
+    return ($base, ()) if $rc != 0;
+    my $tree = $out.trim;
+    ($rc, $out, $) = git($anchor, 'log', '--first-parent', '-n', SETTLE-LIMIT.Str, '--format=%H %T', 'HEAD');
+    return ($base, ()) if $rc != 0;
+    my @log = $out.lines.map(*.words.List).List;
+    my $at = @log.first({ .[1] eq $tree }, :k) // return ($base, ());
+    my $from = $tree;
+    my @settled;
+    for @log.head($at).reverse -> ($commit, $commit-tree) {
+        my ($prc, $parent, $) = git($anchor, 'rev-parse', '--verify', '--quiet', $commit ~ '^1');
+        last if $prc != 0;
+        my %g = run-gate($root, :candidate($commit), :base($parent.trim), :enforce, :!checks, :$approval-file, :$approvers);
+        my $status = (%g<approval> // {})<status> // '';
+        last unless $status eq 'valid' | 'not-needed' && %g<outcome> ne 'blocked';
+        @settled.push: %( :$commit, approval => $status, outcome => %g<outcome>, changes => %g<changes> );
+        $from = $commit-tree;
+    }
+    ($from, @settled.List);
+}
+
 #| Run the gate over the selection and return its own document.
 sub gate-for(IO::Path $root, Bool :$staged, Bool :$worktree, Str :$base, Str :$candidate, Bool :$checks = True,
-             Int :$timeout = 300, Str :$check-cmd, IO::Path :$approval-file, IO::Path :$approvers --> Hash) {
+             Int :$timeout = 300, Str :$check-cmd, IO::Path :$approval-file, IO::Path :$approvers, Bool :$settle = False --> Hash) {
     if $worktree {
         my $tree = worktree-tree($root);
         my ($rc) = git($root.add(ROOT-NAME), 'rev-parse', '--verify', '--quiet', 'HEAD');
-        my %r = run-gate($root, :candidate($tree), :base($base // ($rc == 0 ?? 'HEAD' !! 'none')), :enforce, :$checks, :$timeout,
+        my ($from, @settled) = $base, ();
+        if $settle && $base.defined && $base ne 'none' {
+            my ($f, $s) = settled-base($root, $base, :$approval-file, :$approvers);
+            $from = $f; @settled = @$s;
+        }
+        my %r = run-gate($root, :candidate($tree), :base($from // ($rc == 0 ?? 'HEAD' !! 'none')), :enforce, :$checks, :$timeout,
                          :$check-cmd, :$approval-file, :$approvers);
+        if $settle && $base.defined { %r<turn_base> = $base; %r<settled> = @settled.Array }
         # A tree has no parent, so the agreement must name its base.
         my $bref = %r<base_ref> eq 'none' ?? 'none' !! %r<base_ref>;
         %r<next> = %r<next>.map({ .starts-with('iz4 approve --candidate=') && !.contains('--base=')
@@ -365,10 +402,17 @@ my %RANK = PASS, 0, 'not_checked', 0, WARN, 1, NEEDS-HUMAN, 2, BLOCK, 3;
 #| a log the server writes or a setting a tool edited before the turn began,
 #| and knows to give the driver a baseline (--base) rather than write a
 #| report that nothing is owed.
+sub turn-base(IO::Path $root, %g --> Str) {
+    return %g<base> unless %g<turn_base>.defined;
+    my ($rc, $out, $) = git($root.add(ROOT-NAME), 'rev-parse', '--verify', '--quiet', %g<turn_base> ~ '^{tree}');
+    $rc == 0 ?? $out.trim !! %g<base>;
+}
+
 sub changed-paths(IO::Path $root, %g --> List) {
     return () unless %g<candidate>;
-    my ($rc, $out, $) = (%g<base> // '') ne ''
-        ?? git($root.add(ROOT-NAME), 'diff', '--name-only', %g<base>, %g<candidate>)
+    my $from = turn-base($root, %g);
+    my ($rc, $out, $) = ($from // '') ne ''
+        ?? git($root.add(ROOT-NAME), 'diff', '--name-only', $from, %g<candidate>)
         !! git($root.add(ROOT-NAME), 'ls-tree', '-r', '--name-only', %g<candidate>);
     $rc == 0 ?? $out.lines.grep(*.chars).List !! ();
 }
@@ -401,14 +445,15 @@ sub verify(IO::Path $root, Str :$summary, *%opts --> Hash) is export {
     my $changed = False;
     if $doc.ok {
         my $failure = Nil;
-        try { %change = check-change($root, |%opts); CATCH { default { $failure = $_ } } }
+        try { %change = check-change($root, :settle, |%opts); CATCH { default { $failure = $_ } } }
         with $failure { @parts.push: %( part => 'change', result => 'not_checked', detail => "the change could not be checked: {.message}" ) }
         else {
             @parts.push: %( part => 'change', result => %change<result>, detail => %change<reason> );
             @inv.append: @(%change<invariants_considered>);
             $proposed = %change<proposed_invariant_change>;
             my %g = %change<evidence><gate>;
-            $changed = (%g<base> // '') ne (%g<candidate> // '');
+            # what the turn answers for runs from where it began, whatever is settled since
+            $changed = (turn-base($root, %g) // '') ne (%g<candidate> // '');
         }
     }
     else { @parts.push: %( part => 'change', result => 'not_checked', detail => 'not checked: the IZ4 is invalid' ) }

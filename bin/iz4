@@ -2339,7 +2339,10 @@ multi MAIN('verify', Bool :$staged = False, Bool :$worktree = False, Str :$base,
         my %o = change-options(:$staged, :$worktree, :$base, :$candidate, :$checks, :$timeout, :$check-cmd, :$approval, :$approvers);
         my $root = gate-root($file);
         my %v = verify($root, :$summary, |%o);
-        note-unseen($root, %v<evidence><gate>) if %v<evidence><gate>;
+        with %v<evidence><gate> -> %g {
+            note-unseen($root, $_) for @(%g<settled> // []).grep(*.<approval> eq 'not-needed');
+            note-unseen($root, %g);
+        }
         record-last($root, %v);
         say-check(%v, $json);
     }
@@ -2384,6 +2387,8 @@ sub note-unseen(IO::Path $root, %g) {
                                 before_digest => (%c<before_digest> // ''), after_digest => $after,
                                 at => DateTime.now.utc.truncated-to('second').Str );
         }
+        # a walk over old commits can pass through words a person has since seen
+        %d<items>{$id}:delete if (%d<items>{$id} // {})<after_digest> eq (%d<seen>{$id} // '');
     }
     keep-unseen($root, %d);
 }
