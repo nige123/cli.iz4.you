@@ -156,4 +156,60 @@ else { skip 'no Rakudo here', 1 }
     is +iz4($d, 'suggest', 'saas', '--brief')[1].lines, 7, 'and one record each under --brief';
 }
 
+# an exploring change needs no approval, and waits to be seen: a notice, never a hold
+{
+    my %env = GIT_CONFIG_GLOBAL => temp-dir.add('gc').Str, GIT_CONFIG_NOSYSTEM => '1', IZ4_INTERACTIVE => '0', IZ4_NO_321 => '1';
+    %env<GIT_CONFIG_GLOBAL>.IO.spurt('');
+    my $d = temp-dir;
+    sub sh(*@a) { my $p = run 'git', '-C', $d.Str, |@a, :out, :err, :env(%(%*ENV, %env)); my $o = $p.out.slurp(:close); $p.err.slurp(:close); $o.trim }
+    sub say-it(*@a) { iz4($d, |@a, :%env) }
+    sub reword(Str $from, Str $to) { $d.add('IZ4').spurt($d.add('IZ4').slurp.subst($from, $to)) }
+    sub unseen() { Rakudo::Internals::JSON.from-json(say-it('seen', '--json')[1])<items> }
+    sh('init', '-q'); sh('config', 'user.email', 't@t'); sh('config', 'user.name', 't');
+    say-it('init', '--for-what=Selling.', '--for-who=Buyers.', '--namespace=ex.com');
+    say-it('add', 'promise', 'customers can cancel freely', '--name=cancel', '--when=a customer wants to go', '--protects=their freedom');
+    sh('add', '-A'); sh('commit', '-qm', 'one');
+    my $id = 'cancel.ex.com';
+    my $first = sh('rev-parse', 'HEAD^{tree}');
+
+    reword('customers can cancel freely', 'customers must email support');
+    sh('add', '-A');
+    my ($rc, $out, $) = say-it('gate', '--staged', '--enforce');
+    is $rc, 0, 'the change is exploring, so nothing is held';
+    is unseen(){$id}<before>, 'customers can cancel freely', 'and it is kept with the words a person last saw';
+    is unseen(){$id}<after>, 'customers must email support', 'beside the words now';
+    sh('commit', '-qm', 'two');
+
+    say-it('verify', '--worktree') for ^2;
+    ok unseen(){$id}:exists, 'later runs that change nothing do not clear it';
+    is say-it('status', '--brief', '--/checks')[1].lines.grep(/^ 'unseen' \s+ cancel /).elems, 1, 'status names it';
+    my %last = Rakudo::Internals::JSON.from-json($d.add('.git/iz4/last.json').slurp);
+    is %last<unseen>, 1, 'the last result counts it, for a status line';
+    is %last<result>, 'pass', 'and a notice does not change the result';
+
+    reword('customers must email support', 'customers must phone support');
+    sh('add', '-A'); say-it('gate', '--staged', '--enforce'); sh('commit', '-qm', 'three');
+    is unseen(){$id}<before>, 'customers can cancel freely', 'moved again, it still starts from what a person last saw';
+    is unseen(){$id}<after>, 'customers must phone support', 'and shows the words now';
+
+    ($rc, $out, $) = say-it('seen');
+    like $out, / ^^ '  cancel (reworded)' $$ \n ^^ '  was: customers can cancel freely' $$ \n ^^ '  now: customers must phone support' $$ /, 'iz4 seen shows both, a line each';
+    ok $out.contains('nothing was marked'), 'and without a person it marks nothing';
+    ok unseen(){$id}:exists, 'so it stays';
+
+    ($rc, $out, $) = iz4-talk($d, "y\n", 'seen', :%env);
+    ok $out.contains('not that it is agreed'), 'seeing is said to be no agreement';
+    nok unseen(){$id}:exists, 'a person has seen it';
+    say-it('verify', '--worktree', "--base=$first");
+    nok unseen(){$id}:exists, 'and words already seen are not raised twice';
+
+    reword('customers must phone support', 'customers must write');
+    sh('add', '-A'); say-it('gate', '--staged', '--enforce'); sh('commit', '-qm', 'four');
+    ok unseen(){$id}:exists, 'new words are a new notice';
+    reword('customers must write', 'customers must phone support');
+    sh('add', '-A'); say-it('gate', '--staged', '--enforce');
+    nok unseen(){$id}:exists, 'going back to the words already seen clears it';
+    is sh('status', '--porcelain', '--', 'IZ4'), 'M  IZ4', 'and nothing but the IZ4 change is in the tree';
+}
+
 done-testing;

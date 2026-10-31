@@ -227,6 +227,12 @@ status line or a mission control screen:
 It is at `$(git rev-parse --git-dir)/iz4/last.json`, one per worktree.
 Show `line` as it stands; never reword it per harness.
 
+`unseen` counts exploring changes no person has seen. Each is a notice, not
+a hold: a driver may show the count in a status line, and must not interrupt
+to announce it. The changes themselves are in `iz4/unseen.json` beside it and
+in `iz4 seen --json`. A person marks them with `iz4 seen`, which records
+awareness, never approval.
+
 ## One result document
 
 `check action`, `check change` and `verify` all answer with `iz4-check/2`:

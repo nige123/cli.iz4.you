@@ -1015,15 +1015,19 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
         @next.push('iz4 status') if !$checks && !$recorded && @own;
         @next.push('iz4 test') if @own.grep({ (%ev<state>{.id} // 'none') eq 'none' });
         @next.push('321 iz4 install') if $driver.defined && $level ne 'guarded' && %enf && so @(%enf<harnesses> // []).grep({ .<detected> });
+        my @unseen = unseen-of($path.parent)<items>.keys.sort;
+        @next.push('iz4 seen') if @unseen;
         my $held-pct = @own ?? (100 * (%count<held> // 0) / @own).round !! 0;
         my %s = schema => 'iz4-status/1', iz4 => %( present => True, file => $path.Str, valid => $doc.ok, form => $doc.form, mode => $doc.mode, standing => $standing ),
                 foundation => %( intact => $doc.foundation-intact, status => $doc.foundation-status ),
                 invariants => @inv.List, counts => %count, held_percent => $held-pct, change => %change, agents => %agents,
-                checks => %( ran => $ran, recorded => $recorded, at => (%last<at> // Str), count => @checks.elems, seconds => $secs ), next => @next.List;
+                checks => %( ran => $ran, recorded => $recorded, at => (%last<at> // Str), count => @checks.elems, seconds => $secs ),
+                unseen => @unseen.List, next => @next.List;
         # one result, three forms: the document, the records (pinned by t/29), the screen under the title already shown
         $sc.doc = %s;
         $sc.record('foundation', $doc.foundation-intact ?? 'held' !! 'changed');
         $sc.record('invariant', .<id>, .<mark> // 'unknown', .<evidence>) for @inv;
+        $sc.record('unseen', $_) for @unseen;
         $sc.record('next', @next[0]) if @next;
         $sc.rows(['foundation' => $doc.foundation-intact ?? 'held, word for word' !! "CHANGED: {$doc.foundation-status}; iz4 foundation restore puts it back"]);
         if !$doc.ok { $sc.rows(['file' => "{+$doc.errors} errors; iz4 check lists them"]) }
@@ -1035,6 +1039,7 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
             # the key to the marks, right under the rows that use them
             $sc.lines(pretty('  ' ~ marks-legend())) if pretty-on();
         }
+        $sc.rows(['unseen' => "{+@unseen} exploring change{@unseen == 1 ?? '' !! 's'} no person has seen yet"]) if @unseen;
         # the standing of the work, as a table: what, where it stands, and the detail
         my @rows;
         if %change {
@@ -2334,8 +2339,99 @@ multi MAIN('verify', Bool :$staged = False, Bool :$worktree = False, Str :$base,
         my %o = change-options(:$staged, :$worktree, :$base, :$candidate, :$checks, :$timeout, :$check-cmd, :$approval, :$approvers);
         my $root = gate-root($file);
         my %v = verify($root, :$summary, |%o);
+        note-unseen($root, %v<evidence><gate>) if %v<evidence><gate>;
         record-last($root, %v);
         say-check(%v, $json);
+    }
+}
+
+#| Exploring changes need no approval, but a change nobody has seen is how a
+#| promise drifts.  This small record, beside the checks record and outside
+#| every tree, holds each one from the words a person last saw to the words
+#| now, until they have seen it.  Seen is awareness, never authority: nothing
+#| here lets a change through that the gate would hold.
+sub unseen-file(IO::Path $root --> IO::Path) { (checks-record($root) // return IO::Path).parent.add('unseen.json') }
+sub unseen-of(IO::Path $root --> Hash) {
+    my $f = unseen-file($root);
+    my $d = $f.defined && $f.f ?? (try Rakudo::Internals::JSON.from-json($f.slurp)) !! Nil;
+    my %d = $d ~~ Associative ?? %$d !! %();
+    %( items => %( |(%d<items> // {}) ), seen => %( |(%d<seen> // {}) ) );
+}
+sub keep-unseen(IO::Path $root, %d) {
+    my $f = unseen-file($root) // return;
+    try { $f.parent.mkdir; $f.spurt(json-encode(%( schema => 'iz4-unseen/1', items => %d<items>, seen => %d<seen> )) ~ "\n") }
+}
+
+#| Take what a gate found that it let through.  A change held for a person
+#| is shown to them there, so only a pass or a warning is noted here.  The
+#| earliest words are kept when the wording moves again; going back to them
+#| clears the entry; and words already seen are not raised twice.
+sub note-unseen(IO::Path $root, %g) {
+    return unless (%g<outcome> // '') ~~ /^ [pass|warn] /;
+    my @changes = @(%g<changes> // []).grep({ .<id>.defined && .<kind> eq any(<revised added removed>) });
+    return unless @changes;
+    my %d = unseen-of($root);
+    for @changes -> %c {
+        my $id = %c<id>;
+        my $after = %c<after_digest> // %c<digest> // 'gone';
+        next if (%d<seen>{$id} // '') eq $after && !(%d<items>{$id}:exists);
+        with %d<items>{$id} -> %was {
+            if (%was<before_digest> // '') eq $after { %d<items>{$id}:delete; next }
+            %d<items>{$id} = %( |%was, after => (%c<after> // ''), after_digest => $after, kind => (%was<kind> eq 'added' ?? 'added' !! %c<kind>) );
+        }
+        else {
+            %d<items>{$id} = %( kind => %c<kind>, before => (%c<before> // ''), after => (%c<after> // ''),
+                                before_digest => (%c<before_digest> // ''), after_digest => $after,
+                                at => DateTime.now.utc.truncated-to('second').Str );
+        }
+    }
+    keep-unseen($root, %d);
+}
+
+#| One unseen change, in the words themselves: they are the evidence.
+sub unseen-lines(Str $id, %i --> List) {
+    my $short = $id.split('.').head;
+    my @l = "  $short ({%i<kind> eq 'revised' ?? 'reworded' !! %i<kind>})";
+    @l.append: para("was:  {%i<before>}") if %i<before> ne '';
+    @l.append: para("now:  {%i<after>}")  if %i<after> ne '';
+    @l.List;
+}
+
+multi MAIN('seen', Bool :$json = False, Str :$file) {
+    attempt {
+        my $root = gate-root($file);
+        my %d = unseen-of($root);
+        my @ids = %d<items>.keys.sort;
+        if $json {
+            say json-encode(%( schema => 'iz4-unseen/1', items => %d<items>, note => 'seen records awareness, never approval' ));
+            return 0;
+        }
+        unless @ids {
+            calm('iz4 seen', 'Every exploring change has been seen.');
+            return 0;
+        }
+        head('seen', 'exploring changes not yet seen');
+        unless interactive() {
+            for @ids -> $id { .say for unseen-lines($id, %d<items>{$id}); say '' }
+            say next-line('iz4 seen', 'at a terminal: marking these takes a person; nothing was marked');
+            return 0;
+        }
+        my ($marked, $done) = 0, 0;
+        for @ids -> $id {
+            .say for unseen-lines($id, %d<items>{$id});
+            my $answer = (ask('  Seen? [y/n/q] ') // 'q').trim.lc;
+            say '';
+            last if $answer.starts-with('q');
+            $done++;
+            next unless $answer.starts-with('y');
+            %d<seen>{$id} = %d<items>{$id}<after_digest>;
+            %d<items>{$id}:delete;
+            $marked++;
+        }
+        keep-unseen($root, %d);
+        say "Seen $marked, left {+@ids - $marked}. Seeing a change records that you know, not that it is agreed.";
+        say next-line("iz4 establish NAME", 'when a promise is agreed') if $marked;
+        0;
     }
 }
 
@@ -2350,7 +2446,7 @@ sub record-last(IO::Path $root, %v) {
         $f.parent.mkdir;
         $f.spurt(json-encode(%( schema => 'iz4-last/1', at => DateTime.now.utc.truncated-to('second').Str, tool => %v<tool>,
                                  check => 'verify', result => %v<result>, reason => %v<reason>, mark => $mark,
-                                 line => "$mark IZ4: %v<reason>",
+                                 line => "$mark IZ4: %v<reason>", unseen => +unseen-of($root)<items>.keys,
                                  tree => ((%v<evidence><gate> // {})<candidate> // '') )) ~ "\n");
     }
 }
@@ -2398,6 +2494,7 @@ sub gate-command(Str :$base, Str :$candidate, Bool :$enforce, Bool :$json, Bool 
                           :progress($json || $brief ?? Callable !! check-progress()));
             CATCH { default { $failure = $_ } }
         }
+        note-unseen($root, %r) if %r && !$candidate.defined;
         with $failure {
             %r = schema => GATE-SCHEMA, outcome => 'error', mode => ($enforce ?? 'enforce' !! 'advisory'),
                  detail => .message, exit_code => 1, next => ('fix the cause above, then run iz4 gate again',).List;

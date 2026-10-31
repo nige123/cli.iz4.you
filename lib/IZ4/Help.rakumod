@@ -103,6 +103,10 @@ sub topics(--> List) is export {
       ['iz4 foundation', 'iz4 foundation restore'],
       'The same words in every IZ4, beginning with Invariant Zero. restore writes it back into a file where it is missing, altered or out of date.',
       'iz4 foundation restore'),
+    t('seen', 'Reading', 'exploring changes no person has seen yet',
+      ['iz4 seen'],
+      'An exploring promise can change with no approval, so a change waits here until you have read it: the words before, the words now. Seeing records that you know, not that it is agreed, and it never lets through anything the gate would hold.',
+      'iz4 seen'),
     t('log', 'Reading', 'the history of the IZ4', ['iz4 log'], 'Git history of the file.', 'iz4 log'),
     t('diff', 'Reading', 'what changed in the IZ4', ['iz4 diff', 'iz4 diff REV', 'iz4 diff REV REV'], 'Git diff of the file.', 'iz4 diff HEAD~1'),
 
