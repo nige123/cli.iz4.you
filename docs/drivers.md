@@ -27,7 +27,14 @@ environment, not changing iz4.
   keeps its settings, what it can intercept, how to wire and verify it.
 - **Drivers translate** environment events into the stable interface on
   this page, and its results back into the environment's own terms.
-- **Only a person approves a change to intent.**
+- **Only a person approves a change to intent.** That is the rule; how far
+  it is enforced depends on the key. iz4 checks a signature, and a signature
+  shows a key was used, not who used it. Whoever can run commands as the
+  owner can use a key with no passphrase, or one loaded in an agent. Only a
+  key that needs the owner's presence, such as a hardware key that asks for a
+  touch, puts the approval beyond an agent's reach. A required check at the
+  repository binds only those it is not set to exempt, so administrators
+  who are exempt are outside it.
 
 At run time the calls go one way:
 
