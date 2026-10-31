@@ -152,7 +152,7 @@ sub play(IO::Path $repo, IO::Path $dir, @steps, Str $mode, %keys, IO::Path :$see
                 my @sign = !%s<sign> ?? ()
                         !! (%s<key> // '') eq 'agent' ?? ('--sign=' ~ %keys<agent-key>, '--by=agent')
                         !! ('--sign=' ~ %keys<key>, '--by=owner');
-                sh($IZ4, 'approve', '--staged', |@sign, :cwd($repo), :env(IZ4_INTERACTIVE => '1'), :in("y\ny\ny\ny\n"));
+                sh('python3', $?FILE.IO.resolve.parent(2).add('t/lib/at-terminal.py').Str, $IZ4, 'approve', '--staged', |@sign, :cwd($repo), :in("y\ny\ny\ny\n"));
             }
             when 'rebase' {
                 # new work lands on the base after the approval: the same change, a different base

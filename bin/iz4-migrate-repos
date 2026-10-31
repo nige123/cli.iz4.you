@@ -50,8 +50,8 @@ for repo in "$ROOT"/*/; do
     0) ;;
     2) kinds=$(cd "$repo" && iz4 gate --staged --json 2>/dev/null | grep -o '"kind":"[a-z-]*"' | sort -u | tr -d '"' | sed 's/kind://' | tr '\n' ' ')
        if [ "$YES" = 1 ] && [ "$kinds" = "format-migrated " ]; then
-         echo "   the move waits for your yes; --yes gives it (the only change is the move to cards)"
-         if (cd "$repo" && printf 'y\ny\ny\ny\n' | IZ4_INTERACTIVE=1 iz4 approve --staged) | sed 's/^/   /'; then :; else echo "   approve failed; left staged"; waiting=$((waiting+1)); echo; continue; fi
+         echo "   the only change is the move to cards; it still takes your yes at this terminal"
+         if (cd "$repo" && iz4 approve --staged </dev/tty); then :; else echo "   not approved; left staged"; waiting=$((waiting+1)); echo; continue; fi
        else
          [ "$YES" = 1 ] && echo "   more than the move to cards changes here ($kinds); asking you"
          echo "   the move waits for your yes:"

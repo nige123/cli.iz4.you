@@ -181,4 +181,31 @@ unlike gate-hook-text(), / 'approve' /, 'an advisory hook asks nothing';
     is verify-from(g($r, 'rev-parse', 'HEAD^{tree}'))<result>, 'pass', 'a baseline after it is only asked about what follows';
 }
 
+# A pipe is never a person, whatever the environment says, and a change
+# main has moved past says so before anyone spends a yes on it.
+{
+    my $r = temp-dir;
+    g($r, 'init', '-qb', 'main');
+    g($r, 'config', 'user.email', 't@test');
+    g($r, 'config', 'user.name', 'Test');
+    init(:dir($r), :for-what('Taking orders.'), :for-who('People buying things.'));
+    g($r, 'add', '-A'); g($r, 'commit', '-qm', 'first', '--no-verify');
+    g($r, 'checkout', '-qb', 'work', 'main');
+    g($r, 'checkout', '-q', 'main');
+    $r.add('notes.txt').spurt("main moves on\n");
+    g($r, 'add', '-A'); g($r, 'commit', '-qm', 'second', '--no-verify');
+    g($r, 'checkout', '-q', 'work');
+    change($r);
+    my ($rc, $out, $) = iz4($r, 'approve', :env(%( |%known, IZ4_INTERACTIVE => '1' )));
+    is $rc, 2, 'a pipe agrees to nothing, even when the environment calls it a person';
+    like $out, / 'Nothing was recorded.' /, 'and it says so';
+    like $out, / '1 commit behind main' /, 'it says the change is behind main';
+    like $out, / 'Rebase first' /, 'and what to do before anyone agrees';
+    ($rc, $out, $) = iz4-talk($r, "n\n", 'approve', :env(%known));
+    like $out, / 'Rebase first' .* 'Is that right?' /, 'a person at a terminal is told before the question';
+    g($r, 'stash', '-q'); g($r, 'rebase', '-q', 'main'); g($r, 'stash', 'pop', '-q'); g($r, 'add', '-A');
+    ($rc, $out, $) = iz4-talk($r, "n\n", 'approve', :env(%known));
+    nok $out.contains('Rebase first'), 'and not once the change is up to date';
+}
+
 done-testing;

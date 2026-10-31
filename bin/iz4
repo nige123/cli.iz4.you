@@ -184,10 +184,17 @@ sub activate-enforcement() {
 
 #| Coaching needs a person: a terminal on both ends, or IZ4_INTERACTIVE=1
 #| (tests script the answers).  Scripts and CI never get a question.
+#| Agreement is stricter: see person-here.
 sub interactive(--> Bool) {
     with %*ENV<IZ4_INTERACTIVE> { return $_ ne '0' && $_ ne '' }
     $*IN.t && $*OUT.t;
 }
+
+#| Agreeing to a change of intent takes a real terminal on both ends, and
+#| no setting says otherwise: a pipe is never a person.  A program can
+#| still open a terminal of its own, so this raises the bar and proves
+#| nobody's presence; only a key that needs a person's touch would.
+sub person-here(--> Bool) { $*IN.t && $*OUT.t }
 
 sub ask(Str $prompt --> Str) {
     print $prompt;
@@ -2544,7 +2551,7 @@ sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out
             # person, and they can answer it here.  Anything else blocked is shown.
             my @failed  = %r<checks>.grep({ .<outcome> eq 'failed' });
             my $only-tests = !%r<changes>.grep({ .<kind> eq any(<invalid foundation reused-name format-regressed>) });
-            if @failed && $only-tests && interactive() && !$candidate.defined && !$resolved {
+            if @failed && $only-tests && person-here() && !$candidate.defined && !$resolved {
                 return %EXIT-CODE<blocked> unless settle-failed($root, @failed);
                 return approve-command(:$base, :$candidate, :$sign, :$by, :$out, :$note, :$file, :resolved);
             }
@@ -2562,7 +2569,8 @@ sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out
         # one thing at a time: each change is its own small question
         my @items = |%r<changes>.map({ %( changes => ($_,), protections => (), heading => heading-for(%r) ) }),
                     |%r<protections>.map({ %( changes => (), protections => ($_,), heading => heading-for(%r) ) });
-        unless interactive() {
+        say "$_\n" with behind-main($root, $candidate);
+        unless person-here() {
             say "This change alters what the software promises:";
             say "  $_" for proposal-lines(%p);
             say '';
@@ -2622,6 +2630,22 @@ sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out
         send-approval($root, $ref);
         0;
     }
+}
+
+#| A line for a change that main has moved past, or nothing.  An approval
+#| covers one exact tree, so agreeing before a rebase means agreeing again
+#| after it.  It reads the refs already here and never fetches: a person
+#| offline still gets to agree, and a stale ref only makes this say less.
+sub behind-main(IO::Path $root, Str $candidate --> Str) {
+    my $path = $root.add(ROOT-NAME);
+    for <origin/HEAD origin/main main> -> $ref {
+        my ($rc, $out, $) = git($path, 'rev-list', '--count', "{$candidate // 'HEAD'}..$ref");
+        next unless $rc == 0;
+        my $n = $out.trim.Int;
+        return Str unless $n;
+        return pretty("This change is $n commit{$n == 1 ?? '' !! 's'} behind $ref, and an approval covers this exact tree. Rebase first, or you will be asked again.");
+    }
+    Str;
 }
 
 #| An invariant's test fails: the software and the IZ4 disagree, and only

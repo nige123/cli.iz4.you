@@ -32,7 +32,9 @@ environment, not changing iz4.
   shows a key was used, not who used it. Whoever can run commands as the
   owner can use a key with no passphrase, or one loaded in an agent. Only a
   key that needs the owner's presence, such as a hardware key that asks for a
-  touch, puts the approval beyond an agent's reach. A required check at the
+  touch, puts the approval beyond an agent's reach. `iz4 approve` takes its
+  yes only from a real terminal, with no setting to turn that off, which
+  stops a pipe and not a program that opens a terminal of its own. A required check at the
   repository binds only those it is not set to exempt, so administrators
   who are exempt are outside it.
 

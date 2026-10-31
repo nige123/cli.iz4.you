@@ -59,7 +59,8 @@ sub iz4(IO::Path $cwd, *@args, :%env) is export {
 
 #| Run bin/iz4 in $cwd with $input on standard input, as a person would
 #| answer its questions (IZ4_INTERACTIVE=1 turns coaching on without a
-#| terminal).  Returns (exit-code, stdout, stderr).
+#| terminal).  'iz4 approve' takes a real terminal and nothing else, so
+#| that one goes through t/lib/at-terminal.py.  Returns (exit-code, stdout, stderr).
 sub iz4-talk(IO::Path $cwd, Str $input, *@args, :%env) is export {
     my $root = $?FILE.IO.resolve.parent(3);
     my @cmd = %*ENV<IZ4_TEST_BIN>
@@ -67,6 +68,11 @@ sub iz4-talk(IO::Path $cwd, Str $input, *@args, :%env) is export {
         !! ($*EXECUTABLE, '-I', $root.add('lib').Str, $root.add('bin/iz4').Str);
     my %e = %*ENV, %env;
     %e<IZ4_INTERACTIVE> = '1';
+    if @args && @args[0] eq 'approve' {
+        %e<IZ4_INTERACTIVE>:delete;
+        %e<NO_COLOR> = '1';
+        @cmd = ('python3', $root.add('t/lib/at-terminal.py').Str, |@cmd);
+    }
     my $proc = run |@cmd, |@args, :cwd($cwd.Str), :in, :out, :err, :env(%e);
     $proc.in.print($input);
     my $ = $proc.in.close;         # sunk, a refusing exit would throw here; the code is read below
