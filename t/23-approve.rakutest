@@ -126,4 +126,18 @@ like $hook, / '[ -t 2 ]' .* 'iz4 approve </dev/tty' .* 'exec iz4 gate --staged -
 like $hook, / '[ "$rc" = 2 ]' .* '[ "$rc" = 3 ]' .* '|| exit $rc' /, 'anything else committing is refused as before, with the same exit code';
 unlike gate-hook-text(), / 'approve' /, 'an advisory hook asks nothing';
 
+# an approved change, once committed, stays approved for a driver that measures
+# the turn from the tree it began with: that candidate is a bare tree, not a commit
+{
+    my $began = g($r, 'rev-parse', 'HEAD^{tree}');
+    change($r);
+    my ($rc, $out, $err) = iz4-talk($r, "y\ny\nn\n", 'approve', "--sign={$key}", '--by=owner@example.com', :env(%known));
+    is $rc, 0, 'a person approves the staged change' or diag "$out $err";
+    g($r, 'commit', '-qm', 'approved');
+    ($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--base=$began", '--/checks', '--json', :env(%known));
+    my %v = Rakudo::Internals::JSON.from-json($out);
+    is %v<evidence><gate><repository>, g($r, 'rev-list', '--max-parents=0', 'HEAD'), 'the bare tree is judged as this repository';
+    is %v<evidence><gate><approval><status>, 'valid', 'so the approval holds, and no one is asked twice' or diag $out;
+}
+
 done-testing;

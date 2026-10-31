@@ -121,8 +121,11 @@ sub snapshots(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate
     %s;
 }
 
+#| A candidate may be a bare tree (a driver's worktree id), which has no
+#| history of its own: the repository is then HEAD's, as for a staged change.
 sub root-commit(IO::Path $root, Str $rev --> Str) {
     my ($rc, $out, $) = g($root, 'rev-list', '--max-parents=0', $rev);
+    ($rc, $out, $) = g($root, 'rev-list', '--max-parents=0', 'HEAD') if ($rc != 0 || $out.trim eq '') && $rev ne 'HEAD';
     $rc == 0 && $out.trim ne '' ?? $out.lines.sort.head.trim !! 'unborn';
 }
 
