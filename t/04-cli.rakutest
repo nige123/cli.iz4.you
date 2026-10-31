@@ -182,7 +182,7 @@ like $out, /^ 'INVARIANT human-agency.iz4.you' \n .* 'BECAUSE'/, 'show invariant
 ($rc, $out, $err) = iz4($dir, 'show', 'invariant', "private-stay-private.$NS");
 like $out, /^ 'INVARIANT private-stay-private.shop.example.com' \n .* 'BECAUSE'/, 'show invariant NAME is the project invariant with its reason';
 ($rc, $out, $err) = iz4($dir, 'show', 'invariant', '5');
-ok $rc == 1 && $err.contains('only the foundation, 0 to 4, has an order'), 'show invariant 5 says only the foundation has an order';
+ok $rc == 1 && $err.contains('named, not numbered'), 'show invariant 5 says invariants are named, not numbered';
 ($rc, $out, $err) = iz4($dir, 'show', 'for-who');
 is $out, "People looking for work.\n", 'show for-who';
 
@@ -405,7 +405,7 @@ else { skip 'git not available', 24 }
     ($rc, $out, $err) = iz4($d, 'show', 'invariant', 'Invariant 0');
     ok $out.starts-with("INVARIANT humans-first.iz4.you\n"), "and so is 'Invariant 0'";
     ($rc, $out, $err) = iz4($d, 'show', 'invariant', '5');
-    ok $rc == 1 && $err.contains('only the foundation, 0 to 4, has an order'), 'there is no Invariant 5: a project\'s own invariants have names and no numbers';
+    ok $rc == 1 && $err.contains('named, not numbered'), 'there is no Invariant 5: a project\'s own invariants have names and no numbers';
     ($rc, $out, $err) = iz4($d, 'add', 'invariant', 'Orders are never charged twice for anyone.', '--name=5', '--namespace=shop.example.com', '--because=A customer charged twice loses money and trust.');
     ok $rc == 1 && !$d.add('IZ4').slurp.contains('charged twice'), 'and a number is never accepted as the name of one';
     ($rc, $out, $err) = iz4($d, 'withdraw', '0', '--force');

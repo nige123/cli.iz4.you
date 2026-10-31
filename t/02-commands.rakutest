@@ -97,8 +97,8 @@ like invariant-text($path, 'visible-by-choice'), /^ 'INVARIANT visible-by-choice
 like invariant-text($path, 'honesty'), /^ 'INVARIANT honesty.iz4.you' \n .* 'BECAUSE'/, 'the foundation answers by name too';
 throws-like { invariant-text($path, 'nonesuch') }, X::IZ4,
     message => /"no invariant 'nonesuch'" .* "visible-by-choice.$NS" .* 'the foundation is humans-first.iz4.you'/, 'an unknown name explains what exists';
-throws-like { invariant-text($path, '42') }, X::IZ4, message => /'only the foundation, 0 to 4, has an order'/, 'a number is answered with where the names are';
-throws-like { invariant-text($path, 'Invariant 5') }, X::IZ4, message => /'only the foundation, 0 to 4, has an order'/, "and so is 'Invariant 5'";
+throws-like { invariant-text($path, '42') }, X::IZ4, message => /'named, not numbered'/, 'a number is answered with where the names are';
+throws-like { invariant-text($path, 'Invariant 5') }, X::IZ4, message => /'named, not numbered'/, "and so is 'Invariant 5'";
 is show-text($path), $path.slurp, 'show prints the whole file';
 
 # ---- withdraw -------------------------------------------------------------------

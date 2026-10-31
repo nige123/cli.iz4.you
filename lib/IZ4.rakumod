@@ -5,7 +5,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.35.0';
+constant VERSION is export = '0.35.1';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -452,7 +452,7 @@ sub own-names(IZ4::Document $doc --> Str) {
 #| One invariant by name.  The foundation's names always answer.
 sub invariant-text(IO::Path $path, Str $ref --> Str) is export {
     my $doc = IZ4::Document.load($path);
-    user-error("'$ref' is a number, and only the foundation, 0 to 4, has an order; 'iz4 show invariants' lists the names")
+    user-error("'$ref' is a number, and invariants are named, not numbered; 'iz4 show invariants' lists the names")
         if $ref.trim ~~ /:i^ ['invariant' \s+]? \d+ ':'? $/ && $ref.trim !~~ /:i^ ['invariant' \s+]? <[0..4]> ':'? $/;
     my $id = resolve-identity($doc, $ref)
         // user-error("no invariant '$ref' in {$path.basename}; {own-names($doc)}, and the foundation is {foundation-ids(:clauses($doc.form eq 'clauses'), :card($doc.form eq 'card')).join(', ')}");
