@@ -275,6 +275,7 @@ is $rc, 3, 'files changed and no report: exit 3';
 %v = doc($out);
 is %v<result>, 'block', 'blocked';
 ok %v<evidence><parts>.grep({ .<part> eq 'report' && .<result> eq 'block' }), 'by the report part';
+ok doc($r.add('.git/iz4/last.json').slurp)<line>.starts-with('◇ IZ4: files changed'), 'the line kept for a status line marks it with the hollow diamond, not a cross';
 like %v<reason>, /^ 'files changed under this IZ4 (README.md) and the reply ends without an invariant report' /, 'the one line names the files that changed, so a person can see whether they are the work';
 # a driver that passes the tree the turn began with: dirt from before the turn is not the turn's change
 my $began = doc(iz4($r, 'check', 'change', '--worktree', '--json', '--/checks')[1])<evidence><gate><candidate>;

@@ -2345,7 +2345,7 @@ multi MAIN('verify', Bool :$staged = False, Bool :$worktree = False, Str :$base,
 #| written never changes the result.
 sub record-last(IO::Path $root, %v) {
     my $f = (checks-record($root) // return).parent.add('last.json');
-    my $mark = %( pass => '◈', warn => '!', block => '✗', needs_human => '?' ){%v<result>} // '?';
+    my $mark = %( pass => '◈', warn => '!', block => '◇', needs_human => '?' ){%v<result>} // '?';
     try {
         $f.parent.mkdir;
         $f.spurt(json-encode(%( schema => 'iz4-last/1', at => DateTime.now.utc.truncated-to('second').Str, tool => %v<tool>,
