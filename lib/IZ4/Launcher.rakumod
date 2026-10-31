@@ -92,8 +92,10 @@ sub launcher-version(Str $bin --> Str) is export {
 sub parse-json(Str $text) { my $v = try Rakudo::Internals::JSON.from-json($text); $! ?? Any !! $v }
 
 #| The prompt-only package 321 ships, written out and its path printed.
+#| From 0.5.0 --brief promises that output is the path and nothing else.
 sub launcher-prompt-package(Str $bin --> Str) is export {
-    my ($rc, $out, $err) = launcher-run($bin, 'packages', 'builtin', 'prompt');
+    my @brief = version-at-least(launcher-version($bin), '0.5.0') ?? ('--brief',) !! ();
+    my ($rc, $out, $err) = launcher-run($bin, |@brief, 'packages', 'builtin', 'prompt');
     die "321 could not write its prompt package: {$err.trim || $out.trim}" unless $rc == 0 && $out.trim;
     $out.trim;
 }

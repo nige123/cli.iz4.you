@@ -23,7 +23,7 @@ sub stub-launcher(IO::Path :$dir = temp-dir() --> IO::Path) {
         printf '%s\n' "$*" >> "$here/calls"
         case "$*" in
           version) echo "321 ${STUB_321_VERSION:-0.4.0}"; exit 0 ;;
-          "packages builtin prompt") mkdir -p "$here/pkg"; echo "$here/pkg"; exit 0 ;;
+          "packages builtin prompt"|"--brief packages builtin prompt") mkdir -p "$here/pkg"; echo "$here/pkg"; exit 0 ;;
           *"prompt -"*) cat > "$here/prompt.txt"; cat "$here/REPLY"; exit 0 ;;
           "iz4 install"*|"iz4 status"*|"iz4 remove"*) cat "$here/DRIVER"; exit 0 ;;
           "doctor --json") echo '{"schema":"doctor.v1","adapters":[{"name":"claude_code","available":true,"enforces":{"tool_allowlist":true},"hooks":{"pre-edit":"refuses","stop":"refuses","session-start":"advises"}}]}'; exit 0 ;;
@@ -273,6 +273,24 @@ ok !launcher-marker($bd).e, 'no marker means iz4 did not install 321 here';
     my %l = launcher-install(:bin-dir($bd));
     is %l<state>, 'skipped', 'an existing 321 is left as is';
     ok %l<note>.contains('not by iz4'), 'and the note says why';
+}
+
+# From 0.5.0 321 promises its brief form, and an older one still works.
+{
+    temp %*ENV = %*ENV, IZ4_321 => stub-launcher().Str;
+    my $bin = %*ENV<IZ4_321>;
+    my $calls = $bin.IO.parent.add('calls');
+    {
+        temp %*ENV<STUB_321_VERSION> = '0.5.0';
+        launcher-prompt-package($bin);
+        ok $calls.slurp.contains('--brief packages builtin prompt'), 'a 321 of 0.5.0 is asked for the brief form';
+    }
+    $calls.unlink;
+    {
+        temp %*ENV<STUB_321_VERSION> = '0.4.0';
+        launcher-prompt-package($bin);
+        nok $calls.slurp.contains('--brief'), 'an older one is not';
+    }
 }
 
 done-testing;
