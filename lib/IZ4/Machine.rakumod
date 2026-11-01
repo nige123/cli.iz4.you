@@ -116,6 +116,7 @@ constant CONTEXT-INSTRUCTION is export = q:to/END/;
     could affect: 'Invariant NAME: mechanically verified | supported by
     evidence | apparently consistent | uncertain | conflicting. Evidence:
     what ran. Remaining gap: what is not shown.' Say uncertain, never imply.
+    Passing tests answer for their invariant; add a line only if you doubt it.
     END
 
 sub context(IO::Path $iz4 --> Hash) is export {
@@ -401,11 +402,13 @@ sub changed-paths(IO::Path $root, %g --> List) {
     $rc == 0 ?? $out.lines.grep(*.chars).List !! ();
 }
 
-sub report-wanted(@files --> Str) {
-    return REPORT-WANTED.trim-trailing unless @files;
-    my $shown = @files.head(3).join(', ') ~ (@files > 3 ?? ", and {@files - 3} more" !! '');
-    REPORT-WANTED.subst('files changed under this IZ4', "files changed under this IZ4 ($shown)").trim-trailing;
+sub report-wanted(@files, :@owed --> Str) {
+    my $wanted = REPORT-WANTED.trim-trailing;
+    $wanted .= subst('one line per invariant the change could affect', "one line per invariant its tests do not show ({shown(@owed)})") if @owed;
+    @files ?? $wanted.subst('files changed under this IZ4', "files changed under this IZ4 ({shown(@files)})") !! $wanted;
 }
+
+sub shown(@names --> Str) { @names.head(3).join(', ') ~ (@names > 3 ?? ", and {@names - 3} more" !! '') }
 
 #| What can be established about finished work: the IZ4 is well formed,
 #| the change alters no commitment without agreement, and, when the
@@ -443,6 +446,8 @@ sub verify(IO::Path $root, Str :$summary, *%opts --> Hash) is export {
     else { @parts.push: %( part => 'change', result => 'not_checked', detail => 'not checked: the IZ4 is invalid' ) }
 
     my @uncertain;
+    my $reported = False;
+    my %answer = tests-answer($doc, %change);
     # The agent's last words: plain text in a file (--summary).  Where a
     # harness keeps a transcript, and which part of it is the final answer,
     # is the driver's knowledge, not this module's.
@@ -454,9 +459,13 @@ sub verify(IO::Path $root, Str :$summary, *%opts --> Hash) is export {
         if !$changed { @parts.push: %( part => 'report', result => PASS, detail => 'nothing changed, so no report is owed' ) }
         elsif carries-report($last) {
             @parts.push: %( part => 'report', result => PASS, detail => 'the work ends with a per-invariant report' );
+            $reported = True;
+        }
+        elsif $doc.ok && %answer<held> && !%answer<owed> {
+            @parts.push: %( part => 'report', result => PASS, detail => 'the tests answered for every invariant, so no report is owed' );
         }
         else {
-            @parts.push: %( part => 'report', result => BLOCK, detail => report-wanted(changed-paths($root, %change<evidence><gate>)) );
+            @parts.push: %( part => 'report', result => BLOCK, detail => report-wanted(changed-paths($root, %change<evidence><gate>), :owed(%answer<held> ?? %answer<owed> !! ())) );
         }
     }
     else { @parts.push: %( part => 'report', result => 'not_checked', detail => 'the agent\'s last words were not given, so the report was not looked for' ) }
@@ -464,12 +473,33 @@ sub verify(IO::Path $root, Str :$summary, *%opts --> Hash) is export {
     my $worst = @parts.map(*<result>).max({ %RANK{$_} // 0 });
     $worst = PASS if $worst eq 'not_checked';
     my $reason = $worst eq PASS
-        ?? held-words($doc, %change, :report($given && $changed))
+        ?? held-words($doc, %change, :report($reported))
         !! @parts.grep({ .<result> eq $worst }).map(*<detail>).join('; ');
-    my %evidence = parts => @parts.Array, report => %( uncertain => @uncertain.Array );
+    my %evidence = parts => @parts.Array, report => %( uncertain => @uncertain.Array, from_tests => %answer<lines>.Array );
     %evidence<gate> = %change<evidence><gate> if %change;
     result-doc('verify', $worst, $reason, ($iz4.f ?? $iz4 !! IO::Path), :invariants(@inv), :%evidence, :$proposed,
-        :limits('a report that is present is not thereby true, and an invariant no test names is not verified by this; parts marked not_checked were not run'));
+        :limits('a report that is present is not thereby true, a test that passed shows only what it covers, and an invariant no test names is not verified by this; parts marked not_checked were not run'));
+}
+
+#| What this run's tests can say in the report's place: a line for each
+#| of the project's own invariants whose tests all passed, and the names
+#| of the rest, which only the agent can speak to.  A line says a test
+#| passed and no more, so it is 'supported by evidence', never verified.
+#| Checks that did not run answer for nothing.
+sub tests-answer(IZ4::Document $doc, %change --> Hash) {
+    my %by = checks-by-invariant(%change);
+    my @own = $doc.ok ?? $doc.invariants.grep(*.id.defined).map(*.id) !! ();
+    my @held = @own.grep({ %by{$_} && %by{$_}.map(*<outcome>).all eq 'passed' });
+    my %h = @held.map({ $_ => True });
+    %( held  => @held.List,
+       owed  => @own.grep({ !%h{$_} }).List,
+       lines => @held.map({ "Invariant $_: supported by evidence. Evidence: {%by{$_}.map(*<file>).join(', ')} passed. Remaining gap: what those tests do not cover." }).List );
+}
+
+sub checks-by-invariant(%change --> Hash) {
+    my %by;
+    for @((%change<evidence><gate> // {})<checks> // []) -> %c { %by{$_}.push(%c) for |(%c<invariants> // ()) }
+    %by;
 }
 
 #| What a pass says: not that nothing stopped it, but what held.  A pass
@@ -480,10 +510,9 @@ sub verify(IO::Path $root, Str :$summary, *%opts --> Hash) is export {
 #| and to status, never claimed.  When all of them held, the line says so
 #| plainly: that is the moment worth marking.
 sub held-words(IZ4::Document $doc, %change, Bool :$report --> Str) {
-    my %by;
-    for @((%change<evidence><gate> // {})<checks> // []) -> %c { %by{$_}.push(%c<outcome>) for |(%c<invariants> // ()) }
+    my %by = checks-by-invariant(%change);
     my @own  = $doc.ok ?? $doc.invariants.grep(*.id.defined) !! ();
-    my $held = +@own.grep({ %by{.id} && %by{.id}.all eq 'passed' });
+    my $held = +@own.grep({ %by{.id} && %by{.id}.map(*<outcome>).all eq 'passed' });
     my $tail = $report ?? ', and the report is in' !! '';
     my $n = +@own;
     return "the foundation held word for word$tail" unless $n;

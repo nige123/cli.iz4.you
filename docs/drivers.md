@@ -190,11 +190,17 @@ driver's job. `evidence.parts` says what each part found:
 |---|---|
 | `structure` | the IZ4 is well formed |
 | `change` | the change alters no commitment or protection without agreement |
-| `report` | work that changed files ends with a per-invariant report |
+| `report` | work that changed files ends with a per-invariant report, or this run's tests passed for every invariant the project keeps |
 
 A part that was not run is `not_checked` and is never counted as a pass.
 `evidence.report.uncertain` lists the invariants the report itself calls
-uncertain or conflicting, in its own words.
+uncertain or conflicting, in its own words. `evidence.report.from_tests`
+holds one line for each invariant whose tests all passed in this run. Such
+a line says a test passed and no more, so it reads `supported by evidence`.
+When any invariant has no passing test, the report is asked for and names
+those invariants. An agent's report is still taken whenever it gives one.
+This evidence stays on the machine: `iz4 report` sends the registry nothing
+from it.
 
 A driver that verifies at the end of every turn passes the baseline:
 
