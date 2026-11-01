@@ -141,11 +141,11 @@ not prove the software is correct, and `iz4 status` never says it is.
 ## Earlier forms
 
 Files written by earlier versions, with `WHERE:`, `ALWAYS:` and `PROTECTS:`
-clauses under a short name, or `INVARIANT` and `BECAUSE` blocks, are still
-read, and `iz4 check` says to migrate them. `iz4 migrate` moves a file to
-cards: every word stays, and what the file's mode and heading words said
-about protection is written on each card. The move is one change the gate
-asks you to agree to.
+clauses under a short name, or `INVARIANT` and `BECAUSE` blocks, are refused,
+not read: `iz4 check` says so and changes nothing. iz4 0.37.0 is the last
+version that moves such a file to cards, with `iz4 migrate`: every word stays,
+and what the file's mode and heading words said about protection is written
+on each card. A commit that moves a file is one the gate asks you to agree to.
 
 ## For tools
 

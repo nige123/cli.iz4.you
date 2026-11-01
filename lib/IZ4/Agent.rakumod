@@ -124,9 +124,9 @@ sub agent-packet(IO::Path $iz4 --> Hash) is export {
         file          => $iz4.Str,
         sha256        => sha256-file($iz4),
         foundation    => %(
-            text   => ($doc.form eq 'card' ?? FOUNDATION-CARD-TEXT !! $doc.form eq 'clauses' ?? FOUNDATION-CLAUSES-TEXT !! FOUNDATION-TEXT),
-            sha256 => ($doc.form eq 'card' ?? FOUNDATION-CARD-DIGEST !! $doc.form eq 'clauses' ?? FOUNDATION-CLAUSES-DIGEST !! FOUNDATION-DIGEST),
-            ids    => foundation-ids(:clauses($doc.form eq 'clauses'), :card($doc.form eq 'card')).Array,
+            text   => FOUNDATION-CARD-TEXT,
+            sha256 => FOUNDATION-CARD-DIGEST,
+            ids    => foundation-ids().Array,
             status => $doc.foundation-status,
         ),
         effective     => effective-text($doc, :name($iz4.basename)),

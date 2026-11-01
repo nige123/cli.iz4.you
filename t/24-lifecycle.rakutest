@@ -75,8 +75,8 @@ sub shop(--> IO::Path) {
     g($r, 'init', '-q');
     g($r, 'config', 'user.email', 't@test');
     g($r, 'config', 'user.name', 'Test');
-    init(:dir($r), :for-what('Taking orders.'), :for-who('People buying things.'));
-    iz4($r, 'add', 'invariant', 'An order is never charged twice.', '--name=charged-once', '--namespace=shop.example.com', '--because=It costs trust.', '--force');
+    init(:dir($r), :for-what('Taking orders.'), :for-who('People buying things.'), :namespace('shop.example.com'));
+    iz4($r, 'add', 'invariant', 'An order is never charged twice.', '--when=it applies', '--established', '--name=charged-once', '--namespace=shop.example.com', '--because=It costs trust.', '--force');
     $r.add('t').mkdir;
     $r.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
     $r.add('t/charged-once.t').chmod(0o755);
@@ -123,7 +123,7 @@ my %sh = IZ4_CHECK_CMD => 'sh {file}';
     like $out, / 'It could say:' \n '  An order is charged once per delivery.' /, 'the agent on the machine offers words';
     like $out, / "$ID now says: An order is charged once per delivery." /, 'Enter keeps them';
     like $out, / 't/charged-once.t checks the old words. Take it out' /, 'its old test is asked about, once';
-    like $r.add('IZ4').slurp, / "INVARIANT $ID" \n 'An order is charged once per delivery.' \n \n 'BECAUSE' \n 'It costs trust.' /, 'the name and the reason are kept';
+    like $r.add('IZ4').slurp, / "PROMISE $ID" .* 'An order is charged once per delivery.' .* 'It costs trust.' /, 'the name and the reason are kept';
     nok $r.add('t/charged-once.t').e, 'and the test of the old words is gone';
     like $out, / "$ID revised" .* 'Is that right? [y/n]' /, 'the change is then put to the person like any other';
     like $out, / 'Recorded: terminal approval' /, 'and their yes is recorded';
@@ -145,7 +145,7 @@ my %sh = IZ4_CHECK_CMD => 'sh {file}';
     my ($rc, $out, $err) = iz4-talk($r, "w\n" ~ "y\n" x 6, 'approve', :env(%sh));
     is $rc, 0, 'withdrawing ends in an agreement' or diag "$out\n$err";
     like $out, / "$ID is withdrawn; its name is retired" /, 'said plainly';
-    unlike $r.add('IZ4').slurp, / ^^ "INVARIANT $ID" /, 'the invariant is out of the file';
+    unlike $r.add('IZ4').slurp, / ^^ "PROMISE $ID" /, 'the invariant is out of the file';
     like $out, / "$ID removed" .* 'Is that right? [y/n]' /, 'and its going is agreed to like any other change';
 }
 {

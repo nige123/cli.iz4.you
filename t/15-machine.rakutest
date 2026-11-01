@@ -36,10 +36,10 @@ my constant VIS  = 'visible-by-choice.shop.example.com';
 my $VIS = VIS;
 my constant TEST = 'tests/visible-by-choice.sh';
 my $TEST = TEST;
-my @FIVE = <humans-first.iz4.you do-no-harm.iz4.you human-agency.iz4.you honesty.iz4.you keystone.iz4.you>;
+my @FIVE = <humans-first.iz4.you do-no-harm.iz4.you human-agency.iz4.you honesty.iz4.you binding.iz4.you>;
 my $r = repo;
-my $sp = minimal-iz4(:dir($r));
-add-invariant($sp, 'People control whether their profile is visible.', :name(VIS), :because('Privacy.'));
+my $sp = minimal-iz4(:dir($r), :domain<shop.example.com>);
+add-invariant($sp, 'People control whether their profile is visible.', :name(VIS), :reach('it applies'), :established, :because('Privacy.'));
 $r.add('lib').mkdir; $r.add('tests').mkdir;
 $r.add('lib/profile.txt').spurt("visible: private\n");
 $r.add(TEST).spurt("#!/bin/sh\n# INVARIANT {$VIS}\ngrep -q 'visible: private' lib/profile.txt\n");
@@ -56,7 +56,7 @@ ok %d<present>, 'an IZ4 up the tree is found';
 is %d<file>.IO.resolve.Str, $sp.resolve.Str, 'by its path';   # a temporary directory may sit behind a symlink (macOS: /var is /private/var)
 is %d<sha256>, sha256-file($sp), 'with its content identity';
 ok %d<valid>, 'and it is valid';
-is %d<format>, 'named', 'it says the file names its invariants';
+is %d<format>, 'card', 'it says the file holds cards';
 is %d<namespace>, 'shop.example.com', "and under which domain the project's own are named";
 is %d<invariants>.map(*<id>).join(','), (|@FIVE, VIS).join(','), 'the effective invariants are listed by name: the foundation, then the project\'s own';
 is foundation-ids().join(','), @FIVE.join(','), 'the five foundation names are the ones a driver was told';
@@ -67,11 +67,11 @@ is %d<invariants>[^5].map(*<foundation_order>).join(','), '0,1,2,3,4', 'and its 
 ok !(%d<invariants>[5]<foundation_order>:exists), "a project's own invariant has no place in that order";
 ok all(%d<invariants>.map({ so .<digest> ~~ /^ <[0..9a..f]> ** 64 $/ })), 'every entry carries the digest of its words';
 is %d<invariants>[^5].map(*<digest>).join(','), @FIVE.map({ foundation-digest-of($_) }).join(','), 'the foundation digests are the foundation\'s';
-is %d<invariants>[5]<digest>, invariant-digest(VIS, 'People control whether their profile is visible.', 'Privacy.'), 'and the project invariant\'s is the iz4-invariant/1 digest of its name, words and reason';
-is %d<invariants>[0]<summary>, 'Help people thrive, on their own terms.', 'a foundation invariant is summarised by its first sentence';
+is %d<invariants>[5]<digest>, invariant-digest(VIS, 'People control whether their profile is visible.', 'Privacy.'), 'and the project invariant\'s is the iz4-invariant/5 digest of its name, words and reason';
+is %d<invariants>[0]<summary>, 'help people thrive, on their own terms', 'a foundation invariant is summarised by its first sentence';
 like %d<invariants>[5]<summary>, /'People control'/, 'a project invariant by its opening words';
 ($rc, $out, $err) = iz4($r, 'discover');
-like $out, /"invariants (named): {@FIVE.join(', ')}, {$VIS}"/, 'the plain form lists the names';
+like $out, /"invariants (card): {@FIVE.join(', ')}, {$VIS}"/, 'the plain form lists the names';
 
 my $bare = temp-dir;
 ($rc, $out, $err) = iz4($bare, 'discover', '--json');
@@ -86,8 +86,8 @@ like $out, /'no IZ4'/, 'the plain form says so too';
 {
     my constant CONTACT = 'no-first-contact.shop.example.com';
     my $CONTACT = CONTACT;
-    my $head = "IZ4\n\nIS FOR WHAT?\nHelping people find work they love to do.\n\nIS FOR WHO?\nPeople looking for work.\n\n";
-    my sub block(Str $label, Str $text, Str $why) { "INVARIANT $label\n$text\n\nBECAUSE\n$why\n\n" }
+    my $head = "IZ4 shop.example.com\n\nIS FOR WHAT?\nHelping people find work they love to do.\n\nIS FOR WHO?\nPeople looking for work.\n\n";
+    my sub block(Str $label, Str $text, Str $why) { card($label, $text, $why, :when('it applies')) ~ "\n" }
     my sub found(IO::Path $dir) { my ($rc, $out, $err) = iz4($dir, 'discover', '--json'); doc($out) }
     my sub digest-of(%d, Str $id) { %d<invariants>.first({ .<id> eq $id })<digest> }
 
@@ -99,19 +99,19 @@ like $out, /'no IZ4'/, 'the plain form says so too';
     my %o = found($o);
     ok %o<valid>, 'a file with the foundation after the project invariants is valid' or diag %o<errors>.join('; ');
     is %o<invariants>.map(*<id>).join(','), (|@FIVE, VIS, CONTACT).join(','), 'discover lists the foundation first, then the project\'s own in file order';
-    is %o<namespace>, 'shop.example.com', 'with no comment recording it, the namespace is what the names share';
+    is %o<namespace>, 'shop.example.com', 'the namespace is the domain its header names';
     my %before = %o<invariants>.map({ .<id> => .<digest> });
     is %before{$VIS}, %d-first{$VIS}, 'the same name and words have the same digest in another file, wherever the block sits';
 
     # the digest rule, pinned to bytes by a tool that is not iz4
     my $canon = temp-dir.add('canonical.txt');
-    $canon.spurt("INVARIANT {$VIS}\nPeople control whether their profile is visible.\nBECAUSE\nPrivacy.\n");
-    is canonical-invariant(VIS, "People control whether\n  their profile is visible.", " Privacy. "), $canon.slurp, 'iz4-invariant/1: the name, the words and the reason, each on single spaces';
+    $canon.spurt("PROMISE {$VIS}\nWHEN it applies\nALWAYS People control whether their profile is visible.\nPROTECTS Privacy.\n");
+    is canonical-card(VIS, 'it applies', ("People control whether\n  their profile is visible.",), (" Privacy. ",)), $canon.slurp, 'iz4-invariant/5: the name and the three fields, each on single spaces';
     with sha256-hex($canon) { is %before{$VIS}, $_, "and an invariant's digest is the sha256 of exactly that" }
     else { skip 'no system sha256 tool', 1 }
 
     # re-wrapped: every digest as before
-    $o.add('IZ4').spurt($head ~ block(VIS, "People control\n    whether their   profile\nis visible.", "Privacy.") ~ $contact ~ foundation-block());
+    $o.add('IZ4').spurt($head ~ $vis.subst('whether their profile', "whether their\n            profile") ~ $contact ~ foundation-block());
     my %w = found($o);
     isnt %w<sha256>, %o<sha256>, 're-wrapping an invariant changes the file';
     is digest-of(%w, VIS), %before{$VIS}, 'but not the digest of that invariant';
@@ -125,7 +125,7 @@ like $out, /'no IZ4'/, 'the plain form says so too';
     is digest-of(%x, VIS), invariant-digest(VIS, 'People control whether their profile is public.', 'Privacy.'), 'to the digest of the new words';
     is digest-of(%x, CONTACT), %before{$CONTACT}, 'and leaves the next invariant\'s alone';
     is %x<invariants>[^5].map(*<digest>).join(','), %o<invariants>[^5].map(*<digest>).join(','), 'and the foundation\'s';
-    isnt invariant-digest(VIS, 'People control whether their profile is visible.', 'Secrecy.'), %before{$VIS}, 'a word of the BECAUSE counts too';
+    isnt invariant-digest(VIS, 'People control whether their profile is visible.', 'Secrecy.'), %before{$VIS}, 'a word of the PROTECTS counts too';
     isnt invariant-digest(CONTACT, 'People control whether their profile is visible.', 'Privacy.'), %before{$VIS}, 'and so does the name: the same words under another name are another commitment';
     isnt invariant-digest(VIS, 'People control whether their profile is visible', 'Privacy.'), %before{$VIS}, 'even a full stop is a change of words';
 
@@ -142,11 +142,11 @@ like %c<instruction>, /:i 'not' .* ['suggestion' | 'optional']/, 'and that they 
 like %c<instruction>, /:i 'human' | 'owner' | 'person'/, 'and that a change of invariant is a person\'s decision';
 ok %c<instruction>.lines.elems <= 12, 'the instruction is short' or diag %c<instruction>.lines.elems;
 like %c<instruction>, /'Invariant NAME:' .* 'uncertain' .* 'Evidence' .* 'Remaining gap'/, 'and it asks for the report that verify will look for';
-like %c<effective>, /"INVARIANT {$VIS}"/, 'the effective invariants are in it, by name';
-ok all(@FIVE.map({ %c<effective>.contains("INVARIANT $_") })), 'foundation included, all five';
-unlike %c<effective>, /^^ 'INVARIANT ' \d/, 'and nothing in it is numbered';
+like %c<effective>, /"PROMISE {$VIS}"/, 'the effective invariants are in it, by name';
+ok all(@FIVE.map({ %c<effective>.contains("FOUNDATION $_") })), 'foundation included, all five';
+unlike %c<effective>, /^^ ['PROMISE ' | 'FOUNDATION '] \d/, 'and nothing in it is numbered';
 like %c<instruction>, /'one line per invariant' .* 'Invariant NAME:'/, 'the report it asks for is by name, one line each';
-ok %c<text>.contains(%c<instruction>.trim) && %c<text>.contains("INVARIANT {$VIS}"), 'text is the two together, ready to hand over';
+ok %c<text>.contains(%c<instruction>.trim) && %c<text>.contains("PROMISE {$VIS}"), 'text is the two together, ready to hand over';
 ($rc, $out, $err) = iz4($bare, 'context', '--json');
 isnt $rc, 0, 'context where there is no IZ4 is an error, not an empty success';
 
@@ -335,7 +335,7 @@ $sp.spurt($before);
 ($rc, $out, $err) = iz4($r, 'check', 'change', '--worktree');
 like $out, /'result: pass'/, 'the plain form of a check states the result';
 ($rc, $out, $err) = iz4($r, 'context');
-like $out, /"INVARIANT {$VIS}"/, 'the plain form of context is the text itself';
+like $out, /"PROMISE {$VIS}"/, 'the plain form of context is the text itself';
 
 # ---- stable output: the keys an integration reads are always there ------------
 for (('check', 'change', '--worktree', '--json'), ('verify', '--worktree', '--json')) -> @cmd {
@@ -355,7 +355,7 @@ is $out.lines.elems, 1, 'a JSON result is one line';
 {
     my $c = repo;
     my $sp = minimal-iz4(:dir($c));
-    add-invariant($sp, 'People control whether their profile is visible.', :name(VIS), :because('Privacy.'));
+    add-invariant($sp, 'People control whether their profile is visible.', :name(VIS), :reach('it applies'), :established, :because('Privacy.'));
     g($c, 'add', '-A'); g($c, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'init');
     my sub keys-of($out) { doc($out).keys.sort.join(' ') }
     my sub one-doc($out, $what) { is $out.trim.lines.elems, 1, "$what prints exactly one line: one JSON document" }
@@ -364,8 +364,8 @@ is $out.lines.elems, 1, 'a JSON result is one line';
     one-doc($out, 'discover');
     is doc($out)<schema>, 'iz4-discover/2', 'discover: schema id';
     is keys-of($out), 'errors file format invariants namespace present schema sha256 tool valid', 'discover: keys';
-    is doc($out)<invariants>[0].keys.sort.join(' '), 'digest foundation foundation_order id summary', 'discover: a foundation entry';
-    is doc($out)<invariants>[5].keys.sort.join(' '), 'digest foundation id summary', "discover: an entry for one of the project's own";
+    is doc($out)<invariants>[0].keys.sort.join(' '), 'digest foundation foundation_order id reach summary', 'discover: a foundation entry';
+    is doc($out)<invariants>[5].keys.sort.join(' '), 'digest foundation id reach summary', "discover: an entry for one of the project's own";
     is keys-of(iz4(temp-dir(), 'discover', '--json')[1]), 'errors file format invariants namespace present schema sha256 tool valid', 'discover: the same keys where there is no IZ4';
 
     ($rc, $out, $err) = iz4($c, 'context', '--json');
@@ -401,8 +401,8 @@ is $out.lines.elems, 1, 'a JSON result is one line';
 {
     my $q = repo;
     my $qf = minimal-iz4(:dir($q));
-    add-invariant($qf, 'People control whether their profile is visible.', :name(VIS), :because('Privacy.'));
-    add-invariant($qf, 'Prices are shown before payment.', :name('prices-first.shop.example.com'), :because('Trust.'));
+    add-invariant($qf, 'People control whether their profile is visible.', :name(VIS), :reach('it applies'), :established, :because('Privacy.'));
+    add-invariant($qf, 'Prices are shown before payment.', :name('prices-first.shop.example.com'), :reach('it applies'), :established, :because('Trust.'));
     $q.add('tests').mkdir;
     $q.add(TEST).spurt("#!/bin/sh\n# INVARIANT {$VIS}\ntrue\n");
     g($q, 'add', '-A'); g($q, 'commit', '-qm', 'init');

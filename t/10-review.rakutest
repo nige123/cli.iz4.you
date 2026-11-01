@@ -12,7 +12,7 @@ use IZ4::Review;
 
 # ---- offline: an invariant's own words in the change --------------------
 my $doc = IZ4::Document.parse(q:to/END/);
-    IZ4
+    IZ4 shop.example.com
 
     IS FOR WHAT?
     Keeping a jewellery bench stocked and its prices honest.
@@ -20,16 +20,25 @@ my $doc = IZ4::Document.parse(q:to/END/);
     IS FOR WHO?
     Makers.
 
-    INVARIANT price-by-decision.shop.example.com
-    A live shop price changes only by human decision; a proposal is only a
-    proposal until a person approves it.
+    PROMISE price-by-decision.shop.example.com
 
-    BECAUSE
-    A quiet price cut is a decision nobody made.
+      WHEN      a price is set
+      ALWAYS    A live shop price changes only by human decision; a proposal is
+                only a proposal until a person approves it.
+      PROTECTS  A quiet price cut is a decision nobody made.
 
-    INVARIANT stock-seen.shop.example.com
-    Stock only goes up when a person has seen the goods; a parcel's arrival is
-    not receipt of stock.
+      CHANGES REQUIRE signed human approval for the exact change
+      CHECKED WITH    linked tests; failures block commit
+
+    PROMISE stock-seen.shop.example.com
+
+      WHEN      stock is counted
+      ALWAYS    Stock only goes up when a person has seen the goods; a parcel's
+                arrival is not receipt of stock.
+      PROTECTS  Makers who sell what they count.
+
+      CHANGES REQUIRE signed human approval for the exact change
+      CHECKED WITH    linked tests; failures block commit
     END
 my $price-diff = "diff --git a/lib/Price.pm b/lib/Price.pm\n--- a/lib/Price.pm\n+++ b/lib/Price.pm\n@@ -1 +1,2 @@\n sub price \{ \}\n+sub push_price_to_shop \{ send(proposal) \}  # no approval\n";
 my @t = touched-invariants($doc, $price-diff);
@@ -41,7 +50,7 @@ is touched-invariants($doc, "--- a/t/x.t\n+++ b/t/parcel-receipt.t\n@@ -0,0 +1 @
     'file names count too';
 ok invariant-terms('Prices are printed and reprinted.') ⊇ <price print>, 'terms are stemmed so prices meets price';
 my @report = offline-report($doc, $price-diff, :what('the change'));
-like @report.join("\n"), /'touches, by its own words, price-by-decision.shop.example.com.' .* 'price-by-decision.shop.example.com: A live shop price' .* 'BECAUSE A quiet price cut'/, 'the report shows the invariant, by its whole name, and its reason';
+like @report.join("\n"), /'touches, by its own words, price-by-decision.shop.example.com.' .* 'price-by-decision.shop.example.com: A live shop price' .* 'PROTECTS A quiet price cut'/, 'the report shows the invariant, by its whole name, and its reason';
 like @report[0], /"against the foundation and the project's 2 promises"/, 'the opening line says what the change was read against, with no numbers';
 unlike @report.join("\n"), /'Invariant ' \d/, 'nothing in the report numbers an invariant';
 like @report[*-1], /'nothing here says the change keeps or breaks'/, 'and claims nothing more';
@@ -74,8 +83,8 @@ if have-git() {
     my $repo = temp-dir;
     sub g(*@a) { run 'git', '-C', $repo.Str, |@a, :out, :err }
     g('init', '-q'); g('config', 'user.email', 't@t'); g('config', 'user.name', 'T');
-    my $iz4 = minimal-iz4(:dir($repo));
-    add-invariant($iz4, 'A live shop price changes only by human decision.', :name('price-by-decision.shop.example.com'), :because('A quiet price cut is a decision nobody made.'));
+    my $iz4 = minimal-iz4(:dir($repo), :domain<shop.example.com>);
+    add-invariant($iz4, 'A live shop price changes only by human decision.', :name('price-by-decision.shop.example.com'), :reach('it applies'), :established, :because('A quiet price cut is a decision nobody made.'));
     $repo.add('lib').mkdir;
     $repo.add('lib/Price.pm').spurt("sub price \{ \}\n");
     g('add', '-A'); g('commit', '-qm', 'init');
@@ -98,11 +107,11 @@ if have-git() {
     ($rc, $out, $err) = iz4($repo, 'review', '--strict');
     is $rc, 1, '--strict exits 1 on a conflict';
 
-    ($rc, $out, $err) = iz4-talk($repo, "y\ny\n\ny\nprice-with-calculation\n", 'review');
-    like $out, /'Added INVARIANT price-with-calculation.shop.example.com'/, 'on a terminal the candidate goes through the coach and is added on a yes, under the name the person gives' or diag $err;
+    ($rc, $out, $err) = iz4-talk($repo, "y\ny\nit applies\n\ny\nprice-with-calculation\n", 'review');
+    like $out, /'Added PROMISE price-with-calculation.shop.example.com'/, 'on a terminal the candidate goes through the coach and is added on a yes, under the name the person gives' or diag $err;
     nok $out.contains('Which domain?'), "the domain comes from the file's own invariants and is not asked";
-    like $iz4.slurp, /'INVARIANT price-with-calculation.shop.example.com' \n 'A price never reaches the shop without its calculation.' \n\n 'BECAUSE' \n 'A wrong price sells at a loss'/,
-        'with the suggested BECAUSE';
+    like $iz4.slurp, /'PROMISE price-with-calculation.shop.example.com' .* 'A price never reaches the shop without its calculation.' .* 'PROTECTS' \s+ 'a wrong price sells at a loss'/,
+        'with the suggested PROTECTS';
 
     %*ENV<IZ4_AGENT_CMD> = 'false';
     ($rc, $out, $err) = iz4($repo, 'review');

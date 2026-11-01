@@ -97,7 +97,7 @@ first, then the project's own in file order. `digest` says which wording
 of the invariant this is (rule `iz4-invariant/5`, in
 [format.md](format.md#for-tools)); each entry carries `reach`, its `WHEN`.
 `namespace` is the domain the project's own names share. `format` is `card`;
-the earlier forms, read only to migrate, say `clauses` or `named`.
+a file in an earlier form says `earlier`, is not valid, and lists no invariants.
 
 ### `iz4 context`
 

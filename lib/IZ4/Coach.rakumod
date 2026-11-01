@@ -25,7 +25,7 @@ constant GOLDEN-TEST is export =
     ~ 'telling the people and agents rebuilding it this?';
 
 #| The first question of a card, WHEN ('reach' in the code): the situation
-#| a promise applies in.  The earlier clauses form asked it too.
+#| a promise applies in.
 constant REACH-QUESTION is export = 'When does this apply? The situation, not the people.';
 
 #| The third question of a card, PROTECTS: the human interest, as whose what.
@@ -42,10 +42,6 @@ sub vague-reach(Str $reach --> Bool) is export {
     return True if $r.chars <= 2 || $r ~~ /^ [ 'yes' | 'ok' | 'okay' | 'no' | 'sure' | 'fine' ] $/;
     so $r ~~ /^ [ 'the ' | 'this ' ]? [ 'system' | 'software' | 'app' | 'application' | 'product' | 'everything' | 'all' | 'it' | 'code' ] $/;
 }
-
-#| The opening question when there is no candidate yet, and no WHEN.
-constant OPENING is export =
-    'What must remain true even if this system is completely rewritten?';
 
 # ------------------------------------------------------------ heuristics
 
@@ -151,8 +147,7 @@ sub content-words(Str $s --> Set) {
       .map({ .subst(/ 's' $/, '') }).Set;
 }
 
-#| Whether a PROTECTS (a BECAUSE, in the earlier named form) explains
-#| anything.  'circular' when it only restates the invariant ("Private
+#| Whether a PROTECTS explains anything.  'circular' when it only restates the invariant ("Private
 #| profiles are private" because "they must be private"); 'empty' when
 #| there is nothing; otherwise 'ok'.
 sub assess-because(Str $invariant, Str $because --> Str) is export {
@@ -168,8 +163,7 @@ sub assess-because(Str $invariant, Str $because --> Str) is export {
 
 #| Words that mark a sentence as saying why, not what: consequences and
 #| stakes, the shapes a reason takes when it is folded into the invariant
-#| instead of standing under PROTECTS (or BECAUSE, in the earlier named
-#| form).  Words that rules use as often as
+#| instead of standing under PROTECTS.  Words that rules use as often as
 #| reasons ("cannot", "nobody", "never", "fails") are left out on purpose,
 #| so a rule is not mistaken for its reason.
 my regex reason-cue {
@@ -256,9 +250,7 @@ sub yes-no(Str $answer, Bool :$default --> Bool) is export {
 #| of input); &tell shows a line.  Returns a hash with 'outcome' - add,
 #| not-iz4, needs-human or skipped - plus 'text' and 'because' (the
 #| PROTECTS) when adding, and 'advice' saying where non-IZ4 content
-#| belongs.  :card is a promise card; :clauses is set for a card too, and
-#| alone means the earlier clauses form; neither means the earliest named
-#| form, which asks for a BECAUSE.
+#| belongs.
 #|
 #| The shape is: candidate, one useful challenge, refinement if needed,
 #| the golden test, PROTECTS, confirm.  At most three refinements; the
@@ -269,8 +261,6 @@ sub coach-invariant(
     Str :$for-what, Str :$for-who,
     Str :$name,
     Str :$suggested-because is copy,
-    Bool :$clauses = False,
-    Bool :$card = False,
     Str :$reach is copy,
     --> Hash
 ) is export {
@@ -278,8 +268,7 @@ sub coach-invariant(
     my $what = in-sentence($for-what) || 'what this is for';
     my sub answer(Str $prompt --> Str) { (ask($prompt) // '').trim }
 
-    # a card asks for its WHEN first when nothing has been said yet (so
-    # did the earlier clauses form)
+    # a card asks for its WHEN first when nothing has been said yet
     my sub ask-reach(--> Str) {
         my $r = answer(REACH-QUESTION ~ "\n> ");
         if $r ne '' && vague-reach($r) {
@@ -289,12 +278,12 @@ sub coach-invariant(
         }
         $r;
     }
-    if $clauses && !$reach.defined && !$candidate.defined {
+    if !$reach.defined && !$candidate.defined {
         $reach = ask-reach();
         return %( outcome => 'skipped' ) if $reach eq '';
     }
     without $candidate {
-        tell($clauses && $reach.defined ?? "When $reach: what must remain true, whatever is rebuilt?" !! OPENING);
+        tell("When $reach: what must remain true, whatever is rebuilt?");
         $candidate = answer('> ');
         return %( outcome => 'skipped' ) if $candidate eq '';
     }
@@ -370,7 +359,7 @@ sub coach-invariant(
             }
             when 'task' {
                 tell("That reads like work to do. IZ4 records what must stay true, not tasks: track it in your issues or plan.");
-                tell(REWRITE-TEST) if $clauses;
+                tell(REWRITE-TEST);
                 my $refined = answer("Is there a lasting truth behind it? Say it, or press enter to leave it out.\n> ");
                 return %( outcome => 'not-iz4', advice => 'issues or a plan' ) if $refined eq '';
                 $candidate = $refined;
@@ -394,51 +383,35 @@ sub coach-invariant(
         return %( outcome => 'not-iz4', advice => 'the README, tests or developer documentation' );
     }
 
-    if $clauses && !$reach.defined {
+    unless $reach.defined {
         $reach = ask-reach();
         return %( outcome => 'skipped' ) if $reach eq '';
     }
 
-    # the suggestion is shown exactly as it would be written; a card asks
-    # for PROTECTS, the earlier named form for a BECAUSE
+    # the suggestion is shown exactly as it would be written
     my $hint = ($suggested-because // '').trim;
-    $hint = $hint.substr(0, 1).uc ~ $hint.substr(1) if $hint ne '' && !$clauses;
-    my $because = answer(($clauses ?? "PROTECTS: {PROTECTS-QUESTION}" !! "BECAUSE: why must this survive? How does it matter to $who, or to $what?")
+    my $because = answer("PROTECTS: {PROTECTS-QUESTION}"
         ~ ($hint ne '' ?? "\n(enter to use the suggestion: $hint)" !! '') ~ "\n> ");
     $because = $hint if $because eq '' && $hint ne '';
     if assess-because($candidate, $because) eq 'circular' {
-        tell($clauses ?? "That restates ALWAYS. What must not be defeated: which person, and what of theirs?"
-                   !! "That restates the invariant. Who would be harmed, surprised or let down if it stopped being true, and why?");
+        tell("That restates ALWAYS. What must not be defeated: which person, and what of theirs?");
         $because = answer('> ');
         if assess-because($candidate, $because) ne 'ok' {
-            if $clauses { tell(NOTHING-PROTECTED); return %( outcome => 'not-iz4', advice => 'the README' ) }
-            tell("Leaving BECAUSE out for now: add one when the reason is clear.");
-            $because = '';
+            tell(NOTHING-PROTECTED);
+            return %( outcome => 'not-iz4', advice => 'the README' );
         }
     }
     elsif $because eq '' {
-        if $clauses {
-            tell(NOTHING-PROTECTED ~ ' Say whose what, or press enter to leave it out.');
-            $because = answer('> ');
-            return %( outcome => 'not-iz4', advice => 'the README' ) if $because eq '';
-        }
-        else { tell("Without a BECAUSE this is easy to remove by accident; you can add one later.") }
+        tell(NOTHING-PROTECTED ~ ' Say whose what, or press enter to leave it out.');
+        $because = answer('> ');
+        return %( outcome => 'not-iz4', advice => 'the README' ) if $because eq '';
     }
 
-    my $label = $name.defined ?? ($card ?? "PROMISE $name" !! "INVARIANT $name") !! $card ?? 'a promise' !! 'an invariant';
-    if $card {
-        tell("WHEN      $reach");
-        tell("ALWAYS    $candidate");
-        tell("PROTECTS  $because");
-    }
-    elsif $clauses {
-        # the earlier clauses form, read only to migrate
-        tell("WHERE:    $reach");
-        tell("ALWAYS:   $candidate");
-        tell("PROTECTS: $because");
-    }
+    my $label = $name.defined ?? "PROMISE $name" !! 'a promise';
+    tell("WHEN      $reach");
+    tell("ALWAYS    $candidate");
+    tell("PROTECTS  $because");
     my $confirm = yes-no(answer("Add it as $label? [Y/n] "), :default);
     return %( outcome => 'skipped' ) unless $confirm;
-    %( outcome => 'add', text => $candidate, because => ($because eq '' ?? Str !! $because),
-       |($clauses ?? (reach => $reach) !! ()) );
+    %( outcome => 'add', text => $candidate, because => $because, reach => $reach );
 }

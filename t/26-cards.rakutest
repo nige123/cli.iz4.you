@@ -13,8 +13,8 @@ use IZ4::Machine;
 # situation it applies in), ALWAYS (what must remain true), PROTECTS (whose
 # what would be lost), and after a blank line CHANGES REQUIRE and CHECKED
 # WITH, each one of the fixed values.  The header names the project's
-# domain, the foundation is written last as FOUNDATION cards, and the
-# earlier forms are still read and migrated.  These are deterministic
+# domain, the foundation is written last as FOUNDATION cards, and a file
+# in an earlier form is refused, by name.  These are deterministic
 # checks of the file format and its tools; they say nothing about how any
 # model reads a promise.
 
@@ -139,19 +139,8 @@ like problems("FOUNDATION a-rule.$NS\n  WHEN x\n  ALWAYS Y must hold.\n  PROTECT
     my $p = card-file;
     my $doc = check-doc($p);
     is $doc.foundation-status, "the foundation: in the file word for word (sha256 {FOUNDATION-CARD-DIGEST.substr(0, 12)})", 'a card file reports the card foundation digest';
-    isnt FOUNDATION-CARD-DIGEST, FOUNDATION-CLAUSES-DIGEST, 'which is not the three-clause foundation\'s';
     is sha256-text(FOUNDATION-CARD-TEXT), FOUNDATION-CARD-DIGEST, 'the digest is the digest of the canonical bytes: a declared version, its content and its digest agree';
-    is FOUNDATION-CARD».<id>, foundation-ids(:card), 'the five, in their order';
-    is FOUNDATION-CARD».<id>, FOUNDATION-CLAUSES».<id>, 'under the same names as the three-clause foundation';
-    is FOUNDATION-CARD».<legacy>, FOUNDATION».<legacy>, 'with the same order 0 to 4';
-    # the same words: every three-clause sentence is a card item, lower case, without its full stop
-    for FOUNDATION-CARD.kv -> $i, %f {
-        my %c = FOUNDATION-CLAUSES[$i];
-        is %f<when>, %c<reach>, "{%f<id>}: WHEN is the WHERE, word for word";
-        is %f<protects>.list, (%c<because>,), "{%f<id>}: PROTECTS is as it was";
-        my @sentences = %c<text>.split(/ '. ' /).map({ .subst(/ '.' $ /, '') }).map({ .substr(0, 1).lc ~ .substr(1) });
-        is %f<always>.list, @sentences, "{%f<id>}: ALWAYS is its sentences as items, no word changed";
-    }
+    is FOUNDATION-CARD».<id>, foundation-ids(), 'the five, in their order';
     ok FOUNDATION-CARD.map(*<always>.list).flat.grep(* ~~ / <[A..Z]> ^ | '.' $ /).elems == 0, 'no item begins with a capital or ends with a full stop';
 
     # a changed word, with the digest unchanged, is not the foundation
@@ -165,7 +154,7 @@ like problems("FOUNDATION a-rule.$NS\n  WHEN x\n  ALWAYS Y must hold.\n  PROTECT
     ok !check-doc($p).foundation-intact, 'and so is a foundation card missing one of its checks';
     is restore-foundation($p), 'replaced', 'restore puts it back';
     ok check-doc($p).ok, 'and the file checks';
-    # the three-clause foundation in a card file is not whole
+    # a foundation in an earlier form, in a card file, is not whole
     $p.spurt($t.subst(/ 'FOUNDATION humans-first.iz4.you' \n .*? \n\n 'FOUNDATION do-no-harm' /, "humans-first.iz4.you:\n  WHERE:    anyone is affected by the system, by its use, or by work on it\n  ALWAYS:   Help people thrive, on their own terms. Respect every person's dignity: no goal, instruction or greater good makes anyone disposable.\n  PROTECTS: each person's dignity, and their own say over how they thrive\n\nFOUNDATION do-no-harm"));
     my $mixed = check-doc($p);
     ok !$mixed.foundation-intact, 'a foundation block in the earlier form inside a card file is not the card foundation';
@@ -181,8 +170,7 @@ like problems("FOUNDATION a-rule.$NS\n  WHEN x\n  ALWAYS Y must hold.\n  PROTECT
     is canonical-card("a-rule.$NS", 'x', ('a', 'b'), ('c',)), "PROMISE a-rule.$NS\nWHEN x\nALWAYS\n- a\n- b\nPROTECTS c\n", 'a list is its label alone, then one line per item';
     isnt canonical-card("a-rule.$NS", 'x', ('a b',), ('c',)), canonical-card("a-rule.$NS", 'x', ('a', 'b'), ('c',)), 'so one statement and two items are different promises';
     is canonical-card("a-rule.$NS", "caf\x[e9]", ('Y.',), ('Z.',)), canonical-card("a-rule.$NS", "cafe\x[301]", ('Y.',), ('Z.',)), 'one word is one word however a keyboard composed it (Unicode normal form C)';
-    is INVARIANT-DIGEST-RULE-CARD, 'iz4-invariant/5', 'and the rule has its own name; /1 and /4 never change';
-    isnt canonical-card("a-rule.$NS", 'x', ('y',), ('z',)), canonical-clauses("a-rule.$NS", 'x', 'y', 'z'), 'a card is not the three-clause invariant with the same words';
+    is INVARIANT-DIGEST-RULE-CARD, 'iz4-invariant/5', 'and the rule has its own name';
 }
 
 # ---- writing: the tools keep the owner's words -----------------------------------
@@ -197,7 +185,7 @@ like problems("FOUNDATION a-rule.$NS\n  WHEN x\n  ALWAYS Y must hold.\n  PROTECT
     like $t, / "PROMISE owner-sets-prices.$NS" .* 'CHANGES REQUIRE signed human approval for the exact change' \n '  CHECKED WITH    linked tests; failures block commit' /, 'or established when asked';
     ok $t.index("PROMISE owner-sets-prices.$NS") < $t.index('# ----'), 'the project\'s own come before the foundation, which is read last';
     ok check-doc($p).ok && check-doc($p).invariants.elems == 2, 'and the file checks';
-    throws-like { add-invariant($p, 'X must hold.', :name("no-reach.$NS")) }, X::IZ4, message => /'needs a WHEN'/, 'a promise with no WHEN is refused';
+    throws-like { add-invariant($p, 'X must hold.', :name("no-reach.$NS"), :because('Y.')) }, X::IZ4, message => /'needs a WHEN'/, 'a promise with no WHEN is refused';
     throws-like { add-invariant($p, 'X must hold.', :name("no-stake.$NS"), :reach('x')) }, X::IZ4, message => /'needs a PROTECTS' .* 'constraint for the README'/, 'and one with nothing it protects: that is a constraint, not a promise';
     throws-like { add-invariant($p, 'X must hold.', :name("private-stays-private.$NS"), :reach('x')) }, X::IZ4, message => /'already in'/, 'a name in use is refused';
     throws-like { add-invariant($p, 'X must hold.', :name("humans-first.iz4.you"), :reach('x')) }, X::IZ4, message => /'foundation'/, "and the foundation's names are";
@@ -254,45 +242,47 @@ like problems("FOUNDATION a-rule.$NS\n  WHEN x\n  ALWAYS Y must hold.\n  PROTECT
     like effective-text(check-doc($p)), /'FOUNDATION humans-first.iz4.you' .* "PROMISE private-stays-private.$NS"/, 'the foundation first, then the project\'s own';
 }
 
-# ---- moving a three-clause file to cards -----------------------------------------------
-sub clauses-file(Str $body --> IO::Path) {
+# ---- a file in an earlier form: refused by name, its words untouched -----------------
+my $WHERE-FORM = "IZ4 $NS\n\nIS FOR WHAT?  Helping people find work they love to do.\n\nIS FOR WHO?   People looking for work.\n\n"
+    ~ "owner-prices:\n  WHERE:    every price shown\n  ALWAYS:   Prices are set by owners.\n  PROTECTS: Owners answer to customers.\n";
+my $NAMED-FORM = "IZ4\n\nIS FOR WHAT?\nHelping people find work they love to do.\n\nIS FOR WHO?\nPeople looking for work.\n\n"
+    ~ "INVARIANT owner-prices.$NS\nPrices are set by owners.\n\nBECAUSE\nOwners answer to customers.\n";
+for ('three-clause', $WHERE-FORM), ('named', $NAMED-FORM) -> ($form, $text) {
     my $d = temp-dir;
     my $p = $d.add('IZ4');
-    $p.spurt("IZ4 $NS\n\nIS FOR WHAT?  Helping people find work they love to do.\n\nIS FOR WHO?   People looking for work.\n\n$body\n" ~ foundation-block(:clauses) ~ "\n");
-    $p;
+    $p.spurt($text);
+    my $old = check-doc($p);
+    is $old.form, 'earlier', "a $form file is seen as an earlier form";
+    nok $old.ok, 'and does not check';
+    is $old.errors.elems, 1, 'with one error, not a list of misreadings';
+    like $old.errors[0].message, /'0.37.0'/, 'naming the last iz4 that migrates it';
+    is $old.invariants.elems, 0, 'and no promise is read out of it, so none is misread';
+    nok $old.foundation-intact, 'and no foundation is claimed for it';
+    my ($rc, $out, $err) = iz4($d, 'check');
+    is $rc, 1, 'iz4 check refuses it';
+    like $out ~ $err, /'0.37.0'/, 'and says which iz4 moves it';
+    is $p.slurp, $text, 'and not a byte of it changed';
 }
 {
-    my $p = clauses-file("# Vibe: this project's invariants are still settling. 'iz4 mode solid' when they are ready to hold.\n\nprivate-stays-private:\n  WHERE:    private profiles\n  ALWAYS:   The system must never expose a private profile in public search.\n  PROTECTS: Looking for work must not cost someone their current job.\n\nowner-prices: solid\n  WHERE:    every price shown\n  ALWAYS:   Prices are set by owners.\n  PROTECTS: Owners answer to customers.\n");
-    my $old = check-doc($p);
-    ok $old.ok && $old.form eq 'clauses', 'a three-clause file is still read' or diag $old.report.join("\n");
-    ok $old.warnings.first({ .message.contains('earlier clauses form') }).defined, 'with a warning that says to migrate';
-    is $old.protection-of("private-stays-private.$NS"), 'vibe', 'the file is in vibe mode';
-    is $old.protection-of("owner-prices.$NS"), 'solid', 'but one invariant is marked solid';
-    my %plan = card-migration-plan($p);
-    ok %plan<needed> && %plan<stop> eq '', 'the plan says the move can be made';
-    is %plan<own>.map({ "{.<id>}={.<stage>}" }), ("private-stays-private.$NS=exploring", "owner-prices.$NS=established"), 'and what each promise will require, from what the file said';
-    like %plan<notes>.join(' '), /'the mode line goes'/, 'and that the mode line goes';
-    my @moved = migrate-card($p);
-    my $new = check-doc($p);
-    ok $new.ok && $new.form eq 'card' && $new.foundation-intact, 'the migrated file checks, in the card form, with the card foundation' or diag $new.report.join("\n");
-    is $new.invariants.map(*.text), $old.invariants.map(*.text), 'every ALWAYS is word for word what it was';
-    is $new.invariants.map(*.because), $old.invariants.map(*.because), 'and every PROTECTS';
-    is $new.invariants.map(*.reach), $old.invariants.map(*.reach), 'and every WHERE, now WHEN';
-    is $new.invariants.map(*.id), $old.invariants.map(*.id), 'under the same identities';
-    is $new.invariant("private-stays-private.$NS").change, CHANGE-FREE, 'vibe became exploring';
-    is $new.invariant("owner-prices.$NS").change, CHANGE-SIGNED, 'and the solid one established';
-    unlike $p.slurp, /'# Vibe:'/, 'the mode line is gone';
-    like $p.slurp, /"PROMISE private-stays-private.$NS" .* '# ' '-' ** 10 .* 'FOUNDATION humans-first.iz4.you'/, 'the project\'s own come first, the foundation last';
-    throws-like { migrate-card($p) }, X::IZ4, message => /'already in the card form'/, 'a second migration has nothing to do';
+    my $mistake = card-file($PRIVATE.subst('WHEN      private profiles', 'WHERE:    private profiles'));
+    isnt check-doc($mistake).form, 'earlier', 'a card file with a mistake in it is a card file, told about its mistake';
+}
 
-    # the gate shows it as one change, and a person agrees to it
+# the move itself, reviewed: an earlier form in the base, cards in the change
+{
+    my $old = IZ4::Document.parse($WHERE-FORM);
+    my $new = IZ4::Document.parse(card-file($PRIVATE).slurp);
     my @c = commitment-changes($old, $new);
-    is @c.map(*<kind>).unique.sort, ('format-migrated',), 'the gate sees one change: the move to cards, no promise revised';
-    ok needs-agreement(%( changes => @c, protections => [] )), 'which needs a person\'s agreement';
+    ok @c.first({ .<kind> eq 'format-migrated' }).defined, 'the gate sees the move to cards';
+    ok @c.first({ .<kind> eq 'added' && .<id> eq "private-stays-private.$NS" }).defined, 'and shows every promise, as this iz4 cannot compare it with the base';
+    ok needs-agreement(%( changes => @c, protections => [] )), "so it needs a person's agreement";
     ok !is-blocked(%( changes => @c, protections => [] )), 'and is not blocked';
     like proposal-lines(%( changes => @c, protections => [] )).join("\n"), /'moves to promise cards'/, 'in words a person reads';
+    my $free = IZ4::Document.parse(card-file(card("private-stays-private.$NS", 'Private stays private.', :exploring)).slurp);
+    ok needs-agreement(%( changes => commitment-changes($old, $free), protections => [] )), 'even when the cards say exploring: the move cannot lower what is asked of it';
     my @back = commitment-changes($new, $old);
-    ok @back.first({ .<kind> eq 'format-regressed' }).defined, 'going back to the earlier form is refused';
+    ok @back.first({ .<kind> eq 'format-regressed' }).defined, 'going back to an earlier form is seen';
+    ok is-blocked(%( changes => @back, protections => [] )), 'and blocked';
 }
 
 # a WHEN changing is a revision, and shown with before and after
@@ -348,19 +338,15 @@ sub clauses-file(Str $body --> IO::Path) {
         'and the foundation by its card';
 }
 
-# migrate through the command
+# the commands that moved a file between forms are gone, and say so
 {
-    my $p = clauses-file("orders-kept:\n  WHERE:    an order is placed\n  ALWAYS:   Orders are never lost.\n  PROTECTS: People paid.\n");
-    my $d = $p.parent;
-    my ($rc, $out, $err) = iz4($d, 'migrate', 'preview');
-    is $rc, 0, 'migrate preview';
-    like $out, /'Moving IZ4 to promise cards' .* 'established' \h+ 'orders-kept.' $NS .* 'Dry run: nothing was written.'/, 'shows the plan, with what each promise will require, and writes nothing';
-    is check-doc($p).form, 'clauses', 'and wrote nothing';
-    ($rc, $out, $err) = iz4($d, 'migrate');
-    is $rc, 0, 'migrate';
-    like $out, /'Wrote IZ4 as promise cards. Not a word of your own changed.'/, 'and says so';
-    ok check-doc($p).ok && check-doc($p).form eq 'card', 'the file is in the card form' or diag check-doc($p).report.join("\n");
-    like iz4($d, 'migrate')[1], /'already in the card form'/, 'and a second migrate has nothing to do';
+    my $d = temp-dir;
+    my $p = $d.add('IZ4');
+    $p.spurt($WHERE-FORM);
+    my ($rc, $out, $err) = iz4($d, 'migrate');
+    isnt $rc, 0, 'iz4 migrate is gone';
+    like $out ~ $err, /'0.37.0'/, 'and points to the last iz4 that had it';
+    is $p.slurp, $WHERE-FORM, 'writing nothing';
 }
 
 done-testing;

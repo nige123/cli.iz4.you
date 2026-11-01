@@ -11,15 +11,15 @@ use IZ4;
 use IZ4::Document;
 
 my $dir = temp-dir;
-my $iz4 = init(:$dir, :for-what('Small.'), :for-who('Readers.'));
+my $iz4 = init(:$dir, :for-what('Small.'), :for-who('Readers.'), :namespace('shop.example.com'));
 ok $iz4.slurp.lines.grep(*.chars).elems - foundation-block().lines.grep(*.chars).elems <= 8, 'a new IZ4 is a handful of lines beyond the foundation, with nothing to fill in';
 
-# the grammar has exactly four keywords, and every other block is only kept
-# with a warning that says where such content belongs
-is @BLOCKS, <IS FOR WHAT IS FOR WHO INVARIANT BECAUSE>.join(' ').split(' ').Seq.rotor(2, 2, 1, 1).map(*.join(' ')), 'the format has four blocks';
-my $spec = IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nREQUIREMENTS\nSearch shows 20 results.\n\nTASKS\nShip it.\n");
-like $spec.warnings.map(*.Str).join("\n"), /'REQUIREMENTS' .* 'belong in the README, ADRs, tests or issues'/, 'a requirements block is steered elsewhere';
-like $spec.warnings.map(*.Str).join("\n"), /'TASKS' .* 'belong in'/, 'so is a tasks block';
+# a card has exactly five fields, and any other block is refused, with
+# where such content belongs
+is @CARD-LABELS, ('WHEN', 'ALWAYS', 'PROTECTS', 'CHANGES REQUIRE', 'CHECKED WITH'), 'a promise has five fields';
+my $spec = IZ4::Document.parse("IZ4 example.com\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nREQUIREMENTS\nSearch shows 20 results.\n\nTASKS\nShip it.\n\n" ~ foundation-block());
+like $spec.errors.map(*.Str).join("\n"), /'REQUIREMENTS' .* 'belong in the README, ADRs, tests or issues'/, 'a requirements block is steered elsewhere';
+like $spec.errors.map(*.Str).join("\n"), /'TASKS' .* 'belong in'/, 'so is a tasks block';
 
 # the tool refuses to add anything but an invariant, and says where it goes
 for <behaviour requirement constraint decision direction task reference> -> $kind {
@@ -29,7 +29,7 @@ my ($rc, $out, $err) = iz4($dir, 'add', 'requirement', 'Search shows 20 results.
 ok $rc == 1 && $err.contains('does not record requirements'), 'through the CLI too';
 
 # the fast path challenges implementation detail rather than storing it
-($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'We use PostgreSQL.', '--because=It is fast.');
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'We use PostgreSQL.', '--when=it applies', '--established', '--because=It is fast.');
 ok $rc == 1 && !$iz4.slurp.contains('PostgreSQL'), 'an implementation choice is not written without the owner overriding';
 
 # suggestions to an agent are capped and told to keep the file small

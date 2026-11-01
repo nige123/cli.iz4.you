@@ -10,20 +10,22 @@ use IZ4;
 use IZ4::Document;
 
 my $dir = temp-dir;
-my $iz4 = init(:$dir, :for-what('Editable.'), :for-who('People with an editor.'));
-add-invariant($iz4, 'Nothing here needs a tool.', :name('no-tool.shop.example.com'), :because('An editor is enough.'));
+my $iz4 = init(:$dir, :for-what('Editable.'), :for-who('People with an editor.'), :namespace('shop.example.com'));
+add-invariant($iz4, 'Nothing here needs a tool.', :name('no-tool.shop.example.com'), :because('An editor is enough.'), :reach('someone opens the file'));
 
 # what the tool writes is plain, short-lined UTF-8 text with no markup
 my $text = $iz4.slurp;
 ok $text.lines.grep({ .chars > 80 && !.starts-with('#') }) == 0, 'no line is longer than 80 columns';
 nok $text ~~ /<[{}<>\[\]]>/, 'no brackets, braces or angle markup';
-ok $text.lines.grep({ $_ ne '' && !.starts-with('#') && !.starts-with(' ') }) == $text.lines.grep({ $_ ne '' && !.starts-with('#') }), 'nothing is indented';
+my $flat = IZ4::Document.parse($text.lines.map(*.trim-leading).join("\n") ~ "\n");
+ok $flat.ok, 'indentation is only for the eye: a file with none reads the same';
+is $flat.invariant('no-tool.shop.example.com').canonical, IZ4::Document.parse($text).invariant('no-tool.shop.example.com').canonical, 'word for word';
 ok $text.encode('utf8').decode('utf8') eq $text, 'it is UTF-8';
 
 # a file written by hand in an editor, with its own wrapping and comments, reads back exactly
 my $hand = temp-dir.add('IZ4');
 $hand.spurt(q:to/END/);
-    IZ4
+    IZ4 shop.example.com
     # my own note
     IS FOR WHAT?
     A thing I
@@ -33,18 +35,20 @@ $hand.spurt(q:to/END/);
     IS FOR WHO?
     Me.
 
-    INVARIANT keeps-working.shop.example.com
-    It keeps
+    PROMISE keeps-working.shop.example.com
+    WHEN it runs
+    ALWAYS It keeps
     working.
-    BECAUSE
-    I said so.
+    PROTECTS I said so.
+    CHANGES REQUIRE signed human approval for the exact change
+    CHECKED WITH linked tests; failures block commit
     END
 # the foundation is written by hand too, wrapped as the person likes
-$hand.spurt($hand.slurp.subst("IS FOR WHO?\nMe.\n", "IS FOR WHO?\nMe.\n\n" ~ foundation-block().subst("Do not harm people, or help", "Do not harm people,\nor help")));
+$hand.spurt($hand.slurp.subst("IS FOR WHO?\nMe.\n", "IS FOR WHO?\nMe.\n\n" ~ foundation-block().subst("do not harm people, or help", "do not harm people,\n      or help")));
 my $doc = IZ4::Document.load($hand);
 ok $doc.ok, 'a hand-written file with its own line breaks is valid';
 is $doc.for-what, 'A thing I typed by hand, over three lines.', 'and reads as the person meant it';
-is $doc.invariant('keeps-working.shop.example.com').because, 'I said so.', 'with its BECAUSE';
+is $doc.invariant('keeps-working.shop.example.com').because, 'I said so.', 'with its PROTECTS';
 
 # nothing in the tool's output for a person depends on a terminal feature
 my ($rc, $out, $err) = iz4($dir, 'invariants');

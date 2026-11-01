@@ -17,8 +17,8 @@ my $EXPIRE = EXPIRE;
 
 my $repo = temp-dir;
 my $iz4  = minimal-iz4(:dir($repo));
-add-invariant($iz4, 'A code works once and only once.', :name(ONCE), :because('A code that works twice lets someone else sign in as you.'));
-add-invariant($iz4, 'Codes expire within ten minutes.', :name(EXPIRE), :because('A stale code in an inbox is a key under the mat.'));
+add-invariant($iz4, 'A code works once and only once.', :name(ONCE), :reach('it applies'), :established, :because('A code that works twice lets someone else sign in as you.'));
+add-invariant($iz4, 'Codes expire within ten minutes.', :name(EXPIRE), :reach('it applies'), :established, :because('A stale code in an inbox is a key under the mat.'));
 my $doc = check-doc($iz4);
 
 # ---- nothing yet --------------------------------------------------------------
@@ -70,8 +70,8 @@ is detect-language($rk), 'raku', 'a .t file that says use v6 is Raku, not Perl';
 my @done = write-scaffolds($doc, $repo);
 is @done, (("t/{$EXPIRE}.t", EXPIRE),), 'only the invariant without evidence is scaffolded';
 my $scaffold = $repo.add("t/{$EXPIRE}.t").slurp;
-is $scaffold.lines[0], "# INVARIANT {$EXPIRE}", "the scaffold's first line is the invariant's name";
-like $scaffold, /^ "# INVARIANT {$EXPIRE}" \n '# Codes expire within ten minutes.' \n '# BECAUSE A stale code'/, 'then its words and its reason';
+is $scaffold.lines[0], "# PROMISE {$EXPIRE}", "the scaffold's first line is the invariant's name";
+like $scaffold, /^ "# PROMISE {$EXPIRE}" \n '# Codes expire within ten minutes.' \n '# PROTECTS A stale code'/, 'then its words and its reason';
 like $scaffold, /'fail(' "'{$EXPIRE}: not yet tested" /, 'and fails until written, saying which invariant';
 is evidence-for($doc, $repo)<state>{$EXPIRE}, 'scaffolded', 'a scaffold counts as scaffolded, never as evidence';
 is write-scaffolds($doc, $repo), (), 'a second run writes nothing';
@@ -90,7 +90,7 @@ for <raku perl go python ruby rust typescript javascript sh> -> $lang {
     my $mark = $lang eq any(<go rust typescript javascript>) ?? '//' !! '#';
     my @l = $text.lines;
     @l.shift if $lang eq 'sh' && @l[0] eq '#!/bin/sh';
-    is @l[0..2], ("$mark INVARIANT {$ONCE}", "$mark A code works once and only once.", "$mark BECAUSE A code that works twice lets someone else sign in as you."),
+    is @l[0..2], ("$mark PROMISE {$ONCE}", "$mark A code works once and only once.", "$mark PROTECTS A code that works twice lets someone else sign in as you."),
         "$lang scaffold opens with the name, the words and the reason";
     ok $text.contains("{$ONCE}: {$PLACEHOLDER}"), "$lang scaffold fails on the placeholder, under the invariant's name";
     ok names-identity($text, ONCE), "$lang scaffold links to its invariant";
@@ -123,7 +123,7 @@ my constant CONTACT = 'no-first-contact.shop.example.com';
 my $CONTACT = CONTACT;
 my $cli = temp-dir;
 my $f = minimal-iz4(:dir($cli));
-add-invariant($f, 'Private profiles never appear in public search.', :name(SEARCH), :because('A hidden search can cost someone their job.'));
+add-invariant($f, 'Private profiles never appear in public search.', :name(SEARCH), :reach('it applies'), :established, :because('A hidden search can cost someone their job.'));
 $cli.add('package.json').spurt(Q[{}] ~ "\n");
 my ($rc, $out, $err) = iz4($cli, 'check');
 like $out, /"✗ evidence: {$SEARCH} has no test naming it - 'iz4 test' scaffolds one"/, 'check says which invariants have no test';
@@ -131,7 +131,7 @@ like $out, /"✗ evidence: {$SEARCH} has no test naming it - 'iz4 test' scaffold
 is $rc, 0, 'iz4 test exits 0';
 like $out, /'Scaffolded 1 test (javascript)' .* "test/{$SEARCH}.test.js  ({$SEARCH})" .* 'A scaffold is not evidence'/, 'and says what it wrote and what that is not';
 ok $cli.add("test/{$SEARCH}.test.js").f, 'the scaffold exists';
-is $cli.add("test/{$SEARCH}.test.js").slurp.lines[0], "// INVARIANT {$SEARCH}", 'headed by the name of its invariant';
+is $cli.add("test/{$SEARCH}.test.js").slurp.lines[0], "// PROMISE {$SEARCH}", 'headed by the name of its invariant';
 ($rc, $out, $err) = iz4($cli, 'check');
 like $out, /"✗ evidence: {$SEARCH} has only a scaffold - write the assertion in test/{$SEARCH}.test.js"/, 'check now points at the scaffold';
 ($rc, $out, $err) = iz4($cli, 'test', '--list');
@@ -174,7 +174,7 @@ my $prompt = draft-prompt($doc, $doc.invariant(ONCE), :lang<perl>, :path("t/{$ON
 like $prompt, /'would FAIL'/, 'the prompt asks for a test that can fail';
 like $prompt, /'CANNOT:'/, 'and says how to decline';
 like $prompt, /'Do not create, modify or delete any file'/, 'and forbids touching the repository';
-like $prompt, /"INVARIANT {$ONCE}" \n 'A code works once and only once.'/, 'and carries the invariant under its name';
+like $prompt, /"PROMISE {$ONCE}" .* 'A code works once and only once.'/, 'and carries the invariant under its name';
 like $prompt, /'write it whole, never shortened'/, 'and says the name is the link';
 like $prompt, /'A code that works twice'/, 'and its reason';
 
@@ -184,8 +184,8 @@ is marked-draft('sh', "#!/bin/sh\nexit 1\n").lines[0..1], ("#!/bin/sh", "# {$DRA
 
 my $agent = temp-dir;
 my $g = minimal-iz4(:dir($agent));
-add-invariant($g, 'Private profiles never appear in public search.', :name(SEARCH), :because('A hidden search can cost someone their job.'));
-add-invariant($g, 'Employers cannot contact someone first.', :name(CONTACT), :because('Job seekers should not acquire another unsolicited inbox.'));
+add-invariant($g, 'Private profiles never appear in public search.', :name(SEARCH), :reach('it applies'), :established, :because('A hidden search can cost someone their job.'));
+add-invariant($g, 'Employers cannot contact someone first.', :name(CONTACT), :reach('it applies'), :established, :because('Job seekers should not acquire another unsolicited inbox.'));
 $agent.add('package.json').spurt(Q[{}] ~ "\n");
 my $reply-file = $agent.add('reply.txt');
 $reply-file.spurt($reply);

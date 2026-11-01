@@ -12,46 +12,47 @@ use IZ4;
 use IZ4::Document;
 
 # the five foundation names mean the same in every IZ4
-is foundation-ids(), <humans-first.iz4.you do-no-harm.iz4.you human-agency.iz4.you honesty.iz4.you keystone.iz4.you>,
+is foundation-ids(), <humans-first.iz4.you do-no-harm.iz4.you human-agency.iz4.you honesty.iz4.you binding.iz4.you>,
     'the foundation is five names';
 my $dir = temp-dir;
 my $iz4 = minimal-iz4(:$dir);
 for foundation-ids() -> $id {
-    throws-like { add-invariant($iz4, 'Mine.', :name($id)) }, X::IZ4, message => /'part of the foundation'/, "$id cannot be given to a project invariant";
-    nok IZ4::Document.parse("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n" ~ foundation-block() ~ "\nINVARIANT $id\nMine.\n").ok, "nor written a second time by hand";
+    throws-like { add-invariant($iz4, 'Mine.', :name($id), :reach('it applies'), :established) }, X::IZ4, message => /'part of the foundation'/, "$id cannot be given to a project invariant";
+    nok IZ4::Document.parse("IZ4 example.com\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\n" ~ foundation-block() ~ "\n" ~ card($id, 'Mine.')).ok, "nor written a second time by hand";
 }
-like invariant-text($iz4, 'human-agency.iz4.you'), /'Keep people in charge.'/, "'human-agency.iz4.you' always means the foundation's";
-throws-like { add-invariant($iz4, 'Mine.', :name('profit-first.iz4.you')) }, X::IZ4, message => /"the foundation's"/,
+like invariant-text($iz4, 'human-agency.iz4.you'), /'keep people in charge'/, "'human-agency.iz4.you' always means the foundation's";
+throws-like { add-invariant($iz4, 'Mine.', :name('profit-first.iz4.you'), :reach('it applies'), :established) }, X::IZ4, message => /"the foundation's"/,
     'and no project can put a sixth name beside them';
 
 # a project's own are named under its own domain, by a whole name
-is add-invariant($iz4, 'First.', :name('first.shop.example.com'), :because('one')), 'first.shop.example.com', 'an invariant is added under the name it was given';
-is add-invariant($iz4, 'Second.', :name('second.shop.example.com'), :because('two')), 'second.shop.example.com', 'and so is the next';
+is add-invariant($iz4, 'First.', :name('first.shop.example.com'), :because('one'), :reach('it is first')), 'first.shop.example.com', 'an invariant is added under the name it was given';
+is add-invariant($iz4, 'Second.', :name('second.shop.example.com'), :because('two'), :reach('it is second')), 'second.shop.example.com', 'and so is the next';
 is check-doc($iz4).invariants».id, <first.shop.example.com second.shop.example.com>, 'the file carries the names exactly';
 for 'First', 'first', 'first.shop', '7', 'first_one.shop.example.com' -> $bad {
-    throws-like { add-invariant($iz4, 'Another.', :name($bad)) }, X::IZ4, "'$bad' is not a name an invariant can have";
+    throws-like { add-invariant($iz4, 'Another.', :name($bad), :reach('it applies'), :established) }, X::IZ4, "'$bad' is not a name an invariant can have";
 }
 
 # a name means one invariant: never two at once
-throws-like { add-invariant($iz4, 'Another.', :name('first.shop.example.com')) }, X::IZ4, message => /'already in'/, 'a name in use is refused';
+throws-like { add-invariant($iz4, 'Another.', :name('first.shop.example.com'), :reach('it applies'), :established) }, X::IZ4, message => /'already in'/, 'a name in use is refused';
 
 # the name does not depend on where the invariant sits: moving it changes nothing
 my $moved = temp-dir.add('IZ4');
 my $src = $iz4.slurp;
-my $second = $src.substr($src.index('INVARIANT second.shop.example.com'));
-$moved.spurt($src.subst($second, '').subst('INVARIANT first.shop.example.com', $second ~ "\nINVARIANT first.shop.example.com"));
+my $at = $src.index('PROMISE second.shop.example.com');
+my $second = $src.substr($at, $src.index('# ---', $at) - $at);
+$moved.spurt($src.subst($second, '').subst('PROMISE first.shop.example.com', $second ~ "PROMISE first.shop.example.com"));
 is check-doc($moved).invariants».id, <second.shop.example.com first.shop.example.com>, 'the same invariants in another order';
 is invariant-text($moved, 'first.shop.example.com'), invariant-text($iz4, 'first.shop.example.com'), 'answer to the same names with the same words';
-is invariant-digest('first.shop.example.com', 'First.', 'one'), invariant-digest('first.shop.example.com', "First.\n", ' one '), 'and the digest of a wording does not depend on layout either';
+is canonical-card('first.shop.example.com', 'it is first', ('First.',), ('one',)), canonical-card('first.shop.example.com', ' it  is first ', ("First.\n",), (' one ',)), 'and the digest of a wording does not depend on layout either';
 
 # nor is a name reused after the invariant it named is gone
 withdraw-invariant($iz4, 'second.shop.example.com');
-like $iz4.slurp, /'# INVARIANT second.shop.example.com was withdrawn on ' \d+ '-' \d+ '-' \d+ '; its name is retired.'/, 'a withdrawal leaves the name on record in the file';
-throws-like { add-invariant($iz4, 'New and different.', :name('second.shop.example.com')) }, X::IZ4, message => /'never reused for a different invariant'/,
+like $iz4.slurp, /'# PROMISE second.shop.example.com was withdrawn on ' \d+ '-' \d+ '-' \d+ '; its name is retired.'/, 'a withdrawal leaves the name on record in the file';
+throws-like { add-invariant($iz4, 'New and different.', :name('second.shop.example.com'), :reach('it applies'), :established) }, X::IZ4, message => /'never reused for a different invariant'/,
     'a withdrawn name is refused for a different invariant';
 nok check-doc($iz4.parent.add('IZ4')).invariant('second.shop.example.com').defined, 'and it stays out of the file';
 my $by-hand = temp-dir.add('IZ4');
-$by-hand.spurt($iz4.slurp ~ "\nINVARIANT second.shop.example.com\nNew and different.\n");
+$by-hand.spurt($iz4.slurp ~ "\n" ~ card('second.shop.example.com', 'New and different.'));
 like check-doc($by-hand).errors».Str.join, /'reuses a withdrawn name'/, 'writing it back by hand fails the check';
 like invariant-text($iz4, 'second.shop.example.com'), /'was withdrawn' .* 'its name is retired and never reused'/, 'a citation of the retired name is answered with what happened to it';
 
@@ -67,23 +68,23 @@ if have-git() {
     }
     g('init', '-q'); g('config', 'user.email', 't@t'); g('config', 'user.name', 'T');
     my $f = minimal-iz4(:dir($repo));
-    add-invariant($f, 'Kept.', :name('kept.shop.example.com'), :because('a'));
-    add-invariant($f, 'Retired later.', :name('retired.shop.example.com'), :because('b'));
+    add-invariant($f, 'Kept.', :name('kept.shop.example.com'), :because('a'), :reach('it is kept'));
+    add-invariant($f, 'Retired later.', :name('retired.shop.example.com'), :because('b'), :reach('it is retired'));
     g('add', '-A'); g('commit', '-qm', 'two invariants');
     # the owner removes one by hand, leaving no comment
-    $f.spurt($f.slurp.subst(/ \n 'INVARIANT retired.shop.example.com' \n .* /, "\n"));
+    $f.spurt($f.slurp.subst(/ \n 'PROMISE retired.shop.example.com' \n .*? <before '# ---'> /, "\n"));
     g('commit', '-qam', 'retire one');
     is check-doc($f).invariants».id, ('kept.shop.example.com',), 'the invariant is gone from the file, and so is any trace of its name';
-    throws-like { add-invariant($f, 'New and different.', :name('retired.shop.example.com'), :because('c')) }, X::IZ4, message => /'was used before'/,
+    throws-like { add-invariant($f, 'New and different.', :name('retired.shop.example.com'), :reach('it applies'), :established, :because('c')) }, X::IZ4, message => /'was used before'/,
         'the Git history still refuses the name to a different invariant';
-    is add-invariant($f, 'New and different.', :name('new.shop.example.com'), :because('c')), 'new.shop.example.com', 'a new name is fine';
+    is add-invariant($f, 'New and different.', :name('new.shop.example.com'), :because('c'), :reach('it is new')), 'new.shop.example.com', 'a new name is fine';
 }
 else {
     skip 'git not available', 3;
 }
 
 # the numbers of the earlier format are history: nothing gives one out any more
-nok template(:for-what<x>, :for-who<y>) ~~ / ^^ 'INVARIANT ' \d /, 'a new IZ4 carries no numbered invariant';
+nok template(:for-what<x>, :for-who<y>, :namespace<example.com>) ~~ / ^^ [ 'INVARIANT' | 'PROMISE' ] ' ' \d /, 'a new IZ4 carries no numbered invariant';
 throws-like { invariant-text($iz4, '5') }, X::IZ4, message => /'named, not numbered'/, 'and a citation by number is answered with that, not with a guess';
 
 done-testing;

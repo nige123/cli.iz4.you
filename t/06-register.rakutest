@@ -53,7 +53,7 @@ if have-git() {
     run 'git', '-C', $repo.Str, 'config', 'user.email', 't@test';
     run 'git', '-C', $repo.Str, 'config', 'user.name', 'Test';
     my $sp = minimal-iz4(:dir($repo));
-    add-invariant($sp, 'Registered things stay registered.', :name('stay-registered.shop.example.com'), :because('People find them there.'));
+    add-invariant($sp, 'Registered things stay registered.', :name('stay-registered.shop.example.com'), :reach('it applies'), :established, :because('People find them there.'));
     run 'git', '-C', $repo.Str, 'add', '-A';
     run 'git', '-C', $repo.Str, 'commit', '-qm', 'x';
 

@@ -70,7 +70,7 @@ constant %EXIT-CODE is export = (pass => 0, error => 1, 'agreement-required' => 
 constant @REJECTS   is export = <agreement-required blocked unassessed error>;
 
 constant @BLOCKING-KINDS  = <invalid foundation reused-name format-regressed>;
-constant @AGREEMENT-KINDS = <purpose people added revised removed removed-file named foundation-migrated format-migrated reach-added protection>;
+constant @AGREEMENT-KINDS = <purpose people added revised removed removed-file named format-migrated reach-added protection>;
 constant @PROTECTION-AGREEMENT-KINDS = <protection-removed protection-unlinked protection-weakened protection-rewritten>;
 
 sub gate-error(Str $message) { X::IZ4.new(:$message).throw }
@@ -220,10 +220,8 @@ sub link-environment(IO::Path $root, IO::Path $dir --> Int) is export {
 
 sub norm(Str $s --> Str) { ($s // '').words.join(' ') }
 
-#| Sort identities the way a person reads them: alphabetically.  The
-#| numbers are the earlier named form's foundation, read only to migrate;
-#| they come first, in order.
-sub by-identity(@ids --> List) { @ids.sort({ $_ ~~ /^ \d+ $/ ?? (0, +$_, '') !! (1, 0, $_) }).List }
+#| Sort identities the way a person reads them: alphabetically.
+sub by-identity(@ids --> List) { @ids.sort.List }
 
 #| How a base's invariants correspond to a candidate's: identity => identity.
 #| The same name is the same invariant.
@@ -241,12 +239,28 @@ sub correspondence(IZ4::Document $base, IZ4::Document $cand --> Hash) is export 
 #| the exact before/after wording.  Blocking kinds (invalid, foundation,
 #| reused-name, format-regressed) are never approvable; the others need a
 #| person's agreement.
-sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-source = '' --> List) is export {
+sub commitment-changes(IZ4::Document $was, IZ4::Document $cand, Str :$base-source = '' --> List) is export {
     my @c;
     without $cand {
-        @c.push: %( kind => 'removed-file', detail => 'the IZ4 is gone from the candidate tree' ) if $base.defined;
+        @c.push: %( kind => 'removed-file', detail => 'the IZ4 is gone from the candidate tree' ) if $was.defined;
         return @c;
     }
+    # A file only moves forward.  Going back from cards is never agreed to.
+    # Arriving at cards from a form nothing here reads is one change a person
+    # agrees to, and every promise is put to them, as there is no before to
+    # compare it with.
+    if $was.defined && $was.form eq 'card' && $cand.form eq 'earlier' {
+        @c.push: %( kind => 'format-regressed',
+                    detail => 'the candidate goes back to an earlier form; the base states each promise as a card (WHEN, ALWAYS, PROTECTS, CHANGES REQUIRE, CHECKED WITH), and a file only moves forward' );
+        return @c;
+    }
+    my $migrating = $was.defined && $was.form eq 'earlier' && $cand.form eq 'card';
+    my $base = $migrating ?? IZ4::Document !! $was;
+    @c.push: %( kind => 'format-migrated',
+                title  => 'The IZ4 moves to promise cards: WHEN, ALWAYS, PROTECTS, CHANGES REQUIRE and CHECKED WITH',
+                before => 'an earlier form, which this iz4 does not read',
+                after  => "{foundation-ids().join(', ')} as FOUNDATION cards (sha256 {FOUNDATION-CARD-DIGEST.substr(0, 12)})",
+                detail => "so every promise below shows as added: compare them with the file in the base, as this iz4 cannot" ) if $migrating && $cand.foundation-intact;
     @c.push: %( kind => 'invalid', detail => $cand.errors.map(*.Str).join('; ') ) unless $cand.ok;
     @c.push: %( kind => 'foundation', detail => $cand.foundation-status ) unless $cand.foundation-intact;
 
@@ -256,36 +270,6 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
     my $bo = $base.defined ?? norm($base.for-who) !! '';
     my $co = norm($cand.for-who);
     @c.push: %( kind => 'people', before => $bo, after => $co ) if $bo ne $co;
-
-    # The earlier forms, read only to migrate: named (INVARIANT, text,
-    # BECAUSE) and clauses (WHERE, ALWAYS, PROTECTS, a mode line).  A file
-    # only moves forward; arriving at cards is one change a person agrees to.
-    my $clauses-migrating = $base.defined && $base.form eq 'named' && $cand.form eq 'clauses';
-    my $card-migrating    = $base.defined && $base.form ne 'card' && $cand.form eq 'card';
-    if $base.defined && $base.form eq 'card' && $cand.form ne 'card' {
-        @c.push: %( kind => 'format-regressed',
-                    detail => 'the candidate goes back to an earlier form; the base states each promise as a card (WHEN, ALWAYS, PROTECTS, CHANGES REQUIRE, CHECKED WITH), and a file only moves forward' );
-        return @c;
-    }
-    if $base.defined && $base.form eq 'clauses' && $cand.form eq 'named' {
-        @c.push: %( kind => 'format-regressed',
-                    detail => 'the candidate goes back to an earlier form; the base states each invariant in three clauses (WHERE, ALWAYS, PROTECTS), and a file only moves forward' );
-        return @c;
-    }
-    if $card-migrating && $cand.foundation-intact {
-        @c.push: %( kind => 'format-migrated',
-                    title  => 'The IZ4 moves to promise cards: WHEN, ALWAYS, PROTECTS, CHANGES REQUIRE and CHECKED WITH',
-                    before => "the three-clause foundation (sha256 {FOUNDATION-CLAUSES-DIGEST.substr(0, 12)})",
-                    after  => "{foundation-ids(:card).join(', ')} as FOUNDATION cards (sha256 {FOUNDATION-CARD-DIGEST.substr(0, 12)})",
-                    detail => 'the foundation keeps every word, laid out as cards; each of the project\'s own promises now says on its card what a change to it requires and what is checked, in place of the earlier file\'s mode line' );
-    }
-    if $clauses-migrating && $cand.foundation-intact {
-        @c.push: %( kind => 'foundation-migrated',
-                    title  => 'The foundation moves to the three-clause form: WHERE, ALWAYS and PROTECTS',
-                    before => "the named foundation (sha256 {FOUNDATION-DIGEST.substr(0, 12)})",
-                    after  => "{foundation-ids(:clauses).join(', ')} (sha256 {FOUNDATION-CLAUSES-DIGEST.substr(0, 12)})",
-                    detail => 'read the words: each says where it applies (WHERE), what must always remain true there, and what must not be defeated (PROTECTS); every protection of the named foundation is kept, and the last is named binding.iz4.you' );
-    }
 
     my %b = $base.defined ?? $base.invariants.grep(*.id.defined).map({ .id => $_ }) !! ();
     my %k = $cand.invariants.grep(*.id.defined).map({ .id => $_ });
@@ -297,11 +281,7 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
         my $digest = invariant-digest-of($inv);
         if %b{$id}:exists {
             my $old = %b{$id};
-            my $reach-changed = !$clauses-migrating && norm($old.reach // '') ne norm($inv.reach // '');
-            my $same-form = $old.card == $inv.card;
-            my $words-changed = $same-form && !$card-migrating ?? $old.canonical ne $inv.canonical
-                                !! norm($old.text) ne norm($inv.text) || norm($old.because) ne norm($inv.because) || $reach-changed;
-            if $words-changed {
+            if $old.canonical ne $inv.canonical {
                 my %rev = kind => 'revised', :$id,
                             before => norm($old.text), after => norm($inv.text),
                             before_because => norm($old.because), after_because => norm($inv.because),
@@ -309,15 +289,10 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
                 if $inv.reach.defined { %rev<before_reach> = norm($old.reach // ''); %rev<after_reach> = norm($inv.reach) }
                 @c.push: %rev;
             }
-            elsif $clauses-migrating {
-                @c.push: %( kind => 'reach-added', :$id, after_reach => norm($inv.reach), after => norm($inv.text),
-                            after_because => norm($inv.because),
-                            before_digest => invariant-digest-of($old), after_digest => $digest );
-            }
         }
         elsif @retired.first(* eq $id).defined {
             @c.push: %( kind => 'reused-name', :$id, after => norm($inv.text),
-                        detail => "INVARIANT $id was withdrawn before; a retired name is never given to a different invariant" );
+                        detail => "PROMISE $id was withdrawn before; a retired name is never given to a different invariant" );
         }
         else {
             my %add = kind => 'added', :$id, after => norm($inv.text), after_because => norm($inv.because), :$digest;
@@ -325,7 +300,7 @@ sub commitment-changes(IZ4::Document $base, IZ4::Document $cand, Str :$base-sour
             # the same words under a new name: say so, and still treat it as new
             my $twin = %b.values.first({ !(%k{.id}:exists) && norm(.text) eq norm($inv.text) });
             %add<detail> = "the same words as {$twin.id}, which this change removes: a new name is a new commitment, not a rename"
-                if $twin.defined && !$clauses-migrating && !$card-migrating;
+                if $twin.defined;
             @c.push: %add;
         }
     }
@@ -372,7 +347,7 @@ sub protection-changes(IZ4::Document $base, IO::Path $base-dir, IZ4::Document $c
         my @after  = |(%ec<files>{$id} // ());
         if (%ec<state>{$id} // 'none') ne 'named' {
             @p.push: %( kind => 'protection-removed', :$id, files => @before.List,
-                        detail => "INVARIANT $id had a test naming it; the candidate has " ~ (%ec<state>{$id} // 'none') );
+                        detail => "PROMISE $id had a test naming it; the candidate has " ~ (%ec<state>{$id} // 'none') );
             next;
         }
         for @before -> $f {
@@ -610,7 +585,6 @@ sub proposal-digest(%p --> Str) is export {
 
 #| The heading word for a gate result's proposal lines, from the form of
 #| the file it looked at.
-sub heading-for(%r --> Str) is export { (%r<iz4><form> // '') eq 'card' ?? 'PROMISE' !! 'INVARIANT' }
 
 sub needs-agreement(%p --> Bool) is export {
     so %p<changes>.grep({ .<kind> eq any(@AGREEMENT-KINDS) }) || %p<protections>.grep({ .<kind> eq any(@PROTECTION-AGREEMENT-KINDS) });
@@ -620,43 +594,34 @@ sub is-blocked(%p --> Bool) is export {
     so %p<changes>.grep({ .<kind> eq any(@BLOCKING-KINDS) });
 }
 
-#| The heading word a proposal line gives an invariant: PROMISE in a card
-#| file, INVARIANT in the earlier forms (and when nobody says), both for a
-#| project's own and for the foundation, as a reader of a change log, not
-#| of the file, sees them.
-sub shown($id, Str $heading = 'INVARIANT' --> Str) {
-    !$id.defined ?? "$heading (unnamed)" !! "$heading $id";
-}
+#| The heading word a proposal line gives an invariant, for a project's own
+#| and for the foundation, as a reader of a change log, not of the file,
+#| sees them.
+sub shown($id --> Str) { !$id.defined ?? 'PROMISE (unnamed)' !! "PROMISE $id" }
 
-#| The proposal as a person reads it.  %p<heading>, when given, is the
-#| word the file uses for an invariant's heading (PROMISE on a card).
+#| The proposal as a person reads it.
 sub proposal-lines(%p --> List) is export {
     my @l;
-    my $h = %p<heading> // 'INVARIANT';
     for |%p<changes> -> %c {
         given %c<kind> {
             when 'purpose'  { @l.push: 'IS FOR WHAT changes', "  before: {%c<before> || '(none)'}", "  after:  {%c<after>}" }
-            when 'protection' { @l.push: "{shown(%c<id>, $h)}: what a change to it requires changes", "  before: {%c<before>}", "  after:  {%c<after>}", "  {%c<detail>}" }
+            when 'protection' { @l.push: "{shown(%c<id>)}: what a change to it requires changes", "  before: {%c<before>}", "  after:  {%c<after>}", "  {%c<detail>}" }
             when 'people'   { @l.push: 'IS FOR WHO changes', "  before: {%c<before> || '(none)'}", "  after:  {%c<after>}" }
             when 'added'    {
-                @l.push: "{shown(%c<id>, $h)} added: {%c<after>}";
-                # a card's fields; a reach without a WHEN is the earlier named form, with its BECAUSE
+                @l.push: "{shown(%c<id>)} added: {%c<after>}";
                 @l.push: "  WHEN {%c<after_reach>}" if %c<after_reach>;
-                @l.push: "  {%c<after_reach>.defined ?? 'PROTECTS' !! 'BECAUSE'} {%c<after_because>}" if %c<after_because>;
+                @l.push: "  PROTECTS {%c<after_because>}" if %c<after_because>;
                 @l.push: "  {%c<detail>}" if %c<detail>;
             }
             when 'revised'  {
-                @l.push: "{shown(%c<id>, $h)} revised";
-                my $why = %c<after_reach>.defined ?? 'PROTECTS' !! 'BECAUSE';
-                @l.push: "  before: {%c<before>}" ~ (%c<before_because> ?? " $why {%c<before_because>}" !! '');
-                @l.push: "  after:  {%c<after>}" ~ (%c<after_because> ?? " $why {%c<after_because>}" !! '');
+                @l.push: "{shown(%c<id>)} revised";
+                @l.push: "  before: {%c<before>}" ~ (%c<before_because> ?? " PROTECTS {%c<before_because>}" !! '');
+                @l.push: "  after:  {%c<after>}" ~ (%c<after_because> ?? " PROTECTS {%c<after_because>}" !! '');
                 @l.push: "  WHEN before: {%c<before_reach> || '(none)'}", "  WHEN after:  {%c<after_reach>}" if %c<after_reach>.defined && %c<before_reach> ne %c<after_reach>;
             }
-            when 'removed'       { @l.push: "{shown(%c<id>, $h)} removed: {%c<before>}" }
-            # the earlier named form arriving at the earlier clauses form, kept for a straggler
-            when 'reach-added'   { @l.push: "{shown(%c<id>, $h)} gains its WHERE: {%c<after_reach>}", "  its ALWAYS and PROTECTS are word for word as before" }
-            when 'foundation-migrated' | 'format-migrated' {
-                @l.push: (%c<title> // 'The foundation moves to named invariants, with new words'), "  before: {%c<before>}", "  after:  {%c<after>}", "  {%c<detail>}";
+            when 'removed'       { @l.push: "{shown(%c<id>)} removed: {%c<before>}" }
+            when 'format-migrated' {
+                @l.push: %c<title>, "  before: {%c<before>}", "  after:  {%c<after>}", "  {%c<detail>}";
             }
             when 'removed-file'  { @l.push: 'The IZ4 is removed: every commitment with it' }
             when 'invalid'       { @l.push: "To put right: the candidate IZ4 does not parse: {%c<detail>}" }
@@ -914,10 +879,8 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
     # that and use the lower one in the same step.  Changing what an invariant
     # requires is a change a person agrees to like any other, except that
     # requiring more of a promise anyone may edit is free: only lowering
-    # costs a yes.  In the earlier forms the file's mode and the word after
-    # a name say the same thing.  'vibe' and 'solid' are the internal names
-    # for exploring and established, kept from those forms; they are what
-    # the JSON 'protection' map carries.
+    # costs a yes.  'vibe' and 'solid' are the internal names for exploring
+    # and established; they are what the JSON 'protection' map carries.
     my sub governing(Str $id --> Str) {
         return $base-doc.protection-of($id) if $base-doc.defined && $base-doc.ok;
         $cand-doc.defined && $cand-doc.ok ?? $cand-doc.protection-of($id) !! 'solid';
@@ -925,36 +888,16 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
     # the file as a whole: exploring while every invariant of its own is, else established
     my $file-level = $base-doc.defined && $base-doc.ok ?? ($base-doc.exploring ?? 'vibe' !! 'solid')
                    !! $cand-doc.defined && $cand-doc.ok ?? ($cand-doc.exploring ?? 'vibe' !! 'solid') !! 'solid';
-    my %rank = vibe => 0, firm => 1, solid => 2;
     if $base-doc.defined && $cand-doc.defined && $base-doc.ok && $cand-doc.ok {
-        if $base-doc.form eq 'card' && $cand-doc.form eq 'card' {
-            # one promise's governance, raised or lowered, by the words on its card
-            for $cand-doc.invariants.grep(*.id.defined) -> $inv {
-                my $old = $base-doc.invariant($inv.id) // next;
-                next if ($old.change // '') eq ($inv.change // '');
-                my $lower = $base-doc.protection-of($inv.id) eq 'solid' && $cand-doc.protection-of($inv.id) eq 'vibe';
-                @changes.push: %( kind => 'protection', id => $inv.id, before => ($old.change // '(none)'), after => ($inv.change // '(none)'),
-                                  lowered => $lower,
-                                  detail => ($lower ?? "it asks less of a change than it did: this waits for a yes, as any change to it does"
-                                                    !! "it asks more of a change than it did, and from now on a failing linked test holds the commit") );
-            }
-        }
-        elsif $base-doc.form ne 'card' && $cand-doc.form ne 'card' {
-            # the earlier forms, read only to migrate: the file's mode, and the word after one invariant's name
-            my $cand-mode = $cand-doc.mode; my $base-mode = $base-doc.mode;
-            if $base-mode ne $cand-mode {
-                @changes.push: %( kind => 'protection', id => Str, before => "the file's mode, $base-mode", after => "the file's mode, $cand-mode",
-                                  lowered => (%rank{$cand-mode} < %rank{$base-mode}),
-                                  detail => (%rank{$cand-mode} < %rank{$base-mode} ?? 'the file asks less of a change than it did: this waits for a yes' !! 'the file asks more of a change than it did') );
-            }
-            for $cand-doc.invariants.grep(*.id.defined) -> $inv {
-                next without $base-doc.invariant($inv.id);
-                my ($was, $now) = $base-doc.invariant($inv.id).protection // '', $inv.protection // '';
-                next if $was eq $now;
-                my $lower = %rank{$now || $cand-mode} < %rank{$was || $base-mode};
-                @changes.push: %( kind => 'protection', id => $inv.id, before => ($was || "the file's mode, $base-mode"), after => ($now || "the file's mode, $cand-mode"),
-                                  lowered => $lower, detail => ($lower ?? "its protection is lowered: this waits for a yes at the level it had" !! "its protection is raised") );
-            }
+        # one promise's governance, raised or lowered, by the words on its card
+        for $cand-doc.invariants.grep(*.id.defined) -> $inv {
+            my $old = $base-doc.invariant($inv.id) // next;
+            next if ($old.change // '') eq ($inv.change // '');
+            my $lower = $base-doc.protection-of($inv.id) eq 'solid' && $cand-doc.protection-of($inv.id) eq 'vibe';
+            @changes.push: %( kind => 'protection', id => $inv.id, before => ($old.change // '(none)'), after => ($inv.change // '(none)'),
+                              lowered => $lower,
+                              detail => ($lower ?? "it asks less of a change than it did: this waits for a yes, as any change to it does"
+                                                !! "it asks more of a change than it did, and from now on a failing linked test holds the commit") );
         }
     }
     my ($base-dir, $cand-dir);
@@ -1012,6 +955,8 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
     # waits.  A failing protecting test holds the commit only where the
     # promise's words need a signed yes; elsewhere it is reported.
     my sub level-of(%c --> Str) {
+        # a base nothing here reads may have promised anything: its candidate cannot lower that by moving to cards
+        return 'solid' if $base-doc.defined && $base-doc.form eq 'earlier';
         return $file-level unless %c<id>.defined;
         # a promise new to the base is held to what its own card asks: an established one waits for a yes
         return $cand-doc.protection-of(%c<id>) if %c<kind> eq 'added' && $cand-doc.defined && $cand-doc.ok
@@ -1023,7 +968,7 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
         if %c<kind> eq 'protection' {
             return %c<lowered> ?? True !! (%c<id>.defined ?? False !! $file-level ne 'vibe') if %c<id>.defined || %c<before>.defined;
         }
-        %rank{level-of(%c)} >= 1;
+        level-of(%c) eq 'solid';
     }
     my @asking  = (|@changes.grep({ .<kind> eq any(@AGREEMENT-KINDS) }), |@protections.grep({ .<kind> eq any(@PROTECTION-AGREEMENT-KINDS) }));
     my @waiting = @asking.grep({ waits($_) });
@@ -1076,7 +1021,7 @@ sub run-gate(IO::Path $root, Bool :$staged = False, Str :$base, Str :$candidate,
     my $outcome = $blocked ?? 'blocked' !! $agree ?? 'agreement-required' !! $unassessed ?? 'unassessed' !! 'pass';
     %r<outcome>   = $outcome;
     # the proposal in plain words, for a person who is not reading JSON: a web page shows these lines
-    %r<words>     = proposal-lines(%( changes => %r<changes>, protections => %r<protections>, heading => heading-for(%r) )).Array;
+    %r<words>     = proposal-lines(%( changes => %r<changes>, protections => %r<protections> )).Array;
     %r<exit_code> = $enforce ?? %EXIT-CODE{$outcome} !! 0;
 
     given $outcome {

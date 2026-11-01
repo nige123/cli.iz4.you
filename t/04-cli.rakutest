@@ -36,8 +36,7 @@ like $err, /'already exists'/, 'and explains';
 is $rc, 1, 'a script that does not say the domain is not guessed for';
 like $err, /'--namespace=your.domain'/, 'and is told how to say it';
 
-# the named form is still read and written: the rest of this file works on one
-init(:dir($dir), :for-what('Helping people find work they love to do.'), :for-who('People looking for work.'));
+init(:dir($dir), :for-what('Helping people find work they love to do.'), :for-who('People looking for work.'), :namespace('shop.example.com'));
 install-agent-section($dir.add('AGENTS.md'), :root($dir));
 my $iz4 = $dir.add('IZ4').slurp;
 
@@ -55,30 +54,27 @@ unlike $out, /'Which domain?'/, 'with no second question about the domain: the h
 # the namespace is asked once: a later coached invariant takes it from the file
 {
     my $later = temp-dir;
-    init(:dir($later), :for-what('Sign-in codes.'), :for-who('People signing in.'));
-    iz4($later, 'add', 'invariant', 'A code works once and only once.', '--name=single-use-codes', "--namespace=$NS",
+    init(:dir($later), :for-what('Sign-in codes.'), :for-who('People signing in.'), :namespace('shop.example.com'));
+    iz4($later, 'add', 'invariant', 'A code works once and only once.', '--when=it applies', '--established', '--name=single-use-codes', "--namespace=$NS",
         '--because=A code that works twice lets someone else sign in as you.');
-    my $coached = "A code is only ever sent to its owner.\ny\nA code sent to anyone else lets a stranger sign in as you.\ny\n";
+    my $coached = "a code is sent\nA code is only ever sent to its owner.\ny\nA code sent to anyone else lets a stranger sign in as you.\ny\n";
     my ($rc, $out, $err) = iz4-talk($later, $coached ~ "owner-only-codes\n", 'add');
-    like $out, /'Name it:' .* 'Added INVARIANT owner-only-codes.shop.example.com'/, 'a short name goes under the namespace the file records' or diag $err;
+    like $out, /'Name it:' .* 'Added PROMISE owner-only-codes.shop.example.com'/, 'a short name goes under the namespace the file records' or diag $err;
     unlike $out, /'Which domain?'/, 'and the domain is not asked for again';
     ($rc, $out, $err) = iz4-talk($later, $coached ~ "codes-to-owner.$NS\n", 'add');
-    like $out, /'Name it:' .* 'Added INVARIANT codes-to-owner.shop.example.com'/, 'a whole name answered to the coach is taken as it is' or diag $err;
+    like $out, /'Name it:' .* 'Added PROMISE codes-to-owner.shop.example.com'/, 'a whole name answered to the coach is taken as it is' or diag $err;
     unlike $out, /'Which domain?'/, 'again without asking for the domain';
-    is $later.add('IZ4').slurp.comb("This project's invariants are named under").elems, 1, 'the file says its namespace once';
 }
 
 # a directory named like a domain is offered, and an empty answer takes it
 {
     my $site = temp-dir.add($NS);
     $site.mkdir;
-    init(:dir($site), :for-what('A shop.'), :for-who('Shoppers.'));
-    my ($rc, $out, $err) = iz4($site, 'add', 'invariant', 'Prices are shown before checkout.', '--name=prices-shown', '--because=A surprise at the till is a broken promise.');
-    ok $rc == 1 && $err.contains("perhaps $NS"), 'a script is not asked, but is told the likely namespace';
-    ($rc, $out, $err) = iz4-talk($site, "\n", 'add', 'invariant', 'Prices are shown before checkout.', '--name=prices-shown', '--because=A surprise at the till is a broken promise.');
-    like $out, /'Which domain? [shop.example.com]' .* 'Added INVARIANT prices-shown.shop.example.com.'/, 'a person is offered it, and an empty answer takes it' or diag $err;
-    ($rc, $out, $err) = iz4-talk($site, "", 'add', 'invariant', 'Refunds go back the way they came.', '--name=refunds-return', '--because=Money should not change shape on the way back.');
-    ok $rc == 0 && !$out.contains('Which domain?') && $out.contains("Added INVARIANT refunds-return.$NS."), 'and it is asked once: the next invariant takes it from the file' or diag $err;
+    my ($rc, $out, $err) = iz4($site, 'init', '--for-what=A shop.', '--for-who=Shoppers.');
+    ok $rc == 1 && $err.contains("perhaps $NS"), 'a script is not asked, but is told the likely domain';
+    ($rc, $out, $err) = iz4-talk($site, "A shop.\nShoppers.\n\nn\n", 'init', '--/agents');
+    like $out, /'Which domain? [shop.example.com]'/, 'a person is offered it';
+    ok $site.add('IZ4').slurp.starts-with("IZ4 $NS\n"), 'and an empty answer takes it' or diag $err;
 }
 
 # scripts and CI are never asked anything
@@ -95,21 +91,17 @@ is $rc, 1, 'coached add needs a person';
 like $err, /'iz4 add promise'/, 'and shows the fast path instead';
 
 # ---- add: a name is a person's choice, the namespace is said once ----------------
-my @private = 'add', 'invariant', 'Private profiles never appear in public search.',
+my @private = 'add', 'invariant', 'Private profiles never appear in public search.', '--when=a profile is private', '--established',
     '--because=A hidden search for work can cost someone their current job.';
 my $untouched = $dir.add('IZ4').slurp;
 ($rc, $out, $err) = iz4($dir, |@private);
 ok $rc == 1 && $err.contains('an invariant needs a name') && $err.contains('--name='), 'in a script an invariant without --name is refused: a name is never made up';
-($rc, $out, $err) = iz4($dir, |@private, '--name=private-stay-private');
-is $rc, 1, 'and so is a short name with no namespace to put it under';
-like $err, /'no namespace yet: pass --namespace='/, 'which says to pass --namespace once';
-is $dir.add('IZ4').slurp, $untouched, 'neither refusal wrote anything';
+is $dir.add('IZ4').slurp, $untouched, 'and the refusal wrote nothing';
 
 # ---- check: ticks, crosses with remedies, and honest uncertainty -----------------
-($rc, $out, $err) = iz4($dir, |@private, '--name=private-stay-private', "--namespace=$NS");
-ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added INVARIANT private-stay-private.$NS."), 'fast path add';
-ok $dir.add('IZ4').slurp.contains("# This project's invariants are named under $NS.\n\nINVARIANT private-stay-private.$NS\n"),
-    'the first add records the namespace in the file';
+($rc, $out, $err) = iz4($dir, |@private, '--name=private-stay-private');
+ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added PROMISE private-stay-private.$NS,"), 'fast path add';
+ok $dir.add('IZ4').slurp.contains("PROMISE private-stay-private.$NS\n"), 'under the domain the header names';
 ($rc, $out, $err) = iz4($dir, 'check');
 is $rc, 0, 'check passes';
 {
@@ -120,53 +112,41 @@ like $out, /'✓ structure: valid' \n
             '✓ IS FOR WHAT: Helping people find work they love to do.' \n
             '✓ IS FOR WHO: People looking for work.' \n
             '✓ the foundation: in the file word for word' .* \n
-            '✓ invariants: 1 of your own, named under shop.example.com' \n
-            '✓ BECAUSE: every invariant says why it must survive' \n/, 'ticks for what is true';
+            '✓ invariants: 1 of your own, named under shop.example.com' \n/, 'ticks for what is true';
 like $out, /'? the system keeps its invariants (the foundation and its own 1): uncertain'/, 'conformance is uncertain, never a tick';
 unlike $out, /'✓' <-[\n]>* 'keeps its invariants'/, 'no green tick for something a checker cannot know';
 like $out, /"✗ evidence: private-stay-private.shop.example.com has no test naming it - 'iz4 test' scaffolds one"/, 'an untested invariant is a cross with a remedy';
 ok $out.ends-with("OK IZ4 (1 to remedy above)\n"), 'and the summary counts it';
 
-($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Employers cannot contact someone first.', '--name=no-first-contact');
-ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added INVARIANT no-first-contact.$NS."), 'a later add takes the namespace from the file';
-is $dir.add('IZ4').slurp.comb("This project's invariants are named under").elems, 1, 'which records it once';
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Employers cannot contact someone first.', '--when=it applies', '--established', '--name=no-first-contact', '--because=Job seekers get no new inbox.');
+ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added PROMISE no-first-contact.$NS,"), 'a later add takes the namespace from the file';
 ($rc, $out, $err) = iz4($dir, 'check');
-like $out, /'✗ BECAUSE: missing for no-first-contact.shop.example.com - write under each why it must survive'/, 'a missing BECAUSE is a cross with a remedy';
-ok $out.ends-with("OK IZ4 (2 to remedy above)\n"), 'crosses are counted, and never fail the check';
-like $out, /"next:\n  1. iz4 protects no-first-contact.shop.example.com \"whose what it protects\"\n  2. iz4 test no-first-contact.shop.example.com private-stay-private.shop.example.com\n  then: iz4 check again\n"/,
+ok $out.ends-with("OK IZ4 (1 to remedy above)\n"), 'crosses are counted, and never fail the check';
+like $out, /"next:\n  1. iz4 test no-first-contact.shop.example.com private-stay-private.shop.example.com\n  then: iz4 check again\n"/,
     'and the next steps are listed in order, one command each, ending with a check';
 ($rc, $out, $err) = iz4($dir, 'check', '--strict');
 is $rc, 1, '--strict, for a gate, fails the check on any cross';
-like $out, /"  then: iz4 check --strict again\n\nNOT YET IZ4: 2 to remedy above (--strict) - do the next steps above"/, 'and the verdict says so last, after the steps, in a chunk of its own';
+like $out, /"  then: iz4 check --strict again\n\nNOT YET IZ4: 1 to remedy above (--strict) - do the next steps above"/, 'and the verdict says so last, after the steps, in a chunk of its own';
 like $out, / ^ 'iz4 check: IZ4' \n \n /, 'check begins with its title, like every screen';
 
 # ---- a failing check says what to do next, then that it is not OK ----------------
 {
     my $broken = temp-dir();
-    $broken.add('IZ4').spurt("IZ4\n\nIS FOR WHAT?\n\nINVARIANT something.$NS\nSomething.\n");
+    $broken.add('IZ4').spurt("IZ4 $NS\n\nIS FOR WHAT?\n\n" ~ card("something.$NS", 'Something.'));
     my ($rc, $out, $err) = iz4($broken, 'check');
     is $rc, 1, 'structural errors fail the check';
     like $out, /'✗ IS FOR WHAT: missing'/, 'an empty answer is a cross, not a tick';
-    like $out, /"next:\n  1. iz4 add for-what \"what it is for\"\n  2. iz4 add for-who \"who it is for\"\n  3. iz4 foundation restore\n  4. iz4 protects something.shop.example.com \"whose what it protects\"\n"/,
+    like $out, /"next:\n  1. iz4 add for-what \"what it is for\"\n  2. iz4 add for-who \"who it is for\"\n  3. iz4 foundation restore\n"/,
         'the structural fixes come first, in line order, then the crosses';
     like $out, /'  then: iz4 check again' \n \n 'NOT YET IZ4: 3 errors - do the next steps above'/, 'the verdict is last, after the steps';
     ok !$out.contains("\n  1. iz4 add for-what \"what it is for\"\n  2. iz4 add for-what"), 'a step is listed once even when two lines call for it';
 }
 
-# ---- because: check points at a folded reason, and the command moves it ---------
-($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'No price is sent unexplained. A confidently wrong price sells work at a loss.', '--name=no-unexplained-price', '--force');
-($rc, $out, $err) = iz4($dir, 'check');
-like $out, /'✗ BECAUSE: no-unexplained-price.shop.example.com carries the reason inside the invariant' .* "'iz4 split'"/,
-    'check says when the reason is folded into the invariant';
-like $out, /'✗ BECAUSE: missing for no-first-contact.shop.example.com'/, 'and separately which have none';
-($rc, $out, $err) = iz4($dir, 'protects', '--split');
-like $out, /'INVARIANT no-unexplained-price.shop.example.com: moved under BECAUSE - A confidently wrong price sells work at a loss.'/, 'protects --split moves it';
+# ---- protects: a reason that restates the promise is challenged ---------------
 ($rc, $out, $err) = iz4($dir, 'protects', 'no-first-contact', 'Employers cannot contact first.');
 is $rc, 1, 'a circular reason is challenged';
-($rc, $out, $err) = iz4($dir, 'protects', 'no-first-contact', 'Job seekers should not acquire another unsolicited inbox.');
-ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Set BECAUSE for INVARIANT no-first-contact.$NS."), 'protects NAME WHAT sets a reason, and the first label is name enough';
-($rc, $out, $err) = iz4($dir, 'check');
-like $out, /'✓ BECAUSE: every invariant says why it must survive'/, 'and the checklist is clean';
+($rc, $out, $err) = iz4($dir, 'protects', 'no-first-contact', 'Job seekers should not acquire another unsolicited inbox.', '--replace');
+ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("PROMISE no-first-contact.$NS now protects"), 'protects NAME WHAT sets a reason, and the first label is name enough';
 ($rc, $out, $err) = iz4($dir, 'protects', 'human-agency.iz4.you', 'Mine.');
 ok $rc == 1 && $err.contains('human-agency.iz4.you is part of the foundation'), 'the foundation reasons are canonical';
 ($rc, $out, $err) = iz4($dir, 'protects', 'nonesuch', 'A good enough reason for anyone.');
@@ -175,12 +155,12 @@ ok $rc == 1 && $err.contains("no invariant 'nonesuch'"), 'and a name the file do
 # ---- the effective invariant set -------------------------------------------------
 ($rc, $out, $err) = iz4($dir, 'invariants');
 is $rc, 0, 'iz4 invariants exits 0';
-like $out, /'INVARIANT humans-first.iz4.you' \n .* 'INVARIANT keystone.iz4.you' \n .* 'INVARIANT private-stay-private.shop.example.com' \n 'Private profiles'/,
+like $out, /'FOUNDATION humans-first.iz4.you' \n .* 'FOUNDATION binding.iz4.you' \n .* 'PROMISE private-stay-private.shop.example.com' \n .* 'Private profiles'/,
     'it shows the five foundation invariants and the project invariants together';
 ($rc, $out, $err) = iz4($dir, 'show', 'invariant', 'human-agency');
-like $out, /^ 'INVARIANT human-agency.iz4.you' \n .* 'BECAUSE'/, 'show invariant human-agency is the inherited foundation';
+like $out, /^ 'FOUNDATION human-agency.iz4.you' \n .* 'PROTECTS'/, 'show invariant human-agency is the inherited foundation';
 ($rc, $out, $err) = iz4($dir, 'show', 'invariant', "private-stay-private.$NS");
-like $out, /^ 'INVARIANT private-stay-private.shop.example.com' \n .* 'BECAUSE'/, 'show invariant NAME is the project invariant with its reason';
+like $out, /^ 'PROMISE private-stay-private.shop.example.com' \n .* 'PROTECTS'/, 'show invariant NAME is the project invariant with its reason';
 ($rc, $out, $err) = iz4($dir, 'show', 'invariant', '5');
 ok $rc == 1 && $err.contains('named, not numbered'), 'show invariant 5 says invariants are named, not numbered';
 ($rc, $out, $err) = iz4($dir, 'show', 'for-who');
@@ -194,56 +174,46 @@ for <behaviour constraint decision> -> $kind {
 
 # ---- names: no numbers, nothing reserved, nothing invalid, not even with --force --
 $untouched = $dir.add('IZ4').slurp;
-($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Sneaky.', '--name=sneaky.iz4.you', '--force');
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Sneaky.', '--when=it applies', '--established', '--name=sneaky.iz4.you', '--force', '--because=Someone relies on it.');
 ok $rc == 1 && $err.contains("names directly under iz4.you are the foundation's"), 'not even --force can take a reserved name under iz4.you';
-($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Sneaky.', '--name=honesty.iz4.you', '--force');
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Sneaky.', '--when=it applies', '--established', '--name=honesty.iz4.you', '--force', '--because=Someone relies on it.');
 ok $rc == 1 && $err.contains('part of the foundation'), "nor a foundation invariant's own name";
 for 'Bad_Name', 'Shouting', 'trailing-', 'has space' -> $bad {
-    ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Sneaky.', "--name=$bad", '--force');
+    ($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Sneaky.', '--when=it applies', '--established', "--name=$bad", '--force', '--because=Someone relies on it.');
     ok $rc == 1 && $err.contains('is not a name an invariant can have'), "'$bad' is not a name an invariant can have";
 }
-($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Sneaky.', '--name=no-first-contact', '--force');
-ok $rc == 1 && $err.contains("INVARIANT no-first-contact.$NS is already in IZ4"), 'a name in use is refused';
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Sneaky.', '--when=it applies', '--established', '--name=no-first-contact', '--force', '--because=Someone relies on it.');
+ok $rc == 1 && $err.contains("PROMISE no-first-contact.$NS is already in IZ4"), 'a name in use is refused';
 is $dir.add('IZ4').slurp, $untouched, 'and none of those wrote anything';
-($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Prices are never changed without the owner.', '--name=owner-adjusted.prices', '--force');
-ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added INVARIANT owner-adjusted.prices.$NS."), 'a short name may carry an area, and still goes under the namespace';
-($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'A whole name is taken as it is.', "--name=whole-name.$NS", '--force');
-ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added INVARIANT whole-name.$NS."), 'a whole name under the namespace is taken as it is';
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Prices are never changed without the owner.', '--when=it applies', '--established', '--name=owner-adjusted.prices', '--force', '--because=Someone relies on it.');
+ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added PROMISE owner-adjusted.prices.$NS,"), 'a short name may carry an area, and still goes under the namespace';
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'A whole name is taken as it is.', '--when=it applies', '--established', "--name=whole-name.$NS", '--force', '--because=Someone relies on it.');
+ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added PROMISE whole-name.$NS,"), 'a whole name under the namespace is taken as it is';
 {
     my $envd = temp-dir;
-    init(:dir($envd), :for-what('x'), :for-who('y'));
-    my ($rc, $out, $err) = iz4($envd, 'add', 'invariant', 'Something stays true.', '--name=stays-true', '--force', :env(%( IZ4_NAMESPACE => $NS )));
-    ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added INVARIANT stays-true.$NS."), 'IZ4_NAMESPACE gives a script the namespace';
+    init(:dir($envd), :for-what('x'), :for-who('y'), :namespace('shop.example.com'));
+    my ($rc, $out, $err) = iz4($envd, 'add', 'invariant', 'Something stays true.', '--when=it applies', '--established', '--name=stays-true', '--force', '--because=Someone relies on it.', :env(%( IZ4_NAMESPACE => $NS )));
+    ok $rc == 0 && $out.starts-with('iz4 ') && $out.contains("Added PROMISE stays-true.$NS,"), 'IZ4_NAMESPACE gives a script the namespace';
 }
 
-# ---- explicit .iz4 documents: an unnamed INVARIANT is an error, 'iz4 name' names it ----
+# ---- explicit .iz4 documents: checked as a root IZ4 is, by line --------------------
 my $nested = $dir.add('docs');
 $nested.mkdir;
 my $sec = $nested.add('security.iz4');
-$sec.spurt("IZ4\n\nIS FOR WHAT?\nKeeping secrets.\n\nIS FOR WHO?\nEveryone with an account.\n\n" ~ foundation-block() ~ "\nINVARIANT\nSecrets are never logged.\n");
-my $line = $sec.slurp.lines.first(* eq 'INVARIANT', :k) + 1;
+my $sec-head = "IZ4 $NS\n\nIS FOR WHAT?\nKeeping secrets.\n\nIS FOR WHO?\nEveryone with an account.\n\n";
+$sec.spurt($sec-head ~ card("secrets-unlogged", 'Secrets are never logged.') ~ "\n" ~ foundation-block());
+my $line = $sec.slurp.lines.first(* eq 'PROMISE secrets-unlogged', :k) + 1;
 ($rc, $out, $err) = iz4($nested, 'check', 'security.iz4');
-is $rc, 1, 'an explicit .iz4 is checked, and an unnamed INVARIANT fails it';
-like $out, /"security.iz4:$line: INVARIANT has no name"/, 'as an error on its line, not a warning';
-like $out, /"next:\n  1. iz4 name $line <name>"/, 'with the command that names it as the next step';
+is $rc, 1, 'an explicit .iz4 is checked, and a heading that is not a whole name fails it';
+like $out, /"security.iz4:$line: 'secrets-unlogged' is not the whole name"/, 'as an error on its line, not a warning';
 unlike $out, /'AGENTS.md'/, 'agent entry points are only checked for a root IZ4';
-($rc, $out, $err) = iz4($nested, 'name', ~$line, 'Secrets_Unlogged', '--file=security.iz4', "--namespace=$NS");
-ok $rc == 1 && $err.contains('is not a name an invariant can have'), 'iz4 name refuses an invalid name';
-($rc, $out, $err) = iz4($nested, 'name', ~$line, 'secrets.iz4.you', '--file=security.iz4');
-ok $rc == 1 && $err.contains("the foundation's"), 'and a reserved one';
-($rc, $out, $err) = iz4($nested, 'name', ~($line - 1), 'secrets-unlogged', '--file=security.iz4', "--namespace=$NS");
-ok $rc == 1 && $err.contains("no INVARIANT on line {$line - 1}"), 'and a line with no INVARIANT on it';
-($rc, $out, $err) = iz4($nested, 'name', ~$line, 'secrets-unlogged', '--file=security.iz4', "--namespace=$NS");
-is ($rc, $out), (0, "Named the invariant on line $line of security.iz4: INVARIANT secrets-unlogged.$NS\n"), 'iz4 name LINE NAME names the unnamed invariant';
-is $sec.slurp.lines[$line - 1 .. *], ("INVARIANT secrets-unlogged.$NS", 'Secrets are never logged.'), 'only its header line changed';
+$sec.spurt($sec.slurp.subst('PROMISE secrets-unlogged', "PROMISE secrets-unlogged.$NS"));
 ($rc, $out, $err) = iz4($nested, 'check', 'security.iz4');
-is $rc, 0, 'and the file now passes' or diag $out;
-($rc, $out, $err) = iz4($nested, 'name', ~$line, 'renamed', '--file=security.iz4', "--namespace=$NS");
-ok $rc == 1 && $err.contains("already named secrets-unlogged.$NS"), 'a name once given is an identity and is not changed';
+is $rc, 0, 'and the file, put right, passes' or diag $out;
 
 # ---- suggest: few candidates, nothing added without a person ---------------------
 my $sug = temp-dir;
-$sug.add('IZ4').spurt("IZ4\n\nIS FOR WHAT?\nJobs.\n\nIS FOR WHO?\nJob seekers.\n");
+$sug.add('IZ4').spurt("IZ4 $NS\n\nIS FOR WHAT?\nJobs.\n\nIS FOR WHO?\nJob seekers.\n");
 my $reply = $sug.add('reply.txt');
 $reply.spurt((1..47).map({ "STRONG | Behaviour $_ is kept. | because $_ | t/$_.t" }).join("\n")
     ~ "\nPOSSIBLE | Applications are never shared. | Is sharing with partners acceptable?\nIMPLEMENTATION | Uses Mojolicious | README\n");
@@ -255,7 +225,7 @@ like $out, /'Showing the strongest 5'/, 'but does not dump 47 candidates on a pe
 is $out.comb('Strong candidate:').elems, 5, 'only five are shown';
 like $out, /'Only you can say: Is sharing with partners acceptable?'/, 'possible ones carry the question for the owner';
 like $out, /'Nothing was added'/, 'and nothing is added without a person';
-nok $sug.add('IZ4').slurp.contains('INVARIANT'), 'the file is unchanged';
+nok $sug.add('IZ4').slurp.contains('PROMISE'), 'the file is unchanged';
 ($rc, $out, $err) = iz4-talk($sug, "q\n", 'suggest');
 like $out, /"Let's review the strongest one first"/, 'on a terminal it reviews one at a time, strongest first';
 %*ENV<IZ4_AGENT_CMD> = 'false';
@@ -265,9 +235,9 @@ ok $rc == 1 && $err.contains('nothing was added'), 'a failing agent adds nothing
 # ---- withdraw: a person says yes, a script says --force, the foundation never --------
 {
     my $wd = temp-dir();
-    minimal-iz4(:dir($wd));
+    minimal-iz4(:dir($wd), :domain($NS));
     my $id = "nothing-unexplained.$NS";
-    iz4($wd, 'add', 'invariant', 'Nothing is sold unexplained.', '--name=nothing-unexplained', "--namespace=$NS", '--because=A confidently wrong price sells work at a loss.');
+    iz4($wd, 'add', 'invariant', 'Nothing is sold unexplained.', '--when=it applies', '--established', '--name=nothing-unexplained', "--namespace=$NS", '--because=A confidently wrong price sells work at a loss.');
     $wd.add('t').mkdir;
     $wd.add('t/nothing-unexplained.t').spurt("# INVARIANT $id: nothing is sold unexplained\n");
     # a longer name that merely contains this one is a different invariant's
@@ -275,36 +245,36 @@ ok $rc == 1 && $err.contains('nothing was added'), 'a failing agent adds nothing
     my ($rc, $out, $err) = iz4($wd, 'withdraw', 'nothing-unexplained');
     is $rc, 1, 'in a script, withdraw without --force is refused';
     like $err, /'needs a person' .* '--force'/, 'and says how a script does it';
-    like $wd.add('IZ4').slurp, /^^ "INVARIANT $id" $$/, 'nothing changed';
+    like $wd.add('IZ4').slurp, /^^ "PROMISE $id" $$/, 'nothing changed';
     ($rc, $out, $err) = iz4-talk($wd, "n\n", 'withdraw', 'nothing-unexplained');
     is $rc, 0, 'on a terminal it asks';
-    like $out, /'Nothing is sold unexplained.' .* "Withdraw INVARIANT $id? [y/N]" .* "INVARIANT $id stays."/, 'shows the invariant, asks once, and no keeps it';
+    like $out, /'Nothing is sold unexplained.' .* "Withdraw PROMISE $id? [y/N]" .* "PROMISE $id stays."/, 'shows the invariant, asks once, and no keeps it';
     like $out, /"retires the name $id for good"/, 'having said that the name is retired for good';
     ($rc, $out, $err) = iz4-talk($wd, "y\n", 'withdraw', $id);
     is $rc, 0, 'yes withdraws';
-    like $out, /"Withdrew INVARIANT $id" .* 'Left t/nothing-unexplained.t: Git does not hold it as it is' .* "next:\n  1. delete t/nothing-unexplained.t yourself if it was only for $id, or commit it first\n  2. git add -A && git commit -m 'Withdraw $id: ...'" .* 'then: iz4 check again'/,
+    like $out, /"Withdrew PROMISE $id" .* 'Left t/nothing-unexplained.t: Git does not hold it as it is' .* "next:\n  1. delete t/nothing-unexplained.t yourself if it was only for $id, or commit it first\n  2. git add -A && git commit -m 'Withdraw $id: ...'" .* 'then: iz4 check again'/,
         'where there is no Git to keep it, the test is left and the next steps name it, and the commit' or diag $out;
     ok $wd.add('t/nothing-unexplained.t').e, 'a test Git does not hold is never removed: that would lose it for good';
     unlike $out, /'t/other.t'/, 'a test naming only a longer name that contains it is not listed';
-    unlike $wd.add('IZ4').slurp, /^^ "INVARIANT $id" $$/, 'the invariant is gone';
-    like $wd.add('IZ4').slurp, /^^ "# INVARIANT $id was withdrawn on {Date.today}; its name is retired." $$/, 'and a comment says so where it stood';
+    unlike $wd.add('IZ4').slurp, /^^ "PROMISE $id" $$/, 'the invariant is gone';
+    like $wd.add('IZ4').slurp, /^^ "# PROMISE $id was withdrawn on {Date.today}; its name is retired." $$/, 'and a comment says so where it stood';
     ($rc, $out, $err) = iz4($wd, 'show', 'invariant', $id);
     like $out, /"PROMISE $id was withdrawn" .* 'never reused'/, 'show invariant says it was withdrawn';
     ($rc, $out, $err) = iz4($wd, 'withdraw', $id, '--force');
     is $rc, 1, 'withdrawing it again is refused';
     like $err, /'already withdrawn'/, 'because it already was';
-    ($rc, $out, $err) = iz4($wd, 'add', 'invariant', 'Something different altogether.', '--name=nothing-unexplained', '--because=A different reason entirely.', '--force');
+    ($rc, $out, $err) = iz4($wd, 'add', 'invariant', 'Something different altogether.', '--when=it applies', '--established', '--name=nothing-unexplained', '--because=A different reason entirely.', '--force');
     ok $rc == 1 && $err.contains('used before') && $err.contains('never reused'), 'the retired name cannot be given to a different invariant';
-    unlike $wd.add('IZ4').slurp, /^^ "INVARIANT $id" $$/, 'and nothing was added under it';
-    for 'humans-first.iz4.you', 'keystone.iz4.you', 'honesty' -> $f {
+    unlike $wd.add('IZ4').slurp, /^^ "PROMISE $id" $$/, 'and nothing was added under it';
+    for 'humans-first.iz4.you', 'binding.iz4.you', 'honesty' -> $f {
         ($rc, $out, $err) = iz4($wd, 'withdraw', $f, '--force');
         is $rc, 1, "the foundation's $f is refused even with --force";
         like $err, /'cannot be withdrawn'/, 'because the foundation is not the project\'s';
     }
-    iz4($wd, 'add', 'invariant', 'Refunds go back the way they came.', '--name=refunds-return', '--because=Money should not change shape on the way back.');
+    iz4($wd, 'add', 'invariant', 'Refunds go back the way they came.', '--when=it applies', '--established', '--name=refunds-return', '--because=Money should not change shape on the way back.');
     ($rc, $out, $err) = iz4($wd, 'withdraw', 'refunds-return', '--force');
     is $rc, 0, '--force withdraws in a script' or diag $err;
-    like $out, /"Withdrew INVARIANT refunds-return.$NS"/, 'and says so';
+    like $out, /"Withdrew PROMISE refunds-return.$NS"/, 'and says so';
     ($rc, $out, $err) = iz4($wd, 'check');
     is $rc, 0, 'and the file with its two withdrawals still checks' or diag $out;
 }
@@ -314,11 +284,11 @@ if have-git() {
     my $wd = temp-dir();
     sub g(*@a) { my $p = run 'git', '-C', $wd.Str, |@a, :out, :err; $p.out.slurp(:close); $p.err.slurp(:close); $p.exitcode }
     g('init', '-q'); g('config', 'user.email', 't@t'); g('config', 'user.name', 'T');
-    minimal-iz4(:dir($wd));
+    minimal-iz4(:dir($wd), :domain($NS));
     my ($gone, $stays, $second) = "goes-away.$NS", "stays-put.$NS", "second-one.$NS";
-    iz4($wd, 'add', 'invariant', 'Nothing is sold unexplained to anyone.', '--name=goes-away', "--namespace=$NS", '--because=A confidently wrong price sells work at a loss.');
-    iz4($wd, 'add', 'invariant', 'Refunds go back the way they came.', '--name=stays-put', '--because=Money should not change shape on the way back.');
-    iz4($wd, 'add', 'invariant', 'A receipt is always sent to the buyer.', '--name=second-one', '--because=People need proof of what they paid.');
+    iz4($wd, 'add', 'invariant', 'Nothing is sold unexplained to anyone.', '--when=it applies', '--established', '--name=goes-away', "--namespace=$NS", '--because=A confidently wrong price sells work at a loss.');
+    iz4($wd, 'add', 'invariant', 'Refunds go back the way they came.', '--when=it applies', '--established', '--name=stays-put', '--because=Money should not change shape on the way back.');
+    iz4($wd, 'add', 'invariant', 'A receipt is always sent to the buyer.', '--when=it applies', '--established', '--name=second-one', '--because=People need proof of what they paid.');
     $wd.add('t').mkdir;
     $wd.add('t/only-one.t').spurt("# INVARIANT $gone\nok 1\n");
     $wd.add('t/only-two.t').spurt("# another test of $gone alone\nok 1\n");
@@ -333,8 +303,8 @@ if have-git() {
     # asked first, with what would go
     my ($rc, $out, $err) = iz4-talk($wd, "n\n", 'withdraw', 'goes-away');
     like $out, /'Its tests go with it' .* 'Git keeps these too:' \n '  t/only-one.t' \n '  t/only-two.t' \n/, 'before asking, withdraw shows the tests that would go with the invariant';
-    like $out, /"Withdraw INVARIANT $gone and remove those 2 tests? [y/N]"/, 'and the question says so';
-    like $out, /"INVARIANT $gone stays, and so do its tests."/, 'a no keeps the invariant and every test';
+    like $out, /"Withdraw PROMISE $gone and remove those 2 tests? [y/N]"/, 'and the question says so';
+    like $out, /"PROMISE $gone stays, and so do its tests."/, 'a no keeps the invariant and every test';
     ok $wd.add('t/only-one.t').e && $wd.add('t/only-two.t').e, 'nothing was removed on a no';
 
     ($rc, $out, $err) = iz4-talk($wd, "y\n", 'withdraw', 'goes-away');
@@ -374,42 +344,39 @@ if have-git() {
 }
 else { skip 'git not available', 24 }
 
-# a file that is half one format and half the other is an error
+# a file that is half one form and half the other is an error, told by line
 {
     my $mixed = temp-dir();
-    $mixed.add('IZ4').spurt(minimal-iz4(:dir(temp-dir())).slurp ~ "\nINVARIANT 5\nNumbered.\n\nBECAUSE\nWhy.\n\nINVARIANT named.$NS\nNamed.\n\nBECAUSE\nWhy.\n");
+    $mixed.add('IZ4').spurt(minimal-iz4(:dir(temp-dir()), :domain($NS)).slurp ~ "\nINVARIANT 5\nNumbered.\n\nBECAUSE\nWhy.\n");
     my ($rc, $out, $err) = iz4($mixed, 'check');
-    is $rc, 1, 'a file mixing numbered and named invariants fails the check';
-    like $out, /'IZ4:' \d+ ': INVARIANT 5 is numbered: invariants are named now'/, 'and says so';
-    ($rc, $out, $err) = iz4($mixed, 'migrate');
-    is $rc, 1, 'migrate will not move a file that has to be put right first';
-    like $err, /'the file has problems to settle first: INVARIANT 5 is numbered'/, 'and says what to settle';
+    is $rc, 1, 'a card file with an earlier block in it fails the check';
+    like $out, /'IZ4:' \d+ ': '/, 'and says where';
 }
 
 # ---- the foundation has an order, and Invariant Zero comes first ---------------------
 {
     my $d = temp-dir;
-    init(:dir($d), :for-what('Things.'), :for-who('People.'));
+    init(:dir($d), :for-what('Things.'), :for-who('People.'), :namespace('shop.example.com'));
     my ($rc, $out, $err) = iz4($d, 'foundation');
     like $out, /^ 'The foundation:' \n '  0  humans-first.iz4.you' \s+ 'Invariant Zero: the foundation of the foundation' \n '  1  do-no-harm.iz4.you' \n/,
         'iz4 foundation lists it in its order, and says what Invariant Zero is';
-    like $out, /'  4  keystone.iz4.you' \n \n '# The foundation: the same words'/, 'down to 4, then the blocks every file carries';
+    like $out, /'  4  binding.iz4.you' \n \n '# ' '-'+ \n '# The foundation: the same words'/, 'down to 4, then the blocks every file carries';
     nok $out.lines.grep(/ \s $/), 'with no trailing spaces';
     nok $out ~~ /:i 'these five' | 'five foundation'/, 'and it is called the foundation, not counted out';
-    for (0 => 'humans-first', 1 => 'do-no-harm', 2 => 'human-agency', 3 => 'honesty', 4 => 'keystone') -> (:key($n), :value($name)) {
+    for (0 => 'humans-first', 1 => 'do-no-harm', 2 => 'human-agency', 3 => 'honesty', 4 => 'binding') -> (:key($n), :value($name)) {
         ($rc, $out, $err) = iz4($d, 'show', 'invariant', ~$n);
-        ok $rc == 0 && $out.starts-with("INVARIANT $name.iz4.you\n"), "show invariant $n finds $name.iz4.you by its place in the foundation";
+        ok $rc == 0 && $out.starts-with("FOUNDATION $name.iz4.you\n"), "show invariant $n finds $name.iz4.you by its place in the foundation";
     }
     ($rc, $out, $err) = iz4($d, 'show', 'invariant', 'zero');
-    ok $out.starts-with("INVARIANT humans-first.iz4.you\n"), "'zero' is Invariant Zero";
+    ok $out.starts-with("FOUNDATION humans-first.iz4.you\n"), "'zero' is Invariant Zero";
     ($rc, $out, $err) = iz4($d, 'show', 'invariant', 'Invariant 0');
-    ok $out.starts-with("INVARIANT humans-first.iz4.you\n"), "and so is 'Invariant 0'";
+    ok $out.starts-with("FOUNDATION humans-first.iz4.you\n"), "and so is 'Invariant 0'";
     ($rc, $out, $err) = iz4($d, 'show', 'invariant', '5');
     ok $rc == 1 && $err.contains('named, not numbered'), 'there is no Invariant 5: a project\'s own invariants have names and no numbers';
-    ($rc, $out, $err) = iz4($d, 'add', 'invariant', 'Orders are never charged twice for anyone.', '--name=5', '--namespace=shop.example.com', '--because=A customer charged twice loses money and trust.');
+    ($rc, $out, $err) = iz4($d, 'add', 'invariant', 'Orders are never charged twice for anyone.', '--when=it applies', '--established', '--name=5', '--namespace=shop.example.com', '--because=A customer charged twice loses money and trust.');
     ok $rc == 1 && !$d.add('IZ4').slurp.contains('charged twice'), 'and a number is never accepted as the name of one';
     ($rc, $out, $err) = iz4($d, 'withdraw', '0', '--force');
-    ok $rc == 1 && $err.contains('part of the foundation') && $d.add('IZ4').slurp.contains('INVARIANT humans-first.iz4.you'), 'the order is for looking up: Invariant Zero cannot be withdrawn by it';
+    ok $rc == 1 && $err.contains('part of the foundation') && $d.add('IZ4').slurp.contains('FOUNDATION humans-first.iz4.you'), 'the order is for looking up: Invariant Zero cannot be withdrawn by it';
     like $d.add('IZ4').slurp, /'# It begins with Invariant Zero, humans first: https://iz4.you/foundation.'/, 'a new IZ4 opens by pointing at Invariant Zero';
     like $d.add('IZ4').slurp, /'# Invariant Zero, humans-first.iz4.you, is the foundation of the foundation.' \n/, 'and says above the foundation what it is';
     ($rc, $out, $err) = iz4($d, 'check');

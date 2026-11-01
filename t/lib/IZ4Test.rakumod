@@ -22,6 +22,7 @@ INIT {
 }
 
 use IZ4::Document;
+use IZ4;
 
 #| A fresh temporary directory; removed at process exit.
 sub temp-dir(--> IO::Path) is export {
@@ -82,11 +83,28 @@ sub iz4-talk(IO::Path $cwd, Str $input, *@args, :%env) is export {
 }
 
 #| A minimal current-format IZ4 in a fresh directory.
-sub minimal-iz4(IO::Path :$dir = temp-dir(), Str :$extra = '' --> IO::Path) is export {
+sub minimal-iz4(IO::Path :$dir = temp-dir(), Str :$extra = '', Str :$domain = 'example.com' --> IO::Path) is export {
     my $path = $dir.add('IZ4');
-    $path.spurt("IZ4\n\nIS FOR WHAT?\nHelping people find work they love to do.\n\n"
-        ~ "IS FOR WHO?\nPeople looking for work.\n\n" ~ foundation-block() ~ $extra);
+    $path.spurt("IZ4 $domain\n\nIS FOR WHAT?  Helping people find work they love to do.\n\n"
+        ~ "IS FOR WHO?   People looking for work.\n\n" ~ foundation-block() ~ $extra);
     $path;
+}
+
+#| The digest of a foundation promise, by its card.
+sub foundation-digest-of(Str $id --> Str) is export {
+    my %f = FOUNDATION-CARD.first({ .<id> eq $id });
+    sha256-text(canonical-card(%f<id>, %f<when>, %f<always>.list, %f<protects>.list));
+}
+
+#| The digest of a promise's words, iz4-invariant/5, as a test states them.
+sub invariant-digest(Str $name, Str $always, Str $protects, Str :$when = 'it applies' --> Str) is export {
+    sha256-text(canonical-card($name, $when, ($always,), ($protects,)));
+}
+
+#| One promise as a card, for a test's fixture.  Established unless :exploring.
+sub card(Str $name, Str $always, Str $protects = 'People relying on it.', Str :$when = 'the software runs',
+         Bool :$exploring = False --> Str) is export {
+    card-lines('PROMISE', $name, $when, ($always,), ($protects,), $exploring ?? CHANGE-FREE !! CHANGE-SIGNED).join("\n") ~ "\n";
 }
 
 #| An independent system digest for cross-checking sha256-file, using

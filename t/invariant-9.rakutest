@@ -15,7 +15,7 @@ use IZ4::Integrations;
 
 my $dir = temp-dir;
 my $iz4 = minimal-iz4(:$dir);
-add-invariant($iz4, 'Private profiles never appear in public search.', :name('private-profiles.shop.example.com'), :because('A hidden search can cost someone their job.'));
+add-invariant($iz4, 'Private profiles never appear in public search.', :name('private-profiles.shop.example.com'), :reach('it applies'), :established, :because('A hidden search can cost someone their job.'));
 
 # a clean file: every tick is a file fact, conformance is a question mark
 my ($rc, $out, $err) = iz4($dir, 'check');

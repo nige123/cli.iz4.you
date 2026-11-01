@@ -8,9 +8,9 @@ use IZ4::Assist;
 my $dir = temp-dir;
 
 # ---- init: the two answers, nothing else -----------------------------------
-my $path = init(:$dir, :for-what('Helping people find work they love to do.'), :for-who('People looking for work.'));
+my $path = init(:$dir, :for-what('Helping people find work they love to do.'), :for-who('People looking for work.'), :namespace('shop.example.com'));
 ok $path.f && $path.basename eq 'IZ4', 'init creates IZ4';
-ok $path.slurp.starts-with("IZ4\n"), 'with the bare IZ4 header';
+ok $path.slurp.starts-with("IZ4 shop.example.com\n"), 'with the header naming its domain';
 my $doc = check-doc($path);
 ok $doc.ok && !$doc.warnings, 'a freshly initialised IZ4 is valid';
 nok $doc.invariants, 'and demands no invariants';
@@ -19,9 +19,9 @@ like $path.slurp, /'carries the foundation word for word: human intention protec
     'it tells a reader that the five are the foundation, what they protect, and where to read about them';
 like $path.slurp, /"Your own invariants are named under your project's domain"/, 'and how its own will be named';
 ok $path.slurp.contains(foundation-block()), 'and carries the foundation itself, after IS FOR WHO?';
-nok $path.slurp ~~ /:i 'behaviours' | 'constraints' | 'decisions' | 'gist'/, 'and has no specification sections';
-throws-like { init(:$dir, :for-what('x'), :for-who('y')) }, X::IZ4, message => /'already exists'/, 'init never overwrites';
-throws-like { init(:dir(temp-dir), :for-what(''), :for-who('y')) }, X::IZ4, message => /'for'/, 'init needs a real answer';
+nok $path.slurp.subst(foundation-block(), '') ~~ /:i 'behaviours' | 'constraints' | 'decisions' | 'gist'/, 'and has no specification sections';
+throws-like { init(:$dir, :for-what('x'), :for-who('y'), :namespace('shop.example.com')) }, X::IZ4, message => /'already exists'/, 'init never overwrites';
+throws-like { init(:dir(temp-dir), :for-what(''), :for-who('y'), :namespace('shop.example.com')) }, X::IZ4, message => /'for'/, 'init needs a real answer';
 
 # ---- IS FOR ------------------------------------------------------------------
 throws-like { set-is-for($path, 'IS FOR WHO', 'Someone else.') }, X::IZ4, message => /'--replace'/,
@@ -29,41 +29,37 @@ throws-like { set-is-for($path, 'IS FOR WHO', 'Someone else.') }, X::IZ4, messag
 set-is-for($path, 'IS FOR WHO', 'People looking for work, and the employers hiring them.', :replace);
 is check-doc($path).for-who, 'People looking for work, and the employers hiring them.', 'IS FOR WHO replaced';
 my $nowho = temp-dir.add('IZ4');
-$nowho.spurt("IZ4\n\nIS FOR WHAT?\nSomething.\n\n" ~ foundation-block());
+$nowho.spurt("IZ4 shop.example.com\n\nIS FOR WHAT?\nSomething.\n\n" ~ foundation-block());
 set-is-for($nowho, 'IS FOR WHO', 'Somebody.');
 ok check-doc($nowho).ok, 'a missing IS FOR WHO is inserted after IS FOR WHAT' or diag check-doc($nowho).report.join("\n");
 
 # ---- add: a name a person chose, BECAUSE beside it, nothing else touched ----
 my $NS = 'shop.example.com';
 my $before = $path.slurp;
-is add-invariant($path, 'People control whether their profile is visible.', :name("visible-by-choice.$NS"),
-    :because('Looking for work should not mean surrendering privacy.'), :namespace($NS)), "visible-by-choice.$NS",
+is add-invariant($path, 'People control whether their profile is visible.', :name("visible-by-choice.$NS"), :reach('it applies'), :established,
+    :because('Looking for work should not mean surrendering privacy.')), "visible-by-choice.$NS",
     'add returns the name it wrote, and never a number';
-ok $path.slurp.starts-with($before.trim-trailing), 'adding never rewrites what was there';
-ok $path.slurp.contains("\n# This project's invariants are named under $NS.\n\nINVARIANT visible-by-choice.$NS\n"),
-    'the first add records the namespace, once, above the invariant';
-is check-doc($path).namespace, $NS, 'and the document reads it back';
+ok $path.slurp.contains("PROMISE visible-by-choice.$NS\n"), 'the promise is written under its name';
+is check-doc($path).namespace, $NS, 'and the document reads the namespace from the header';
+ok $path.slurp.index("PROMISE visible-by-choice.$NS") < $path.slurp.index('FOUNDATION humans-first'), 'before the foundation, which is read last';
 is add-invariant($path, 'Employers cannot contact someone until that person initiates contact.',
-    :name("no-first-contact.$NS"), :namespace($NS)), "no-first-contact.$NS", 'a second invariant goes under the same namespace';
-is $path.slurp.comb("This project's invariants are named under").elems, 1, 'and the namespace is not recorded twice';
-is add-invariant($path, 'A chosen name.', :name('chosen.other.example.org')), 'chosen.other.example.org',
-    'a whole name is respected as given';
-is check-doc($path).invariants.map(*.id), ("visible-by-choice.$NS", "no-first-contact.$NS", 'chosen.other.example.org'),
+    :name("no-first-contact.$NS"), :reach('it applies'), :established, :because('A person who never asked gets no message.')), "no-first-contact.$NS", 'a second invariant goes under the same namespace';
+is check-doc($path).invariants.map(*.id), ("visible-by-choice.$NS", "no-first-contact.$NS"),
     'invariants keep the order they were added in';
-throws-like { add-invariant($path, 'Clash.', :name("no-first-contact.$NS")) }, X::IZ4, message => /'already in IZ4'/, 'a used name is refused';
-throws-like { add-invariant($path, '   ', :name("empty-words.$NS")) }, X::IZ4, message => /'empty'/, 'an empty invariant is refused';
+throws-like { add-invariant($path, 'Clash.', :name("no-first-contact.$NS"), :reach('it applies'), :established) }, X::IZ4, message => /'already in IZ4'/, 'a used name is refused';
+throws-like { add-invariant($path, '   ', :name("empty-words.$NS"), :reach('it applies'), :established) }, X::IZ4, message => /'empty'/, 'an empty invariant is refused';
 dies-ok { add-invariant($path, 'No name.') }, 'an invariant is never added without a name';
 
 # the name is an identity: validated, and the foundation's namespace is reserved
 for 'Bad_Name.shop.example.com', 'Shouting.shop.example.com', 'two.labels', 'trailing-.shop.example.com', 'a..shop.example.com', 'version.1.2' -> $bad {
-    throws-like { add-invariant($path, 'Something true.', :name($bad)) }, X::IZ4, message => /'is not a name an invariant can have'/,
+    throws-like { add-invariant($path, 'Something true.', :name($bad), :reach('it applies'), :established) }, X::IZ4, message => /'is not a name an invariant can have'/,
         "'$bad' is not a name an invariant can have";
 }
-throws-like { add-invariant($path, 'Sneaky.', :name('sneaky.iz4.you')) }, X::IZ4, message => /"names directly under iz4.you are the foundation's"/,
+throws-like { add-invariant($path, 'Sneaky.', :name('sneaky.iz4.you'), :reach('it applies'), :established) }, X::IZ4, message => /"names directly under iz4.you are the foundation's"/,
     'a name directly under iz4.you is reserved';
-throws-like { add-invariant($path, 'Mine now.', :name('humans-first.iz4.you')) }, X::IZ4, message => /'part of the foundation' .* 'cannot be redefined'/,
+throws-like { add-invariant($path, 'Mine now.', :name('humans-first.iz4.you'), :reach('it applies'), :established) }, X::IZ4, message => /'part of the foundation' .* 'cannot be redefined'/,
     "a foundation invariant's name cannot be taken";
-is add-invariant($path, 'A deeper name is ordinary.', :name('sample.cli.iz4.you'), :because('Only three labels are reserved.')),
+is add-invariant(minimal-iz4(:dir(temp-dir)), 'A deeper name is ordinary.', :name('sample.cli.iz4.you'), :reach('it applies'), :established, :because('Only three labels are reserved.')),
     'sample.cli.iz4.you', 'a deeper name under iz4.you is an ordinary one';
 is full-identity('owner-adjusted', $NS), "owner-adjusted.$NS", 'a short name goes under the namespace';
 is full-identity('owner-adjusted.prices', $NS), "owner-adjusted.prices.$NS", 'a short name may carry an area';
@@ -72,10 +68,10 @@ ok namespace-problem('iz4.you') eq '' && namespace-problem($NS) eq '', "iz4.you 
 
 $doc = check-doc($path);
 ok $doc.ok, 'the file stays valid' or diag $doc.report.join("\n");
-is $doc.invariant("visible-by-choice.$NS").because, 'Looking for work should not mean surrendering privacy.', 'BECAUSE written beneath its invariant';
-nok $doc.invariant("no-first-contact.$NS").because.defined, 'an invariant may be added without one';
+is $doc.invariant("visible-by-choice.$NS").because, 'Looking for work should not mean surrendering privacy.', 'PROTECTS written on its card';
+throws-like { add-invariant($path, 'Nothing protected.', :name("nothing-protected.$NS"), :reach('it applies'), :established) }, X::IZ4, message => /'needs a PROTECTS'/, 'a promise is never added without one';
 my $long = ('word' xx 40).join(' ');
-add-invariant($path, $long, :name("long-words.$NS"), :because($long));
+add-invariant($path, $long, :name("long-words.$NS"), :reach('it applies'), :established, :because($long));
 ok $path.slurp.lines.grep({ .chars > 80 && !.starts-with('#') }) == 0, 'text is wrapped at 80 columns';
 is check-doc($path).invariant("long-words.$NS").text, $long, 'and reads back unchanged';
 
@@ -86,15 +82,15 @@ for <behaviour constraint decision direction reference requirement task> -> $kin
 
 # ---- show and the effective invariant set ------------------------------------
 is show-text($path, 'for-what'), "Helping people find work they love to do.\n", 'show for-what';
-like show-text($path, 'invariants'), /^ 'INVARIANT visible-by-choice.shop.example.com' \n .* 'BECAUSE' /, 'show invariants lists the project ones';
+like show-text($path, 'invariants'), /^ 'PROMISE visible-by-choice.shop.example.com' \n .* 'PROTECTS' /, 'show invariants lists the project ones';
 unlike show-text($path, 'invariants'), /'humans-first.iz4.you'/, 'without the inherited ones';
 my $effective = effective-text(check-doc($path));
-like $effective, /'IS FOR WHAT' .* 'IS FOR WHO' .* 'INVARIANT humans-first.iz4.you' \n .* 'INVARIANT keystone.iz4.you' \n .* 'INVARIANT visible-by-choice.shop.example.com' \n /,
+like $effective, /'IS FOR WHAT' .* 'IS FOR WHO' .* 'FOUNDATION humans-first.iz4.you' \n .* 'FOUNDATION binding.iz4.you' \n .* 'PROMISE visible-by-choice.shop.example.com' \n /,
     'the effective set is IS FOR, then the five foundation invariants, then the project\'s own';
-like invariant-text($path, "visible-by-choice.$NS"), /^ 'INVARIANT visible-by-choice.shop.example.com' \n 'People control'/, 'show invariant accepts the full name';
-like invariant-text($path, 'visible-by-choice'), /^ 'INVARIANT visible-by-choice.shop.example.com' \n 'People control'/,
+like invariant-text($path, "visible-by-choice.$NS"), /^ 'PROMISE visible-by-choice.shop.example.com' \n .* 'People control'/, 'show invariant accepts the full name';
+like invariant-text($path, 'visible-by-choice'), /^ 'PROMISE visible-by-choice.shop.example.com' \n .* 'People control'/,
     'and its first label, when only one invariant begins with it';
-like invariant-text($path, 'honesty'), /^ 'INVARIANT honesty.iz4.you' \n .* 'BECAUSE'/, 'the foundation answers by name too';
+like invariant-text($path, 'honesty'), /^ 'FOUNDATION honesty.iz4.you' \n .* 'PROTECTS'/, 'the foundation answers by name too';
 throws-like { invariant-text($path, 'nonesuch') }, X::IZ4,
     message => /"no invariant 'nonesuch'" .* "visible-by-choice.$NS" .* 'the foundation is humans-first.iz4.you'/, 'an unknown name explains what exists';
 throws-like { invariant-text($path, '42') }, X::IZ4, message => /'named, not numbered'/, 'a number is answered with where the names are';
@@ -104,9 +100,9 @@ is show-text($path), $path.slurp, 'show prints the whole file';
 # ---- withdraw -------------------------------------------------------------------
 {
     my $w = minimal-iz4(:dir(temp-dir));
-    add-invariant($w, 'Prices are shown before checkout.', :name("prices-shown.$NS"), :because('A surprise at the till is a broken promise.'));
-    add-invariant($w, 'Refunds go back the way they came.', :name("refunds-return.$NS"), :because('Money should not change shape on the way back.'));
-    add-invariant($w, 'Nothing is sold unexplained.', :name("nothing-unexplained.$NS"));
+    add-invariant($w, 'Prices are shown before checkout.', :name("prices-shown.$NS"), :reach('it applies'), :established, :because('A surprise at the till is a broken promise.'));
+    add-invariant($w, 'Refunds go back the way they came.', :name("refunds-return.$NS"), :reach('it applies'), :established, :because('Money should not change shape on the way back.'));
+    add-invariant($w, 'Nothing is sold unexplained.', :name("nothing-unexplained.$NS"), :reach('it applies'), :established, :because('People rely on it.'));
     my $before = $w.slurp;
     my $gone = withdraw-invariant($w, "refunds-return.$NS");
     is $gone.text, 'Refunds go back the way they came.', 'withdraw returns the invariant as it was';
@@ -114,25 +110,27 @@ is show-text($path), $path.slurp, 'show prints the whole file';
     my $after = check-doc($w);
     is $after.invariants.map(*.id), ("prices-shown.$NS", "nothing-unexplained.$NS"), 'the others keep their names';
     ok $after.ok, 'and the file is still valid';
-    ok !$w.slurp.contains('Refunds') && !$w.slurp.contains('change shape'), 'the INVARIANT and its BECAUSE are gone';
-    is $w.slurp, $before.subst("INVARIANT refunds-return.$NS\nRefunds go back the way they came.\n\nBECAUSE\nMoney should not change shape on the way back.\n", "# INVARIANT refunds-return.$NS was withdrawn on {Date.today}; its name is retired.\n"),
+    ok !$w.slurp.contains('Refunds') && !$w.slurp.contains('change shape'), 'the card and its words are gone';
+    my $card = ~$before.match(/ "PROMISE refunds-return.$NS\n" .*? <?before \n [PROMISE | FOUNDATION]> /);
+    is $w.slurp, $before.subst($card, "# PROMISE refunds-return.$NS was withdrawn on {Date.today}; its name is retired.\n"),
         'one comment line stands where it was, and nothing else changed';
     is withdrawn-in-text($w), ("refunds-return.$NS",), 'the comment is how a file without Git history remembers';
     is $after.retired, ("refunds-return.$NS",), 'and the document reads the retired name from it';
-    throws-like { add-invariant($w, 'Later.', :name("refunds-return.$NS"), :because('Why.')) }, X::IZ4, message => /'used before' .* 'never reused'/,
+    throws-like { add-invariant($w, 'Later.', :name("refunds-return.$NS"), :reach('it applies'), :established, :because('Why.')) }, X::IZ4, message => /'used before' .* 'never reused'/,
         'so the name is never given to a different invariant';
-    is $w.slurp.comb("INVARIANT refunds-return.$NS").elems, 1, 'and the refused add wrote nothing';
+    is $w.slurp.comb("PROMISE refunds-return.$NS").elems, 1, 'and the refused add wrote nothing';
     {
         my $reused = temp-dir.add('IZ4');
-        $reused.spurt($w.slurp ~ "\nINVARIANT refunds-return.$NS\nSomething else entirely.\n\nBECAUSE\nA different reason.\n");
+        $reused.spurt($w.slurp ~ "\n" ~ card("refunds-return.$NS", 'Something else entirely.', 'A different reason.'));
         my $r = check-doc($reused);
         ok !$r.ok && $r.errors.first({ .message.contains('reuses a withdrawn name') }).defined,
             'a retired name written back in by hand is an error too';
     }
-    is add-invariant($w, 'Later.', :name("later.$NS"), :because('Why.')), "later.$NS", 'a new name is fine';
+    is add-invariant($w, 'Later.', :name("later.$NS"), :reach('it applies'), :established, :because('Why.')), "later.$NS", 'a new name is fine';
     withdraw-invariant($w, 'later');
     withdraw-invariant($w, "nothing-unexplained.$NS");
-    ok $w.slurp.ends-with("# INVARIANT later.$NS was withdrawn on {Date.today}; its name is retired.\n"), 'withdrawing the last one leaves no trailing blank';
+    ok $w.slurp.contains("# PROMISE later.$NS was withdrawn on {Date.today}; its name is retired.\n"), 'withdrawing the last one leaves its comment';
+    nok $w.slurp.ends-with("\n\n"), 'and no trailing blank';
     throws-like { withdraw-invariant($w, "nothing-unexplained.$NS") }, X::IZ4, message => /'already withdrawn'/, 'twice is refused';
     for foundation-ids() -> $id {
         throws-like { withdraw-invariant($w, $id) }, X::IZ4, message => /'cannot be withdrawn' .* 'binding.iz4.you'/, "the foundation's $id cannot be withdrawn";
@@ -141,30 +139,6 @@ is show-text($path), $path.slurp, 'show prints the whole file';
     throws-like { withdraw-invariant($w, "nonesuch.$NS") }, X::IZ4, message => /"no invariant 'nonesuch.$NS'"/, 'a name the file never held is refused';
     ok check-doc($w).ok, 'and after all that the file is still valid';
 }
-
-# ---- name: an unnamed INVARIANT is an error, and is given a name on its line ----
-my $num = temp-dir.add('IZ4');
-$num.spurt("IZ4\n\nIS FOR WHAT?\nx\n\nIS FOR WHO?\ny\n\nINVARIANT\nFirst.\n\nBECAUSE\nWhy one.\n\nINVARIANT chosen.$NS\nChosen.\n\nINVARIANT\nSecond.\n");
-{
-    my $d = check-doc($num);
-    is $d.unnamed-invariants.map(*.line), (9, 18), 'unnamed invariants are found, in file order';
-    is $d.errors.grep({ .message.starts-with('INVARIANT has no name') }).map(*.line), (9, 18), 'and each is an error, not a warning';
-    nok $d.warnings.first({ .message.contains('no name') }).defined, 'never just a warning';
-    ok $d.fixes.first({ .starts-with('iz4 name 9 ') }).defined, 'with the command that names it as the fix';
-}
-is name-invariant($num, 9, "first.$NS"), "first.$NS", 'name-invariant names the block on a line';
-is check-doc($num).invariants.map({ .id // 'unnamed' }), ("first.$NS", "chosen.$NS", 'unnamed'), 'existing names are never changed';
-like $num.slurp, /'INVARIANT first.shop.example.com' \n 'First.' \n\n 'BECAUSE' \n 'Why one.'/, 'only the header line changes';
-is $num.slurp.lines.elems, 19, 'no line is added or removed';
-throws-like { name-invariant($num, 15, "renamed.$NS") }, X::IZ4, message => /'already named chosen.shop.example.com'/, 'a name is an identity and is not changed';
-throws-like { name-invariant($num, 9, "again.$NS") }, X::IZ4, message => /'already named first.shop.example.com'/, 'not even one just given';
-throws-like { name-invariant($num, 3, "nothing-there.$NS") }, X::IZ4, message => /'no INVARIANT on line 3'/, 'a line with no INVARIANT is refused';
-throws-like { name-invariant($num, 18, "chosen.$NS") }, X::IZ4, message => /'already in IZ4'/, 'a name in use is refused';
-throws-like { name-invariant($num, 18, 'second.iz4.you') }, X::IZ4, message => /"the foundation's"/, 'and so is a reserved one';
-throws-like { name-invariant($num, 18, 'Second') }, X::IZ4, message => /'is not a name an invariant can have'/, 'and an invalid one';
-is name-invariant($num, 18, "second.$NS"), "second.$NS", 'the last unnamed one is named';
-nok check-doc($num).unnamed-invariants, 'and none is left unnamed';
-is check-doc($num).namespace, $NS, 'with no comment to say so, the namespace is what the names share';
 
 # ---- suggest: the prompt keeps IZ4 small; the parser caps a flood -----------
 my $prompt = suggest-prompt(current => '', evidence => 'README: a job board').words.join(' ');

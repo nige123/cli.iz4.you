@@ -10,17 +10,17 @@ my $SECTION-VERSION = SECTION-VERSION;
 my $dir = temp-dir;
 my $sp  = minimal-iz4(:$dir);
 add-invariant($sp, 'Private profiles never appear in public search.',
-    :name('private-profiles.shop.example.com'),
+    :name('private-profiles.shop.example.com'), :reach('a private profile exists'), :established,
     :because('A hidden search for work can cost someone their job.'));
 
 # ---- packet -----------------------------------------------------------
 my %p = agent-packet($sp);
 is %p<schema>, 'iz4-agent-packet/4', 'packet schema is versioned';
-is %p<format>, 'named', 'the packet says the file names its invariants';
+is %p<format>, 'card', 'the packet says the file holds cards';
 is-deeply %p<foundation><ids>.List, foundation-ids(), 'and carries the five foundation names';
-is %p<foundation><text>, FOUNDATION-TEXT, 'the canonical foundation is carried';
-is %p<foundation><sha256>, FOUNDATION-DIGEST, 'with its digest';
-like %p<effective>, /'INVARIANT humans-first.iz4.you' \n .* 'INVARIANT private-profiles.shop.example.com' \n 'Private profiles'/,
+is %p<foundation><text>, FOUNDATION-CARD-TEXT, 'the canonical foundation is carried';
+is %p<foundation><sha256>, FOUNDATION-CARD-DIGEST, 'with its digest';
+like %p<effective>, /'FOUNDATION humans-first.iz4.you' \n .* 'PROMISE private-profiles.shop.example.com' \n .* 'Private profiles'/,
     'the effective invariants, foundation and project, are in the packet under their names';
 is %p<specification>, $sp.slurp, 'the verbatim file is carried too';
 is %p<sha256>, sha256-hex($sp), 'digest is of the exact file bytes';
@@ -47,7 +47,7 @@ unlike $protocol, /"'direction' entries"/, 'no trace of the old specification se
 
 # failures: never invent a valid packet
 my $bad = $dir.add('bad.iz4');
-$bad.spurt("IZ4\n\nINVARIANT no-is-for.shop.example.com\nNo IS FOR at all.\n");
+$bad.spurt("IZ4 shop.example.com\n\n" ~ card('no-is-for.shop.example.com', 'No IS FOR at all.'));
 throws-like { agent-packet($bad) }, X::IZ4, message => /'invalid IZ4'/, 'invalid spec refused';
 throws-like { agent-packet($dir.add('none.iz4')) }, X::IZ4, message => /'no such file'/, 'missing file refused';
 
@@ -147,7 +147,7 @@ like $out, /'CLAUDE.md: integration installed but stale (edited by hand since it
 }
 
 my $broken = temp-dir;
-$broken.add('IZ4').spurt("IZ4\n\nINVARIANT no-is-for.shop.example.com\nNo IS FOR.\n");
+$broken.add('IZ4').spurt("IZ4 shop.example.com\n\n" ~ card('no-is-for.shop.example.com', 'No IS FOR.'));
 ($rc, $out, $err) = iz4($broken, 'agent');
 is $rc, 1, 'agent packet refused for an invalid spec';
 like $err, /'invalid IZ4'/, 'refusal names the reason';

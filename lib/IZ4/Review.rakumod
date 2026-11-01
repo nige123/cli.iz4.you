@@ -142,14 +142,12 @@ sub offline-report(IZ4::Document $doc, Str $diff, Str :$what --> List) is export
     return ("Nothing to review: no change in $what.",) unless $diff.trim;
     my $own = $doc.invariants.elems;
     my $against = $own == 1 ?? "the project's one promise" !! "the project's $own promises";
-    # a card's reason is its PROTECTS; a file still in an earlier form says BECAUSE
-    my $reason = $doc.form eq 'card' ?? 'PROTECTS' !! 'BECAUSE';
     my @out = "Reviewed $what: $files file" ~ ($files == 1 ?? '' !! 's') ~ " changed, against the foundation and $against.";
     if @touched {
         @out.push: "This change touches, by its own words, {@touched.map({ label($doc, .<id>) }).join(', ')}. Look at each before you push:";
         for @touched -> %t {
             @out.push: "  {label($doc, %t<id>)}: {short(%t<text>)}";
-            @out.push: "    $reason {short(%t<because>)}" if %t<because>;
+            @out.push: "    PROTECTS {short(%t<because>)}" if %t<because>;
             @out.push: "    matched: {%t<terms>.join(', ')}";
         }
     }

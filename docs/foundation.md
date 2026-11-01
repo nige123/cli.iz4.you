@@ -159,9 +159,8 @@ The foundation's digest is the sha256 of its five cards in order, each as
 digest rule `iz4-invariant/5` writes it:
 `7c704e757f80df39ebca60a386b8aefdd88d0d42af93daccb514562f076e5508`. It
 identifies these words and nothing more; writing a rule down does not make
-software obey it. The earlier three-clause form's foundation, which
-`iz4 migrate` still reads, had the digest `c7278fe5414e...`; the words are
-the same, laid out as cards.
+software obey it. The earlier three-clause form's foundation had the digest
+`c7278fe5414e...`; the words are the same, laid out as cards.
 
 Why these words, what each defence answers, and how they compare with
 Asimov's laws: [iz4.you/foundation](https://iz4.you/foundation).

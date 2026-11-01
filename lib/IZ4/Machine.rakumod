@@ -74,29 +74,13 @@ sub discover(IO::Path $dir = $*CWD --> Hash) is export {
 #| The effective invariants by identity: the foundation in its order
 #| (foundation_order; the first is Invariant Zero, humans-first.iz4.you),
 #| then the project's own promises, each with the digest of its exact
-#| words in the rule of the file's form (iz4-invariant/5 for cards).  The
-#| identity is an opaque string to whoever reads this: nothing may be
-#| inferred from its shape.
+#| words (iz4-invariant/5).  The identity is an opaque string to whoever
+#| reads this: nothing may be inferred from its shape.
 sub effective-list(IZ4::Document $doc --> Array) {
     my @out;
-    if $doc.form eq 'card' {
-        for FOUNDATION-CARD -> %f {
-            @out.push: %( id => %f<id>, foundation => True, summary => %f<always>.list[0], reach => %f<when>,
-                          digest => sha256-text(canonical-card(%f<id>, %f<when>, %f<always>.list, %f<protects>.list)), foundation_order => %f<legacy> );
-        }
-    }
-    # the earlier forms, read only to migrate: clauses, then named
-    elsif $doc.form eq 'clauses' {
-        for FOUNDATION-CLAUSES -> %f {
-            @out.push: %( id => %f<id>, foundation => True, summary => first-sentence(%f<text>), reach => %f<reach>,
-                          digest => sha256-text(canonical-clauses(%f<id>, %f<reach>, %f<text>, %f<because>)), foundation_order => %f<legacy> );
-        }
-    }
-    else {
-        for FOUNDATION -> %f {
-            @out.push: %( id => %f<id>, foundation => True, summary => first-sentence(%f<text>),
-                          digest => foundation-digest-of(%f<id>), foundation_order => %f<legacy> );
-        }
+    for FOUNDATION-CARD -> %f {
+        @out.push: %( id => %f<id>, foundation => True, summary => %f<always>.list[0], reach => %f<when>,
+                      digest => sha256-text(canonical-card(%f<id>, %f<when>, %f<always>.list, %f<protects>.list)), foundation_order => %f<legacy> );
     }
     my %seen;
     for $doc.invariants.grep(*.id.defined) -> $inv {
@@ -631,8 +615,7 @@ sub draft-check(Str :$reach = '', Str :$rule = '', Str :$because = '' --> Hash) 
         note => 'these are questions, not a verdict: a person decides what must remain true';
     if $r ne '' && $u ne '' {
         %r<reads> = "When $r, always: $u" ~ ($b ne '' ?? " This protects {$b.subst(/ <[.!]> $/, '')}." !! '');
-        # 'lines' are laid out as the earlier clauses form wrote them
-        %r<lines> = clauses-invariant-lines('name', $r, $u, $b).Array;
+        %r<lines> = card-lines('PROMISE', 'name', $r, ($u,), ($b,), CHANGE-FREE).Array;
     }
     %r;
 }

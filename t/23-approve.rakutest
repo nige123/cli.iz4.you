@@ -23,7 +23,7 @@ my $n = 0;
 #| Stage one more invariant: a change that needs agreement.
 sub change(IO::Path $r) {
     $n++;
-    my ($rc, $out, $err) = iz4($r, 'add', 'invariant', "Thing $n is never lost.", "--name=kept-$n", '--namespace=shop.example.com', "--because=Reason $n.", '--force');
+    my ($rc, $out, $err) = iz4($r, 'add', 'invariant', "Thing $n is never lost.", '--when=it applies', '--established', "--name=kept-$n", '--namespace=shop.example.com', "--because=Reason $n.", '--force');
     die "could not add: $out $err" if $rc != 0;
     g($r, 'add', '-A');
 }
@@ -32,7 +32,7 @@ my $r = temp-dir;
 g($r, 'init', '-q');
 g($r, 'config', 'user.email', 't@test');
 g($r, 'config', 'user.name', 'Test');
-init(:dir($r), :for-what('Taking orders.'), :for-who('People buying things.'));
+init(:dir($r), :for-what('Taking orders.'), :for-who('People buying things.'), :namespace('shop.example.com'));
 my $far = temp-dir;
 g($far, 'init', '-q', '--bare');
 g($r, 'remote', 'add', 'origin', $far.Str);
@@ -188,7 +188,7 @@ unlike gate-hook-text(), / 'approve' /, 'an advisory hook asks nothing';
     g($r, 'init', '-qb', 'main');
     g($r, 'config', 'user.email', 't@test');
     g($r, 'config', 'user.name', 'Test');
-    init(:dir($r), :for-what('Taking orders.'), :for-who('People buying things.'));
+    init(:dir($r), :for-what('Taking orders.'), :for-who('People buying things.'), :namespace('shop.example.com'));
     g($r, 'add', '-A'); g($r, 'commit', '-qm', 'first', '--no-verify');
     g($r, 'checkout', '-qb', 'work', 'main');
     g($r, 'checkout', '-q', 'main');

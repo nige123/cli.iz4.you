@@ -122,7 +122,7 @@ for <zsh fish> -> $sh {
 }
 
 # ---- every command a person runs opens with its title ---------------------------
-for <<'invariants' 'test list' 'establish' 'foundation restore' 'migrate preview' 'agent status' 'report preview'>> -> $c {
+for <<'invariants' 'test list' 'establish' 'foundation restore' 'agent status' 'report preview'>> -> $c {
     my ($code, $o, $e) = iz4($r, |$c.words, :env(%( IZ4_COLOR => '1' )));
     like $o.subst(/ \e \[ <[0..9;]>* m /, '', :g), / ^ \n '◈ iz4 ' /, "iz4 $c opens with its title";
 }

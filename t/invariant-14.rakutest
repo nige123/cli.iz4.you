@@ -22,7 +22,7 @@ sub coach(@answers, *%opts) {
     my @queue = @answers;
     coach-invariant(ask => -> $ { @queue ?? @queue.shift !! Str }, tell => -> $ {}, for-what => 'x', for-who => 'y', |%opts);
 }
-is coach(['y', 'A hidden search can cost someone their job.', 'n'], candidate => 'Private profiles never appear in public search.')<outcome>, 'skipped', 'a candidate the person declines is not added';
+is coach(['y', 'a profile is private', 'A hidden search can cost someone their job.', 'n'], candidate => 'Private profiles never appear in public search.')<outcome>, 'skipped', 'a candidate the person declines is not added';
 is coach(['not sure'], candidate => 'Employers only see a candidate after the candidate applies.')<outcome>, 'needs-human', 'uncertainty is handed back, not resolved by the tool';
 is coach(['maybe'], candidate => 'Data lives in Redis.')<outcome>, 'needs-human', 'an implementation question the person cannot answer is not decided for them';
 is coach([''])<outcome>, 'skipped', 'no candidate, nothing added';
@@ -46,9 +46,9 @@ my %env-agent = IZ4_AGENT_CMD => "cat {$reply}";
 
 # a test an agent drafts is evidence about intent too: it is written only on
 # a person's yes, and never counted as evidence until they have reviewed it
-add-invariant($iz4, 'Private profiles never appear in public search.', :name('private-profiles.shop.example.com'), :because('A hidden search can cost someone their job.'));
+add-invariant($iz4, 'Private profiles never appear in public search.', :name('private-profiles.shop.example.com'), :reach('it applies'), :established, :because('A hidden search can cost someone their job.'));
 $dir.add('package.json').spurt(Q[{}] ~ "\n");
-$reply.spurt("// INVARIANT private-profiles.shop.example.com\n// Private profiles never appear in public search.\ntest('x', () => expect(search('private')).toEqual([]));\n");
+$reply.spurt("// PROMISE private-profiles.shop.example.com\n// Private profiles never appear in public search.\ntest('x', () => expect(search('private')).toEqual([]));\n");
 ($rc, $out, $err) = iz4-talk($dir, "n\n", 'test', :env(%env-agent));
 ok !$dir.add('test/private-profiles.shop.example.com.test.js').slurp.contains('expect(search'), 'a drafted test the person declines is not written';
 $dir.add('test/private-profiles.shop.example.com.test.js').unlink;
@@ -61,17 +61,17 @@ like $out, /'✗ evidence: private-profiles.shop.example.com has an agent-drafte
 $before = $iz4.slurp;
 
 # the fast path refuses to store what looks like implementation unless the owner overrides
-($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'We use PostgreSQL.', '--because=fast');
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'We use PostgreSQL.', '--when=it applies', '--established', '--because=fast');
 ok $rc == 1 && $err.contains('--force'), 'a challenged candidate is refused, and the override is named';
 is $iz4.slurp, $before, 'nothing written';
 
 # the tool never fills in the two answers or the foundation's reasons for anyone
-throws-like { init(:dir(temp-dir), :for-what(''), :for-who('y')) }, X::IZ4, 'init will not write an IZ4 without the owner saying what it is for';
+throws-like { init(:dir(temp-dir), :for-what(''), :for-who('y'), :namespace('shop.example.com')) }, X::IZ4, 'init will not write an IZ4 without the owner saying what it is for';
 throws-like { set-because($iz4, 'human-agency.iz4.you', 'Mine.') }, X::IZ4, message => /'part of the foundation'/, "and the foundation's reasons are not the tool's to set";
 
 # a name is the owner's to choose as well: the tool never makes one up
 $before = $iz4.slurp;
-($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Orders are never charged twice.', '--because=A customer charged twice loses money and trust.');
+($rc, $out, $err) = iz4($dir, 'add', 'invariant', 'Orders are never charged twice.', '--when=it applies', '--established', '--because=A customer charged twice loses money and trust.');
 ok $rc == 1 && $err.contains('an invariant needs a name'), 'with no name and nobody to ask, nothing is added';
 is $iz4.slurp, $before, 'and nothing is written';
 done-testing;

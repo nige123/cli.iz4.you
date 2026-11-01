@@ -19,7 +19,7 @@ my $root = $?FILE.IO.parent.parent.resolve;
 my $lib  = $root.add('lib');
 
 # ---- every module is in exactly one layer --------------------------------
-my @CORE        = <IZ4 IZ4::Grammar IZ4::ClausesGrammar IZ4::CardGrammar IZ4::Document IZ4::Git IZ4::Evidence IZ4::Review IZ4::Gate
+my @CORE        = <IZ4 IZ4::CardGrammar IZ4::Document IZ4::Git IZ4::Evidence IZ4::Review IZ4::Gate
                    IZ4::Machine IZ4::Agent IZ4::Register IZ4::Coach IZ4::Pack>;
 my @CONVENIENCE = <IZ4::Launcher IZ4::Assist IZ4::Integrations IZ4::Help IZ4::Screen>;
 my @LEGACY      = <IZ4::LegacyHook>;
@@ -95,7 +95,7 @@ sub fresh-repo(--> IO::Path) {
     my $r = temp-dir;
     run 'git', '-C', $r.Str, 'init', '-q';
     my $sp = minimal-iz4(:dir($r));
-    add-invariant($sp, 'People control whether their profile is visible.', :name('visible-by-choice.shop.example.com'), :because('Privacy.'));
+    add-invariant($sp, 'People control whether their profile is visible.', :name('visible-by-choice.shop.example.com'), :reach('it applies'), :established, :because('Privacy.'));
     $r.add('tests').mkdir;
     $r.add('tests/visible-by-choice.shop.example.com.sh').spurt("#!/bin/sh\n# INVARIANT visible-by-choice.shop.example.com\n# People control whether their profile is visible.\nexit 0\n");
     $r;
@@ -161,7 +161,7 @@ for (%with, %without) -> %env {
 {
     my $r = fresh-repo;
     forget;
-    my ($rc, $out, $err) = iz4($r, 'add', 'invariant', 'Employers cannot contact someone first.', '--name=no-first-contact', '--because=No new inbox.', :env(%with));
+    my ($rc, $out, $err) = iz4($r, 'add', 'invariant', 'Employers cannot contact someone first.', '--when=it applies', '--established', '--name=no-first-contact', '--because=No new inbox.', :env(%with));
     is $rc, 0, 'the invariant is added';
     like $log.slurp, / ^^ 'iz4 install --workspace ' \S+ ' --json' $$ /, "and iz4 then asks 321 to activate enforcement ('321 iz4 install')";
     is $log.lines.grep(*.starts-with('iz4 install')).elems, 1, 'once';
@@ -170,7 +170,7 @@ for (%with, %without) -> %env {
 
     # a command that changed nothing is followed by nothing
     forget;
-    ($rc, $out, $err) = iz4($r, 'add', 'invariant', 'We use PostgreSQL.', '--name=postgres', :env(%with));
+    ($rc, $out, $err) = iz4($r, 'add', 'invariant', 'We use PostgreSQL.', '--when=it applies', '--established', '--name=postgres', :env(%with));
     nok driver-was-run(), 'a refused candidate changes no intent, so 321 is not asked' or diag $log.slurp;
     ($rc, $out, $err) = iz4($r, 'approve', '--staged', :env(%with));
     nok driver-was-run(), 'an approval that was not given (no terminal) changes nothing either';
@@ -190,7 +190,7 @@ for (%with, %without) -> %env {
     # switched off, nothing is asked and nothing is said
     for (IZ4_ENFORCE => '0'), (IZ4_NO_321 => '1') -> $off {
         forget;
-        ($rc, $out, $err) = iz4($r, 'add', 'invariant', "Nobody is shown another person's address ({$off.key}).", "--name=no-address-{$off.key.lc.subst('_', '-', :g)}", '--because=Safety.', :env(%( |%with, $off )));
+        ($rc, $out, $err) = iz4($r, 'add', 'invariant', "Nobody is shown another person's address ({$off.key}).", '--when=it applies', '--established', "--name=no-address-{$off.key.lc.subst('_', '-', :g)}", '--because=Safety.', :env(%( |%with, $off )));
         ok $rc == 0 && !driver-was-run() && !($out ~ $err).contains('enforcement'), "with {$off.key}={$off.value} the step is off: the file changes and nothing else happens";
     }
 }
@@ -218,7 +218,7 @@ for (%with, %without) -> %env {
         %( PATH => "/usr/bin:/bin", HOME => temp-dir().Str, IZ4_BIN => $bindir.Str, IZ4_321_RELEASE_URL => "file://{$rel}", IZ4_ENFORCE => '1', IZ4_INTERACTIVE => '0', |%more )
     }
     my $n = 0;
-    my sub add-one(IO::Path $r, %env) { iz4($r, 'add', 'invariant', "A lasting commitment number {++$n} stays true.", "--name=lasting-commitment-$n", '--because=People rely on it.', :%env) }
+    my sub add-one(IO::Path $r, %env) { iz4($r, 'add', 'invariant', "A lasting commitment number {++$n} stays true.", '--when=it applies', '--established', "--name=lasting-commitment-$n", '--because=People rely on it.', :%env) }
 
     if launcher-asset().defined {
         # no 321 anywhere: iz4 installs the published one, then asks it

@@ -90,9 +90,7 @@ subtest 'actions are words' => {
     is $file.slurp, $current, 'restore brings it up to date';
     is run-iz4('foundation', '--restore')<out>, run-iz4('foundation', 'restore')<out>, 'the flag still works, for scripts written before';
     is run-iz4('test', 'list')<out>, run-iz4('test', '--list')<out>, 'iz4 test list';
-    is run-iz4('migrate', 'preview')<out>, run-iz4('migrate', '--dry-run')<out>, 'iz4 migrate preview';
     my $before = $file.slurp;
-    run-iz4('migrate', 'preview');
     is $file.slurp, $before, 'a preview changes nothing';
     my $bad = run-iz4('agent', 'install', 'everything');
     isnt $bad<code>, 0, 'iz4 agent install refuses a word it does not know';
@@ -115,18 +113,18 @@ subtest 'pretty dresses output for a terminal only' => {
     like $on, /"\e[31m" '✗' "\e[0m"/, 'a cross is red';
     like $on, /"\e[1m" 'OK IZ4' "\e[0m"/, 'the verdict is bold';
     is $on.subst(/ "\e[" <[0..9;]>+ 'm' /, '', :g).subst('◈ ', 'PROMISE ', :x(1)), $plain, 'strip the colour and the diamond and every word is as it was';
-    like pretty("INVARIANT charged-once.shop.example.com added: X\n", :on), /'◈' .* 'charged-once.shop.example.com'/, 'the gate\'s INVARIANT lines get the diamond too';
+    like pretty("PROMISE charged-once.shop.example.com added: X\n", :on), /'◈' .* 'charged-once.shop.example.com'/, 'the gate\'s PROMISE lines get the diamond too';
     my $r = run-iz4('foundation');
     unlike $r<out>, /"\e["/, 'into a pipe, iz4 writes no colour at all';
     unlike $r<out>, /'◈'/, 'and no diamond';
     # the mark before a name says what is known of the invariant: four shapes, read without colour
     mark-solid(%( 'held.shop.example.com' => True, 'held' => True, 'open.shop.example.com' => False, 'broken' => 'broken', 'unknown' => 'unknown' ));
-    like pretty("held:\n", :on), /"\e[38;" <[0..9;]>+ 'm' '◆' "\e[0m" ' ' "\e[1m" 'held' "\e[0m"/, 'a test names it and passed: a closed green diamond (truecolor or 256-colour)';
-    like pretty("open.shop.example.com:\n", :on), / ^ '◇' ' ' "\e[1m" 'open.shop.example.com' /, 'a promise nothing yet shows: an open diamond, no colour';
-    like pretty("broken:\n", :on), / ^ "\e[31m" '✕' "\e[0m" ' ' "\e[1m" 'broken' /, 'its test fails: a red cross';
-    like pretty("unknown:\n", :on), / ^ '?' ' ' "\e[1m" 'unknown' /, 'it could not be checked: a question mark, no colour';
-    like pretty("INVARIANT held.shop.example.com added: X\n", :on), /'◆' .* 'held.shop.example.com'/, 'the gate\'s INVARIANT lines follow the same map';
-    like pretty("elsewhere:\n", :on), /'◈' .* 'elsewhere'/, 'a name the map does not know keeps the icon';
+    like pretty("PROMISE held\n", :on), /"\e[38;" <[0..9;]>+ 'm' '◆' "\e[0m" ' ' "\e[1m" 'held' "\e[0m"/, 'a test names it and passed: a closed green diamond (truecolor or 256-colour)';
+    like pretty("PROMISE open.shop.example.com\n", :on), / ^ '◇' ' ' "\e[1m" 'open.shop.example.com' /, 'a promise nothing yet shows: an open diamond, no colour';
+    like pretty("PROMISE broken\n", :on), / ^ "\e[31m" '✕' "\e[0m" ' ' "\e[1m" 'broken' /, 'its test fails: a red cross';
+    like pretty("PROMISE unknown\n", :on), / ^ '?' ' ' "\e[1m" 'unknown' /, 'it could not be checked: a question mark, no colour';
+    like pretty("PROMISE held.shop.example.com added: X\n", :on), /'◆' .* 'held.shop.example.com'/, 'the gate\'s PROMISE lines follow the same map';
+    like pretty("PROMISE elsewhere\n", :on), /'◈' .* 'elsewhere'/, 'a name the map does not know keeps the icon';
     is mark-state('broken'), 'broken', 'the state behind a name is exported for commands that draw their own lines';
     is mark-for('held'), '◆', 'and so is the glyph';
     like marks-legend(), / '◆ held' .* '◇ promised' .* '✕ broken' .* '? not checked' /, 'the legend names all four';

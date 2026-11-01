@@ -110,10 +110,6 @@ sub topics(--> List) is export {
     t('log', 'Reading', 'the history of the IZ4', ['iz4 log'], 'Git history of the file.', 'iz4 log'),
     t('diff', 'Reading', 'what changed in the IZ4', ['iz4 diff', 'iz4 diff REV', 'iz4 diff REV REV'], 'Git diff of the file.', 'iz4 diff HEAD~1'),
 
-    t('migrate', 'Moving forward', 'bring an IZ4 written by an earlier iz4 to promise cards',
-      ['iz4 migrate', 'iz4 migrate preview', 'iz4 migrate --where=NAME=SITUATION|...'],
-      'Your words are never touched: each of your own becomes a PROMISE card, the foundation FOUNDATION cards. preview shows what would change. A file still in the earliest named form has no WHEN yet: you are asked for each; in a script, --where gives them.',
-      'iz4 migrate preview'),
 
     t('agent', 'Working with agents', 'what an agent must read before it works here',
       ['iz4 agent', 'iz4 agent --json'], 'The protocol and the effective invariants, in one packet.', 'iz4 agent'),
@@ -377,14 +373,13 @@ sub marks-legend(--> Str) is export {
 #| green diamond, the field labels and the two questions in bold,
 #| comments dimmed, ticks green and crosses red.  Nothing is added or
 #| removed but colour, and the diamond that stands in for PROMISE or
-#| FOUNDATION (and, in the earlier forms and the gate's proposal lines,
-#| for INVARIANT or the heading's colon).  With :!on the text comes back
+#| FOUNDATION.  With :!on the text comes back
 #| untouched.  Within a line: a promise's name (a dotted name with a
 #| letter first and two dots or more, so a version or a file is not one)
-#| and the keywords of every form, in bold.
+#| and the keywords, in bold.
 my sub emphasise(Str $s --> Str) {
     $s.subst(/ <!after <[\w / : . \-]>> (<[a..z]> <[a..z 0..9 \-]>* ['.' <[a..z 0..9 \-]>+] ** 2..*) <!before <[\w /]>> /, { "{BOLD}{$0}{OFF}" }, :g)
-      .subst(/ <!after \w> ('IS FOR WHAT' '?'? | 'IS FOR WHO' '?'? | 'INVARIANT' | 'PROMISE' | 'FOUNDATION' | 'WHEN' | 'WHERE' | 'ALWAYS' | 'PROTECTS' | 'CHANGES REQUIRE' | 'CHECKED WITH' | 'BECAUSE') <!before \w> /, { "{BOLD}{$0}{OFF}" }, :g)
+      .subst(/ <!after \w> ('IS FOR WHAT' '?'? | 'IS FOR WHO' '?'? | 'INVARIANT' | 'PROMISE' | 'FOUNDATION' | 'WHEN' | 'ALWAYS' | 'PROTECTS' | 'CHANGES REQUIRE' | 'CHECKED WITH') <!before \w> /, { "{BOLD}{$0}{OFF}" }, :g)
 }
 
 sub pretty(Str $text, Bool :$on = pretty-on() --> Str) is export {
@@ -396,14 +391,12 @@ sub pretty(Str $text, Bool :$on = pretty-on() --> Str) is export {
         my $l = $line.chomp;
         # the lines that open a section, before a heading could be taken for one
         if $l ~~ / ^ ('outcome' | 'next' | 'gate' | 'commitments and protections' | 'checks' | 'touches' | 'approval' | 'checked' | 'All held') ':' (.*) $ / { $l = "{BOLD}{$0}:{OFF}{emphasise(~$1)}" }
-        # the earlier forms' headings: a name with a colon (clauses), INVARIANT name (named); and the gate's proposal
-        # lines, which lead with PROMISE or INVARIANT and go on in the same line
-        elsif $l ~~ / ^ (<[a..z 0..9]> <[\w.\-]>*) ':' (\h*) $ / { $l = "{mark-shown(~$0, :on)} {BOLD}{$0}{OFF}{$1}" }
-        elsif $l ~~ / ^ (\h*) ('INVARIANT' | 'PROMISE') ' ' (\S+) (.*) $ / { $l = "{$0}{mark-shown(~$2, :on)} {BOLD}{$2}{OFF}{emphasise(~$3)}" }
+        # the gate's proposal lines, which lead with PROMISE and go on in the same line
+        elsif $l ~~ / ^ (\h*) ('PROMISE') ' ' (\S+) (.*) $ / { $l = "{$0}{mark-shown(~$2, :on)} {BOLD}{$2}{OFF}{emphasise(~$3)}" }
         # a card's heading: the mark stands in for PROMISE or FOUNDATION
         elsif $l ~~ / ^ ('PROMISE' | 'FOUNDATION') ' ' (\S+) (\h*) $ / { $l = "{mark-shown(~$1, :on)} {BOLD}{$1}{OFF}{$2}" }
-        # the field labels (WHERE is the earlier clauses form's), wherever they lead a line, and the two questions
-        elsif $l ~~ / ^ (\h*) ('CHANGES REQUIRE' | 'CHECKED WITH' | 'WHEN' | 'WHERE' | 'ALWAYS' | 'PROTECTS') (':' | ' before:' | ' after:' | \h | $) (.*) $ / { $l = "{$0}{BOLD}{$1}{OFF}{$2}{$3}" }
+        # the field labels, wherever they lead a line, and the two questions
+        elsif $l ~~ / ^ (\h*) ('CHANGES REQUIRE' | 'CHECKED WITH' | 'WHEN' | 'ALWAYS' | 'PROTECTS') (':' | ' before:' | ' after:' | \h | $) (.*) $ / { $l = "{$0}{BOLD}{$1}{OFF}{$2}{$3}" }
         elsif $l ~~ / ^ ('IS FOR WHAT?' | 'IS FOR WHO?') (.*) $ / { $l = "{BOLD}{$0}{OFF}{$1}" }
         # comments, dimmed; the rule-off too
         elsif $l ~~ / ^ '#' / { $l = "{DIM}{$l}{OFF}" }
@@ -430,10 +423,7 @@ sub help-for(@words, Bool :$command = False --> List) is export {
     return (help-index(), True) if $asked eq '';
     return (help-more(), True) if $asked eq 'more' | 'all';
     return (help-machine(), True) if $asked eq 'machine' | 'tools';
-    # a command that has gone, or one kept only for the earlier named form
-    # (split, name; iz4 check on such a file still points at them): say
-    # what took its place
-    $asked = 'migrate' if $asked eq 'number' | 'split' | 'name';
+    # a command that has gone: say what took its place
     $asked = 'protects' if $asked eq 'because';
     with topic($asked) { return (help-topic($_), True) }
     # 'iz4 help gate install': the action is part of the command it belongs to
@@ -452,6 +442,8 @@ sub help-for(@words, Bool :$command = False --> List) is export {
                                || distance($asked, .name) <= 2 }).head(3);
     # a mistyped command is offered the command; a mistyped 'iz4 help X' the help
     my $hint = @near ?? " Did you mean: {@near.map({ ($command ?? 'iz4 ' !! 'iz4 help ') ~ .name }).join(', ')}?" !! '';
+    # the commands that moved a file between forms went with those forms
+    return ("iz4 no longer moves a file between forms: iz4 0.37.0 is the last that does.\n", False) if $asked eq 'migrate';
     # one thing to read, not the whole list again
     ("There is no iz4 command '$asked'.$hint\n'iz4 help' lists the commands.\n", False);
 }

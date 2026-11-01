@@ -51,7 +51,7 @@ ok $dir.add('IZ4').slurp.contains('The file is the source.'), 'and the file, pla
 # the README: the register commands, update, an agent behind suggest and
 # review, and fetching the environment driver once after a change of
 # intent, which the core does not depend on (above).
-for <Document Grammar Coach Evidence Agent Git Gate Machine Review LegacyHook Integrations> -> $m {
+for <Document CardGrammar Coach Evidence Agent Git Gate Machine Review LegacyHook Integrations> -> $m {
     my $src = $root.add("lib/IZ4/$m.rakumod").slurp;
     unlike $src, /'curl' | 'http://' | 'https://iz4.you/api' | 'IO::Socket'/, "IZ4::$m makes no network call";
 }

@@ -13,8 +13,7 @@ unit module IZ4::Evidence;
 #|
 #| 'iz4 test' writes the scaffold: one test file per promise without
 #| evidence, in the repository's own test language, carrying the
-#| promise's ALWAYS and PROTECTS (for a file still in an earlier form,
-#| its text and BECAUSE), and failing until a person replaces the
+#| promise's ALWAYS and PROTECTS, and failing until a person replaces the
 #| placeholder with an assertion that would fail if the promise stopped
 #| being true.  A scaffold is born red on purpose: a test that cannot fail
 #| is not evidence, and a scaffold is not counted as evidence until its
@@ -153,8 +152,7 @@ sub detect-language(IO::Path $root --> Str) is export {
 
 #| Where a scaffold for one promise goes, per language: (relative path,
 #| file text).  Every scaffold names its promise, carries its ALWAYS and
-#| its PROTECTS, and fails on PLACEHOLDER until written.  A file still in
-#| an earlier form gets the words of that form: INVARIANT and BECAUSE.
+#| its PROTECTS, and fails on PLACEHOLDER until written.
 constant LANGUAGES is export = <raku perl go python ruby rust typescript javascript sh>;
 
 #| An identity as a word a programming language accepts in a name.
@@ -165,14 +163,11 @@ sub scaffold(Str $lang, $inv --> List) is export {
     my $id   = $inv.id;
     my $slug = identity-slug($id);
     my $text = $inv.text;
-    # a card's own words: PROMISE and PROTECTS; the earlier forms keep INVARIANT and BECAUSE
-    my $card = ($inv.?kind).defined;
-    my $heading = $card ?? "{$inv.kind} $id" !! "INVARIANT $id";
-    my $label   = $card ?? 'PROTECTS' !! 'BECAUSE';
-    my $why  = $inv.because // "(no $label yet)";
+    my $heading = "{$inv.kind} $id";
+    my $why  = $inv.because // "(no PROTECTS yet)";
     my $mark = $lang eq any(<go rust typescript javascript>) ?? '//' !! '#';
     # the promise's name on a line of its own, then its words and what it protects
-    my $head = "$mark $heading\n" ~ comment-lines($mark, $text) ~ "\n" ~ comment-lines($mark, "$label $why");
+    my $head = "$mark $heading\n" ~ comment-lines($mark, $text) ~ "\n" ~ comment-lines($mark, "PROTECTS $why");
     given $lang {
         when 'raku' {
             "t/$id.rakutest", qq:to/END/;
@@ -290,15 +285,11 @@ sub write-scaffolds(IZ4::Document $doc, IO::Path $root, Str :$lang = detect-lang
 #| (WHEN, ALWAYS, PROTECTS), what the system is for, the language and
 #| file the test must be, an existing test to match, and the file layout.
 #| It must refuse rather than fake: a test that cannot fail is worse than
-#| none.  A file still in an earlier form is given its own words,
-#| INVARIANT and BECAUSE, so the test it asks for is still found.
+#| none.
 sub draft-prompt($doc, $inv, Str :$lang!, Str :$path!, Str :$example = '', Str :$layout = '' --> Str) is export {
-    my $card = ($inv.?kind).defined;
-    my ($heading, $label) = $card ?? ($inv.kind, 'PROTECTS') !! ('INVARIANT', 'BECAUSE');
-    my $because = $inv.because // ($card ?? '(the owner has not said what it protects yet)' !! '(the owner has not said why yet)');
-    my $promise = $card
-        ?? "$heading {$inv.id}\nWHEN {$inv.reach // ''}\nALWAYS {$inv.text}\nPROTECTS $because\n\n"
-        !! "$heading {$inv.id}\n{$inv.text}\n\n$label\n$because\n\n";
+    my $because = $inv.because // '(the owner has not said what it protects yet)';
+    my ($heading, $label) = $inv.kind, 'PROTECTS';
+    my $promise = "$heading {$inv.id}\nWHEN {$inv.reach // ''}\nALWAYS {$inv.text}\nPROTECTS $because\n\n";
     q:to/END/
     Write one test file for the software in this repository, pinning the
     promise below.  A promise is enduring intent from the project's IZ4
