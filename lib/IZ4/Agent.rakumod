@@ -61,7 +61,8 @@ constant AGENT-PROTOCOL is export = q:to/END/;
             what was actually run or reviewed.  Remaining gap: what has
             not been established.
         A checker cannot prove a natural-language invariant.  Say
-        'uncertain' rather than implying conformance.
+        'uncertain' rather than implying conformance.  A test that passed
+        answers for its invariant: leave that line out unless you doubt it.
     8.  If the IZ4 changes during the task, re-read it.  When delegating
         work, pass this packet on.  A compacted or resumed session has
         lost it: re-run 'iz4 agent' before touching anything, even to
