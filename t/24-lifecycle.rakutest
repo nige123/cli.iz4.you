@@ -126,7 +126,7 @@ my %sh = IZ4_CHECK_CMD => 'sh {file}';
     like $r.add('IZ4').slurp, / "PROMISE $ID" .* 'An order is charged once per delivery.' .* 'It costs trust.' /, 'the name and the reason are kept';
     nok $r.add('t/charged-once.t').e, 'and the test of the old words is gone';
     like $out, / "$ID revised" .* 'Is that right? [y/n]' /, 'the change is then put to the person like any other';
-    like $out, / 'Recorded: terminal approval' /, 'and their yes is recorded';
+    like $out, / 'Your yes is recorded' /, 'and their yes is recorded';
     ($rc, $out, $err) = iz4($r, 'gate', '--staged', :env(%sh), '--json');
     like $out, / '"outcome":"pass"' /, 'after which the gate passes';
     like g($r, 'status', '--short'), / ^ 'M  IZ4' \n 'D  t/charged-once.t' $ /, "all of it staged in the repository's own index, nowhere else";

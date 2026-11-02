@@ -175,6 +175,11 @@ sub activate-enforcement() {
         say "enforcement: 321 {%d<version>} found no agent harness here, so there is nothing to wire.";
         return;
     }
+    # wiring that was already in place and stayed so is nothing to tell a person
+    my @h = @(%r<report><harnesses> // []).grep(*.<detected>);
+    return if %d<state> eq 'ready' && %r<active> && @h
+           && !@h.grep({ (.<action> // '') ne 'unchanged' || (.<error> // '') ne '' });
+    say '';
     say "enforcement, as 321 {%d<version>} wired it and read it back:";
     say "  $_" for driver-lines(%r<report>);
     note INACTIVE-NOTE if !%r<active>;
@@ -2426,12 +2431,21 @@ sub approve-command(Str :$base, Str :$candidate, Str :$sign, Str :$by, Str :$out
         my $ref = store-approval($root, %a);
         if $out.defined { $out.IO.spurt(json-encode(%a) ~ "\n"); say "approval written to $out" }
         say '';
-        say "Recorded: {%a<method>} approval by $who for tree {%r<candidate>.substr(0, 12)} at $ref";
-        say "Signed as $who with {%signer<key>} ({%signer<found>})." if %signer;
-        say "It covers exactly this change: alter the tree, the base or the proposal and it is asked again.";
+        if %signer {
+            my $how = %signer<found> eq 'as last time' ?? 'the key you used last time'
+                   !! %signer<found> eq 'as you said'  ?? 'the key you named'
+                   !!                                     "the key {%signer<found>}";
+            say pretty("✓ Your yes is recorded, signed by $who with {%signer<key>.subst($*HOME.Str, '~')}, $how.");
+        }
+        else {
+            say pretty("✓ Your yes is recorded by $who, unsigned.");
+        }
+        say "  It covers this exact change. If the change is edited, you will be asked again.";
+        say "  Kept in Git as $ref.";
         $*IZ4-INTENT-CHANGED = True;      # a person agreed to a change of intent: enforcement is made sure of
         unless %signer {
-            say 'A terminal approval counts for local checks only. For a signed one, say once which key is yours:';
+            say '';
+            say 'An unsigned yes counts on this machine only. To sign it, say once which key is yours:';
             say '  iz4 approve --sign=KEY --by=YOU      (remembered after that)';
             return 0;
         }
@@ -2559,14 +2573,15 @@ sub send-approval(IO::Path $root, Str $ref) {
     my @remotes = $rc == 0 ?? $remotes.lines.grep(*.trim ne '') !! ();
     return unless @remotes;                       # nowhere to send it: the local gate has it already
     my $remote = @remotes.first('origin') // @remotes[0];
-    my $said = ask("Send it to $remote too, so the gate there accepts it? [Y/n] ");
+    say '';
+    my $said = ask("Send your yes to $remote too, so the check there accepts it? [Y/n] ");
     if !$said.defined || $said.trim.lc.starts-with('n') {
         say "Not sent. When you want it there: git push $remote $ref";
         return;
     }
     my ($prc, $, $perr) = git($anchor, 'push', $remote, $ref);
     say $prc == 0
-        ?? "Sent to $remote. Nothing more for you to do: the commit can go ahead."
+        ?? pretty("✓ Sent to $remote. Nothing more to do: the commit can go ahead.")
         !! "Could not send it ({$perr.trim.lines.tail // 'git push failed'}). When you can: git push $remote $ref";
 }
 
