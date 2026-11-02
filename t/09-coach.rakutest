@@ -97,9 +97,18 @@ is assess-because('Private profiles are private.', 'They must be private.'), 'ci
     'a PROTECTS that restates the invariant is circular';
 is assess-because('People control whether their profile is visible.',
     'Looking for work should not mean surrendering privacy.'), 'ok', 'a real reason is not';
-($r, $said) = coach(['y', 'a profile is private', 'They must be private.', 'They are private.'], candidate => 'Private profiles are private.');
-is $r<outcome>, 'not-iz4', 'a promise that protects nobody is not added';
-nok $r<because>.defined, 'and a circular PROTECTS is not recorded as if it explained anything';
+($r, $said) = coach(['y', 'a profile is private', 'They must be private.', 'They are private.', 'y'], candidate => 'Private profiles are private.');
+like $said, /'restates ALWAYS'/, 'a PROTECTS that restates ALWAYS is questioned';
+is $r<outcome>, 'add', 'but never refused: the person decides';
+is $r<because>, 'They are private.', 'and their second answer stands';
+($r, $said) = coach(['y', 'a profile is private', 'They must be private.', '', 'y'], candidate => 'Private profiles are private.');
+is $r<because>, 'They must be private.', 'enter keeps it as written';
+($r, $said) = coach(['y', 'a profile is private', 'They must be private.', '', 'y'], candidate => 'Private profiles are private.',
+    suggested-because => 'A person looking for work keeps it from their employer.');
+like $said, /'suggestion: A person looking for work'/, 'a suggestion that explains something is offered';
+is $r<because>, 'A person looking for work keeps it from their employer.', 'and enter takes it';
+($r, $said) = coach(['y', 'a profile is private', 'They must be private.', 'They are private.', 'n'], candidate => 'Private profiles are private.');
+is $r<outcome>, 'skipped', 'declining at the confirmation still adds nothing';
 
 # ---- leaving is always easy --------------------------------------------------
 ($r, $said) = coach(['']);

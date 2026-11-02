@@ -393,13 +393,13 @@ sub coach-invariant(
     my $because = answer("PROTECTS: {PROTECTS-QUESTION}"
         ~ ($hint ne '' ?? "\n(enter to use the suggestion: $hint)" !! '') ~ "\n> ");
     $because = $hint if $because eq '' && $hint ne '';
+    # A PROTECTS that restates ALWAYS is questioned once, never refused:
+    # the person's words stand unless they choose others.
     if assess-because($candidate, $because) eq 'circular' {
+        my $offer = $hint ne $because && assess-because($candidate, $hint) eq 'ok' ?? $hint !! '';
         tell("That restates ALWAYS. What must not be defeated: which person, and what of theirs?");
-        $because = answer('> ');
-        if assess-because($candidate, $because) ne 'ok' {
-            tell(NOTHING-PROTECTED);
-            return %( outcome => 'not-iz4', advice => 'the README' );
-        }
+        my $again = answer(($offer ne '' ?? "(enter to use the suggestion: $offer)" !! '(enter to keep it as written)') ~ "\n> ");
+        $because = $again ne '' ?? $again !! $offer ne '' ?? $offer !! $because;
     }
     elsif $because eq '' {
         tell(NOTHING-PROTECTED ~ ' Say whose what, or press enter to leave it out.');
