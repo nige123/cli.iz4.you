@@ -1245,6 +1245,25 @@ sub check-progress(--> Callable) {
     }
 }
 
+#| What a person waiting on an agent sees.  Its answer takes as long as
+#| it takes, so there is no bar: one line under the title, a spinner,
+#| what is asked and how long it has been, rewritten in place and wiped
+#| when the answer comes.  Into a pipe, nothing: the work just runs.
+sub while-waiting(Str $what, &work) {
+    return work() unless $*OUT.t;
+    my @frames = diamond() eq '◈' ?? <⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏> !! < | / - \\ >;
+    my ($t0, $i) = now, 0;
+    my $p = start { work() };
+    while $p.status ~~ Planned {
+        my $s = (now - $t0).Int;
+        print "\r\e[2K" ~ pretty("  {@frames[$i++ % @frames]} $what  {sprintf('%d:%02d', $s div 60, $s mod 60)}");
+        $*OUT.flush;
+        sleep 0.1;
+    }
+    print "\r\e[2K"; $*OUT.flush;
+    $p.result;    # a failure is thrown here, as if the work had run in place
+}
+
 #| One plain glyph: green tick, red cross, yellow question; coloured only
 #| on a terminal that has not asked for no colour.
 sub mark(Str $glyph --> Str) {
@@ -1285,19 +1304,21 @@ multi MAIN('test', *@which, Str :$file, Str :$lang, Bool :$list = False, Bool :$
         # With an agent and a person present, draft the real test and ask;
         # a draft is written only on a yes, and is marked for review.
         my @drafted;
+        my $drafting = 0;
         if $draft && interactive() && !agent-reachable() { gap(); say "  No agent to draft with (321, or your own IZ4_AGENT_CMD): writing scaffolds for you to fill in." }
         if $draft && interactive() && agent-reachable() {
             my $layout = gather-context($root);
-            for $doc.invariants.grep(*.id.defined) -> $inv {
+            my @todo = $doc.invariants.grep({ .id.defined && (!@only || .id eq any(@only)) && %ev<state>{.id} eq 'none'
+                                              && !$root.add(scaffold($language, $_)[0]).e });
+            for @todo.kv -> $k, $inv {
                 my $n = $inv.id;
-                next if @only && $n ne any(@only);
-                next if %ev<state>{$n} ne 'none';
                 my ($rel, $) = scaffold($language, $inv);
-                next if $root.add($rel).e;
                 gap();
                 say "{heading-of($doc)} $n: {$inv.text}";
-                say "asking agent ({agent-label()}) for a test ($language, $rel) ...";
-                my $d = try agent-draft($doc, $inv, $root, :lang($language), :path($rel), :$layout);
+                my $t0 = now;
+                my $d = try while-waiting("your agent ({(%*ENV<IZ4_AGENT_CMD> // '').trim ?? 'IZ4_AGENT_CMD' !! '321'}) is drafting $rel" ~ (@todo > 1 ?? ", {$k + 1} of {+@todo}" !! ''),
+                    { agent-draft($doc, $inv, $root, :lang($language), :path($rel), :$layout) });
+                $drafting += now - $t0;
                 without $d { say "  no draft: {$!.message.lines.head}; a scaffold will be written instead"; next }
                 with $d<cannot> { say "  the agent declined: $_"; say "  a scaffold will be written instead"; next }
                 say '';
@@ -1315,7 +1336,7 @@ multi MAIN('test', *@which, Str :$file, Str :$lang, Bool :$list = False, Bool :$
         my @done = write-scaffolds($doc, $root, :lang($language), :@only);
         if @drafted {
             gap();
-            say "  Drafted {+@drafted} test{+@drafted == 1 ?? '' !! 's'} ($language), each marked for review on its first line:";
+            say "  Drafted {+@drafted} test{+@drafted == 1 ?? '' !! 's'} ($language) in {sprintf('%d:%02d', $drafting.Int div 60, $drafting.Int mod 60)}, each marked for review on its first line:";
             say "    $_[0]  ($_[1])" for @drafted;
             say "  A draft is not evidence until you have read it, run it, seen that it can fail, and deleted that line.";
         }

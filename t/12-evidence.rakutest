@@ -202,8 +202,9 @@ ok !$agent.add($search-test).slurp.contains(DRAFT-MARK), 'and writes no draft';
 # yes to the first, no to the second
 ($rc, $out, $err) = iz4-talk($agent, "y\nn\n", 'test', :env(%env));
 is $rc, 0, 'a drafting run exits 0';
-like $out, /'asking agent (cat ' .* "Write it to $search-test, marked for your review?"/, 'the draft is shown and the person asked';
-like $out, /'Drafted 1 test (javascript)' .* "$search-test  ({$SEARCH})" .* 'A draft is not evidence until'/, 'a yes writes the draft and says what it is not';
+like $out, /'expect(search("private"))' .* "Write it to $search-test, marked for your review?"/, 'the draft is shown and the person asked';
+unlike $out, /'is drafting'/, 'into a pipe, no progress line';
+like $out, /'Drafted 1 test (javascript) in 0:0' .* "$search-test  ({$SEARCH})" .* 'A draft is not evidence until'/, 'a yes writes the draft and says what it is not';
 like $out, /'Scaffolded 1 test (javascript)' .* "$contact-test"/, 'a no falls back to the scaffold';
 my $written = $agent.add($search-test).slurp;
 ok $written.lines[0] eq "// {$DRAFT-MARK}", 'the written draft carries the review mark';
@@ -230,7 +231,23 @@ like $out, /'no draft:' .* 'Scaffolded 1 test'/, 'a failing agent is reported an
 $agent.add($contact-test).unlink;
 $reply-file.spurt($reply);
 ($rc, $out, $err) = iz4-talk($agent, "y\n", 'test', '--/draft', :env(%env));
-unlike $out, /'asking agent'/, '--/draft never asks an agent';
+unlike $out, /'Write it to'/, '--/draft never asks an agent';
 like $out, /'Scaffolded 1 test'/, 'and scaffolds';
+
+# on a terminal, a wait for the agent is one line under the title, wiped when the draft comes
+.unlink for $agent.add('test').dir;
+{
+    my $root = $?FILE.IO.resolve.parent(2);
+    my @cmd = %*ENV<IZ4_TEST_BIN> ?? (%*ENV<IZ4_TEST_BIN>,) !! ($*EXECUTABLE, '-I', $root.add('lib').Str, $root.add('bin/iz4').Str);
+    my %e = %*ENV, IZ4_AGENT_CMD => "sleep 0.5; cat {$reply-file}", NO_COLOR => '1';
+    %e<IZ4_INTERACTIVE>:delete;
+    my $proc = run 'python3', $root.add('t/lib/at-terminal.py').Str, |@cmd, 'test', SEARCH, :cwd($agent.Str), :in, :out, :err, :env(%e);
+    $proc.in.print("y\n");
+    my $ = $proc.in.close;
+    my $tty = $proc.out.slurp(:close);
+    $proc.err.slurp(:close);
+    like $tty, /'iz4 test: IZ4' .* "your agent (IZ4_AGENT_CMD) is drafting $search-test  0:00" .* "\e[2K" .* 'expect(search("private"))'/, 'a spinner says who is drafting what, and for how long, under the title';
+    like $tty, /'Drafted 1 test (javascript) in 0:0'/, 'and the summary says how long drafting took';
+}
 
 done-testing;
