@@ -7,6 +7,7 @@ use IZ4Test;
 use IZ4;
 use IZ4::Document;
 use IZ4::Evidence;
+use IZ4::Gate;
 my $PLACEHOLDER = PLACEHOLDER;
 my $DRAFT-MARK = DRAFT-MARK;
 
@@ -67,6 +68,26 @@ ok  names-identity("x.{$ONCE} and then {$ONCE}", ONCE), 'names-identity: a later
 is detect-language($repo), 'perl', 'the language follows the existing tests';
 my $rk = temp-dir; $rk.add('t').mkdir; $rk.add('t/00-load.t').spurt("use v6;\nuse Test;\nuse-ok 'X';\n");
 is detect-language($rk), 'raku', 'a .t file that says use v6 is Raku, not Perl';
+
+# a design note in a specs folder is prose, not a test; a vendored library's tests do not outvote the project's
+nok is-test-path('docs/superpowers/specs/2026-11-02-design.md'), 'a Markdown note in a specs folder is not a test';
+ok  is-test-path('spec/models/order_spec.rb'), 'but a spec file there still is';
+{
+    my $mixed = temp-dir;
+    my $mp = minimal-iz4(:dir($mixed), :domain<shop.example.com>);
+    add-invariant($mp, 'An order is recorded once.', :name<recorded-once.shop.example.com>, :reach('an order arrives'), :because("A buyer's money."));
+    $mixed.add('t').mkdir;
+    $mixed.add('t/a.t').spurt("# INVARIANT recorded-once.shop.example.com\nuse Test::More;\nok 1;\ndone_testing;\n");
+    $mixed.add('docs/specs').mkdir;
+    $mixed.add('docs/specs/order-design.md').spurt("Covers recorded-once.shop.example.com.\n");
+    $mixed.add('public/lib/tests').mkdir;
+    $mixed.add("public/lib/tests/$_.js").spurt("test();\n") for <a b c d>;
+    is detect-language($mixed), 'perl', "the project's own test folder decides the language, not a vendored library's";
+    is file-language($mixed.add('t/a.t')), 'perl', 'and each file says its own';
+    is evidence-for(check-doc($mp), $mixed)<files><recorded-once.shop.example.com>, ('t/a.t',), 'the design note is not evidence';
+    my $ran = run-checks(check-doc($mp), $mixed, :jobs(1)).first({ .<file> eq 't/a.t' });
+    is $ran<outcome>, 'passed', 'a Perl test runs with perl, whatever else the repository holds';
+}
 my @done = write-scaffolds($doc, $repo);
 is @done, (("t/{$EXPIRE}.t", EXPIRE),), 'only the invariant without evidence is scaffolded';
 my $scaffold = $repo.add("t/{$EXPIRE}.t").slurp;
@@ -239,7 +260,7 @@ like $out, /'Scaffolded 1 test'/, 'and scaffolds';
 {
     my $root = $?FILE.IO.resolve.parent(2);
     my @cmd = %*ENV<IZ4_TEST_BIN> ?? (%*ENV<IZ4_TEST_BIN>,) !! ($*EXECUTABLE, '-I', $root.add('lib').Str, $root.add('bin/iz4').Str);
-    my %e = %*ENV, IZ4_AGENT_CMD => "sleep 0.5; cat {$reply-file}", NO_COLOR => '1';
+    my %e = %*ENV, IZ4_AGENT_CMD => "sleep 0.5; cat {$reply-file}", NO_COLOR => '1', COLUMNS => '200';
     %e<IZ4_INTERACTIVE>:delete;
     my $proc = run 'python3', $root.add('t/lib/at-terminal.py').Str, |@cmd, 'test', SEARCH, :cwd($agent.Str), :in, :out, :err, :env(%e);
     $proc.in.print("y\n");

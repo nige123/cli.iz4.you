@@ -471,12 +471,12 @@ sub run-checks(IZ4::Document $cand, IO::Path $cand-dir, Int :$timeout = 300, Str
     my sub checked-one(Str $f --> Hash) {
         my @argv = $cmd.defined
             ?? $cmd.subst('{file}', $f, :g).words
-            !! runner-for($lang, $f, $cand-dir);
+            !! runner-for(file-language($cand-dir.add($f)) // $lang, $f, $cand-dir);
         my %r = file => $f, invariants => by-identity(%by-file{$f}), timeout_applied => $has-timeout;
         tell(kind => 'start', file => $f, invariants => %r<invariants>);
         if !@argv {
             %r<outcome> = 'unassessed';
-            %r<detail>  = "no runner known for $lang tests; set IZ4_CHECK_CMD, e.g. 'npm test -- \{file\}'";
+            %r<detail>  = "no runner known for {file-language($cand-dir.add($f)) // $lang} tests; set IZ4_CHECK_CMD, e.g. 'npm test -- \{file\}'";
             return %r;
         }
         unless have-command(@argv[0]) {

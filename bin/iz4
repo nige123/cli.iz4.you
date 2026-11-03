@@ -987,7 +987,12 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
                         !%change<staged> || !%change<outcome> ?? ''
                         !! %change<changes> || %change<protections>
                             ?? "{%change<changes>} change{%change<changes> == 1 ?? '' !! 's'} to what it promises, {%change<protections>} to a protection: {%change<outcome>}"
-                            !! 'no commitment changed' ~ (%change<touches> ?? "; touches {%change<touches>.join(', ')}" !! '')];
+                            !! 'no commitment changed' ~ do given +%change<touches> {
+                                   # by name when a few, else how many: iz4 review --offline --staged lists them
+                                   when 0      { '' }
+                                   when 1..3   { "; touches {%change<touches>.map(*.<id>.subst('.' ~ ($doc.domain // ''), '')).join(', ')}" }
+                                   default     { "; touches $_ by their words" }
+                               }];
         }
         @rows.push: ['agents', $level eq 'none' ?? 'nothing wired' !! "$level" ~ (%agents<launcher> ?? ", via 321 {%agents<launcher>}" !! ', hooks an earlier iz4 wrote'),
                      $level eq 'none' ?? ($bin.defined ?? "321 {%agents<launcher>} is installed: 321 iz4 install" !! '321 is not installed') !! 'iz4 agent status has the detail'];
@@ -1210,6 +1215,20 @@ sub short(Str $s --> Str) { $s.chars > 60 ?? $s.substr(0, 57).trim-trailing ~ '.
 #| IZ4_PROGRESS=1 asks instead for one line per test, left where it is,
 #| for a pipe that wants the record.  Into a pipe with nothing asked,
 #| nothing: what a tool reads is unchanged.
+#| A live line cut to the terminal's width, so rewriting it in place
+#| clears all of it: a line that wraps leaves its first row behind.
+#| What is kept (a timer) stays whole; the rest gives way.
+sub fit-line(Str $s, Str :$keep = '' --> Str) {
+    state $cols = do {
+        my $p = try run 'sh', '-c', 'stty size </dev/tty 2>/dev/null', :out, :err;
+        my $w = ($p.defined ?? ($p.out.slurp(:close).words[1] // '') !! '');
+        my $env = %*ENV<COLUMNS> // '';
+        $w ~~ /^ \d+ $/ && $w >= 20 ?? +$w !! $env ~~ /^ \d+ $/ && $env >= 20 ?? +$env !! 80;
+    };
+    my $room = $cols - 1 - $keep.chars;
+    ($s.chars <= $room ?? $s !! $s.substr(0, $room - 1) ~ '…') ~ $keep;
+}
+
 sub check-progress(--> Callable) {
     my $lines = (%*ENV<IZ4_PROGRESS> // '') eq '1';
     return Callable unless $lines || $*OUT.t;
@@ -1222,7 +1241,7 @@ sub check-progress(--> Callable) {
         my $w = 20;
         my $f = $total ?? ($w * $done / $total).floor min $w !! 0;
         my $s = (now - $t0).Int;
-        live(pretty("  {($full ?? '█' !! '#') x $f}{($full ?? '░' !! '-') x ($w - $f)}  $done/{tests($total)}  {sprintf('%d:%02d', $s div 60, $s mod 60)}" ~ ($tail ?? "  $tail" !! '')));
+        live(pretty(fit-line("  {($full ?? '█' !! '#') x $f}{($full ?? '░' !! '-') x ($w - $f)}  $done/{tests($total)}  {sprintf('%d:%02d', $s div 60, $s mod 60)}" ~ ($tail ?? "  $tail" !! ''))));
     }
     sub (%e) {
         given %e<kind> {
@@ -1261,7 +1280,7 @@ sub while-waiting(Str $what, &work) {
     my $p = start { work() };
     while $p.status ~~ Planned {
         my $s = (now - $t0).Int;
-        print "\r\e[2K" ~ pretty("  {@frames[$i++ % @frames]} $what  {sprintf('%d:%02d', $s div 60, $s mod 60)}");
+        print "\r\e[2K" ~ pretty(fit-line("  {@frames[$i++ % @frames]} $what", :keep("  {sprintf('%d:%02d', $s div 60, $s mod 60)}")));
         $*OUT.flush;
         sleep 0.1;
     }

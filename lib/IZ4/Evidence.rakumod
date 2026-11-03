@@ -40,6 +40,9 @@ constant DRAFT-MARK is export = 'iz4 draft: an agent wrote this test; review it,
 my @TEST-DIRS  = <t test tests spec specs __tests__ features>;
 my regex test-file-name { [ '_test' | '.test' | '.spec' | '_spec' | 'Test' ] '.' \w+ $ | ^ 'test_' \w+ '.' \w+ $ | '.t' $ | '.rakutest' $ }
 my @SKIP-DIRS  = <.git node_modules local vendor dist target .precomp build .venv venv>;
+#| Prose, pages and data are never tests, even in a folder of tests: a
+#| design note in docs/specs/ that names an invariant is not evidence.
+my @NOT-TEST-EXT = <md markdown txt rst adoc org html htm pdf json yml yaml toml csv svg png jpg jpeg gif css>;
 
 #| Would test-files count this repository-relative path as a test file?
 #| The same rule, for a path that is not on disk yet (a Git tree listing).
@@ -48,6 +51,7 @@ sub is-test-path(Str $rel --> Bool) is export {
     return False if @parts > 8;
     return False if so @parts.head(*-1).first({ $_ eq any(@SKIP-DIRS) || $_.starts-with('.') });
     return False if @parts.tail.starts-with('.');
+    return False if so @parts.tail.IO.extension.lc eq any(@NOT-TEST-EXT);
     so @parts.head(*-1).first({ $_ eq any(@TEST-DIRS) }) || so(@parts.tail ~~ &test-file-name);
 }
 
@@ -66,6 +70,7 @@ sub test-files(IO::Path $root --> List) is export {
             }
             elsif $in-tests || $e.basename ~~ &test-file-name {
                 next if $e.basename.starts-with('.');       # editor swap files and the like
+                next if so $e.extension.lc eq any(@NOT-TEST-EXT);
                 @out.push: $e if $e.f && $e.s < 2_000_000;
             }
         }
@@ -122,21 +127,31 @@ sub opening-words(Str $text --> Str) is export {
 #| The test language of a repository: from its existing tests first, then
 #| from its project files.  Returns a name below, or 'sh' when nothing is
 #| recognisable.
-sub detect-language(IO::Path $root --> Str) is export {
+#| The language of one test file, from its extension, or Str when the
+#| extension says nothing.  .t is Perl's and Raku's alike: the file says
+#| which.
+sub file-language(IO::Path $f --> Str) is export {
     my %by-ext = rakutest => 'raku', t => 'perl', go => 'go', py => 'python',
         rb => 'ruby', rs => 'rust', ts => 'typescript', tsx => 'typescript', js => 'javascript', mjs => 'javascript';
-    my %seen;
-    for test-files($root) -> $f {
-        my $ext = $f.extension;
-        next unless %by-ext{$ext}:exists;
-        my $lang = %by-ext{$ext};
-        # .t is Perl's and Raku's alike: the file says which
-        if $ext eq 't' {
-            my $head = (try $f.slurp) // '';
-            $lang = 'raku' if $head.contains('use v6') || $head.contains('use Test;') && !$head.contains('Test::More');
-        }
-        %seen{$lang}++;
+    my $ext = $f.extension;
+    return Str unless %by-ext{$ext}:exists;
+    if $ext eq 't' {
+        my $head = (try $f.slurp) // '';
+        return 'raku' if $head.contains('use v6') || $head.contains('use Test;') && !$head.contains('Test::More');
     }
+    %by-ext{$ext};
+}
+
+sub detect-language(IO::Path $root --> Str) is export {
+    # the project's own test folders speak first: a vendored library's tests
+    # under public/ or assets/ do not decide what language the project tests in
+    my (%top, %seen);
+    for test-files($root) -> $f {
+        my $lang = file-language($f) // next;
+        %seen{$lang}++;
+        %top{$lang}++ if $f.relative($root).split('/').head eq any(@TEST-DIRS);
+    }
+    return %top.max(*.value).key if %top;
     return %seen.max(*.value).key if %seen;
     return 'raku'       if $root.add('META6.json').e;
     return 'perl'       if $root.add('cpanfile').e || $root.add('Makefile.PL').e || $root.add('dist.ini').e;
