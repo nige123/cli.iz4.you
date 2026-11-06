@@ -22,7 +22,6 @@ use IZ4::Launcher;
 sub agent-suggest(IO::Path $dir = $*CWD, Str :$cmd, Str :$current = '' --> Hash) is export {
     my $prompt = suggest-prompt(:$current, evidence => gather-context($dir));
     die NO-AGENT-RUNNER unless agent-reachable(:$cmd);
-    note "asking agent ({$cmd // agent-label()}) for candidate invariants in {$dir.resolve} ...";
     my %s = parse-suggestions(ask-agent($prompt, :root($dir), :$cmd));
     # every drafted line a person is about to read, with the most it may run to
     my (@where, @items);
@@ -83,7 +82,6 @@ sub agent-review(IO::Path $iz4, Str :$diff!, Str :$what!, Str :$cmd --> Hash) is
     my $doc = IZ4::Document.load($iz4);
     my $prompt = review-prompt(effective => effective-text($doc), :$diff, :$what);
     die NO-AGENT-RUNNER unless agent-reachable(:$cmd);
-    note "asking agent ({$cmd // agent-label()}) to review $what ...";
     parse-review(ask-agent($prompt, :root($iz4.parent), :$cmd));
 }
 

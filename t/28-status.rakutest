@@ -115,6 +115,40 @@ $test.spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
 like $out, / '  * charged-once  t/charged-once.t passed' /, 'and the closed diamond a star';
 unlike $out, / "\e[" /, 'and into a pipe, no colour';
 
+# ---- touches -------------------------------------------------------------------
+# a staged change that uses an invariant's words touches it: by name when a
+# few, else how many, and never the data behind them
+g($r, 'add', 't'); g($r, 'commit', '-qm', 'test');
+$r.add('order.pl').spurt("# an order is never charged twice\n");
+g($r, 'add', 'order.pl');
+($rc, $out, $err) = iz4($r, 'status', '--no-checks');
+like $out, / 'this change   1 file staged' \h+ 'no commitment changed; touches charged-once' \n /, 'one touched, by its short name';
+for <refunded-fully:refund:refunds shipped-promptly:parcel:parcels receipts-kept:receipt:receipts> {
+    my ($name, $one, $many) = .split(':');
+    iz4($r, 'add', 'promise', "Every $one is never lost, and $many are never charged twice.", "--name=$name", "--when=an order has a $one", '--namespace=shop.example.com', "--protects=a customer's $many", '--force');
+}
+g($r, 'reset', '-q'); g($r, 'add', 'IZ4'); g($r, 'commit', '-qm', 'more promises');
+$r.add('order.pl').spurt("# an order is never charged twice: refund, parcel and receipt are never lost\n");
+g($r, 'add', 'order.pl');
+($rc, $out, $err) = iz4($r, 'status', '--no-checks');
+like $out, / 'no commitment changed; touches 4 by their words' \n /, 'more than three: how many';
+unlike $out, / 'id' \s+ '=>' | 'terms' /, 'never the data behind them';
+
+# while the agent reviews, a spinner under the title; nothing above it
+{
+    my $root = $?FILE.IO.parent.parent;
+    my @cmd = %*ENV<IZ4_TEST_BIN> ?? (%*ENV<IZ4_TEST_BIN>,) !! ($*EXECUTABLE, '-I', $root.add('lib').Str, $root.add('bin/iz4').Str);
+    my %e = %*ENV, IZ4_AGENT_CMD => 'sleep 0.5; echo', NO_COLOR => '1', COLUMNS => '200';
+    %e<IZ4_INTERACTIVE>:delete;
+    my $proc = run 'python3', $root.add('t/lib/at-terminal.py').Str, |@cmd, 'review', '--staged', :cwd($r.Str), :in, :out, :err, :env(%e);
+    my $ = $proc.in.close;
+    my $tty = $proc.out.slurp(:close);
+    my $said = $proc.err.slurp(:close);
+    like $tty, / 'iz4 review' .* 'your agent (IZ4_AGENT_CMD) is reviewing staged changes  0:00' .* "\e[2K" /, 'a spinner says who is reviewing, under the title';
+    unlike $said, / 'asking agent' /, 'and no line on stderr ahead of the screen';
+}
+g($r, 'reset', '-q');
+
 # ---- air -----------------------------------------------------------------------
 ($rc, $out, $err) = iz4($r, 'status', '--no-checks', :env(IZ4_COLOR => '1'));
 like $out, / ^ \n /, 'dressed for a terminal, iz4 opens with a row of air';

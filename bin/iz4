@@ -1269,6 +1269,9 @@ sub check-progress(--> Callable) {
     }
 }
 
+#| Who answers, in a word: the person's own command or 321.
+sub agent-short(--> Str) { (%*ENV<IZ4_AGENT_CMD> // '').trim ?? 'IZ4_AGENT_CMD' !! '321' }
+
 #| What a person waiting on an agent sees.  Its answer takes as long as
 #| it takes, so there is no bar: one line under the title, a spinner,
 #| what is asked and how long it has been, rewritten in place and wiped
@@ -1340,7 +1343,7 @@ multi MAIN('test', *@which, Str :$file, Str :$lang, Bool :$list = False, Bool :$
                 gap();
                 say "{heading-of($doc)} $n: {$inv.text}";
                 my $t0 = now;
-                my $d = try while-waiting("your agent ({(%*ENV<IZ4_AGENT_CMD> // '').trim ?? 'IZ4_AGENT_CMD' !! '321'}) is drafting $rel" ~ (@todo > 1 ?? ", {$k + 1} of {+@todo}" !! ''),
+                my $d = try while-waiting("your agent ({agent-short()}) is drafting $rel" ~ (@todo > 1 ?? ", {$k + 1} of {+@todo}" !! ''),
                     { agent-draft($doc, $inv, $root, :lang($language), :path($rel), :$layout) });
                 $drafting += now - $t0;
                 without $d { say "  no draft: {$!.message.lines.head}; a scaffold will be written instead"; next }
@@ -1416,7 +1419,7 @@ multi MAIN('review', *@range, Str :$file, Bool :$staged = False, Bool :$for-push
         return 0 unless $diff.trim;
         return 0 if $offline;
 
-        my $review = try agent-review($path, :$diff, :$what);
+        my $review = try while-waiting("your agent ({agent-short()}) is reviewing $what", { agent-review($path, :$diff, :$what) });
         without $review {
             say '';
             say "  · No agent review: {$!.message.lines.head} (IZ4_AGENT_CMD names your agent; --offline skips this).";
@@ -1457,7 +1460,7 @@ multi MAIN('suggest', Str :$file) {
     attempt {
         my $path = try resolve-target($file);
         my $dir  = $path.defined ?? $path.parent !! $*CWD;
-        my $reply = try agent-suggest($dir, current => ($path.defined ?? $path.slurp !! ''));
+        my $reply = try while-waiting("your agent ({agent-short()}) is looking for candidate invariants", { agent-suggest($dir, current => ($path.defined ?? $path.slurp !! '')) });
         user-error("agent suggestion failed: {$!.message.lines.head}; nothing was added") without $reply;
         head('suggest', 'a few candidates, for you to decide') if pretty-on();
         show-suggestions(%$reply, $path);
@@ -1496,7 +1499,7 @@ multi MAIN('suggest', 'saas', Bool :$json = False, Bool :$brief = False, Str :$f
 #| From init: ask the agent for candidates and go through them.  False
 #| when the agent could not be asked, so the caller can coach instead.
 sub review-suggestions(IO::Path $path, Bool :$quiet = False --> Bool) {
-    my $reply = try agent-suggest($path.parent, current => $path.slurp);
+    my $reply = try while-waiting("your agent ({agent-short()}) is looking for candidate invariants", { agent-suggest($path.parent, current => $path.slurp) });
     without $reply {
         say "The agent could not be asked ({$!.message.lines.head}), so one question at a time instead." unless $quiet && !$!.message;
         return False;
