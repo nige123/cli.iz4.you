@@ -108,9 +108,9 @@ routed around, and that changing one is a person's decision), `effective`
 together, ready to hand over). Schema `iz4-context/1`. An invalid IZ4 is an
 error (exit 1), never an empty context.
 
-The instruction also asks for the per-invariant report that `verify` looks
-for, so an agent given only this context is never checked for something it
-was not asked.
+The instruction also says what `verify` reads in the agent's last words:
+nothing about invariants unless the work may break one, and then one line,
+`✕ NAME may be broken: what happened. To fix: the step.`
 
 ### `iz4 draft questions` and `iz4 draft check`
 
@@ -190,15 +190,13 @@ driver's job. `evidence.parts` says what each part found:
 |---|---|
 | `structure` | the IZ4 is well formed |
 | `change` | the change alters no commitment or protection without agreement |
-| `report` | work that changed files ends with a per-invariant report, or this run's tests passed for every invariant the project keeps |
+| `report` | whether the agent's last words say an invariant may be broken: `warn` when they do, `pass` when they do not |
 
 A part that was not run is `not_checked` and is never counted as a pass.
-`evidence.report.uncertain` lists the invariants the report itself calls
-uncertain or conflicting, in its own words. `evidence.report.from_tests`
-holds one line for each invariant whose tests all passed in this run. Such
-a line says a test passed and no more, so it reads `supported by evidence`.
-When any invariant has no passing test, the report is asked for and names
-those invariants. An agent's report is still taken whenever it gives one.
+`evidence.report.broken` holds each line in which the agent says an
+invariant may be broken (`✕ NAME may be broken: ...`, or a line calling one
+conflicting), in its own words. Silence is owed nothing: no report is asked
+for, and silence is never counted as evidence that an invariant held.
 This evidence stays on the machine: `iz4 report` sends the registry nothing
 from it.
 

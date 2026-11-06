@@ -54,15 +54,15 @@ constant AGENT-PROTOCOL is export = q:to/END/;
         intent you cannot see, ask the owner; never invent it.
     6.  Choose proportionate evidence for each affected invariant: an
         existing test, a new behavioural test, inspection or human review.
-    7.  Before finishing, report each affected invariant honestly, one
-        line each:
-            Invariant NAME: mechanically verified | supported by evidence
-            | apparently consistent | uncertain | conflicting.  Evidence:
-            what was actually run or reviewed.  Remaining gap: what has
-            not been established.
-        A checker cannot prove a natural-language invariant.  Say
-        'uncertain' rather than implying conformance.  A test that passed
-        answers for its invariant: leave that line out unless you doubt it.
+    7.  Speak about an invariant only when it may be broken.  If your
+        work may break one, or you have a real reason to doubt it still
+        holds, end with one line for it: what happened, and the exact
+        step that puts it right:
+            ✕ NAME may be broken: what happened.  To fix: the step.
+        Otherwise say nothing about invariants: silence claims nothing,
+        and 'iz4 status' and the tests say what held.  Never call a break
+        fixed, or a doubt settled, without evidence.  Say 'uncertain'
+        rather than implying conformance.
     8.  If the IZ4 changes during the task, re-read it.  When delegating
         work, pass this packet on.  A compacted or resumed session has
         lost it: re-run 'iz4 agent' before touching anything, even to

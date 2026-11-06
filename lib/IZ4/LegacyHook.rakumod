@@ -15,16 +15,14 @@ unit module IZ4::LegacyHook;
 #| it, and it goes once the transition is over.
 #|
 #| What the old commands do is unchanged: the packet is delivered at
-#| session start, one edit made before it is refused, and one turn end
-#| that changed files without the per-invariant report is refused.  None
-#| of that proves an invariant was honoured.
+#| session start and one edit made before it is refused.  A turn end is
+#| no longer asked for anything.  None of that proves an invariant was honoured.
 
 use IZ4;
 use IZ4::Document;
 use IZ4::Agent;
 use IZ4::Git;
 use IZ4::Register;
-use IZ4::Machine;      # REPORT-WANTED: the one line that asks for the report
 
 #| Exit codes the harness contract uses: 0 allow, 2 refuse with the
 #| reason on standard error.
@@ -96,33 +94,9 @@ sub on-pre-edit(IO::Path $iz4, %input --> List) is export {
      ~ "Here it is; read it, then make the change.\n\n$packet");
 }
 
-#| Before a turn ends: if tracked files changed and the reply carries no
-#| per-invariant report, refuse once with the format.  The harness's
-#| 'stop_hook_active' guards against looping, and so does a mark.
-sub on-stop(IO::Path $iz4, %input --> List) is export {
-    return (ALLOW, '', '') if %input<stop_hook_active>;
-    return (ALLOW, '', '') if marked(%input, 'reported');
-    return (ALLOW, '', '') unless changed-since-start($iz4, %input);
-    my $last = last-assistant-text(%input<transcript_path>);
-    if $last ~~ /:i 'invariant' .* [ 'assessment' | 'mechanically verified' | 'supported by evidence' | 'apparently consistent' | 'uncertain' | 'conflicting' ] .* [ 'evidence' | 'remaining gap' ] / {
-        mark(%input, 'reported');
-        return (ALLOW, '', '');
-    }
-    mark(%input, 'reported');
-    (REFUSE, '',
-     "iz4: " ~ REPORT-WANTED ~ " 'iz4 invariants' lists them.\n");
-}
-
-#| Whether the repository's tracked files differ from the last commit, or
-#| commits were made since the session's packet mark.
-sub changed-since-start(IO::Path $iz4, %input --> Bool) {
-    my ($rc, $out, $) = git($iz4, 'status', '--porcelain', '--untracked-files=no');
-    return True if $rc == 0 && $out.trim;
-    my $mark = mark-dir().add(session-id(%input) ~ '.packet');
-    return False unless $mark.e;
-    my ($rc2, $log, $) = git($iz4, 'log', '--format=%h', "--since={$mark.slurp.trim}");
-    $rc2 == 0 && ?$log.trim;
-}
+#| Before a turn ends: nothing is asked.  An agent speaks about an
+#| invariant only when one may be broken, so a quiet ending owes nothing.
+sub on-stop(IO::Path $iz4, %input --> List) is export { (ALLOW, '', '') }
 
 #| The last assistant message in a Claude Code transcript (JSON lines),
 #| or an empty string when there is none to read.
@@ -182,8 +156,7 @@ sub legacy-hooks(IO::Path :$root! --> List) is export {
 sub legacy-hooks-lines(@events, Str :$migration! --> List) is export {
     my @does = 'the packet is delivered at session start';
     @does.push('one edit made before it is refused') if @events.grep('pre-edit');
-    @does.push('one turn end without a report is refused') if @events.grep('stop');
-    ("Claude Code hooks: active ({@events.join(', ')})",
+        ("Claude Code hooks: active ({@events.join(', ')})",
      "  Managed by: legacy IZ4 wiring ({LEGACY-SETTINGS}, written by an earlier iz4; left exactly as it is)",
      "  Enforcement: AWARE ({@does.join('; ')}; no action and no change is checked)",
      "  Migration: $migration").List;

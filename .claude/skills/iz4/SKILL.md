@@ -11,7 +11,7 @@ prints - it validates the file, lists the effective invariants
 
 Without the CLI the core workflow still works: read the root `IZ4`
 file directly (the nearest one walking upward), apply the protocol and
-the inherited foundation below, and say in your final report that CLI
+the inherited foundation below, and say when you finish that CLI
 validation was not performed.
 
 A project's own promises live in its IZ4 file, never in this skill.
@@ -36,6 +36,14 @@ output for yourself and show it only when they ask.
   nothing ran, nothing is celebrated.
 - Programs get the long form: `--json` carries the whole document,
   for a tool to read, never for a person.
+- Interrupt only when the person would be glad of it: "oh wow, that
+  saved me".  Invariants that are fine get no line.  Speak only of
+  one that may be broken, and give the step that puts it right:
+
+    ✕ printed-order-is-faithful may be broken: 765 products print the wrong photo. To fix: run the queued photo fix.
+
+- No inventories.  Leave out lists of staged files and of what you
+  did not touch; the person asks when they want them.
 
 IZ4 agent protocol
 
@@ -75,15 +83,14 @@ As a coding agent working in a repository that keeps one:
     intent you cannot see, ask the owner; never invent it.
 6.  Choose proportionate evidence for each affected invariant: an
     existing test, a new behavioural test, inspection or human review.
-7.  Before finishing, report each affected invariant honestly, one
-    line each:
-        Invariant NAME: mechanically verified | supported by evidence
-        | apparently consistent | uncertain | conflicting.  Evidence:
-        what was actually run or reviewed.  Remaining gap: what has
-        not been established.
-    A checker cannot prove a natural-language invariant.  Say
-    'uncertain' rather than implying conformance.  A test that passed
-    answers for its invariant: leave that line out unless you doubt it.
+7.  Speak about an invariant only when it may be broken.  If your
+    work may break one, or you have a real reason to doubt it still
+    holds, end with one line for it: what happened, and the exact
+    step that puts it right:
+        ✕ NAME may be broken: what happened.  To fix: the step.
+    Otherwise say nothing about invariants: silence claims nothing,
+    and 'iz4 status' and the tests say what held.  Never call a break
+    fixed, or a doubt settled, without evidence.
 8.  If the IZ4 changes during the task, re-read it.  When delegating
     work, pass this packet on.  A compacted or resumed session has
     lost it: re-run 'iz4 agent' before touching anything, even to

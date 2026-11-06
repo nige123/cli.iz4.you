@@ -14,7 +14,7 @@ use IZ4::Document;
 use IZ4::Agent;
 
 constant STATUS-SCHEMA   is export = 'iz4-agent-status/4';
-constant SECTION-VERSION is export = 7;
+constant SECTION-VERSION is export = 8;
 
 sub agent-error(Str $message) { X::IZ4.new(:$message).throw }
 
@@ -41,12 +41,13 @@ sub managed-block(--> Str) is export {
     and follow the protocol it prints.  That includes continuing work
     already in flight and fixing a bug in it.  A compacted or resumed
     session has lost the packet: run 'iz4 agent' again before touching
-    anything, and report the affected invariants when you finish.
+    anything.  Say nothing about invariants unless your work may break
+    one; then say which, and the step that puts it right.
 
     If the iz4 CLI is unavailable, read the root IZ4 file directly; it
     carries the foundation word for word (Invariant Zero, humans first,
     then do no harm, human agency, honesty and the binding),
-    and it binds you too.  Say in your final report that CLI validation was
+    and it binds you too.  Say when you finish that CLI validation was
     not performed.
 
     Keep the IZ4 small: never add requirements, plans, tasks or
@@ -149,7 +150,7 @@ sub skill-text(--> Str) is export {
 
     Without the CLI the core workflow still works: read the root `IZ4`
     file directly (the nearest one walking upward), apply the protocol and
-    the inherited foundation below, and say in your final report that CLI
+    the inherited foundation below, and say when you finish that CLI
     validation was not performed.
 
     A project's own promises live in its IZ4 file, never in this skill.
@@ -174,6 +175,14 @@ sub skill-text(--> Str) is export {
       nothing ran, nothing is celebrated.
     - Programs get the long form: `--json` carries the whole document,
       for a tool to read, never for a person.
+    - Interrupt only when the person would be glad of it: "oh wow, that
+      saved me".  Invariants that are fine get no line.  Speak only of
+      one that may be broken, and give the step that puts it right:
+
+        ✕ printed-order-is-faithful may be broken: 765 products print the wrong photo. To fix: run the queued photo fix.
+
+    - No inventories.  Leave out lists of staged files and of what you
+      did not touch; the person asks when they want them.
 
     HEAD
 

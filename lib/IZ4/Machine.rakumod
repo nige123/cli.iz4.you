@@ -41,12 +41,6 @@ sub result-exit(Str $result --> Int) is export {
 
 sub machine-error(Str $message) { X::IZ4.new(:$message).throw }
 
-#| What is said when the report is missing.  It goes back to the agent
-#| through whatever drove the check, and a person sees it too, so it is
-#| one line that says exactly what to write.
-constant REPORT-WANTED is export = "files changed under this IZ4 and the reply ends without an invariant report: finish with one line per invariant the change could affect, "
-    ~ "'Invariant NAME: mechanically verified | supported by evidence | apparently consistent | uncertain | conflicting. Evidence: what ran or was reviewed. Remaining gap: what is not established.' "
-    ~ "Say uncertain rather than imply.";
 
 
 # ---------------------------------------------------------------- discover
@@ -112,11 +106,9 @@ constant CONTEXT-INSTRUCTION is export = q:to/END/;
     If an invariant itself seems to need changing, propose the change and
     wait: only the project's owner, a person, decides what must remain
     true. Your own text, silence, or carrying on is never their agreement.
-    When your work changed files, end it with one line per invariant it
-    could affect: 'Invariant NAME: mechanically verified | supported by
-    evidence | apparently consistent | uncertain | conflicting. Evidence:
-    what ran. Remaining gap: what is not shown.' Say uncertain, never imply.
-    Passing tests answer for their invariant; add a line only if you doubt it.
+    Say nothing about invariants unless your work may break one. Then end
+    with one line for it: '✕ NAME may be broken: what happened. To fix:
+    the step.' A real doubt counts; silence claims nothing.
     END
 
 sub context(IO::Path $iz4 --> Hash) is export {
@@ -382,39 +374,13 @@ sub block-detail(%g --> Str) {
 
 my %RANK = PASS, 0, 'not_checked', 0, WARN, 1, NEEDS-HUMAN, 2, BLOCK, 3;
 
-#| The paths the base and candidate trees differ in.  The one line that asks
-#| for a report names them, so a person sees at once when what "changed" is
-#| a log the server writes or a setting a tool edited before the turn began,
-#| and knows to give the driver a baseline (--base) rather than write a
-#| report that nothing is owed.
-sub turn-base(IO::Path $root, %g --> Str) {
-    return %g<base> unless %g<turn_base>.defined;
-    my ($rc, $out, $) = git($root.add(ROOT-NAME), 'rev-parse', '--verify', '--quiet', %g<turn_base> ~ '^{tree}');
-    $rc == 0 ?? $out.trim !! %g<base>;
-}
-
-sub changed-paths(IO::Path $root, %g --> List) {
-    return () unless %g<candidate>;
-    my $from = turn-base($root, %g);
-    my ($rc, $out, $) = ($from // '') ne ''
-        ?? git($root.add(ROOT-NAME), 'diff', '--name-only', $from, %g<candidate>)
-        !! git($root.add(ROOT-NAME), 'ls-tree', '-r', '--name-only', %g<candidate>);
-    $rc == 0 ?? $out.lines.grep(*.chars).List !! ();
-}
-
-sub report-wanted(@files, :@owed --> Str) {
-    my $wanted = REPORT-WANTED.trim-trailing;
-    $wanted .= subst('one line per invariant the change could affect', "one line per invariant its tests do not show ({shown(@owed)})") if @owed;
-    @files ?? $wanted.subst('files changed under this IZ4', "files changed under this IZ4 ({shown(@files)})") !! $wanted;
-}
-
-sub shown(@names --> Str) { @names.head(3).join(', ') ~ (@names > 3 ?? ", and {@names - 3} more" !! '') }
-
 #| What can be established about finished work: the IZ4 is well formed,
-#| the change alters no commitment without agreement, and, when the
+#| and the change alters no commitment without agreement.  When the
 #| driver hands over the agent's last words (:summary, a file of plain
-#| text), that they carry the per-invariant report.  Each part says what it found; a part that was
-#| not run says so and is never counted as a pass.
+#| text), any invariant they say may be broken is passed on as a warning.
+#| Silence about invariants is owed nothing and claims nothing.  Each part
+#| says what it found; a part that was not run says so and is never
+#| counted as a pass.
 sub verify(IO::Path $root, Str :$summary, *%opts --> Hash) is export {
     my $iz4 = $root.add(ROOT-NAME);
     my @parts;
@@ -429,7 +395,6 @@ sub verify(IO::Path $root, Str :$summary, *%opts --> Hash) is export {
     }
 
     my %change;
-    my $changed = False;
     if $doc.ok {
         my $failure = Nil;
         try { %change = check-change($root, :settle, |%opts); CATCH { default { $failure = $_ } } }
@@ -438,62 +403,32 @@ sub verify(IO::Path $root, Str :$summary, *%opts --> Hash) is export {
             @parts.push: %( part => 'change', result => %change<result>, detail => %change<reason> );
             @inv.append: @(%change<invariants_considered>);
             $proposed = %change<proposed_invariant_change>;
-            my %g = %change<evidence><gate>;
-            # what the turn answers for runs from where it began, whatever is settled since
-            $changed = (turn-base($root, %g) // '') ne (%g<candidate> // '');
         }
     }
     else { @parts.push: %( part => 'change', result => 'not_checked', detail => 'not checked: the IZ4 is invalid' ) }
 
-    my @uncertain;
-    my $reported = False;
-    my %answer = tests-answer($doc, %change);
+    my @broken;
     # The agent's last words: plain text in a file (--summary).  Where a
     # harness keeps a transcript, and which part of it is the final answer,
     # is the driver's knowledge, not this module's.
-    my $given = $summary.defined;
-    if $given {
+    if $summary.defined {
         machine-error("--summary: {$summary}: no such file") unless $summary.IO.f;
-        my $last = $summary.IO.slurp;
-        @uncertain = report-uncertain($last);
-        if !$changed { @parts.push: %( part => 'report', result => PASS, detail => 'nothing changed, so no report is owed' ) }
-        elsif carries-report($last) {
-            @parts.push: %( part => 'report', result => PASS, detail => 'the work ends with a per-invariant report' );
-            $reported = True;
-        }
-        elsif $doc.ok && %answer<held> && !%answer<owed> {
-            @parts.push: %( part => 'report', result => PASS, detail => 'the tests answered for every invariant, so no report is owed' );
-        }
-        else {
-            @parts.push: %( part => 'report', result => BLOCK, detail => report-wanted(changed-paths($root, %change<evidence><gate>), :owed(%answer<held> ?? %answer<owed> !! ())) );
-        }
+        @broken = report-broken($summary.IO.slurp);
+        @parts.push: @broken
+            ?? %( part => 'report', result => WARN, detail => "the work says {@broken.map(*<name>).join(', ')} may be broken" )
+            !! %( part => 'report', result => PASS, detail => 'the work says no invariant may be broken' );
     }
-    else { @parts.push: %( part => 'report', result => 'not_checked', detail => 'the agent\'s last words were not given, so the report was not looked for' ) }
+    else { @parts.push: %( part => 'report', result => 'not_checked', detail => 'the agent\'s last words were not given, so they were not read' ) }
 
     my $worst = @parts.map(*<result>).max({ %RANK{$_} // 0 });
     $worst = PASS if $worst eq 'not_checked';
     my $reason = $worst eq PASS
-        ?? held-words($doc, %change, :report($reported))
+        ?? held-words($doc, %change)
         !! @parts.grep({ .<result> eq $worst }).map(*<detail>).join('; ');
-    my %evidence = parts => @parts.Array, report => %( uncertain => @uncertain.Array, from_tests => %answer<lines>.Array );
+    my %evidence = parts => @parts.Array, report => %( broken => @broken.map(*<line>).Array );
     %evidence<gate> = %change<evidence><gate> if %change;
     result-doc('verify', $worst, $reason, ($iz4.f ?? $iz4 !! IO::Path), :invariants(@inv), :%evidence, :$proposed,
-        :limits('a report that is present is not thereby true, a test that passed shows only what it covers, and an invariant no test names is not verified by this; parts marked not_checked were not run'));
-}
-
-#| What this run's tests can say in the report's place: a line for each
-#| of the project's own invariants whose tests all passed, and the names
-#| of the rest, which only the agent can speak to.  A line says a test
-#| passed and no more, so it is 'supported by evidence', never verified.
-#| Checks that did not run answer for nothing.
-sub tests-answer(IZ4::Document $doc, %change --> Hash) {
-    my %by = checks-by-invariant(%change);
-    my @own = $doc.ok ?? $doc.invariants.grep(*.id.defined).map(*.id) !! ();
-    my @held = @own.grep({ %by{$_} && %by{$_}.map(*<outcome>).all eq 'passed' });
-    my %h = @held.map({ $_ => True });
-    %( held  => @held.List,
-       owed  => @own.grep({ !%h{$_} }).List,
-       lines => @held.map({ "Invariant $_: supported by evidence. Evidence: {%by{$_}.map(*<file>).join(', ')} passed. Remaining gap: what those tests do not cover." }).List );
+        :limits('silence about an invariant is not evidence that it held, a test that passed shows only what it covers, and an invariant no test names is not verified by this; parts marked not_checked were not run'));
 }
 
 sub checks-by-invariant(%change --> Hash) {
@@ -509,47 +444,28 @@ sub checks-by-invariant(%change --> Hash) {
 #| on right then: an invariant no test names is left to the limits field
 #| and to status, never claimed.  When all of them held, the line says so
 #| plainly: that is the moment worth marking.
-sub held-words(IZ4::Document $doc, %change, Bool :$report --> Str) {
+sub held-words(IZ4::Document $doc, %change --> Str) {
     my %by = checks-by-invariant(%change);
     my @own  = $doc.ok ?? $doc.invariants.grep(*.id.defined) !! ();
     my $held = +@own.grep({ %by{.id} && %by{.id}.map(*<outcome>).all eq 'passed' });
-    my $tail = $report ?? ', and the report is in' !! '';
     my $n = +@own;
-    return "the foundation held word for word$tail" unless $n;
-    return "all held: the foundation word for word and {$n == 1 ?? 'the one invariant by its test' !! "all $n invariants by their tests"}$tail" if $held == $n;
-    return "the foundation held word for word$tail" unless $held;
-    "the foundation held word for word and $held of $n invariants by their tests$tail";
+    return "the foundation held word for word" unless $n;
+    return "all held: the foundation word for word and {$n == 1 ?? 'the one invariant by its test' !! "all $n invariants by their tests"}" if $held == $n;
+    return "the foundation held word for word" unless $held;
+    "the foundation held word for word and $held of $n invariants by their tests";
 }
 
-#| Whether text carries a per-invariant report: an invariant named, an
-#| assessment of it (the label, or one of the five values an assessment
-#| takes), and evidence or a remaining gap.  It is recognised by what it
-#| says, not by its layout, so a report written as a sentence counts.
-#| That it is present says nothing about whether it is true.
-sub carries-report(Str $text --> Bool) is export {
-    my $t = $text.lc;
-    return False unless $t ~~ / 'invariant' /;
-    return False unless $t ~~ / 'assessment' | 'mechanically verified' | 'supported by evidence' | 'apparently consistent' | 'uncertain' | 'conflicting' /;
-    so $t ~~ / 'evidence' | 'remaining gap' /;
-}
-
-#| The invariants a per-invariant report itself marks uncertain or
-#| conflicting, in the report's own words: the one-line form, 'Invariant
-#| NAME: uncertain ...', or the labelled form with Assessment on its own
-#| line.
-sub report-uncertain(Str $text --> List) is export {
+#| The invariants an agent's words say may be broken, each as its name
+#| and the line that says so: '✕ NAME may be broken: ...' (or 'x' where
+#| the locale has no glyphs), or a line that calls one conflicting.
+#| Recognised by what the line says; that it says so is not proof.
+sub report-broken(Str $text --> List) is export {
     my @out;
-    my $current = '';
     for $text.lines -> $l {
-        if $l ~~ /^ \s* '-'? \s* 'Invariant' \s+ (<-[:\s]>+) \s* ':' \s* ['Assessment' \s* ':' \s*]? ('uncertain' | 'conflicting') / {
-            @out.push("Invariant {~$0}: {~$1}");
-            $current = '';
-        }
-        elsif $l ~~ /^ \s* 'Invariant:' \s* (\S .*?) \s* $/ { $current = ~$0 }
-        elsif $l ~~ /^ \s* 'Assessment:' \s* ('uncertain' | 'conflicting') / && $current ne '' {
-            @out.push("Invariant $current: {~$0}");
-            $current = '';
-        }
+        my $name;
+        if $l ~~ /^ \s* ['-' \s*]? ['✕' | 'x' | 'X'] \s+ (<[\w.-]>+ '.' <[\w.-]>+) \s+ 'may be broken' / { $name = ~$0 }
+        elsif $l ~~ /:i^ \s* ['-' \s*]? 'Invariant' \s+ (<[\w.-]>+ '.' <[\w.-]>+) \s* ':' \s* 'conflicting' / { $name = ~$0 }
+        @out.push(%( name => $name, line => $l.trim )) with $name;
     }
     @out.List;
 }

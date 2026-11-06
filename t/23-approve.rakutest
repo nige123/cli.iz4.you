@@ -160,8 +160,11 @@ unlike gate-hook-text(), / 'approve' /, 'an advisory hook asks nothing';
     my $words = temp-dir.add('last.txt');
     $words.spurt("Done.\n");
     %v = verify-from($began, "--summary=$words");
-    is %v<result>, 'block', 'the turn still answers for what it changed, settled or not';
-    like %v<reason>, / 'notes.txt' /, 'and is told which files';
+    is %v<result>, 'pass', 'a turn that says nothing about invariants owes nothing';
+    $words.spurt("Done.\n✕ refunds.shop.example.com may be broken: the notes moved. To fix: put them back.\n");
+    %v = verify-from($began, "--summary=$words");
+    is %v<result>, 'warn', 'a turn that says one may be broken passes that on';
+    like %v<reason>, / 'refunds.shop.example.com may be broken' /, 'by name';
 
     $r.add('notes.txt').spurt("still nothing promised\n");
     is verify-from($began)<result>, 'pass', 'an ordinary uncommitted change needs no agreement';

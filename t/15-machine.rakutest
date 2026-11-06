@@ -141,11 +141,12 @@ like %c<instruction>, /'govern'/, 'the instruction says the invariants govern th
 like %c<instruction>, /:i 'not' .* ['suggestion' | 'optional']/, 'and that they are not optional';
 like %c<instruction>, /:i 'human' | 'owner' | 'person'/, 'and that a change of invariant is a person\'s decision';
 ok %c<instruction>.lines.elems <= 13, 'the instruction is short' or diag %c<instruction>.lines.elems;
-like %c<instruction>, /'Invariant NAME:' .* 'uncertain' .* 'Evidence' .* 'Remaining gap'/, 'and it asks for the report that verify will look for';
+like %c<instruction>, /'Say nothing about invariants unless your work may break one'/, 'it asks for silence about invariants unless one may be broken';
 like %c<effective>, /"PROMISE {$VIS}"/, 'the effective invariants are in it, by name';
 ok all(@FIVE.map({ %c<effective>.contains("FOUNDATION $_") })), 'foundation included, all five';
 unlike %c<effective>, /^^ ['PROMISE ' | 'FOUNDATION '] \d/, 'and nothing in it is numbered';
-like %c<instruction>, /'one line per invariant' .* 'Invariant NAME:'/, 'the report it asks for is by name, one line each';
+like %c<instruction>, /"'✕ NAME may be broken: what happened. To fix:" \s+ "the step.'"/, 'and a break as one line, by name, with the step that fixes it';
+unlike %c<instruction>, /'Remaining gap'/, 'and no per-invariant report';
 ok %c<text>.contains(%c<instruction>.trim) && %c<text>.contains("PROMISE {$VIS}"), 'text is the two together, ready to hand over';
 ($rc, $out, $err) = iz4($bare, 'context', '--json');
 isnt $rc, 0, 'context where there is no IZ4 is an error, not an empty success';
@@ -267,69 +268,35 @@ ok %v<evidence><parts>.grep({ .<part> eq 'change' && .<result> eq 'pass' }), 'th
 ok %v<evidence><parts>.grep({ .<part> eq 'report' && .<result> eq 'not_checked' }), 'and with no last words given the report is not claimed';
 like %v<limits>, /:i 'not'/, 'verify says what it did not establish';
 
-# with the agent's last words handed over as plain text: the report is checked
+# with the agent's last words handed over as plain text: silence owes nothing
 my $t = temp-dir.add('last-words.txt');
 $t.spurt("Done.\n");
 ($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$t", '--json');
-is $rc, 0, 'files changed, no report, and the tests answered for every invariant: nothing is owed';
+is $rc, 0, 'files changed and nothing said about invariants: nothing is owed';
 %v = doc($out);
-is %v<evidence><parts>.first({ .<part> eq 'report' })<detail>, 'the tests answered for every invariant, so no report is owed', 'and the report part says why';
-like %v<evidence><report><from_tests>[0], /^ "Invariant {$VIS}: supported by evidence. Evidence: " .* ' passed. Remaining gap: ' /, 'each answer is in the report\'s own form, and claims no more than a test passing';
-unlike %v<reason>, /'report is in'/, 'and nobody is told a report is in';
+is %v<evidence><parts>.first({ .<part> eq 'report' })<detail>, 'the work says no invariant may be broken', 'and the report part says so';
+unlike %v<reason>, /'report'/, 'and nobody is told about a report';
 ($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$t", '--/checks', '--json');
-is $rc, 3, 'files changed, no report, and no test run: exit 3';
-%v = doc($out);
-is %v<result>, 'block', 'blocked';
-ok %v<evidence><parts>.grep({ .<part> eq 'report' && .<result> eq 'block' }), 'by the report part';
-ok doc($r.add('.git/iz4/last.json').slurp)<line>.starts-with('◇ IZ4: files changed'), 'the line kept for a status line marks it with the hollow diamond, not a cross';
-like %v<reason>, /^ 'files changed under this IZ4 (README.md) and the reply ends without an invariant report' /, 'the one line names the files that changed, so a person can see whether they are the work';
-# a driver that passes the tree the turn began with: dirt from before the turn is not the turn's change
-my $began = doc(iz4($r, 'check', 'change', '--worktree', '--json', '--/checks')[1])<evidence><gate><candidate>;
-($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--base=$began", "--summary=$t", '--json');
-is $rc, 0, 'measured from the tree the turn began with, an already-dirty tree owes no report';
-is doc($out)<evidence><parts>.first({ .<part> eq 'report' })<detail>, 'nothing changed, so no report is owed', 'and the report part says why';
-$t.spurt("Invariant: {$VIS}\nAssessment: uncertain\nEvidence: read\nRemaining gap: none tested\n");
-($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$t", '--json');
-%v = doc($out);
-is %v<result>, 'pass', 'with the report the run verifies';
-ok %v<evidence><parts>.grep({ .<part> eq 'report' && .<result> eq 'pass' }), 'the report part passed';
-is %v<evidence><report><uncertain>.join('|'), "Invariant {$VIS}: uncertain", 'what the report itself calls uncertain is carried, in its own words';
-$t.spurt("Invariant: {$VIS} People control\nAssessment: apparently consistent\nEvidence: read\nRemaining gap: none\nInvariant: other.shop.example.com x\nAssessment: conflicting\nEvidence: y\n");
-($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$t", '--json');
-is doc($out)<evidence><report><uncertain>.join('|'), 'Invariant other.shop.example.com x: conflicting', 'consistent ones are not listed; conflicting ones are';
+isnt doc($out)<result>, 'block', 'with no test run, silence is still not refused';
 ($rc, $out, $err) = iz4($r, 'verify', '--worktree', '--transcript=/nonexistent.jsonl', '--json');
 isnt $rc, 0, 'a harness transcript is not something verify takes: that shape is the driver\'s to know';
 
-# the same from plain text, which is what a driver that is not Claude Code has
+# a break the agent names is passed on, by name, in its own words
 my $words = temp-dir.add('summary.txt');
-$words.spurt("All done.\n");
-($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$words", '--/checks', '--json');
-is doc($out)<result>, 'block', 'a plain-text summary with no report blocks';
-like doc($out)<reason>, /^ 'files changed under this IZ4' .* 'one line per invariant' .* 'Invariant NAME: mechanically verified' .* 'Remaining gap:' /, 'and the reason says exactly what to write, since it goes back to the agent';
-unlike doc($out)<reason>, / \n /, 'in one line: a person reads it too';
-$words.spurt("Changed the runner.\nInvariant {$VIS}: uncertain. Evidence: read it. Remaining gap: untested.\nInvariant other.shop.example.com: supported by evidence. Evidence: t/x passed. Remaining gap: none.\n");
+$words.spurt("Changed the runner.\n✕ {$VIS} may be broken: profiles now list publicly. To fix: restore the filter in search.\n");
 ($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$words", '--json');
 %v = doc($out);
-is %v<result>, 'pass', 'the one-line report, as asked for, verifies';
-is %v<evidence><report><uncertain>.join('|'), "Invariant {$VIS}: uncertain", 'and its uncertain invariants are carried from the one-line form';
-like %v<reason>, / ^ 'all held: the foundation word for word' .* 'and the report is in' /, 'a pass says what held, and that the report is in';
-$words.spurt("Invariant: {$VIS} People control\nAssessment: uncertain\nEvidence: read it\nRemaining gap: untested\n");
+is %v<result>, 'warn', 'a turn that says an invariant may be broken is a warning, never a pass';
+is %v<reason>, "the work says {$VIS} may be broken", 'naming it, in one line';
+is %v<evidence><report><broken>.join('|'), "✕ {$VIS} may be broken: profiles now list publicly. To fix: restore the filter in search.", 'the line is carried in its own words';
+$words.spurt("Invariant other.shop.example.com: conflicting. Evidence: y.\nInvariant {$VIS}: apparently consistent.\n");
 ($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$words", '--json');
-%v = doc($out);
-ok %v<result> eq 'pass' && %v<evidence><report><uncertain>.join eq "Invariant {$VIS} People control: uncertain", 'a plain-text summary with the report verifies, and its uncertain invariants are carried' or diag $out;
+is doc($out)<evidence><report><broken>.join('|'), 'Invariant other.shop.example.com: conflicting. Evidence: y.', 'a line calling one conflicting counts; a consistent one is not listed';
+$words.spurt("I checked {$VIS} and nothing may be broken.\n");
+($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$words", '--json');
+is doc($out)<result>, 'pass', 'mentioning an invariant is not reporting a break';
 ($rc, $out, $err) = iz4($r, 'verify', '--worktree', '--summary=/no/such/file', '--json');
 is $rc, 1, 'a summary file that is not there is an error, never a pass';
-
-# a report is recognised by what it says, not by its layout
-$words.spurt("Created the file.\nIZ4 invariants this change could affect:\n- INVARIANT {$VIS} (profiles): supported by evidence. Only a file was added. Remaining gap: not read back.\n");
-($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$words", '--json');
-is doc($out)<result>, 'pass', 'a report written as a sentence, with an assessment value and a remaining gap, counts';
-$words.spurt("I checked INVARIANT {$VIS} and it is fine.\n");
-($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$words", '--/checks', '--json');
-is doc($out)<result>, 'block', 'naming an invariant without assessing it does not';
-$words.spurt("This is uncertain and there is no evidence.\n");
-($rc, $out, $err) = iz4($r, 'verify', '--worktree', "--summary=$words", '--/checks', '--json');
-is doc($out)<result>, 'block', 'nor does an assessment that names no invariant';
 
 # an invalid IZ4 never verifies
 $sp.spurt("IZ4\n\nnonsense\n");
@@ -419,8 +386,8 @@ is $out.lines.elems, 1, 'a JSON result is one line';
     $words.spurt("Done.\n");
     $q.add('README.md').spurt("changed\n");
     %p = doc(iz4($q, 'verify', '--worktree', "--summary=$words", '--json')[1]);
-    is %p<result>, 'block', 'an invariant no test answers for is still owed a report';
-    like %p<reason>, / 'one line per invariant its tests do not show (prices-first.shop.example.com)' /, 'and it asks only about that one';
+    is %p<result>, 'pass', 'an invariant no test answers for is owed no report';
+    unlike %p<reason>, / 'prices-first' /, 'and the person is not interrupted about it';
     $q.add('README.md').unlink;
     $q.add(TEST).unlink; g($q, 'add', '-A'); g($q, 'commit', '-qm', 'no tests');
     %p = doc(iz4($q, 'verify', '--worktree', '--json')[1]);

@@ -35,12 +35,12 @@ like $protocol, /'Do not add requirements, behaviours, plans, tasks, acceptance 
     'agents are told not to add specification content';
 like $protocol, /'not automatically an invariant'/, 'observations are not invariants';
 like $protocol, /'never invent it'/, 'intent is asked for, never invented';
-like $protocol, /'mechanically verified | supported by evidence | apparently consistent | uncertain | conflicting'/,
-    'the five honesty levels are the assessment vocabulary';
-like $protocol, /'cannot prove a natural-language invariant'/, 'no checker proves prose';
+like $protocol, /'Speak about an invariant only when it may be broken'/, 'the agent is silent about invariants unless one may be broken';
+like $protocol, /'silence claims nothing'/, 'and silence claims nothing';
 like $protocol, /'No project-level approval can waive the foundation'/, 'the foundation cannot be waived';
 like $protocol, /"An invariant's name is its identity: cite it whole, exactly as written"/, 'agents are told to cite an invariant by its whole name';
-like $protocol, /'one line each: Invariant NAME: mechanically verified'/, 'and the closing report names each invariant, one line each';
+like $protocol, /'✕ NAME may be broken: what happened. To fix: the step.'/, 'a break is one line, with the step that puts it right';
+unlike $protocol, /'Remaining gap' | 'apparently consistent'/, 'and no per-invariant report is asked for';
 unlike $protocol, /'Invariants 0-4' | 'its number'/, 'nothing in the protocol speaks of numbered invariants';
 unlike $protocol, /"'direction' entries"/, 'no trace of the old specification sections';
 
