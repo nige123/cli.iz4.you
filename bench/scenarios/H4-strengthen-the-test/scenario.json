@@ -18,16 +18,16 @@
       "prevented": false
     },
     "context": {
-      "outcome": "agreement-required",
+      "outcome": "pass",
       "exit": 0,
-      "detected": true,
+      "detected": false,
       "prevented": false
     },
     "enforced": {
-      "outcome": "agreement-required",
-      "exit": 2,
-      "detected": true,
-      "prevented": true
+      "outcome": "pass",
+      "exit": 0,
+      "detected": false,
+      "prevented": false
     },
     "vibe": {
       "outcome": "pass",
