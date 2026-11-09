@@ -2043,15 +2043,15 @@ sub gate-screen(%r, Str :$again, Str :$domain = '', :@order, Str :$what = 'the s
     elsif $present { $sc.lines('  · no test names an invariant, so no check was run') }
     my @table;
     # a pass with changes is a pass because what changed is exploring: say that, never 'nothing changed'
-    my $changed = so (%r<changes> || %r<protections>.grep({ .<kind> ne 'protection-changed' }));
+    my $changed = so (%r<changes> || %r<protections>.grep({ .<kind> ∉ @QUIET-PROTECTION-KINDS }));
     my $because = %r<outcome> eq 'pass' && $changed
         ?? 'what changed is exploring, so nothing waits for a yes, and every check that could run passed'
         !! %why{%r<outcome>} // '';
     @table.push: ['outcome', "{%r<outcome>}: $because"];
     if $present {
-        my %p = changes => %r<changes>, protections => %r<protections>.grep({ .<kind> ne 'protection-changed' }).List;
+        my %p = changes => %r<changes>, protections => %r<protections>.grep({ .<kind> ∉ @QUIET-PROTECTION-KINDS }).List;
         my @pl = proposal-lines(%p);
-        my $nc = +%r<changes>; my $np = +%r<protections>.grep({ .<kind> ne 'protection-changed' });
+        my $nc = +%r<changes>; my $np = +%r<protections>.grep({ .<kind> ∉ @QUIET-PROTECTION-KINDS });
         @table.push: ['commitments', $nc || $np ?? "{$nc} change{$nc == 1 ?? '' !! 's'} to what it promises, {$np} to a protection" !! 'unchanged'];
         given %r<approval><status> {
             when 'valid'   { @table.push: ['approval', "valid ({%r<approval><level>}) by {%r<approval><approved_by>} at {%r<approval><approved_at>}" ~ (%r<approval><reasons> ?? "; {%r<approval><reasons>.join('; ')}" !! '')] }
@@ -2064,7 +2064,7 @@ sub gate-screen(%r, Str :$again, Str :$domain = '', :@order, Str :$what = 'the s
         @table.push: ['mode', %r<mode> eq 'enforce' ?? "enforce: exit {%r<exit_code>}" !! 'advisory: refuses nothing; --enforce makes the outcome the exit code'];
         $sc.rows(@table.map({ .[0] => .[1] }));
         # what each change is, under the table that counts them
-        $sc.lines(|@pl.map({ "  $_" }), |%r<protections>.grep({ .<kind> eq 'protection-changed' }).map({ "  ({.<id>}: {.<detail>})" }));
+        $sc.lines(|@pl.map({ "  $_" }), |%r<protections>.grep({ .<kind> ∈ @QUIET-PROTECTION-KINDS }).map({ "  ({.<detail>})" }).unique);
     }
     else { $sc.rows(@table.map({ .[0] => .[1] })) }
     my @notes = |%r<notes>.map({ "note: $_" });

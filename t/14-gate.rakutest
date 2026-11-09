@@ -262,7 +262,7 @@ $r.add(TEST).spurt($r.add(TEST).slurp ~ "# a comment\n");
 g($r, 'add', 'tests');
 ($rc, $out, $err) = gate($r, '--staged', '--enforce');
 is $rc, 0, 'a changed linked test that still names its invariant and passes is not a commitment change';
-like $out, /"({$VIS}: {$TEST} changed in comments or layout only; its check runs below)"/, 'but is pointed out';
+like $out, /"({$TEST} changed in comments or layout only; its check runs below)"/, 'but is pointed out';
 g($r, 'checkout', 'HEAD', '--', TEST); g($r, 'reset', '-q', 'tests');
 
 # a linked test that uses git itself must find a working git: the gate's own
@@ -550,6 +550,35 @@ subtest 'a rewritten protecting test is a question; a tidied one is not; a remov
     is json($out, 'outcome'), 'agreement-required', 'which is a proposal a person must agree to';
     ($rc, $out, $err) = gate($r, '--staged', '--enforce');
     is $rc, 2, 'and under --enforce it holds the commit, not an error';
+}
+
+# ---- a protecting test that only gains checks asks nobody ------------------
+subtest 'checks added with every line kept pass; anything that could fence off the old ones is a question', {
+    my $r = repo;
+    my $sp = minimal-iz4(:dir($r));
+    add-invariant($sp, 'People control whether their profile is visible.', :name(VIS), :reach('it applies'), :established, :because('Privacy.'));
+    $r.add('lib').mkdir; $r.add('tests').mkdir;
+    $r.add('lib/profile.txt').spurt("visible: private\nowner: sam\n");
+    my $head = "#!/bin/sh\n# INVARIANT {$VIS}\n";
+    my $old  = "grep -q 'visible: private' lib/profile.txt\n";
+    $r.add(TEST).spurt($head ~ $old);
+    g($r, 'add', '-A'); g($r, 'commit', '-qm', 'init');
+    my sub try-test(Str $body) { $r.add(TEST).spurt($head ~ $body); g($r, 'add', '-A'); gate($r, '--staged', '--json')[1] }
+
+    my $out = try-test($old ~ "grep -q 'owner: sam' lib/profile.txt\n");
+    is json($out, 'outcome'), 'pass', 'a check added after the old one passes, with no yes asked';
+    like change($out, 'protection-extended', VIS), /'gained checks and kept every one it had'/, 'and is reported as extended';
+    $out = try-test("test -f lib/profile.txt && echo 'only if it is there, for sam'\n" ~ $old);
+    is json($out, 'outcome'), 'pass', 'words in quotes are not read as code';
+    for "exit 0\n" ~ $old,                              'an exit before the old check',
+        "if false; then\n" ~ $old ~ "fi\n",             'a block around the old check',
+        "true || (\n" ~ $old ~ ")\n",                   'an unbalanced bracket around it',
+        "# skip\n" ~ $old ~ "echo skip\n",              'a skip',
+        "grep -q 'visible' lib/profile.txt\n",          'an old line changed'
+        -> $body, $what {
+        $out = try-test($body);
+        is json($out, 'outcome'), 'agreement-required', "$what still asks for a yes";
+    }
 }
 
 done-testing;

@@ -108,10 +108,10 @@ like $out, / '  ? charged-once  t/charged-once.t not run (unassessed)' /, 'a run
 like $out, / 'invariants    1 of your own: 0% held (0), 1 unknown' /, 'counted as unknown';
 
 # ---- plain terminals ---------------------------------------------------------
-($rc, $out, $err) = iz4($r, 'status', :env(LC_ALL => 'C', LANG => 'C'));
+($rc, $out, $err) = iz4($r, 'status', :env(%(LC_ALL => 'C', LANG => 'C')));
 like $out, / '  x charged-once  t/charged-once.t FAILED' /, 'without UTF-8 the cross is an x';
 $test.spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
-($rc, $out, $err) = iz4($r, 'status', :env(LC_ALL => 'C', LANG => 'C'));
+($rc, $out, $err) = iz4($r, 'status', :env(%(LC_ALL => 'C', LANG => 'C')));
 like $out, / '  * charged-once  t/charged-once.t passed' /, 'and the closed diamond a star';
 unlike $out, / "\e[" /, 'and into a pipe, no colour';
 

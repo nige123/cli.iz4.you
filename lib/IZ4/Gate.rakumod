@@ -72,6 +72,9 @@ constant @REJECTS   is export = <agreement-required blocked unassessed error>;
 constant @BLOCKING-KINDS  = <invalid foundation reused-name format-regressed>;
 constant @AGREEMENT-KINDS = <purpose people added revised removed removed-file named format-migrated reach-added protection>;
 constant @PROTECTION-AGREEMENT-KINDS = <protection-removed protection-unlinked protection-weakened protection-rewritten>;
+#| Protection changes that ask nobody: a tidy, or checks added with every
+#| existing line kept.  They are reported, never put to a person.
+constant @QUIET-PROTECTION-KINDS is export = <protection-changed protection-extended>;
 
 sub gate-error(Str $message) { X::IZ4.new(:$message).throw }
 
@@ -333,6 +336,48 @@ sub substance(Str $text --> Str) {
     $text.lines.map(*.trim).grep({ $_ ne '' && !.starts-with('#') }).map({ .subst(/\s+/, ' ', :g) }).join("\n")
 }
 
+#| Whether the candidate only adds to a test: every line it had is still
+#| there, in order, and nothing added could stop it early or fence off
+#| what was there.  Each run of added lines must balance its brackets (so
+#| it cannot open a block around old lines), and none may skip, exit,
+#| return, end the plan, end the file, open an indented block, or replace
+#| a routine.  Anything else is a rewrite, and a person is asked.
+my regex stopper {
+    :i [ <skip-marker> | « [ 'exit' | 'return' | 'done_testing' | 'done-testing' | 'plan' | 'BAIL_OUT' | 'bail-out'
+                         | 'last' | 'next' | 'goto' | 'die' | 'throw' | 'raise' | 'eval' | 'monkeypatch' | 'mock' | 'local'
+                         | 'sub' | 'def' | 'function' | 'lambda' | 'if' | 'unless' | 'while' | 'until' | 'for' | 'foreach' | 'with' | 'else' | 'elsif' | 'elif' ] »
+       | '__END__' | '__DATA__' | '=begin' | '=pod' | '=cut' | '=finish' | 'process.exit' | 'sys.exit' | 'os.Exit' | 'SkipNow'
+       | '*' \w+ \s* '=' | ':' \s* $ ]
+}
+
+#| A line with its quoted text taken out, so the words of a test's name
+#| ("for nine years", "if it fails") are not read as code.
+sub without-strings(Str $l --> Str) {
+    $l.subst(/ "'" [ <-['\\]> | '\\' . ]* "'" /, "''", :g)
+      .subst(/ '"' [ <-["\\]> | '\\' . ]* '"' /, '""', :g)
+      .subst(/ « 'q' 'q'? '{' <-[{}]>* '}' /, "''", :g);
+}
+
+sub extended-only(Str $old, Str $new --> Bool) {
+    return False if $old eq $new;
+    my @o = $old.lines; my @n = $new.lines;
+    my $i = 0;
+    my @runs; my @run;
+    for @n -> $l {
+        if $i < @o && $l eq @o[$i] { $i++; @runs.push(@run.List) if @run; @run = (); }
+        else { @run.push($l) }
+    }
+    @runs.push(@run.List) if @run;
+    return False if $i < @o;                          # a line it had is gone or changed
+    for @runs -> @raw {
+        my @r = @raw.map(&without-strings);
+        return False if @r.first({ $_ ~~ &stopper });
+        my $t = @r.join("\n");
+        for <( ) [ ] { }> -> $open, $close { return False unless $t.comb($open) == $t.comb($close) }
+    }
+    True;
+}
+
 sub protection-changes(IZ4::Document $base, IO::Path $base-dir, IZ4::Document $cand, IO::Path $cand-dir --> List) is export {
     return () without $base;
     return () without $cand;
@@ -365,6 +410,9 @@ sub protection-changes(IZ4::Document $base, IO::Path $base-dir, IZ4::Document $c
             if $skip.defined {
                 @p.push: %( kind => 'protection-weakened', :$id, files => ($f,).List,
                             detail => "$f gained a line that looks like a skip: " ~ $skip.trim.substr(0, 80) );
+            }
+            elsif extended-only(substance($old), substance($new)) {
+                @p.push: %( kind => 'protection-extended', :$id, files => ($f,).List, detail => "$f gained checks and kept every one it had; they run below" );
             }
             elsif substance($old) ne substance($new) {
                 @p.push: %( kind => 'protection-rewritten', :$id, files => ($f,).List,
@@ -573,7 +621,7 @@ sub proposal(%snap, @changes, @protections --> Hash) is export {
         base        => %snap<base> // 'none',
         candidate   => %snap<candidate>,
         changes     => @changes.List,
-        protections => @protections.grep({ .<kind> ne 'protection-changed' }).List,
+        protections => @protections.grep({ .<kind> ∉ @QUIET-PROTECTION-KINDS }).List,
     );
 }
 

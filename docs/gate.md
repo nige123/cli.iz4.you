@@ -12,6 +12,11 @@ commitments, and whether a person has agreed to them.
 | `blocked` | something no approval lifts: a failing linked test, an invalid IZ4, an altered foundation, a reused name |
 | `unassessed` | a check could not run; nothing is claimed |
 
+A protecting test that only gains checks asks nobody: every line it had is
+still there, in order, and nothing added could stop it early (a skip, an
+exit, a return, a new block around the old lines). Its checks run like any
+other. Any other change to what it asserts is put to a person.
+
 `iz4 init` installs it as the commit hook in a Git repository, so a commit
 that changes a promise stops and asks you there and then.
 
