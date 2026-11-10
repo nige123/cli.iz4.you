@@ -1111,7 +1111,7 @@ constant GATE-HOOK-MARK is export = '# iz4 gate hook';
 #| with the commit: no command to remember.  Anything else committing (a
 #| script, an agent: no terminal on standard error) is refused as before.
 constant GATE-HOOK-ENFORCE is export = q:to/END/.chomp;
-    iz4 gate --staged --enforce --brief && exit 0
+    iz4 gate --staged --enforce --brief --ask && exit 0
     rc=$?
     { [ "$rc" = 2 ] || [ "$rc" = 3 ]; } && [ -t 2 ] && [ -r /dev/tty ] || exit $rc
     iz4 approve </dev/tty || exit $rc
@@ -1127,4 +1127,27 @@ sub gate-hook-text(Bool :$enforce = False --> Str) is export {
     command -v iz4 >/dev/null 2>&1 || exit 0
     {$enforce ?? GATE-HOOK-ENFORCE !! 'iz4 gate --staged --brief; exit 0'}
     END
+}
+
+#| What checks a commit here, read from the hook Git would run (it follows
+#| core.hooksPath): 'enforce' when it runs the enforcing gate, 'advisory'
+#| when it runs the gate and holds nothing, 'none' when no hook runs the
+#| gate, '' outside a Git repository.  A hook that acts only where the
+#| repository opted in ('git config iz4.gate enforce') counts only there.
+#| A file fact: that the hook exists, never that every commit went through it.
+sub commit-hook-state(IO::Path $root --> Str) is export {
+    my $at = $root.add('IZ4');
+    my ($rc, $out, $) = git($at, 'rev-parse', '--git-path', 'hooks/pre-commit');
+    return '' if $rc != 0;
+    my $file = $out.trim.IO;
+    $file = $root.add($file) unless $file.is-absolute;
+    return 'none' unless $file.f && $file.x;
+    my $text = (try $file.slurp) // '';
+    my @calls = $text.lines.grep({ !.trim.starts-with('#') && .contains('iz4 gate') });
+    return 'none' unless @calls;
+    if $text.contains('--get iz4.gate') {
+        my ($crc, $cout, $) = git($at, 'config', '--local', '--get', 'iz4.gate');
+        return 'none' unless $crc == 0 && $cout.trim eq 'enforce';
+    }
+    @calls.grep(*.contains('--enforce')) ?? 'enforce' !! 'advisory';
 }

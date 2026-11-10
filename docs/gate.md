@@ -20,6 +20,22 @@ other. Any other change to what it asserts is put to a person.
 `iz4 init` installs it as the commit hook in a Git repository, so a commit
 that changes a promise stops and asks you there and then.
 
+As a commit hook the gate is silent unless something needs you. An ordinary
+commit prints nothing. A held one says what was protected, in the promise's
+own words, and the one step that puts it right:
+
+```text
+iz4 kept this commit back: the test for charged-once failed.
+
+  ✕ charged-once  A customer is charged once for an order.
+                  t/charged-once.t failed
+
+next:  make t/charged-once.t pass
+       then commit again
+```
+
+`iz4 gate --staged` shows the whole table whenever you want it.
+
 ## Approving
 
 ```text

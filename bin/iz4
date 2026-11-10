@@ -40,6 +40,8 @@ class Air is IO::Handle {
     has Str  $!tail = '';
     method WRITE(Blob:D $data --> True) {
         my $s = $data.decode;
+        # a live line that is wiped again leaves nothing on the screen: it starts no chunk
+        if !$!started && $s.starts-with("\r") { $!inner.print($s); return True }
         unless $!started { $!started = True; $!inner.print("\n") unless $s.starts-with("\n") }
         $!tail = ($!tail ~ $s).substr(* - 2 max 0);
         $!inner.print($s);
@@ -293,7 +295,10 @@ sub coach-into(IO::Path $path, Str :$candidate, Str :$suggested-because, Str :$n
             say '';
             say pretty("  ✓ Added PROMISE $id to {display-name($path)}, exploring: anyone may change its words while it settles.");
             say '';
-            say next-line("iz4 establish {$id.split('.')[0]}", 'when its words are agreed');
+            say "  Your intention is recorded. A test that names it is what checks it.";
+            say '';
+            say next-line("iz4 test {$id.split('.')[0]}", 'a test that would fail if it stopped being true');
+            say "then:  iz4 establish {$id.split('.')[0]}   (when its words are agreed)";
         }
         when 'skipped' { say ''; say '  · Nothing added.' }
     }
@@ -548,9 +553,10 @@ sub fast-add(IO::Path $path, Str $text, Str :$because, Str :$name, Str :$namespa
     answer('add', 'a promise',
         [pretty("  ✓ Added PROMISE $id, {$established ?? 'established' !! 'exploring'}."),
          |para($established ?? 'A change to its words waits for your yes, and a failing linked test holds the commit.'
-                             !! 'Anyone may change its words while it settles, and a failing linked test warns.')],
-        [$established ?? next-line("iz4 test $short", 'a test that would fail if it stopped being true')
-                      !! next-line("iz4 establish $short", 'when its words are agreed')]);
+                             !! 'Anyone may change its words while it settles, and a failing linked test warns.'),
+         '  Your intention is recorded. A test that names it is what checks it.'],
+        [next-line("iz4 test $short", 'a test that would fail if it stopped being true'),
+         |("then:  iz4 establish $short   (when its words are agreed)" unless $established)]);
 }
 
 # ------------------------------------------------------------ protects
@@ -909,7 +915,8 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
             # status is interactive and advisory: the tests run eight at a time unless IZ4_JOBS or the
             # repository's 'git config iz4.jobs' says otherwise, and a failure is run again alone before
             # it is called broken; the gate, which holds commits, keeps the runtime's safe default of one
-            @checks = run-checks($doc, $root, :$timeout, :$cmd, :jobs(check-jobs(:$root, :default(8))), :progress($json || $brief ?? Callable !! check-progress()));
+            @checks = run-checks($doc, $root, :$timeout, :$cmd, :jobs(check-jobs(:$root, :default(8))), # a hook at a terminal shows the one wiped line while tests run; a pipe gets nothing
+                          :progress($json || ($brief && !$*OUT.t) ?? Callable !! check-progress()));
             $ran = True;
         }
         my $secs = (now - $t0).round(0.1);
@@ -958,11 +965,12 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
         my @unseen = unseen-of($path.parent)<items>.keys.sort;
         @next.push('iz4 seen') if @unseen;
         my $held-pct = @own ?? (100 * (%count<held> // 0) / @own).round !! 0;
+        my $hook = commit-hook-state($path.parent);
         my %s = schema => 'iz4-status/1', iz4 => %( present => True, file => $path.Str, valid => $doc.ok, form => $doc.form, mode => $doc.mode, standing => $standing ),
                 foundation => %( intact => $doc.foundation-intact, status => $doc.foundation-status ),
                 invariants => @inv.List, counts => %count, held_percent => $held-pct, change => %change, agents => %agents,
                 checks => %( ran => $ran, recorded => $recorded, at => (%last<at> // Str), count => @checks.elems, seconds => $secs ),
-                unseen => @unseen.List, next => @next.List;
+                unseen => @unseen.List, next => @next.List, commits => %( hook => $hook );
         # one result, three forms: the document, the records (pinned by t/29), the screen under the title already shown
         $sc.doc = %s;
         $sc.record('foundation', $doc.foundation-intact ?? 'held' !! 'changed');
@@ -993,6 +1001,12 @@ multi MAIN('status', Bool :$json = False, Bool :$checks is copy = True, Bool :$n
                                    when 1..3   { "; touches {%change<touches>.map(*.<id>.subst('.' ~ ($doc.domain // ''), '')).join(', ')}" }
                                    default     { "; touches $_ by their words" }
                                }];
+        }
+        # what is actually enforced at a commit, as a fact about the hook Git would run
+        given $hook {
+            when 'enforce'  { @rows.push: ['commits', 'checked', 'the commit hook asks you before a promise changes'] }
+            when 'advisory' { @rows.push: ['commits', 'reported, not held', 'iz4 gate install --enforce makes the hook wait for you'] }
+            when 'none'     { @rows.push: ['commits', 'not checked', 'no commit hook runs the gate here: iz4 gate install --enforce'] }
         }
         @rows.push: ['agents', $level eq 'none' ?? 'nothing wired' !! "$level" ~ (%agents<launcher> ?? ", via 321 {%agents<launcher>}" !! ', hooks an earlier iz4 wrote'),
                      $level eq 'none' ?? ($bin.defined ?? "321 {%agents<launcher>} is installed: 321 iz4 install" !! '321 is not installed') !! 'iz4 agent status has the detail'];
@@ -1994,22 +2008,70 @@ sub gate-root(Str $file --> IO::Path) {
     $root;
 }
 
-#| A pass in one line.
+#| A pass, as a commit hears it: nothing at all, unless a line would be
+#| welcome.  A failing test that holds nobody yet is one line with its fix;
+#| a yes that was given is confirmed.  Nothing else is worth an interruption.
 sub brief-line(%r --> Str) {
-    with %r<vibe> -> %m {
-        my @said;
-        @said.push: "{%m<changes>} change{%m<changes> == 1 ?? '' !! 's'} to what it promises" if %m<changes>;
-        @said.push: "{%m<failing>} invariant test{%m<failing> == 1 ?? '' !! 's'} failing" if %m<failing>;
-        return 'iz4: exploring, ' ~ (@said ?? @said.join(', ') ~ ". Nothing waits on you; 'iz4 establish NAME' when a promise is agreed." !! 'nothing it promises changed.');
-    }
-    with %r<settling> -> %m {   # a mix of exploring and established: what was noticed and not held is still said
-        my @said;
-        @said.push: "{%m<failing>} protecting test{%m<failing> == 1 ?? '' !! 's'} failing, reported while the invariant is exploring" if %m<failing>;
-        return 'iz4: ' ~ @said.join(', ') ~ '.' if @said;
+    if (%r<vibe> // %r<settling> // {})<failing> {
+        my @failed = %r<checks>.grep({ .<outcome> eq 'failed' });
+        return @failed.map({
+            "✕ {(.<invariants> || ['an invariant']).join(', ')} may be broken: {.<file>} failed. Nothing is held while it is exploring. To fix: make {.<file>} pass."
+        }).join("\n") if @failed;
     }
     (%r<approval><status> // '') eq 'valid'
-        ?? "iz4: the change to what this promises is agreed, by {%r<approval><approved_by>}."
-        !! 'iz4: nothing this software promises has changed.';
+        ?? "✓ iz4: the change to what this promises is agreed, by {%r<approval><approved_by>}."
+        !! '';
+}
+
+#| A held commit, said short: what was protected, in the promise's own
+#| words, and the step that puts it right.  'iz4 gate' has the whole table.
+sub hold-screen(%r, $doc --> Screen) {
+    my $enforced = %r<mode> eq 'enforce';
+    my $domain = ($doc andthen .domain) // '';
+    my sub short(Str $id) { $domain ne '' && $id.ends-with(".$domain") ?? $id.substr(0, * - $domain.chars - 1) !! $id }
+    my @failed = %r<checks>.grep({ .<outcome> eq 'failed' });
+    my @unrun  = %r<checks>.grep({ .<outcome> eq any(<timeout unassessed>) });
+    my @words  = proposal-lines(%( changes => %r<changes>, protections => %r<protections>.grep({ .<kind> ∉ @QUIET-PROTECTION-KINDS }).List ));
+    my ($why, @body);
+    given %r<outcome> {
+        when 'blocked' {
+            if @failed {
+                my @ids = @failed.map({ |.<invariants> }).unique;
+                $why = @ids == 1 ?? "the test for {short(@ids[0])} failed" !! "the tests for {+@ids} promises failed";
+                mark-solid(%( @ids.map({ $_ => 'broken' }) ));
+                my $w = @ids.map({ short($_).chars }).max // 0;
+                for @failed -> %c {
+                    for |(%c<invariants> || ['(no invariant named)']) -> $id {
+                        my $inv = $doc.defined ?? (try $doc.invariant($id)) !! Nil;
+                        @body.push: sprintf('  %s %-*s  %s', mark-shown($id), $w, short($id), ($inv andthen .text) // '');
+                        @body.push: ' ' x ($w + 6) ~ "{%c<file>} failed" ~ (%c<detail> ?? ": {%c<detail>}" !! '');
+                    }
+                }
+            }
+            else { $why = 'the IZ4 itself needs putting right'; @body = @words.map({ "  $_" }) }
+        }
+        when 'agreement-required' {
+            $why = ($enforced ?? 'it changes ' !! 'this changes ')
+                ~ (%r<changes> ?? 'what the software promises, and that is yours to decide'
+                               !! 'a test that protects a promise, and whether it still protects is yours to say');
+            @body = @words.map({ "  $_" });
+            @body.push: "  the approval on file does not cover it: {%r<approval><reasons>.join('; ')}" if (%r<approval><status> // '') eq 'invalid';
+        }
+        default {
+            $why = 'a check could not run, so nothing can be said to hold';
+            @body = @unrun.map({ "  ? {.<file>} {.<outcome>}" ~ (.<detail> ?? ": {.<detail>}" !! '') });
+            @body.append: %r<notes>.map({ "  $_" });
+        }
+    }
+    my $sc = Screen.new(:heading(($enforced ?? 'iz4 kept this commit back: ' !! 'iz4 noticed: ') ~ $why ~ '.'));
+    $sc.lines(|@body) if @body;
+    # one step is one line: the reason in brackets was said above
+    my @steps = %r<next>.map({ .split(/\h ** 3..*/)[0] });
+    @steps[0] ~= '   (a person, at a terminal)' if @steps && @steps[0] eq 'iz4 approve';
+    if @steps == 1 { $sc.lines(pretty("next:  @steps[0]"), |('       then commit again' if $enforced)) }
+    elsif @steps   { $sc.steps(@steps, |(:then('commit') if $enforced)) }
+    $sc.doc = %r;
+    $sc;
 }
 
 #| The gate's answer for a person, on the screen layer: the outcome in the
@@ -2313,14 +2375,18 @@ multi MAIN('gate', Bool :$install-hook!, Bool :$enforce = False, Bool :$force = 
 
 multi MAIN('gate', Str :$base, Str :$candidate, Bool :$staged = False, Bool :$enforce = False, Bool :$json = False,
            Bool :$checks = True, Int :$timeout = 300, Str :$check-cmd = %*ENV<IZ4_CHECK_CMD> // Str,
-           Str :$approval, Str :$approvers = %*ENV<IZ4_APPROVERS> // Str, Str :$file, Bool :$brief = False) {
-    attempt { gate-command(:$base, :$candidate, :$enforce, :$json, :$checks, :$timeout, :$check-cmd, :$approval, :$approvers, :$file, :$brief) }
+           Str :$approval, Str :$approvers = %*ENV<IZ4_APPROVERS> // Str, Str :$file, Bool :$brief = False, Bool :$ask = False) {
+    attempt { gate-command(:$base, :$candidate, :$enforce, :$json, :$checks, :$timeout, :$check-cmd, :$approval, :$approvers, :$file, :$brief, :$ask) }
 }
 
 sub gate-command(Str :$base, Str :$candidate, Bool :$enforce, Bool :$json, Bool :$checks, Int :$timeout, Str :$check-cmd,
-                 Str :$approval, Str :$approvers, Str :$file, Bool :$brief = False --> Int) {
+                 Str :$approval, Str :$approvers, Str :$file, Bool :brief($asked-brief) = False, Bool :$ask = False --> Int) {
     {
         my $root = gate-root($file);
+        # Run by Git as a commit hook, the gate speaks as a hook does whatever
+        # the hook's own text asks for: silent when nothing needs a person,
+        # short when something does.  Git sets GIT_INDEX_FILE for a hook.
+        my $brief = $asked-brief || ($enforce && !$json && !$candidate.defined && (%*ENV<GIT_INDEX_FILE> // '') ne '');
         # the command that runs one linked test: the flag, then IZ4_CHECK_CMD,
         # then this repository's own 'git config iz4.checkCmd' (in .git/config,
         # outside every tree, so a candidate cannot set it), then the default
@@ -2339,7 +2405,8 @@ sub gate-command(Str :$base, Str :$candidate, Bool :$enforce, Bool :$json, Bool 
             %r = run-gate($root, :staged(!$candidate.defined), :$base, :$candidate, :$enforce, :$checks, :$timeout,
                           :check-cmd($cmd), :approval-file($approval.defined ?? $approval.IO !! IO::Path),
                           :approvers($approvers.defined ?? $approvers.IO !! IO::Path),
-                          :progress($json || $brief ?? Callable !! check-progress()));
+                          # a hook at a terminal shows the one wiped line while tests run; a pipe gets nothing
+                          :progress($json || ($brief && !$*OUT.t) ?? Callable !! check-progress()));
             CATCH { default { $failure = $_ } }
         }
         note-unseen($root, %r) if %r && !$candidate.defined;
@@ -2351,8 +2418,15 @@ sub gate-command(Str :$base, Str :$candidate, Bool :$enforce, Bool :$json, Bool 
         }
         if $json { say json-encode(%r) }
         elsif $brief && %r<outcome> eq 'pass' {
-            # nothing for a person to do: one line, so a commit or a deploy is not a wall of text
-            say brief-line(%r);
+            # nothing for a person to do, so nothing is said, unless something is worth a line
+            my $line = brief-line(%r);
+            say $line if $line ne '';
+        }
+        elsif $brief && $ask && $enforce && %r<outcome> eq any(<agreement-required blocked>) && $*ERR.t && '/dev/tty'.IO.r {
+            # a person is at the terminal and the hook asks them next: 'iz4 approve' shows the change once
+        }
+        elsif $brief {
+            print hold-screen(%r, (try check-doc($root.add(ROOT-NAME)))).screen;
         }
         else {
             my $again = 'iz4 gate' ~ ($candidate.defined ?? " --candidate=$candidate" !! ' --staged') ~ ($enforce ?? ' --enforce' !! '');

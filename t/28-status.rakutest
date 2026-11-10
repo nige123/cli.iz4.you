@@ -42,6 +42,21 @@ g($r, 'add', '-A'); g($r, 'commit', '-qm', 'start');
 # ---- a fresh IZ4 -------------------------------------------------------------
 ($rc, $out, $err) = iz4($r, 'status');
 is $rc, 0, 'status';
+# what is actually enforced at a commit is a fact about the hook Git would run
+like $out, / 'commits' \h+ 'not checked' \h+ 'no commit hook runs the gate here: iz4 gate install --enforce' /, 'with no commit hook it says commits are not checked, and how to put that right';
+{
+    iz4($r, 'gate', 'install', '--enforce');
+    like iz4($r, 'status')[1], / 'commits' \h+ 'checked' \h+ 'the commit hook asks you before a promise changes' /, 'with the enforcing hook, status says commits are checked';
+    my $hook = $r.add('.git/hooks/pre-commit');
+    my $kept = $hook.slurp;
+    $hook.unlink;
+    my $o = iz4($r, 'status')[1];
+    like $o, / 'commits' \h+ 'not checked' \h+ 'no commit hook runs the gate here: iz4 gate install --enforce' /, 'without the hook it says commits are not checked, and how to put that right';
+    is Rakudo::Internals::JSON.from-json(iz4($r, 'status', '--json')[1])<commits><hook>, 'none', 'and the document carries it';
+    $hook.spurt("#!/bin/sh\niz4 gate --staged --brief; exit 0\n"); $hook.chmod(0o755);
+    like iz4($r, 'status')[1], / 'commits' \h+ 'reported, not held' /, 'an advisory hook is never called a check that holds';
+    $hook.unlink;
+}
 like $out, / ^ 'iz4 status: IZ4, no promises of its own yet' \n \n 'foundation    held, word for word' \n \n 'invariants    none of your own yet' \n \n 'this change' /, 'the header, the foundation, no promises yet, each in its own chunk';
 like $out, / 'this change   nothing staged' /, 'nothing staged';
 like $out, / 'agents        nothing wired' \h+ '321 is not installed' /, 'no agent wiring in a bare repository, in a table row';

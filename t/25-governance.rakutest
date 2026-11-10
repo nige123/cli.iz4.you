@@ -58,7 +58,7 @@ $r.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\nex
 g($r, 'add', '-A');
 ($rc, $out, $err) = gate($r, '--brief');
 is $rc, 0, 'adding an exploring promise waits for nobody';
-like $out, / ^ 'iz4: exploring, ' \d+ ' change' /, 'and the gate says so in one line';
+is $out, '', 'and as a commit hook the gate has nothing to interrupt anyone with';
 g($r, 'commit', '-qm', 'charged once');
 
 # the words change, a test fails: nothing holds, and both are said
@@ -87,6 +87,13 @@ g($r, 'add', '-A');
 ($rc, $out, $err) = gate($r);
 is $rc, 3, 'the test still fails, and now that holds the commit';
 like $out, / 'outcome' \h+ 'blocked: ' /, 'blocked';
+# as a commit hook it says only what was protected, in the promise's words, and the one step
+($rc, $out, $err) = gate($r, '--brief');
+is $rc, 3, 'the hook holds it too';
+like $out, / ^ 'iz4 kept this commit back: the test for charged-once failed.' \n \n
+             '  ' <[✕x]> ' charged-once  An order is charged at most twice.' \n \h+ 't/charged-once.t failed' \N* \n \n
+             'next:  make t/charged-once.t pass' \n \h+ 'then commit again' \n $ /, 'in a handful of lines, with the fix';
+unlike $out, / 'compared' | 'mode ' | 'approve' /, 'no plumbing, and a failing test never sends anyone to approve';
 $r.add('t/charged-once.t').spurt("#!/bin/sh\n# charged-once.shop.example.com\nexit 0\n");
 g($r, 'add', '-A');
 ($rc, $out, $err) = gate($r);
@@ -100,6 +107,11 @@ g($r, 'add', '-A');
 ($rc, $out, $err) = gate($r);
 is $rc, 2, 'rewording an established promise waits for a yes';
 like $out, / 'outcome' \h+ 'agreement-required: ' /, 'agreement required';
+($rc, $out, $err) = gate($r, '--brief');
+is $rc, 2, 'the hook waits too';
+like $out, / ^ 'iz4 kept this commit back: it changes what the software promises, and that is yours to decide.' \n \n
+             \h+ 'PROMISE charged-once.shop.example.com revised' \n .* 'next:  iz4 approve   (a person, at a terminal)' \n \h+ 'then commit again' \n $ /,
+    'and shows the change once, with the one step';
 g($r, 'checkout', 'HEAD', '--', 'IZ4'); g($r, 'reset', '-q');
 
 # ---- lowering waits, and nothing is escaped by lowering first ---------------------
