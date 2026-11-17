@@ -1,7 +1,7 @@
 <p align="center">
   <a href="https://iz4.you"><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/iz4-lockup-dark.svg">
-    <img src="docs/brand/iz4-lockup.svg" alt="iz4" width="320">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/nige123/cli.iz4.you/main/docs/brand/iz4-lockup-dark.svg">
+    <img src="https://raw.githubusercontent.com/nige123/cli.iz4.you/main/docs/brand/iz4-lockup.svg" alt="iz4" width="320">
   </picture></a>
 </p>
 
@@ -66,8 +66,16 @@ Windows: `irm https://raw.githubusercontent.com/nige123/cli.iz4.you/main/install
 One file, no runtime, no account. `iz4 init` drafts the IZ4 with the agent
 you already use. `iz4 help` is one short screen.
 
-In Raku already? `rakupp install IZ4` ([Raku++](https://github.com/ash/rakupp))
-or `zef install IZ4` (Rakudo) installs the same tool from raku.land.
+### From raku.land
+
+```text
+rakupp install IZ4      # Raku++: the quicker of the two to run
+zef install IZ4         # Rakudo
+```
+
+Either puts the same `iz4` command on your path, with no dependencies.
+[Raku++](https://github.com/ash/rakupp) starts it fastest; the one-file
+install above needs no Raku at all. Update with the tool that installed it.
 
 The core needs no network, ever. Only registering, updating, asking an
 agent and fetching the agent driver reach out. Offline, the change still
@@ -76,15 +84,15 @@ stands and iz4 says enforcement is inactive.
 ## More
 
 [iz4.you](https://iz4.you) ·
-[guide](docs/guide.md) ·
-[format](docs/format.md) ·
-[foundation](docs/foundation.md) ·
-[the gate](docs/gate.md) ·
-[drivers](docs/drivers.md)
+[guide](https://github.com/nige123/cli.iz4.you/blob/main/docs/guide.md) ·
+[format](https://github.com/nige123/cli.iz4.you/blob/main/docs/format.md) ·
+[foundation](https://github.com/nige123/cli.iz4.you/blob/main/docs/foundation.md) ·
+[the gate](https://github.com/nige123/cli.iz4.you/blob/main/docs/gate.md) ·
+[drivers](https://github.com/nige123/cli.iz4.you/blob/main/docs/drivers.md)
 
 ## Licence
 
 Code: Apache-2.0. IZ4 (tm), its name, logo and badge are trademarks of
 [Nige Ltd](https://nigelhamilton.com/#iz4), protected so that "IZ4" keeps
-meaning the foundation is intact. See [TRADEMARKS.md](TRADEMARKS.md) and
-[IZ4-CONFORMANCE.md](IZ4-CONFORMANCE.md).
+meaning the foundation is intact. See [TRADEMARKS.md](https://github.com/nige123/cli.iz4.you/blob/main/TRADEMARKS.md) and
+[IZ4-CONFORMANCE.md](https://github.com/nige123/cli.iz4.you/blob/main/IZ4-CONFORMANCE.md).
