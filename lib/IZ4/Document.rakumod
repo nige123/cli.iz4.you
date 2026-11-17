@@ -296,7 +296,7 @@ sub card-lines(Str $kind, Str $name, Str $when, @always, @protects, Str $change,
 #| comment, then the five cards, each ending in a blank line.
 sub foundation-block(--> Str) is export {
     my @out = FOUNDATION-RULE-OFF, |FOUNDATION-COMMENT.lines, '';
-    for FOUNDATION-CARD -> %f {
+    for (FOUNDATION-CARD) -> %f {
         @out.append: card-lines('FOUNDATION', %f<id>, %f<when>, %f<always>.list, %f<protects>.list, CHANGE-FOUNDATION);
         @out.push: '';
     }

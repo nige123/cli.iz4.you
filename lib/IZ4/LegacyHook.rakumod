@@ -141,7 +141,7 @@ sub legacy-hooks(IO::Path :$root! --> List) is export {
             for @($entry<hooks>) -> $h {
                 next unless $h ~~ Associative && ($h<command> // '') ~~ Str;
                 my $cmd = $h<command>.trim;
-                for LEGACY-EVENTS -> $e {
+                for (LEGACY-EVENTS) -> $e {
                     %seen{$e} = True if $cmd eq "iz4 hook $e" || $cmd.ends-with("/iz4 hook $e") || $cmd.ends-with(" iz4 hook $e");
                 }
             }

@@ -72,7 +72,7 @@ sub discover(IO::Path $dir = $*CWD --> Hash) is export {
 #| reads this: nothing may be inferred from its shape.
 sub effective-list(IZ4::Document $doc --> Array) {
     my @out;
-    for FOUNDATION-CARD -> %f {
+    for (FOUNDATION-CARD) -> %f {
         @out.push: %( id => %f<id>, foundation => True, summary => %f<always>.list[0], reach => %f<when>,
                       digest => sha256-text(canonical-card(%f<id>, %f<when>, %f<always>.list, %f<protects>.list)), foundation_order => %f<legacy> );
     }

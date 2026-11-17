@@ -1,0 +1,4 @@
+# Not part of the distribution raku.land carries: the research record and the
+# benchmark stay in the repository.
+research export-ignore
+bench export-ignore

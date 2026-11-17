@@ -9,6 +9,8 @@ use IZ4Test;
 
 my $bench = $?FILE.IO.parent.parent.add('bench');
 my $out   = temp-dir;
+# an installed distribution does not carry the benchmark: nothing to run there
+unless $bench.add('run.raku').f { plan :skip-all('the benchmark is not part of this copy'); exit }
 # the benchmark wants one executable: the compiled iz4 under test, or a wrapper that runs bin/iz4 from source
 my $bin = %*ENV<IZ4_TEST_BIN> // do {
     my $w = $out.add('iz4');

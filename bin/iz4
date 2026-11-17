@@ -744,7 +744,7 @@ multi MAIN('foundation', Str $file?, Bool :$restore = False) {
             head('foundation', 'the words every IZ4 carries') if pretty-on();
             mark-solid(%( |FOUNDATION-CARD.map({ .<id> => 'held' }) ));   # the foundation is always held: a closed diamond, never the title's mark
             say 'The foundation:';
-            for FOUNDATION-CARD -> %f {
+            for (FOUNDATION-CARD) -> %f {
                 say sprintf('  %d  %-26s%s', %f<legacy>, %f<id>, %f<id> eq INVARIANT-ZERO ?? 'Invariant Zero: the foundation of the foundation' !! '').trim-trailing;
             }
             say '';
@@ -1153,7 +1153,7 @@ multi MAIN('check', Str $file?, Bool :$strict = False, Bool :brief($brief-flag) 
             @rows.push: ('✓', "evidence: every invariant is named by a test ($named of $count)", '') unless @none || @scaf || @draft;
         }
 
-        if $path.basename eq ROOT-NAME {
+        if $path.basename eq (ROOT-NAME) {
             my $root = $path.parent;
             my %s    = agent-status($path, :$root);
             for expected-integrations(:$root) -> $i {
@@ -1796,7 +1796,7 @@ multi MAIN('agent', 'status', Bool :$json = False, Bool :$strict = False, Str :$
             }
             else { say '  IZ4: none found in this directory or its parents' }
             say '';
-            for 'AGENTS.md', 'CLAUDE.md', SKILL-PATH -> $i {
+            for 'AGENTS.md', 'CLAUDE.md', (SKILL-PATH) -> $i {
                 my $status = %s<integrations>{$i};
                 say pretty("  {$status eq 'current' ?? '✓' !! '✗'} " ~ integration-line($i, $status, :reason($status eq 'stale' ?? stale-reason($root.add($i)) !! '')));
             }

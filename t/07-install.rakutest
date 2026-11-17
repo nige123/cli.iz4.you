@@ -32,6 +32,22 @@ like $out, /^ 'iz4 ' \d+ '.' \d+ '.' \d+ [' (' <xdigit>+ ')']? \s* $/, 'prints t
     like $meta, /'"source-url"' \s* ':' \s* '"https://github.com/'/, 'source-url says where the code is';
 }
 
+# ---- the script parses where a package manager installed it -----------------
+{
+    # Raku++ 5.8.0 reads an exported constant straight before a block as a
+    # call that takes the block, in an installed script (ash/rakupp#270).
+    # Brackets round the constant keep every runtime agreeing.
+    my @names = ($repo-root.add('lib/IZ4.rakumod'), |$repo-root.add('lib/IZ4').dir(test => /'.rakumod' $/))
+        .map({ .slurp.match(/ 'constant' \s+ (<[A..Z]> <[A..Z0..9-]>+) /, :g).map(*[0].Str).Slip }).unique;
+    my @bare;
+    for $repo-root.add('bin/iz4').lines.kv -> $n, $line {
+        for @names -> $name {
+            @bare.push: "line {$n + 1}: $name" if $line ~~ / <!after <[\w(%@$-]>> $name \s+ [ '->' | '{' ] /;
+        }
+    }
+    is @bare.elems, 0, 'no exported constant stands bare before a block in bin/iz4' or diag @bare.join("\n");
+}
+
 # ---- iz4 update, where a package manager installed the script ---------------
 {
     # a copy of the script outside any checkout: neither a checkout nor a
@@ -52,7 +68,7 @@ sub have-raku(--> Bool) {
     my $p = try run 'sh', '-c', 'command -v raku || test -x "$HOME/.rakubrew/shims/raku"', :out, :err;
     $p.defined && $p.exitcode == 0;
 }
-if have-git() && have-raku() {
+if have-git() && have-raku() && $repo-root.add('.git').e {   # the installer clones: only a checkout can be its source
     my $fake = temp-dir;
     my %env = %*ENV;
     %env<IZ4_REPO>       = $repo-root.Str;
@@ -91,7 +107,7 @@ if have-git() && have-raku() {
         my %e = %env, IZ4_HOME => $plain.add('share').Str, IZ4_BIN => $plain.add('bin').Str, IZ4_RUNTIME => 'raku';
         my $p = run 'sh', $repo-root.add('install').Str, :out, :err, :env(%e);
         $p.out.slurp(:close); $p.err.slurp(:close);
-        unlike $plain.add('bin/iz4').slurp, /rakupp/, 'installed with IZ4_RUNTIME=raku, the launcher is Rakudo only';
+        unlike $plain.add('bin/iz4').slurp, /'exec rakupp'/, 'installed with IZ4_RUNTIME=raku, the launcher is Rakudo only';
     }
 
     my $p2 = run 'sh', $repo-root.add('install').Str, :out, :err, :env(%env);
@@ -227,7 +243,7 @@ if have-git() && have-raku() {
     is $pointee.slurp, "do not clobber\n", 'the symlink target was not written through';
 }
 else {
-    skip 'needs git and a Rakudo runtime', 29;
+    skip 'needs git, a Rakudo runtime and a checkout', 29;
 }
 
 done-testing;
