@@ -40,12 +40,14 @@ like $out, /^ 'iz4 ' \d+ '.' \d+ '.' \d+ [' (' <xdigit>+ ')']? \s* $/, 'prints t
     my @names = ($repo-root.add('lib/IZ4.rakumod'), |$repo-root.add('lib/IZ4').dir(test => /'.rakumod' $/))
         .map({ .slurp.match(/ 'constant' \s+ (<[A..Z]> <[A..Z0..9-]>+) /, :g).map(*[0].Str).Slip }).unique;
     my @bare;
-    for $repo-root.add('bin/iz4').lines.kv -> $n, $line {
-        for @names -> $name {
-            @bare.push: "line {$n + 1}: $name" if $line ~~ / <!after <[\w(%@$-]>> $name \s+ [ '->' | '{' ] /;
+    for 'bin/iz4', 'lib/IZ4/CLI.rakumod' -> $src {
+        for $repo-root.add($src).lines.kv -> $n, $line {
+            for @names -> $name {
+                @bare.push: "$src line {$n + 1}: $name" if $line ~~ / <!after <[\w(%@$-]>> $name \s+ [ '->' | '{' ] /;
+            }
         }
     }
-    is @bare.elems, 0, 'no exported constant stands bare before a block in bin/iz4' or diag @bare.join("\n");
+    is @bare.elems, 0, 'no exported constant stands bare before a block in the command line' or diag @bare.join("\n");
 }
 
 # ---- iz4 update, where a package manager installed the script ---------------

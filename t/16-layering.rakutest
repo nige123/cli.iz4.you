@@ -23,6 +23,8 @@ my @CORE        = <IZ4 IZ4::CardGrammar IZ4::Document IZ4::Git IZ4::Evidence IZ4
                    IZ4::Machine IZ4::Agent IZ4::Register IZ4::Coach IZ4::Pack>;
 my @CONVENIENCE = <IZ4::Launcher IZ4::Assist IZ4::Integrations IZ4::Help IZ4::Screen>;
 my @LEGACY      = <IZ4::LegacyHook>;
+# the command line itself: the one module that brings every layer together, as bin/iz4 did
+my @COMMANDS    = <IZ4::CLI>;
 
 sub file-of(Str $module --> IO::Path) { $lib.add($module.subst('::', '/', :g) ~ '.rakumod') }
 sub modules-on-disk(--> List) {
@@ -36,7 +38,7 @@ sub uses(Str $module --> List) {
 }
 
 my @all = modules-on-disk();
-is @all.join(' '), (|@CORE, |@CONVENIENCE, |@LEGACY).sort.join(' '),
+is @all.join(' '), (|@CORE, |@CONVENIENCE, |@LEGACY, |@COMMANDS).sort.join(' '),
     'every module under lib is named in exactly one layer: a new one has to be placed before this passes';
 
 # ---- the core imports only the core ---------------------------------------

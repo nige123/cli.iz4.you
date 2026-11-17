@@ -8,7 +8,7 @@ use IZ4::Help;
 
 %*ENV<IZ4_NO_321> = '1';
 my $dir = temp-dir;
-my $bin = $?FILE.IO.resolve.parent(2).add('bin/iz4');
+my $bin = $?FILE.IO.resolve.parent(2).add('lib/IZ4/CLI.rakumod');   # where the commands are written
 
 sub run-iz4(*@args) {
     my ($code, $out, $err) = iz4($dir, |@args, :env(%( HOME => ~$dir )));

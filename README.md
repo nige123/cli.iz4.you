@@ -66,6 +66,9 @@ Windows: `irm https://raw.githubusercontent.com/nige123/cli.iz4.you/main/install
 One file, no runtime, no account. `iz4 init` drafts the IZ4 with the agent
 you already use. `iz4 help` is one short screen.
 
+In Raku already? `rakupp install IZ4` ([Raku++](https://github.com/ash/rakupp))
+or `zef install IZ4` (Rakudo) installs the same tool from raku.land.
+
 The core needs no network, ever. Only registering, updating, asking an
 agent and fetching the agent driver reach out. Offline, the change still
 stands and iz4 says enforcement is inactive.
