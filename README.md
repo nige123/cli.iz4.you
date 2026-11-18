@@ -78,7 +78,9 @@ Either puts the same `iz4` command on your path, with no dependencies.
 install above needs no Raku at all. Update with the tool that installed it.
 
 The core needs no network, ever. Only registering, updating, asking an
-agent and fetching the agent driver reach out. Offline, the change still
+agent and fetching the agent driver,
+[321](https://github.com/nige123/cli.321.do), reach out. iz4 fetches 321
+itself, the first time agent work is asked for. Offline, the change still
 stands and iz4 says enforcement is inactive.
 
 ## More

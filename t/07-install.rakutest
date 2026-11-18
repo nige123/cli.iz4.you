@@ -62,7 +62,8 @@ like $out, /^ 'iz4 ' \d+ '.' \d+ '.' \d+ [' (' <xdigit>+ ')']? \s* $/, 'prints t
         :env(%( |%*ENV, IZ4_NO_321 => '1', IZ4_RELEASE_URL => 'file:///nonexistent' ));
     my $o = $p.out.slurp(:close); my $e = $p.err.slurp(:close);
     is $p.exitcode, 0, 'update of a package-installed script exits 0' or diag "$o\n$e";
-    like $o, /'installed as a Raku distribution; update it with: zef upgrade IZ4'/, 'and says whose job the update is';
+    my $with = $*RAKU.compiler.name eq 'Raku++' ?? 'rakupp install --refresh IZ4' !! 'zef upgrade IZ4';
+    like $o, /'installed as a Raku distribution; update it with: ' $($with)/, 'and says whose job the update is: the tool that installed it';
     is $away.add('bin/iz4').slurp, $before, 'and never replaces the script with a downloaded file';
 }
 

@@ -5,7 +5,7 @@ use IZ4::Git;
 use IZ4::Evidence;
 use IZ4::Coach;
 
-constant VERSION is export = '0.44.1';
+constant VERSION is export = '0.44.2';
 
 #| A user-facing error: message only, no stack trace.
 class X::IZ4 is Exception {
@@ -1111,6 +1111,12 @@ sub binary-update(Bool :$check = False --> Hash) is export {
     %( state => 'updated', :$from, to => $tag, n => 1, commits => ("release $tag",) );
 }
 
+#| The command that brings a package-installed iz4 up to date: the tool
+#| that installed it is the runtime now running it.
+sub package-update-command(--> Str) is export {
+    $*RAKU.compiler.name eq 'Raku++' ?? 'rakupp install --refresh IZ4' !! 'zef upgrade IZ4';
+}
+
 #| Update this copy of iz4 to the latest published version, or with
 #| :check only say whether one exists.  Returns a hash: 'state' is one of
 #| current, behind, updated, dirty or failed, with 'from', 'to',
@@ -1123,7 +1129,7 @@ sub self-update(Bool :$check = False --> Hash) is export {
     # downloaded file would corrupt that installation, so say whose job the
     # update is and touch nothing.
     return %( state => 'managed', from => VERSION,
-              note => "this iz4 was installed as a Raku distribution; update it with: zef upgrade IZ4" )
+              note => "this iz4 was installed as a Raku distribution; update it with: {package-update-command()}" )
         if !own-checkout().defined && !program-is-binary();
     my $root = own-checkout() // return binary-update(:$check);
     my $marker = $root.add('bin').add('iz4');
