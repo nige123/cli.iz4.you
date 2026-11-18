@@ -1,4 +1,14 @@
-# Not part of the distribution raku.land carries: the research record and the
-# benchmark stay in the repository.
-research export-ignore
-bench export-ignore
+# What raku.land carries is the tool, its docs and its tests.  These stay in
+# the repository: 'tools/raku-land' builds the package with git archive,
+# which leaves them out.  ('fez upload' on its own ignores this file.)
+research     export-ignore
+bench        export-ignore
+tools        export-ignore
+.claude      export-ignore
+.github      export-ignore
+CLAUDE.md    export-ignore
+AGENTS.md    export-ignore
+install      export-ignore
+install.ps1  export-ignore
+.gitignore      export-ignore
+.gitattributes  export-ignore
